@@ -1,0 +1,152 @@
+/* Базові стилі, лейаут, фон, спільні анімації */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100dvh;
+}
+
+#root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+body {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  margin: 0 0 clamp(24px, 4vw, 30px);
+  font-size: clamp(1.75rem, 5vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+h1::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 5px;
+  margin-top: 14px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--pink), var(--peach), var(--sky), var(--lilac));
+  background-size: 200% 100%;
+  animation: gradient-shift 9s ease-in-out infinite alternate;
+}
+
+/* ---------- Layout ---------- */
+.page {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Auth-сторінка: картка строго по центру екрана */
+.page--auth {
+  grid-template-rows: 1fr auto;
+}
+
+.main {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(8px, 3vw, 32px) clamp(16px, 4vw, 32px);
+}
+
+.main--auth {
+  width: 100%;
+  min-height: calc(100dvh - 40px);
+  align-content: center;
+  justify-items: center;
+}
+
+.footer {
+  min-height: clamp(16px, 4vw, 40px); /* поки порожній */
+}
+
+/* ---------- Background blobs ---------- */
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: var(--blob-opacity);
+  will-change: transform, opacity;
+  animation: drift-a 28s ease-in-out infinite alternate;
+}
+.blob--pink  { width: 34vmax; height: 34vmax; background: var(--pink);  left: -14vmax; top: -14vmax; }
+.blob--blue  { width: 30vmax; height: 30vmax; background: var(--sky);   right: -12vmax; top: 10vmax; animation-name: drift-b; animation-duration: 36s; animation-delay: -8s; }
+.blob--peach { display: none; }
+.blob--lilac { width: 32vmax; height: 32vmax; background: var(--lilac); right: -10vmax; bottom: -18vmax; animation-name: drift-c; animation-duration: 32s; animation-delay: -4s; }
+
+@keyframes drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(3vmax, -2vmax, 0) scale(1.06); }
+}
+
+@keyframes drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.02); }
+  to { transform: translate3d(-3vmax, 2.5vmax, 0) scale(1.09); }
+}
+
+@keyframes drift-c {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-2vmax, -2.5vmax, 0) scale(1); }
+}
+
+/* ---------- Спільні анімації появи ---------- */
+@keyframes gradient-shift {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+@keyframes auth-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .main, .main--auth { align-content: center; padding-top: 12px; padding-bottom: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob, .toast, .card--auth, .hero, .feature, .landing__header, .auth-view,
+  h1::after, .hero__title::after { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}
