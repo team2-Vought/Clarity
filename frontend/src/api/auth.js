@@ -4,10 +4,10 @@ function pickToken(data) {
   return data?.token ?? data?.key ?? data?.access ?? null;
 }
 
-export async function register({ name, email, password }) {
+export async function register({ name, email, password, confirm_password }) {
   const data = await request('/api/auth/register/', {
     method: 'POST',
-    body: { name, email, password },
+    body: { name, email, password, confirm_password },
   });
   const token = pickToken(data);
   if (token) setToken(token);

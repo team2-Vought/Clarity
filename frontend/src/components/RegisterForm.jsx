@@ -18,7 +18,13 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
     initialValues: { name: '', email: '', password: '', repeat: '' },
     validate,
     invalidToast: t.invalidToast,
-    onSubmit: (v) => onSubmit?.({ name: v.name.trim(), email: v.email.trim(), password: v.password }),
+    onSubmit: (v) =>
+      onSubmit?.({
+        name: v.name.trim(),
+        email: v.email.trim(),
+        password: v.password,
+        confirm_password: v.repeat,
+      }),
   });
 
   return (
