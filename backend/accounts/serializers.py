@@ -13,7 +13,14 @@ EMAIL_INVALID = 'Пошта вказана у неправильному фор�
 EMAIL_TAKEN = 'Користувач з такою поштою вже існує'
 PASSWORD_TOO_SHORT = 'Занадто короткий пароль'
 PASSWORD_INVALID_CHAR = 'Недопустимий символ у паролі'
+PASSWORD_NO_LETTER = 'Пароль має містити латинські літери'
+PASSWORD_NO_DIGIT = 'Додайте цифри'
+PASSWORD_NO_SPECIAL = 'Додайте спец. символи'
 PASSWORDS_MISMATCH = 'Паролі не збігаються'
+
+WRONG_NAME = 'Неправильне ім’я'
+WRONG_EMAIL = 'Неправильна пошта'
+WRONG_PASSWORD = 'Невірний пароль'
 
 NAME_MIN, NAME_MAX = 2, 40
 PASSWORD_MIN = 8
@@ -21,6 +28,9 @@ PASSWORD_MIN = 8
 EMAIL_RE = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]{2,}')
 # дозволені символи пароля — друкована ASCII без пробілу
 PASSWORD_RE = re.compile(r'[\x21-\x7e]+')
+LETTER_RE = re.compile(r'[A-Za-z]')
+DIGIT_RE = re.compile(r'[0-9]')
+SPECIAL_RE = re.compile(r'[^A-Za-z0-9]')
 NAME_SPECIALS = " -'’"
 
 
@@ -83,6 +93,12 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({'password': PASSWORD_TOO_SHORT})
         if not PASSWORD_RE.fullmatch(password):
             raise serializers.ValidationError({'password': PASSWORD_INVALID_CHAR})
+        if not LETTER_RE.search(password):
+            raise serializers.ValidationError({'password': PASSWORD_NO_LETTER})
+        if not DIGIT_RE.search(password):
+            raise serializers.ValidationError({'password': PASSWORD_NO_DIGIT})
+        if not SPECIAL_RE.search(password):
+            raise serializers.ValidationError({'password': PASSWORD_NO_SPECIAL})
         return attrs
 
 
@@ -95,3 +111,41 @@ def create_user(validated_data):
         )
     except IntegrityError:
         raise ValidationError({'email': [EMAIL_TAKEN]})
+
+
+class LoginSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=40,
+        error_messages={'required': REQUIRED, 'blank': REQUIRED},
+    )
+    email = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=254,
+        error_messages={'required': REQUIRED, 'blank': REQUIRED},
+    )
+    password = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        write_only=True,
+        max_length=128,
+        error_messages={'required': REQUIRED, 'blank': REQUIRED},
+    )
+
+    def validate(self, attrs):
+        name = attrs['name'].strip()
+        email = attrs['email'].strip().lower()
+        password = attrs['password']
+
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            raise ValidationError({'email': WRONG_EMAIL})
+        if user.name.casefold() != name.casefold():
+            raise ValidationError({'name': WRONG_NAME})
+        if not user.check_password(password):
+            raise ValidationError({'password': WRONG_PASSWORD})
+
+        attrs['user'] = user
+        return attrs

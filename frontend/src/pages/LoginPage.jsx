@@ -10,7 +10,15 @@ export default function LoginPage() {
     <AuthPage
       title={uk.login.title}
       variant="login"
-      form={<LoginForm onSubmit={(data) => login(data)} onSwitch={() => navigate('/register')} />}
+      form={
+        <LoginForm
+          onSubmit={async (data) => {
+            await login(data);
+            navigate('/account');
+          }}
+          onSwitch={() => navigate('/register')}
+        />
+      }
     />
   );
 }

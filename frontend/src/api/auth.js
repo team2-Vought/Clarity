@@ -14,10 +14,10 @@ export async function register({ name, email, password, confirm_password }) {
   return data;
 }
 
-export async function login({ email, password }) {
+export async function login({ name, email, password }) {
   const data = await request('/api/auth/login/', {
     method: 'POST',
-    body: { email, password },
+    body: { name, email, password },
   });
   const token = pickToken(data);
   if (token) setToken(token);
