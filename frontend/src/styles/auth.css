@@ -117,9 +117,11 @@
 }
 
 /* стан помилки */
-.field__box[data-invalid='true'] {
-  border-color: var(--error);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--error) 16%, transparent);
+.field__box[data-invalid='true'],
+.field__box[data-invalid='true']:focus-within {
+  background: #FF8787;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .field input {
@@ -157,6 +159,15 @@
   color: var(--muted);
 }
 .field__msg--error { color: var(--error); font-weight: 500; }
+
+/* повідомлення над кнопкою (наприклад, про спроби входу) */
+.form__notice {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--error);
+}
 
 /* ---------- Button & link ---------- */
 .btn {

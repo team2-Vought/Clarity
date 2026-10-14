@@ -25,6 +25,11 @@ describe('validatePassword', () => {
   it('відхиляє порожній і короткий', () => {
     expect(validatePassword('')).toBeTruthy();
     expect(validatePassword('Ab1!')).toBeTruthy();
+    expect(validatePassword('Abcde1!')).toBeTruthy();
+  });
+
+  it('приймає рівно 8 символів з усіма класами', () => {
+    expect(validatePassword('Zx7$kLm2')).toBeNull();
   });
 
   it('вимагає латинські літери', () => {
@@ -32,8 +37,12 @@ describe('validatePassword', () => {
     expect(validatePassword('123456789!@')).toBeTruthy();
   });
 
-  it('вимагає цифри або спецсимволи', () => {
-    expect(validatePassword('Onlyletters')).toBeTruthy();
+  it('вимагає цифри', () => {
+    expect(validatePassword('Onlyletters!')).toBeTruthy();
+  });
+
+  it('вимагає спецсимволи', () => {
+    expect(validatePassword('Onlyletters1')).toBeTruthy();
   });
 
   it('відхиляє слабкі та послідовності', () => {

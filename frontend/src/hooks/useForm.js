@@ -6,7 +6,7 @@ import { ApiError } from '../api/client';
  * Спільна логіка форм: значення, помилки полів, сабміт, тости.
  * validate: { fieldName: (value, allValues) => errorMessage | '' }
  */
-export function useForm({ initialValues, validate, onSubmit, invalidToast }) {
+export function useForm({ initialValues, validate, onSubmit, invalidToast, onError }) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -64,11 +64,12 @@ export function useForm({ initialValues, validate, onSubmit, invalidToast }) {
         } else {
           pushToast('Неочікувана помилка');
         }
+        onError?.(err);
       } finally {
         setLoading(false);
       }
     },
-    [invalidToast, onSubmit, pushToast, validate, values],
+    [invalidToast, onError, onSubmit, pushToast, validate, values],
   );
 
   return { values, errors, loading, handleChange, validateField, handleSubmit };

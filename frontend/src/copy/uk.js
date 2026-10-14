@@ -21,15 +21,20 @@ export const uk = {
 
   login: {
     title: 'Увійти в акаунт',
+    nameLabel: 'Ім’я',
+    namePlaceholder: 'Ваше ім’я',
     emailLabel: 'Пошта',
     emailPlaceholder: 'name@mail.com',
     passwordLabel: 'Пароль',
     passwordPlaceholder: 'Введіть пароль',
     submit: 'Увійти',
     submitting: 'Входимо…',
-    switchToRegister: 'Ще немає акаунта?',
+    switchToRegister: 'Ще не маєте акаунту?',
     invalidToast: 'Перевірте дані для входу',
     failedToast: 'Не вдалося увійти',
+    attemptsLeft: (left) =>
+      left === 1 ? 'Залишилася 1 спроба' : `Залишилося ${left} спроби`,
+    attemptsLocked: 'Ліміт спроб вичерпано, спробуйте через 10 хвилин',
   },
 
   register: {
@@ -44,9 +49,13 @@ export const uk = {
     repeatPlaceholder: 'Введіть пароль ще раз',
     submit: 'Створити',
     submitting: 'Створюємо…',
-    switchToLogin: 'Маєте акаунт?',
+    switchToLogin: 'Вже є акаунт?',
     invalidToast: 'Помилка',
     failedToast: 'Помилка',
+  },
+
+  account: {
+    title: 'Заглушка',
   },
 
   field: {
@@ -55,7 +64,7 @@ export const uk = {
   },
 
   common: {
-    backHome: '← На головну',
+    backHome: '↖ На головну',
     close: 'Закрити',
     homeAria: 'Clarity — на головну',
   },

@@ -4,20 +4,20 @@ function pickToken(data) {
   return data?.token ?? data?.key ?? data?.access ?? null;
 }
 
-export async function register({ name, email, password }) {
+export async function register({ name, email, password, confirm_password }) {
   const data = await request('/api/auth/register/', {
     method: 'POST',
-    body: { name, email, password },
+    body: { name, email, password, confirm_password },
   });
   const token = pickToken(data);
   if (token) setToken(token);
   return data;
 }
 
-export async function login({ email, password }) {
+export async function login({ name, email, password }) {
   const data = await request('/api/auth/login/', {
     method: 'POST',
-    body: { email, password },
+    body: { name, email, password },
   });
   const token = pickToken(data);
   if (token) setToken(token);
