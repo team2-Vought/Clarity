@@ -1,10 +1,18 @@
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import LoginSerializer, RegisterSerializer, create_user
+
+
+def user_payload(user):
+    return {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+    }
 
 
 class RegisterView(APIView):
@@ -19,11 +27,7 @@ class RegisterView(APIView):
         return Response(
             {
                 'detail': 'Реєстрацію успішно завершено',
-                'user': {
-                    'id': user.id,
-                    'name': user.name,
-                    'email': user.email,
-                },
+                'user': user_payload(user),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -42,11 +46,25 @@ class LoginView(APIView):
         return Response(
             {
                 'token': token.key,
-                'user': {
-                    'id': user.id,
-                    'name': user.name,
-                    'email': user.email,
-                },
+                'user': user_payload(user),
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        return Response(
+            {'detail': 'Вихід виконано'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(user_payload(request.user), status=status.HTTP_200_OK)
