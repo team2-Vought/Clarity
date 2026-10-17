@@ -21,8 +21,6 @@ export const uk = {
 
   login: {
     title: 'Увійти в акаунт',
-    nameLabel: 'Ім’я',
-    namePlaceholder: 'Ваше ім’я',
     emailLabel: 'Пошта',
     emailPlaceholder: 'name@mail.com',
     passwordLabel: 'Пароль',
@@ -31,10 +29,7 @@ export const uk = {
     submitting: 'Входимо…',
     switchToRegister: 'Ще не маєте акаунту?',
     invalidToast: 'Перевірте дані для входу',
-    failedToast: 'Не вдалося увійти',
-    attemptsLeft: (left) =>
-      left === 1 ? 'Залишилася 1 спроба' : `Залишилося ${left} спроби`,
-    attemptsLocked: 'Ліміт спроб вичерпано, спробуйте через 10 хвилин',
+    toastLabels: { email: 'Пошта', password: 'Пароль' },
   },
 
   register: {
@@ -51,11 +46,28 @@ export const uk = {
     submitting: 'Створюємо…',
     switchToLogin: 'Вже є акаунт?',
     invalidToast: 'Помилка',
+    toastLabels: {
+      name: 'Ім’я',
+      email: 'Пошта',
+      password: 'Пароль',
+      repeat: 'Повтор пароля',
+    },
     failedToast: 'Помилка',
   },
 
   account: {
     title: 'Заглушка',
+  },
+
+  home: {
+    title: 'Вітаємо в Clarity',
+    hello: (name) => `Ви увійшли як ${name}`,
+    email: (email) => `Пошта: ${email}`,
+    stub: 'Це заглушка головної сторінки для перевірки авторизації. Дискусії AI з’являться тут пізніше.',
+    loading: 'Завантаження…',
+    unauthorized: 'Сесія завершена, увійдіть ще раз',
+    logout: 'Вийти',
+    loggingOut: 'Виходимо…',
   },
 
   field: {

@@ -22,3 +22,19 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class LoginAttempt(models.Model):
+    """Ліміт невдалих спроб входу — окремо для кожного акаунта (пошти)."""
+
+    email = models.EmailField('пошта', max_length=254, unique=True)
+    failed_count = models.PositiveSmallIntegerField('невдалих спроб', default=0)
+    locked_until = models.DateTimeField('заблоковано до', null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'спроба входу'
+        verbose_name_plural = 'спроби входу'
+
+    def __str__(self):
+        return f'{self.email}: {self.failed_count}'

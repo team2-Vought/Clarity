@@ -14,7 +14,7 @@ export default function LoginPage() {
         <LoginForm
           onSubmit={async (data) => {
             await login(data);
-            navigate('/account');
+            navigate('/home');
           }}
           onSwitch={() => navigate('/register')}
         />

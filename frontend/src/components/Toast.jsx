@@ -29,9 +29,11 @@ ToastProvider.propTypes = {
 
 function ToastItem({ toast, onClose }) {
   useEffect(() => {
-    const t = setTimeout(() => onClose(toast.id), 4500);
+    // довші повідомлення (перелік помилок) тримаємо довше
+    const ms = 4500 + Math.min(toast.text.length * 20, 4000);
+    const t = setTimeout(() => onClose(toast.id), ms);
     return () => clearTimeout(t);
-  }, [toast.id, onClose]);
+  }, [toast.id, toast.text, onClose]);
 
   return (
     <div className="toast" role="alert">

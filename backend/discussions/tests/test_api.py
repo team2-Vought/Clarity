@@ -29,7 +29,7 @@ class DiscussionApiTests(TestCase):
     def login(self):
         response = self.client.post(
             '/api/auth/login/',
-            {'name': 'Тест', 'email': 'api@test.com', 'password': 'pass123!A'},
+            {'email': 'api@test.com', 'password': 'pass123!A'},
             format='json',
         )
         self.assertEqual(response.status_code, 200)

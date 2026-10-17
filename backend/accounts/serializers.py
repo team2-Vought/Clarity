@@ -3,6 +3,8 @@ import re
 from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+
+from .login_limit import check_login_allowed, register_failed_login, reset_login_attempts
 from .models import User
 
 REQUIRED = 'Це поле обов’язкове'
@@ -18,7 +20,6 @@ PASSWORD_NO_DIGIT = 'Додайте цифри'
 PASSWORD_NO_SPECIAL = 'Додайте спец. символи'
 PASSWORDS_MISMATCH = 'Паролі не збігаються'
 
-WRONG_NAME = 'Неправильне ім’я'
 WRONG_EMAIL = 'Неправильна пошта'
 WRONG_PASSWORD = 'Невірний пароль'
 
@@ -114,12 +115,6 @@ def create_user(validated_data):
 
 
 class LoginSerializer(serializers.Serializer):
-    name = serializers.CharField(
-        required=True,
-        allow_blank=False,
-        max_length=40,
-        error_messages={'required': REQUIRED, 'blank': REQUIRED},
-    )
     email = serializers.CharField(
         required=True,
         allow_blank=False,
@@ -135,17 +130,20 @@ class LoginSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        name = attrs['name'].strip()
         email = attrs['email'].strip().lower()
         password = attrs['password']
 
+        # 429, якщо для цього акаунта вичерпано спроби (інші акаунти не блокуються)
+        check_login_allowed(email)
+
         user = User.objects.filter(email=email).first()
         if user is None:
+            register_failed_login(email)
             raise ValidationError({'email': WRONG_EMAIL})
-        if user.name.casefold() != name.casefold():
-            raise ValidationError({'name': WRONG_NAME})
         if not user.check_password(password):
+            register_failed_login(email)
             raise ValidationError({'password': WRONG_PASSWORD})
 
+        reset_login_attempts(email)
         attrs['user'] = user
         return attrs

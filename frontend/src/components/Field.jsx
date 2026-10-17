@@ -14,7 +14,7 @@ EyeIcon.propTypes = {
   off: PropTypes.bool,
 };
 
-export default function Field({ label, type = 'text', error, hint, ...inputProps }) {
+export default function Field({ label, type = 'text', error, hint, placeholder, ...inputProps }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
   const isPassword = type === 'password';
@@ -29,6 +29,7 @@ export default function Field({ label, type = 'text', error, hint, ...inputProps
           type={isPassword && visible ? 'text' : type}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={describedBy}
+          placeholder={error || placeholder}
           {...inputProps}
         />
         {isPassword && (
@@ -43,10 +44,11 @@ export default function Field({ label, type = 'text', error, hint, ...inputProps
           </button>
         )}
       </div>
+      {/* помилка живе в placeholder; для скрінрідерів — прихований текст */}
       {error && (
-        <p className="field__msg field__msg--error" id={`${id}-err`}>
+        <span className="sr-only" id={`${id}-err`}>
           {error}
-        </p>
+        </span>
       )}
       {!error && hint && (
         <p className="field__msg" id={`${id}-hint`}>

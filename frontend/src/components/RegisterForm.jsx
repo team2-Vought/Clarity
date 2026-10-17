@@ -14,9 +14,10 @@ const validate = {
 };
 
 export default function RegisterForm({ onSubmit, onSwitch }) {
-  const { values, errors, loading, handleChange, validateField, handleSubmit } = useForm({
+  const { values, errors, loading, handleChange, handleSubmit } = useForm({
     initialValues: { name: '', email: '', password: '', repeat: '' },
     validate,
+    labels: t.toastLabels,
     invalidToast: t.invalidToast,
     onSubmit: (v) =>
       onSubmit?.({
@@ -36,7 +37,6 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
         placeholder={t.namePlaceholder}
         value={values.name}
         onChange={handleChange}
-        onBlur={() => validateField('name')}
         error={errors.name}
       />
       <Field
@@ -47,7 +47,6 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
         placeholder={t.emailPlaceholder}
         value={values.email}
         onChange={handleChange}
-        onBlur={() => validateField('email')}
         error={errors.email}
       />
       <Field
@@ -58,7 +57,6 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
         placeholder={t.passwordPlaceholder}
         value={values.password}
         onChange={handleChange}
-        onBlur={() => values.password && validateField('password')}
         error={errors.password}
         hint={PASSWORD_HINT}
       />
@@ -70,7 +68,6 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
         placeholder={t.repeatPlaceholder}
         value={values.repeat}
         onChange={handleChange}
-        onBlur={() => values.repeat && validateField('repeat')}
         error={errors.repeat}
       />
 

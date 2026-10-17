@@ -9,6 +9,7 @@ import './styles/landing.css';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

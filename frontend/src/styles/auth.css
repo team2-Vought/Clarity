@@ -136,6 +136,12 @@
   font-size: 1rem; /* 16px — без автозуму на iOS */
 }
 .field input::placeholder { color: var(--muted); opacity: 0.8; }
+/* у стані помилки текст помилки живе в placeholder — він має бути читабельним на червоному */
+.field__box[data-invalid='true'] input::placeholder {
+  color: #fff;
+  opacity: 1;
+  font-weight: 500;
+}
 
 .field__eye {
   display: grid;
@@ -157,16 +163,6 @@
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--muted);
-}
-.field__msg--error { color: var(--error); font-weight: 500; }
-
-/* повідомлення над кнопкою (наприклад, про спроби входу) */
-.form__notice {
-  margin: 0;
-  text-align: center;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--error);
 }
 
 /* ---------- Button & link ---------- */

@@ -5,8 +5,9 @@ import { ApiError } from '../api/client';
 /**
  * Спільна логіка форм: значення, помилки полів, сабміт, тости.
  * validate: { fieldName: (value, allValues) => errorMessage | '' }
+ * labels: { fieldName: 'Коротка назва' } — для детального тосту помилок
  */
-export function useForm({ initialValues, validate, onSubmit, invalidToast, onError }) {
+export function useForm({ initialValues, validate, labels, onSubmit, invalidToast, onError }) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -41,13 +42,18 @@ export function useForm({ initialValues, validate, onSubmit, invalidToast, onErr
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
-      const results = Object.keys(validate).map((f) => {
-        const msg = validate[f](values[f], values);
-        setErrors((prev) => ({ ...prev, [f]: msg }));
-        return msg;
-      });
-      if (results.some(Boolean)) {
-        if (invalidToast) pushToast(invalidToast);
+      const fieldResults = {};
+      for (const f of Object.keys(validate)) {
+        fieldResults[f] = validate[f](values[f], values);
+        setErrors((prev) => ({ ...prev, [f]: fieldResults[f] }));
+      }
+      const failed = Object.entries(fieldResults).filter(([, msg]) => msg);
+      if (failed.length > 0) {
+        // тост із конкретними причинами: "Пароль: занадто короткий; Пошта: ..."
+        const details = failed
+          .map(([field, msg]) => (labels?.[field] ? `${labels[field]}: ${msg}` : msg))
+          .join('; ');
+        pushToast(details || invalidToast);
         return;
       }
       try {
@@ -69,7 +75,7 @@ export function useForm({ initialValues, validate, onSubmit, invalidToast, onErr
         setLoading(false);
       }
     },
-    [invalidToast, onError, onSubmit, pushToast, validate, values],
+    [invalidToast, labels, onError, onSubmit, pushToast, validate, values],
   );
 
   return { values, errors, loading, handleChange, validateField, handleSubmit };
