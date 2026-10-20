@@ -27,6 +27,7 @@ OPTION_EMPTY = 'Варіант не може бути порожнім'
 OPTION_DUPLICATE = 'Варіанти мають бути різними'
 OPTION_NOT_ALLOWED = 'Варіанти потрібні лише для режиму «Один із варіантів»'
 STYLE_TOO_LONG = 'Опис характеру задовгий (максимум 300 символів)'
+NAME_TOO_LONG = 'Ім’я учасника задовге (максимум 64 символи)'
 TEMPERATURE_RANGE = 'Температура має бути від 0 до 1'
 
 MODES = {m.value for m in Discussion.Mode}
@@ -100,6 +101,13 @@ class CreateDiscussionSerializer(serializers.Serializer):
 
             persona = {'slug': slug}
             if isinstance(item, dict):
+                name = item.get('name')
+                if name:
+                    name = str(name).strip()
+                    if len(name) > 64:
+                        raise serializers.ValidationError(NAME_TOO_LONG)
+                    if name:
+                        persona['name'] = name
                 style = item.get('style')
                 if style:
                     style = str(style).strip()

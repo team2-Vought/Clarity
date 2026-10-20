@@ -203,6 +203,26 @@ class DiscussionApiTests(TestCase):
         self.assertEqual(response.data['personas'][0]['style'], 'Ти — воєнний стратег.')
         self.assertEqual(response.data['personas'][0]['temperature'], 0.3)
 
+    def test_persona_name_override_accepted(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {'slug': 'logician', 'name': 'Юрист'},
+                    {'slug': 'creative'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['personas'][0]['name'], 'Юрист')
+
+        step = self.client.post(f'/api/discussions/{response.data["id"]}/advance/')
+        self.assertEqual(step.status_code, 200)
+        self.assertEqual(step.data['message']['persona_name'], 'Юрист')
+
     def test_persona_temperature_range(self):
         self.auth()
         response = self.client.post(

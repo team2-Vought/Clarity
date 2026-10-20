@@ -70,6 +70,44 @@ export const uk = {
     loggingOut: 'Виходимо…',
   },
 
+  nav: {
+    home: 'Головна',
+    debates: 'Дебати',
+    history: 'Історія',
+    profile: 'Мій профіль',
+    settings: 'Налаштування',
+    help: 'Допомога',
+    logout: 'Вийти',
+    appName: 'Clarity',
+  },
+
+  debate: {
+    title: 'Маєш складне питання?',
+    participants: 'Учасники',
+    participant: 'Учасник',
+    addParticipant: 'Додати',
+    renameParticipant: 'Перейменувати учасника',
+    scrollLeft: 'Прокрутити ліворуч',
+    scrollRight: 'Прокрутити праворуч',
+    aiModel: 'Модель AI',
+    chooseModel: 'Оберіть модель',
+    character: 'Характер',
+    placeholderCharacter: 'Оберіть характер',
+    description: 'Опис',
+    placeholderDescription: 'Детально опишіть свою проблему',
+    start: 'Почати',
+    creating: 'Створюємо дискусію…',
+    errorCreate: 'Не вдалося створити дискусію',
+    noPersonas: 'Оберіть хоча б двох учасників',
+  },
+
+  chat: {
+    back: '↖ Назад до дебатів',
+    messages: 'Повідомлення',
+    empty: 'Повідомлень ще немає. Розпочніть дискусію.',
+    advancing: 'Аналізуємо…',
+  },
+
   field: {
     showPassword: 'Показати пароль',
     hidePassword: 'Сховати пароль',

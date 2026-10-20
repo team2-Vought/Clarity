@@ -76,6 +76,8 @@ def _resolved_personas(discussion):
         persona = dict(base)
         persona.setdefault('temperature', DEFAULT_TEMPERATURE)
         if isinstance(item, dict):
+            if item.get('name'):
+                persona['name'] = item['name']
             if item.get('style'):
                 persona['style'] = item['style']
             if item.get('temperature') is not None:
