@@ -11,6 +11,27 @@ const t = uk.debate;
 const MODEL_PLACEHOLDER = 'Оберіть модель';
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_MAX_PARTICIPANTS = 5;
+const DEFAULT_ROUNDS = 2;
+const MAX_QUESTION = 2000;
+const MAX_STYLE = 300;
+const MAX_NAME = 64;
+const MAX_TRAIT = 40;
+const DEFAULT_TEMPERATURE = 0.7;
+const ADVANCED_STORAGE_KEY = 'clarity:debate-advanced-open';
+
+const readAdvancedOpen = () => {
+  try {
+    return window.localStorage.getItem(ADVANCED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const MODES = [
+  { value: 'yes_no', label: t.modeYesNo },
+  { value: 'choose_one', label: t.modeChooseOne },
+  { value: 'open', label: t.modeOpen },
+];
 
 export default function DebatePage() {
   const navigate = useNavigate();
@@ -27,7 +48,14 @@ export default function DebatePage() {
   const [customTraits, setCustomTraits] = useState([]);
   const [traitDraft, setTraitDraft] = useState('');
   const [description, setDescription] = useState('');
+  const [mode, setMode] = useState('open');
+  const [options, setOptions] = useState([]);
+  const [optionDraft, setOptionDraft] = useState('');
+  const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
+  const [maxRounds, setMaxRounds] = useState(5);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(readAdvancedOpen);
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   const allTraits = [...TRAITS, ...customTraits];
@@ -37,6 +65,8 @@ export default function DebatePage() {
   const activeParticipant =
     participants.find((p) => p.slug === activeSlug) || participants[0];
   const activeTraits = activeParticipant?.traits || [];
+  const activeStyle = activeParticipant?.style || '';
+  const activeTemperature = activeParticipant?.temperature ?? DEFAULT_TEMPERATURE;
   const selectedModel = models.find((m) => m.id === activeParticipant?.model);
   const selectedModelLabel = selectedModel
     ? `${selectedModel.provider} — ${selectedModel.label || selectedModel.model}`
@@ -45,40 +75,64 @@ export default function DebatePage() {
   const allParticipantsHaveModels =
     participants.length > 0
     && participants.every((p) => models.some((m) => m.id === p.model && m.available));
+  const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
+  const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
+  const customizedCount = participants.filter(
+    (p) => p.style.trim() || p.temperature !== DEFAULT_TEMPERATURE
+  ).length;
+  const advancedSummary = [
+    mode !== 'open' ? MODES.find((item) => item.value === mode)?.label : '',
+    rounds !== DEFAULT_ROUNDS ? t.advancedRounds(rounds) : '',
+    customizedCount ? t.advancedCustomized(customizedCount) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
 
   const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
     try {
       const [pData, mData] = await Promise.all([fetchPersonas(), fetchModels()]);
       const personaList = pData.personas || [];
       const modelList = mData.models || [];
       const availableModels = modelList.filter((m) => m.available);
-      const selectedDefault = mData.default_model || availableModels[0]?.id || '';
+      const selectedDefault =
+        availableModels.find((model) => model.id === mData.default_model)?.id
+        || availableModels[0]?.id
+        || '';
       const initial = personaList.slice(0, MIN_PARTICIPANTS).map((persona, i) => ({
         slug: persona.slug,
         name: '',
         color: TRAIT_COLORS[i % TRAIT_COLORS.length],
         model: selectedDefault,
         traits: [],
+        style: '',
+        temperature: DEFAULT_TEMPERATURE,
       }));
       setPersonas(personaList);
       setMaxParticipants(pData.max_ai || DEFAULT_MAX_PARTICIPANTS);
+      setMaxRounds(pData.max_rounds || 5);
       setParticipants(initial);
       setActiveSlug(initial[0]?.slug || '');
       setModels(modelList);
       setDefaultModel(selectedDefault);
-    } catch {
-      setError('Не вдалося завантажити дані');
+      setError('');
+    } catch (err) {
+      setError(err?.message || t.loadError);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!getToken()) {
       navigate('/login', { replace: true });
-      return;
+      return undefined;
     }
-    loadData();
+    const timer = setTimeout(loadData, 0);
+    return () => clearTimeout(timer);
   }, [loadData, navigate]);
 
   const updateScrollState = useCallback(() => {
@@ -192,6 +246,81 @@ export default function DebatePage() {
     setIsModelOpen(false);
   };
 
+  const handleRemoveParticipant = () => {
+    if (participants.length <= MIN_PARTICIPANTS || !activeParticipant) return;
+    const next = participants.filter((p) => p.slug !== activeParticipant.slug);
+    setParticipants(next);
+    setActiveSlug(next[0]?.slug || '');
+    setRenamingSlug(null);
+  };
+
+  const setAdvancedOpen = (open) => {
+    setIsAdvancedOpen(open);
+    try {
+      window.localStorage.setItem(ADVANCED_STORAGE_KEY, open ? '1' : '0');
+    } catch {
+      // сховище недоступне (приватний режим) — просто не запам'ятовуємо
+    }
+  };
+
+  const toggleAdvanced = () => setAdvancedOpen(!isAdvancedOpen);
+
+  const handleModeChange = (nextMode) => {
+    setMode(nextMode);
+    if (nextMode !== 'choose_one') {
+      setOptions([]);
+      setOptionDraft('');
+    }
+  };
+
+  const addOption = () => {
+    const value = optionDraft.trim();
+    if (!value) return;
+    if (value.length > 100) {
+      setError(t.optionTooLong || 'Варіант задовгий (максимум 100 символів)');
+      return;
+    }
+    if (options.some((item) => item.toLowerCase() === value.toLowerCase())) {
+      setError(t.optionDuplicate || 'Варіанти мають бути різними');
+      return;
+    }
+    if (options.length >= 8) {
+      setError(t.optionsRange || 'Потрібно від 2 до 8 варіантів');
+      return;
+    }
+    setOptions((prev) => [...prev, value]);
+    setOptionDraft('');
+    setError('');
+  };
+
+  const removeOption = (value) => {
+    setOptions((prev) => prev.filter((item) => item !== value));
+  };
+
+  const updateStyle = (value) => {
+    updateActiveParticipant((p) => ({ ...p, style: value }));
+  };
+
+  const updateTemperature = (value) => {
+    updateActiveParticipant((p) => ({ ...p, temperature: Number(value) }));
+  };
+
+  const addTrait = () => {
+    const val = traitDraft.trim();
+    if (!val) return;
+    if (val.length > MAX_TRAIT) {
+      setError('Риса характеру задовга (максимум 40 символів)');
+      return;
+    }
+    if (!allTraits.includes(val)) setCustomTraits((prev) => [...prev, val]);
+    updateActiveParticipant((p) => ({
+      ...p,
+      traits: p.traits.includes(val) ? p.traits : [...p.traits, val],
+    }));
+    setTraitDraft('');
+    setError('');
+  };
+
   const handleAddParticipant = () => {
     const persona = personas.find(
       (p) => !participants.some((participant) => participant.slug === p.slug)
@@ -205,6 +334,8 @@ export default function DebatePage() {
         color: TRAIT_COLORS[prev.length % TRAIT_COLORS.length],
         model: defaultModel,
         traits: [],
+        style: '',
+        temperature: DEFAULT_TEMPERATURE,
       },
     ]);
     setActiveSlug(persona.slug);
@@ -222,28 +353,42 @@ export default function DebatePage() {
   const handleTraitKeyDown = (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault(); // Enter у полі не має відправляти форму
-    const val = traitDraft.trim();
-    if (!val) return;
-    if (!allTraits.includes(val)) setCustomTraits((prev) => [...prev, val]);
-    updateActiveParticipant((p) => ({
-      ...p,
-      traits: p.traits.includes(val) ? p.traits : [...p.traits, val],
-    }));
-    setTraitDraft('');
+    addTrait();
+  };
+
+  const handleOptionKeyDown = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    addOption();
   };
 
   const handleStart = async (e) => {
     e.preventDefault();
-    if (!description.trim()) {
-      setError(t.noPersonas);
+    const question = description.trim();
+    if (!question) {
+      setError(t.placeholderDescription);
+      return;
+    }
+    if (question.length > MAX_QUESTION) {
+      setError(t.tooLong);
       return;
     }
     if (participants.length < MIN_PARTICIPANTS) {
-      setError('Недостатньо персон');
+      setError(t.minParticipants);
       return;
     }
     if (!allParticipantsHaveModels) {
       setError(t.noModel);
+      return;
+    }
+    if (mode === 'choose_one' && (options.length < 2 || options.length > 8)) {
+      setAdvancedOpen(true);
+      setError(t.optionsRequired);
+      return;
+    }
+    const names = participants.map((p) => (p.name || '').trim().toLowerCase());
+    if (names.some(Boolean) && new Set(names.filter(Boolean)).size !== names.filter(Boolean).length) {
+      setError('Імена учасників мають бути різними');
       return;
     }
 
@@ -254,15 +399,17 @@ export default function DebatePage() {
         slug: p.slug,
         name: p.name || undefined,
         model: p.model,
+        style: p.style || undefined,
+        temperature: p.temperature,
         traits: p.traits.length > 0 ? p.traits : undefined,
       }));
 
       const data = await createDiscussion({
-        question: description.trim(),
-        mode: 'open',
-        options: [],
+        question,
+        mode,
+        options: mode === 'choose_one' ? options : [],
         personas: selectedPersonas,
-        rounds: 2,
+        rounds,
       });
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
@@ -307,6 +454,7 @@ export default function DebatePage() {
                         className="debate__participant-input"
                         type="text"
                         value={nameDraft}
+                        maxLength={MAX_NAME}
                         onChange={(e) => setNameDraft(e.target.value)}
                         onBlur={handleRenameBlur}
                         onKeyDown={handleRenameKeyDown}
@@ -414,18 +562,29 @@ export default function DebatePage() {
 
         <section className="debate__section">
           <h2 className="debate__section-title">{t.character}</h2>
-          <label className="debate__card">
+          <div className="debate__card debate__trait-input">
             <UserPlusIcon />
             <input
               className="debate__card-input"
               type="text"
               value={traitDraft}
+              maxLength={MAX_TRAIT}
               onChange={(e) => setTraitDraft(e.target.value)}
               onKeyDown={handleTraitKeyDown}
               placeholder={activeTraits.length ? String(activeTraits.length) : t.placeholderCharacter}
               aria-label={t.character}
+              disabled={isCreating}
             />
-          </label>
+            <button
+              type="button"
+              className="debate__mini-add"
+              onClick={addTrait}
+              disabled={isCreating || !traitDraft.trim()}
+              aria-label={t.addParticipant}
+            >
+              +
+            </button>
+          </div>
           <div className="debate__trait-list">
             {allTraits.map((trait, i) => {
               const active = activeTraits.includes(trait);
@@ -437,12 +596,22 @@ export default function DebatePage() {
                   style={{ '--chip': TRAIT_COLORS[i % TRAIT_COLORS.length] }}
                   aria-pressed={active}
                   onClick={() => toggleTrait(trait)}
+                  disabled={isCreating}
                 >
                   <span>{trait}</span>
                 </button>
               );
             })}
           </div>
+          <p className="debate__hint">{t.characterHint}</p>
+          <button
+            type="button"
+            className="debate__remove-participant"
+            onClick={handleRemoveParticipant}
+            disabled={isCreating || participants.length <= MIN_PARTICIPANTS}
+          >
+            {t.removeParticipant}
+          </button>
         </section>
 
         <section className="debate__section debate__section--description">
@@ -452,28 +621,170 @@ export default function DebatePage() {
             placeholder={t.placeholderDescription}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={MAX_QUESTION}
             disabled={isCreating}
           />
+          <p className={`debate__hint ${description.length > MAX_QUESTION ? 'debate__hint--error' : ''}`}>
+            {description.length} / {MAX_QUESTION}
+          </p>
+        </section>
+
+        <section className="debate__section debate__advanced">
+          <button
+            type="button"
+            className={`debate__advanced-toggle ${isAdvancedOpen ? 'debate__advanced-toggle--open' : ''}`}
+            onClick={toggleAdvanced}
+            aria-expanded={isAdvancedOpen}
+            aria-controls="debate-advanced"
+          >
+            <span className="debate__advanced-heading">
+              <span className="debate__section-title">{t.advanced}</span>
+              {!isAdvancedOpen && advancedSummary && (
+                <span className="debate__advanced-summary">{advancedSummary}</span>
+              )}
+            </span>
+            <span className="debate__model-chevron">
+              <ChevronIcon />
+            </span>
+          </button>
+          {isAdvancedOpen && (
+            <div id="debate-advanced" className="debate__advanced-body">
+              <h3 className="debate__advanced-group">{t.advancedGeneral}</h3>
+              <span className="debate__field-label">{t.mode}</span>
+              <div className="debate__mode-list" role="group" aria-label={t.mode}>
+                {MODES.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={`debate__mode-chip ${mode === item.value ? 'debate__mode-chip--active' : ''}`}
+                    aria-pressed={mode === item.value}
+                    onClick={() => handleModeChange(item.value)}
+                    disabled={isCreating}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              {mode === 'choose_one' && (
+                <div className="debate__options">
+                  <div className="debate__option-list">
+                    {options.map((option) => (
+                      <span key={option} className="debate__option-chip">
+                        {option}
+                        <button
+                          type="button"
+                          className="debate__option-remove"
+                          onClick={() => removeOption(option)}
+                          aria-label={t.removeOption(option)}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="debate__card debate__option-input">
+                    <input
+                      className="debate__card-input"
+                      type="text"
+                      value={optionDraft}
+                      maxLength={100}
+                      onChange={(e) => setOptionDraft(e.target.value)}
+                      onKeyDown={handleOptionKeyDown}
+                      placeholder={t.optionPlaceholder}
+                      aria-label={t.options}
+                      disabled={isCreating || options.length >= 8}
+                    />
+                    <button
+                      type="button"
+                      className="debate__mini-add"
+                      onClick={addOption}
+                      disabled={isCreating || !optionDraft.trim() || options.length >= 8}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="debate__hint">Потрібно від 2 до 8 варіантів.</p>
+                </div>
+              )}
+              <span className="debate__field-label">{t.rounds}</span>
+              <label className="debate__range-card">
+                <input
+                  type="range"
+                  min="1"
+                  max={maxRounds}
+                  step="1"
+                  value={rounds}
+                  onChange={(e) => setRounds(Number(e.target.value))}
+                  disabled={isCreating}
+                  aria-label={t.rounds}
+                />
+                <span className="debate__range-value">{rounds}</span>
+              </label>
+              <p className="debate__hint">{t.roundsHint}</p>
+
+              <h3 className="debate__advanced-group">
+                {t.advancedParticipant(activeLabel)}
+              </h3>
+              <label className="debate__card debate__style-card">
+                <span className="debate__field-label">{t.style}</span>
+                <input
+                  className="debate__card-input"
+                  type="text"
+                  value={activeStyle}
+                  maxLength={MAX_STYLE}
+                  onChange={(e) => updateStyle(e.target.value)}
+                  placeholder={t.placeholderStyle}
+                  disabled={isCreating}
+                />
+              </label>
+              <label className="debate__range-card">
+                <span className="debate__field-label">{t.temperature}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={activeTemperature}
+                  onChange={(e) => updateTemperature(e.target.value)}
+                  disabled={isCreating}
+                  aria-label={t.temperature}
+                />
+                <span className="debate__range-value">{Number(activeTemperature).toFixed(1)}</span>
+              </label>
+              <p className="debate__hint">{t.temperatureHint}</p>
+            </div>
+          )}
         </section>
 
         {error && (
-          <p className="debate__error" role="alert">
-            {error}
-          </p>
+          <div className="debate__error-block">
+            <p className="debate__error" role="alert">
+              {error}
+            </p>
+            {!isLoading && participants.length === 0 && (
+              <button type="button" className="debate__retry" onClick={loadData}>
+                {t.retry}
+              </button>
+            )}
+          </div>
         )}
 
-        <button
-          type="submit"
-          className="debate__start-btn"
-          disabled={
-            isCreating
-            || !description.trim()
-            || participants.length < MIN_PARTICIPANTS
-            || !allParticipantsHaveModels
-          }
-        >
-          {isCreating ? t.creating : t.start}
-        </button>
+        {isLoading ? (
+          <p className="debate__hint" role="status">Завантаження…</p>
+        ) : (
+          <button
+            type="submit"
+            className="debate__start-btn"
+            disabled={
+              isCreating
+              || !description.trim()
+              || participants.length < MIN_PARTICIPANTS
+              || !allParticipantsHaveModels
+            }
+          >
+            {isCreating ? t.creating : t.start}
+          </button>
+        )}
       </form>
 
       <main className="debate__main">

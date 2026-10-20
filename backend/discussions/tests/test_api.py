@@ -1,10 +1,11 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from discussions.models import Discussion
+from discussions.models import Discussion, Message
+from discussions.services import engine
 
 from .fakes import FakeProvider
 
@@ -85,7 +86,7 @@ class DiscussionApiTests(TestCase):
                 'personas': [
                     {
                         'slug': 'logician',
-                        'model': 'openai:gpt-6-luna',
+                        'model': 'groq:openai/gpt-oss-120b',
                         'traits': ['Стратег', 'Перфекціоніст'],
                     },
                     {'slug': 'creative', 'model': 'groq:openai/gpt-oss-120b'},
@@ -94,7 +95,10 @@ class DiscussionApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['personas'][0]['model'], 'openai:gpt-6-luna')
+        self.assertEqual(
+            response.data['personas'][0]['model'],
+            'groq:openai/gpt-oss-120b',
+        )
         self.assertEqual(
             response.data['personas'][0]['traits'],
             ['Стратег', 'Перфекціоніст'],
@@ -275,7 +279,19 @@ class DiscussionApiTests(TestCase):
 
         step = self.client.post(f'/api/discussions/{response.data["id"]}/advance/')
         self.assertEqual(step.status_code, 200)
-        self.assertEqual(step.data['message']['persona_name'], 'Юрист')
+        # вступ паралельний: один крок повертає репліки всіх учасників
+        self.assertEqual(
+            [m['persona_name'] for m in step.data['messages']],
+            ['Юрист', 'Креативник'],
+        )
+        self.assertIn('thesis', step.data['messages'][0])
+        self.assertEqual(step.data['discussion']['phase'], 'debate')
+
+        second = self.client.post(f'/api/discussions/{response.data["id"]}/advance/')
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.data['messages']), 1)
+        self.assertEqual(second.data['message']['persona_name'], 'Юрист')
+        self.assertEqual(second.data['message']['reply_to'], 'Креативник')
 
     def test_persona_temperature_range(self):
         self.auth()
@@ -325,3 +341,168 @@ class DiscussionApiTests(TestCase):
         response = self.client.get('/api/discussions/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
+    def test_question_keeps_line_breaks(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Перший рядок питання?\nДругий рядок питання.',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.data['question'],
+            'Перший рядок питання?\nДругий рядок питання.',
+        )
+
+    def test_duplicate_effective_names_rejected(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {'slug': 'logician', 'name': 'Скептик'},
+                    {'slug': 'skeptic'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('personas', response.data)
+
+    @override_settings(LLM_OPENAI_API_KEY='')
+    def test_unavailable_model_rejected(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {'slug': 'logician', 'model': 'openai:gpt-6-luna'},
+                    {'slug': 'skeptic'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('personas', response.data)
+
+    @override_settings(DISCUSSION_DAILY_LIMIT=1)
+    def test_daily_discussion_limit(self):
+        self.auth()
+        payload = {
+            'question': 'Чи варто запускати власний продукт?',
+            'personas': ['logician', 'skeptic'],
+        }
+        self.assertEqual(
+            self.client.post('/api/discussions/', payload, format='json').status_code,
+            201,
+        )
+        limited = self.client.post('/api/discussions/', payload, format='json')
+        self.assertEqual(limited.status_code, 429)
+        self.assertIn('Retry-After', limited.headers)
+
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=1)
+    def test_daily_advance_limit(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        discussion = Discussion.objects.get(pk=created.data['id'])
+        discussion.messages.create(
+            seq=2,
+            phase=Discussion.Phase.OPENING,
+            role=Message.Role.AI,
+            persona_slug='logician',
+            persona_name='Логік',
+            avatar='🧠',
+            content='Тестова відповідь',
+        )
+        limited = self.client.post(f'/api/discussions/{discussion.id}/advance/')
+        self.assertEqual(limited.status_code, 429)
+
+    def test_delete_own_discussion(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        discussion_id = created.data['id']
+        deleted = self.client.delete(f'/api/discussions/{discussion_id}/')
+        self.assertEqual(deleted.status_code, 204)
+        self.assertFalse(Discussion.objects.filter(pk=discussion_id).exists())
+
+    def test_busy_advance_returns_conflict(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        with mock.patch(
+            'discussions.views.engine.advance',
+            side_effect=engine.EngineBusy('busy'),
+        ):
+            response = self.client.post(
+                f'/api/discussions/{created.data["id"]}/advance/'
+            )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.headers['Retry-After'], '2')
+
+    def test_provider_error_is_sanitized(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        with mock.patch(
+            'discussions.views.logger.exception'
+        ), mock.patch(
+            'discussions.views.engine.advance',
+            side_effect=engine.EngineError(
+                'raw provider failure',
+                detail='secret-api-key leaked',
+            ),
+        ):
+            response = self.client.post(
+                f'/api/discussions/{created.data["id"]}/advance/'
+            )
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn('secret-api-key', response.data['detail'])
+        self.assertIn('Спробуйте', response.data['detail'])
+    def test_delete_foreign_discussion_forbidden(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        other = User.objects.create_user(
+            email='delete-other@test.com', name='Інший', password='pass123!A'
+        )
+        Discussion.objects.filter(pk=created.data['id']).update(user=other)
+        response = self.client.delete(f'/api/discussions/{created.data["id"]}/')
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Discussion.objects.filter(pk=created.data['id']).exists())

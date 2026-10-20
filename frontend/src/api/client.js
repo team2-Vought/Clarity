@@ -38,7 +38,7 @@ export function setToken(token) {
   }
 }
 
-export async function request(path, { method = 'GET', body, auth = false } = {}) {
+export async function request(path, { method = 'GET', body, auth = false, signal } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth) {
     const token = getToken();
@@ -51,8 +51,10 @@ export async function request(path, { method = 'GET', body, auth = false } = {})
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
     });
-  } catch {
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
     throw new ApiError(0, { detail: 'Немає з’єднання із сервером' });
   }
 

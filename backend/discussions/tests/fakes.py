@@ -1,29 +1,45 @@
 import json
+import threading
 
 
 class FakeProvider:
-    """Детермінований провайдер для тестів; не використовується в production."""
+    """Детермінований провайдер для тестів; не використовується в production.
 
-    def __init__(self):
+    `stance` — значення службового рядка ПОЗИЦІЯ у репліках учасників
+    (None — рядок не додається, тож консенсус ніколи не настає).
+    """
+
+    def __init__(self, stance=None):
         self.calls = []
         self.counter = 0
+        self.stance = stance
+        self._lock = threading.Lock()
 
-    def complete(self, *, system, prompt, temperature=0.7):
-        self.calls.append(
-            {
-                'system': system,
-                'prompt': prompt,
-                'temperature': temperature,
-            }
-        )
-        if '"confirmed"' in prompt:
-            return json.dumps(self._final(prompt), ensure_ascii=False)
-        if '"verdict"' in prompt:
-            return json.dumps(self._devil(), ensure_ascii=False)
-        if '"supporting_arguments"' in prompt:
-            return json.dumps(self._synthesis(prompt), ensure_ascii=False)
-        self.counter += 1
-        return f'Тестова репліка #{self.counter}. Аргумент для перевірки контексту.'
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
+        with self._lock:
+            self.calls.append(
+                {
+                    'system': system,
+                    'prompt': prompt,
+                    'temperature': temperature,
+                    'json_mode': json_mode,
+                }
+            )
+            if '"confirmed"' in prompt:
+                return json.dumps(self._final(prompt), ensure_ascii=False)
+            if '"verdict"' in prompt:
+                return json.dumps(self._devil(), ensure_ascii=False)
+            if '"supporting_arguments"' in prompt:
+                return json.dumps(self._synthesis(prompt), ensure_ascii=False)
+            self.counter += 1
+            lines = [
+                f'Тестова репліка #{self.counter}. Аргумент для перевірки контексту.',
+                '',
+                f'ТЕЗА: Теза репліки #{self.counter}',
+            ]
+            if self.stance:
+                lines.append(f'ПОЗИЦІЯ: {self.stance}')
+            return '\n'.join(lines)
 
     def _answer(self, prompt):
         if '«Так або ні»' in prompt:

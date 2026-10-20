@@ -7,12 +7,14 @@ import './styles/base.css';
 import './styles/auth.css';
 import './styles/landing.css';
 import './styles/debate.css';
+import './styles/history.css';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const HomePage = lazy(() => import('./pages/DebatePage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -39,7 +41,7 @@ export default function App() {
               <Route path="/home" element={<HomePage />} />
               <Route path="/chat/:id" element={<ChatPage />} />
               <Route path="/account" element={<AccountPage />} />
-              <Route path="/history" element={<AccountPage />} />
+              <Route path="/history" element={<HistoryPage />} />
               <Route path="/settings" element={<AccountPage />} />
               <Route path="/help" element={<AccountPage />} />
             </Route>

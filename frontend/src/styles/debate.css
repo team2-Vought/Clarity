@@ -3,7 +3,7 @@
 /* ---------- App shell ---------- */
 
 .app-shell {
-  --rail-w: 68px;
+  --rail-w: clamp(58px, 4.6vw, 72px);
   --panel: #e0e0e0;
   --card: #ffffff;
   --main-bg: #ffffff;
@@ -78,7 +78,8 @@
   display: flex;
   flex-direction: column;
   width: var(--rail-w);
-  padding: 20px 0;
+  min-height: 0;
+  padding: clamp(12px, 2.2vh, 20px) 0;
   background: var(--panel);
   overflow-x: hidden;
   overflow-y: auto;
@@ -91,7 +92,7 @@
 }
 
 .sidebar:not(.sidebar--collapsed) {
-  width: 240px;
+  width: clamp(208px, 17vw, 260px);
   box-shadow: 0 0 32px rgba(0, 0, 0, 0.18);
 }
 
@@ -100,14 +101,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 0 0 20px;
+  padding: 0 0 clamp(10px, 1.8vh, 20px);
   cursor: pointer;
 }
 
 .sidebar__brand svg,
 .sidebar__brand img {
   display: block;
-  width: 40px;
+  width: clamp(34px, 2.6vw, 40px);
   max-width: 100%;
   height: auto;
 }
@@ -124,8 +125,8 @@
 .sidebar__nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 16px;
+  gap: clamp(2px, 0.7vh, 6px);
+  padding: 0 clamp(10px, 1vw, 16px);
 }
 
 .sidebar__item,
@@ -135,7 +136,7 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 36px;
+  height: clamp(32px, 4.4vh, 38px);
   padding: 0;
   border: 0;
   border-radius: 10px;
@@ -158,14 +159,14 @@
 
 .sidebar__item svg {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: clamp(28px, 2.3vw, 36px);
+  height: clamp(28px, 2.3vw, 36px);
 }
 
 .sidebar__control svg {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: clamp(21px, 1.7vw, 24px);
+  height: clamp(21px, 1.7vw, 24px);
   margin: 0 6px;
 }
 
@@ -194,9 +195,9 @@
 .sidebar__controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: clamp(2px, 0.7vh, 6px);
   margin-top: auto;
-  padding: 12px 16px 0;
+  padding: clamp(8px, 1.6vh, 12px) clamp(10px, 1vw, 16px) 0;
 }
 
 .sidebar__control--logout {
@@ -211,7 +212,7 @@
 
 .debate-page {
   display: grid;
-  grid-template-columns: clamp(250px, 22vw, 320px) minmax(0, 1fr);
+  grid-template-columns: clamp(236px, 24vw, 360px) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -220,10 +221,12 @@
 .debate__form-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: clamp(10px, 1.7vh, 16px);
   min-height: 0;
-  padding: 22px 16px 20px 18px;
+  padding: clamp(14px, 2.2vh, 22px) clamp(12px, 1.2vw, 18px)
+    clamp(14px, 2.2vh, 20px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   /* тонка вертикальна лінія зліва, з відступами зверху і знизу, як у макеті */
   background:
@@ -432,6 +435,272 @@
 
 .debate__card:focus-within .debate__card-input::placeholder {
   color: rgba(18, 18, 18, 0.5);
+}
+
+/* Формат відповіді, варіанти, раунди */
+
+.debate__mode-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debate__mode-chip {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.debate__mode-chip:hover {
+  color: var(--ink);
+}
+
+.debate__mode-chip--active,
+.debate__mode-chip--active:hover {
+  background: var(--ink);
+  color: var(--main-bg);
+}
+
+.debate__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.debate__option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debate__option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.debate__option-remove {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.debate__option-remove:hover {
+  background: rgba(18, 18, 18, 0.08);
+  color: var(--ink);
+}
+
+.debate__option-input,
+.debate__trait-input {
+  flex-direction: row;
+  align-items: center;
+}
+
+.debate__option-input .debate__card-input,
+.debate__trait-input .debate__card-input {
+  flex: 1;
+}
+
+.debate__mini-add {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--main-bg);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.debate__mini-add:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.debate__range-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+
+.debate__range-card input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ink);
+}
+
+.debate__range-value {
+  flex: 0 0 auto;
+  min-width: 28px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.debate__field-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.debate__style-card {
+  gap: 4px;
+}
+
+/* Додаткові налаштування */
+
+.debate__advanced {
+  gap: 0;
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.debate__advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.debate__advanced-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__advanced-heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.debate__advanced-heading .debate__section-title {
+  margin: 0;
+}
+
+.debate__advanced-summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate__advanced-toggle--open .debate__model-chevron {
+  transform: rotate(180deg);
+}
+
+.debate__advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 12px 12px;
+}
+
+.debate__advanced-body .debate__card,
+.debate__advanced-body .debate__range-card,
+.debate__advanced-body .debate__mode-chip:not(.debate__mode-chip--active),
+.debate__advanced-body .debate__option-chip {
+  background: var(--panel);
+}
+
+.debate__advanced-group {
+  margin: 6px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.debate__advanced-group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.debate__remove-participant {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.debate__remove-participant:hover:not(:disabled) {
+  border-color: #c93a62;
+  color: #c93a62;
+}
+
+.debate__remove-participant:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.debate__error-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.debate__retry {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--main-bg);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.debate__hint--error {
+  color: #c93a62;
 }
 
 /* Модель AI */
@@ -805,8 +1074,11 @@
 }
 
 .chat__empty {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   min-height: 160px;
   color: var(--muted);
   font-size: 0.9375rem;
@@ -864,6 +1136,44 @@
   overflow-wrap: anywhere;
 }
 
+.chat__avatar {
+  background: var(--avatar, #414bb2);
+}
+
+.chat__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.chat__tool {
+  padding: 7px 14px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+
+.chat__tool:hover:not(:disabled) {
+  background: var(--card);
+}
+
+.chat__tool--danger:hover:not(:disabled) {
+  border-color: #c93a62;
+  color: #c93a62;
+}
+
+.chat__tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* «хвостик» біля аватара */
 .chat__bubble::before {
   content: '';
@@ -896,6 +1206,65 @@
   margin-bottom: 6px;
   font-size: 0.9375rem;
   font-weight: 700;
+}
+
+.chat__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: -2px 0 7px;
+}
+
+.chat__reply {
+  color: rgba(18, 18, 18, 0.58);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.chat__stance {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(18, 18, 18, 0.08);
+  color: rgba(18, 18, 18, 0.72);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* Розділювачі фаз і раундів */
+
+.chat__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 820px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chat__divider::before,
+.chat__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.chat__notice {
+  align-self: center;
+  max-width: 620px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(47, 158, 107, 0.12);
+  color: #2f9e6b;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: center;
 }
 
 .chat__text {
@@ -957,7 +1326,207 @@
   opacity: 0.8;
 }
 
+.chat__summary {
+  width: 100%;
+  max-width: 820px;
+  padding: 20px clamp(16px, 3vw, 26px);
+  border: 1px solid var(--divider);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.chat__summary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.chat__summary-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.chat__summary-badge {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(47, 158, 107, 0.15);
+  color: #2f9e6b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chat__summary-badge--pending {
+  background: rgba(201, 58, 98, 0.12);
+  color: #c93a62;
+}
+
+.chat__summary-decision {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.chat__summary-decision > span,
+.chat__summary-line > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat__summary-line {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.chat__summary-block {
+  margin-top: 12px;
+}
+
+.chat__summary-block h3 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat__summary-block ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.chat__summary-block li + li {
+  margin-top: 4px;
+}
+
+.chat__summary-answer {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--main-bg);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.chat__summary-confidence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 6px;
+  font-size: 0.875rem;
+}
+
+.chat__summary-confidence > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat__confidence-bar {
+  flex: 1;
+  max-width: 260px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.chat__confidence-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+}
+
+.chat__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px 20px;
+}
+
+.chat__summary-block--pros h3 {
+  color: #2f9e6b;
+}
+
+.chat__summary-block--cons h3,
+.chat__summary-block--risks h3 {
+  color: #c93a62;
+}
+
+.chat__summary-next {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.chat__summary-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 /* ---------- Адаптив ---------- */
+
+@media (max-width: 1100px) {
+  .debate-page {
+    grid-template-columns: clamp(208px, 23vw, 260px) minmax(0, 1fr);
+  }
+
+  .debate__form-panel {
+    padding-left: 14px;
+    padding-right: 12px;
+  }
+}
+
+/* Низькі екрани: стискаємо панель, щоб кнопка «Почати» і контент
+   залишалися в межах видимої області, а не вилазили вниз. */
+@media (max-height: 780px) {
+  .debate__form-panel {
+    gap: 9px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .debate__section {
+    gap: 6px;
+  }
+
+  .debate__trait-list {
+    gap: 6px;
+  }
+
+  .debate__trait-chip {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+  }
+
+  .debate__textarea {
+    height: 78px;
+  }
+
+  .debate__start-btn {
+    min-height: 38px;
+    font-size: 0.9375rem;
+  }
+}
 
 @media (max-width: 900px) {
   .debate-page {
@@ -1025,6 +1594,50 @@
 
   .chat__body {
     max-width: calc(100% - 48px);
+  }
+
+  .chat-page .chat__main {
+    order: -1;
+  }
+
+  .chat__summary {
+    padding: 16px;
+  }
+}
+
+@media (max-height: 720px) {
+  .sidebar {
+    padding: 8px 0;
+  }
+
+  .sidebar__brand {
+    padding-bottom: 6px;
+  }
+
+  .sidebar__item,
+  .sidebar__control {
+    height: 30px;
+  }
+
+  .sidebar__nav,
+  .sidebar__controls {
+    gap: 2px;
+  }
+
+  .sidebar__item svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .sidebar__control svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .debate__participant,
+  .debate__participant-add {
+    flex-basis: 88px;
+    width: 88px;
   }
 }
 

@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 
 from .models import Discussion, Message
@@ -32,6 +34,9 @@ NAME_TOO_LONG = 'Ім’я учасника задовге (максимум 64 
 TEMPERATURE_RANGE = 'Температура має бути від 0 до 1'
 MODEL_TOO_LONG = 'Ідентифікатор моделі задовгий (максимум 120 символів)'
 MODEL_UNKNOWN = 'Невідома модель: {model}'
+MODEL_UNAVAILABLE = 'Модель «{model}» недоступна: додайте ключ у backend/.env або виберіть іншу'
+NAMES_DUPLICATE = 'Імена учасників мають бути різними'
+NAME_INVALID = 'Ім’я містить недопустимі символи'
 TRAITS_TYPE = 'Риси характеру мають бути списком'
 TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
 TRAIT_TOO_LONG = 'Риса характеру задовга (максимум 40 символів)'
@@ -66,7 +71,10 @@ class CreateDiscussionSerializer(serializers.Serializer):
     rounds = serializers.IntegerField(required=False, default=DEFAULT_ROUNDS)
 
     def validate_question(self, value):
-        question = ' '.join(value.split())
+        value = value.replace('\r\n', '\n').replace('\r', '\n')
+        lines = [re.sub(r'[ \t]+', ' ', line).strip() for line in value.split('\n')]
+        question = '\n'.join(lines).strip()
+        question = re.sub(r'\n{3,}', '\n\n', question)
         if len(question) < QUESTION_MIN:
             raise serializers.ValidationError(QUESTION_TOO_SHORT)
         return question
@@ -80,7 +88,8 @@ class CreateDiscussionSerializer(serializers.Serializer):
             if len(text) > 100:
                 raise serializers.ValidationError(OPTION_TOO_LONG)
             cleaned.append(text)
-        if len(set(cleaned)) != len(cleaned):
+        folded = [item.casefold() for item in cleaned]
+        if len(set(folded)) != len(folded):
             raise serializers.ValidationError(OPTION_DUPLICATE)
         return cleaned
 
@@ -91,6 +100,7 @@ class CreateDiscussionSerializer(serializers.Serializer):
             raise serializers.ValidationError(PERSONAS_COUNT)
 
         seen = set()
+        seen_names = set()
         normalized = []
         for item in value:
             if isinstance(item, dict):
@@ -108,14 +118,19 @@ class CreateDiscussionSerializer(serializers.Serializer):
             seen.add(slug)
 
             persona = {'slug': slug}
+            name = ''
             if isinstance(item, dict):
                 name = item.get('name')
                 if name:
-                    name = str(name).strip()
+                    name = ' '.join(str(name).split())
+                    if re.search(r'[\x00-\x1f\x7f]', name):
+                        raise serializers.ValidationError(NAME_INVALID)
                     if len(name) > 64:
                         raise serializers.ValidationError(NAME_TOO_LONG)
                     if name:
                         persona['name'] = name
+                else:
+                    name = ''
                 style = item.get('style')
                 if style:
                     style = str(style).strip()
@@ -144,9 +159,14 @@ class CreateDiscussionSerializer(serializers.Serializer):
                     model = str(model).strip()
                     if len(model) > 120:
                         raise serializers.ValidationError(MODEL_TOO_LONG)
-                    if resolve_model(model) is None:
+                    spec = resolve_model(model)
+                    if spec is None:
                         raise serializers.ValidationError(
                             MODEL_UNKNOWN.format(model=model)
+                        )
+                    if not spec.get('available'):
+                        raise serializers.ValidationError(
+                            MODEL_UNAVAILABLE.format(model=model)
                         )
                     persona['model'] = model
                 temperature = item.get('temperature')
@@ -158,6 +178,11 @@ class CreateDiscussionSerializer(serializers.Serializer):
                     if not (0 <= temperature <= 1):
                         raise serializers.ValidationError(TEMPERATURE_RANGE)
                     persona['temperature'] = temperature
+            effective_name = name or PERSONA_BY_SLUG[slug]['name']
+            folded_name = effective_name.casefold()
+            if folded_name in seen_names:
+                raise serializers.ValidationError(NAMES_DUPLICATE)
+            seen_names.add(folded_name)
             normalized.append(persona)
         return normalized
 
@@ -191,13 +216,18 @@ class MessageSerializer(serializers.ModelSerializer):
             'persona_name',
             'avatar',
             'color',
+            'reply_to',
+            'reply_to_slug',
             'content',
+            'thesis',
+            'stance',
             'created_at',
         ]
 
 
 class DiscussionSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
+    is_finished = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Discussion
@@ -211,6 +241,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'status',
             'phase',
             'current_round',
+            'speaker_index',
+            'early_stop',
+            'is_finished',
             'best_solution',
             'devil_review',
             'final_summary',

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,19 +30,31 @@ def env_bool(name, default=False):
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-b=-7uz8yj0#l74^!c#+4kay$3-lski@#^e%_uej@k%*j_tjx$h',
-)
+DEV_SECRET_KEY = 'django-insecure-b=-7uz8yj0#l74^!c#+4kay$3-lski@#^e%_uej@k%*j_tjx$h'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '').strip() or DEV_SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool('DJANGO_DEBUG', True)
+DEBUG = env_bool('DJANGO_DEBUG', False)
 
 ALLOWED_HOSTS = [
     h.strip()
     for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
     if h.strip()
 ]
+
+if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY must be set to a strong unique value when DEBUG=False.'
+    )
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', not DEBUG)
+SESSION_COOKIE_SECURE = env_bool('DJANGO_SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = env_bool('DJANGO_CSRF_COOKIE_SECURE', not DEBUG)
+SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
+SECURE_HSTS_PRELOAD = env_bool('DJANGO_SECURE_HSTS_PRELOAD', not DEBUG)
+X_FRAME_OPTIONS = 'DENY'
 
 
 # Application definition
@@ -181,6 +194,28 @@ REST_FRAMEWORK = {
 # LLM providers. Ключі читаються лише на бекенді з backend/.env.
 LLM_DEFAULT_MODEL = os.getenv('LLM_DEFAULT_MODEL', 'openai:gpt-6-luna').strip()
 LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '120'))
+LLM_MAX_RETRIES = int(os.getenv('LLM_MAX_RETRIES', '2'))
+LLM_RETRY_DELAY_SECONDS = float(os.getenv('LLM_RETRY_DELAY_SECONDS', '0.6'))
+LLM_RETRY_MAX_DELAY_SECONDS = float(os.getenv('LLM_RETRY_MAX_DELAY_SECONDS', '6'))
+LLM_RATE_LIMIT_MAX_DELAY_SECONDS = float(
+    os.getenv('LLM_RATE_LIMIT_MAX_DELAY_SECONDS', '20')
+)
+LLM_MAX_OUTPUT_TOKENS = int(os.getenv('LLM_MAX_OUTPUT_TOKENS', '1600'))
+LLM_HISTORY_MAX_CHARS = int(os.getenv('LLM_HISTORY_MAX_CHARS', '24000'))
+LLM_ADVANCE_LEASE_SECONDS = int(
+    os.getenv(
+        'LLM_ADVANCE_LEASE_SECONDS',
+        str(int(
+            LLM_TIMEOUT_SECONDS
+            + max(30, LLM_MAX_RETRIES * LLM_RATE_LIMIT_MAX_DELAY_SECONDS)
+            + 30
+        )),
+    )
+)
+DISCUSSION_DAILY_LIMIT = int(os.getenv('DISCUSSION_DAILY_LIMIT', '20'))
+DISCUSSION_DAILY_ADVANCE_LIMIT = int(
+    os.getenv('DISCUSSION_DAILY_ADVANCE_LIMIT', '500')
+)
 
 LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
 LLM_ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()

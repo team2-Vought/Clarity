@@ -16,6 +16,7 @@ class Discussion(models.Model):
         DEBATE = 'debate', 'Дискусія'
         SYNTHESIS = 'synthesis', 'Пропозиція рішення'
         DEVIL = 'devil', 'Перевірка AI Devil'
+        REBUTTAL = 'rebuttal', 'Відповідь на AI Devil'
         FINAL = 'final', 'Фінальний підсумок'
         DONE = 'done', 'Готово'
 
@@ -54,6 +55,10 @@ class Discussion(models.Model):
     )
     current_round = models.PositiveSmallIntegerField(default=1)
     speaker_index = models.PositiveSmallIntegerField(default=0)
+    early_stop = models.BooleanField('завершено раніше через консенсус', default=False)
+    advance_count = models.PositiveIntegerField('кроків виконано', default=0)
+    advance_token = models.UUIDField(null=True, blank=True, editable=False)
+    advance_started_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)
@@ -102,7 +107,16 @@ class Message(models.Model):
     persona_name = models.CharField(max_length=64)
     avatar = models.CharField(max_length=16)
     color = models.CharField(max_length=16, blank=True)
+    reply_to = models.CharField('відповідає учаснику', max_length=64, blank=True)
+    reply_to_slug = models.CharField(
+        'slug учасника, якому відповідає',
+        max_length=32,
+        blank=True,
+        default='',
+    )
     content = models.TextField('текст')
+    thesis = models.CharField('головна теза', max_length=300, blank=True, default='')
+    stance = models.CharField('позиція', max_length=100, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

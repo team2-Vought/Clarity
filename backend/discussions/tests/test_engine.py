@@ -1,8 +1,13 @@
+import uuid
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from discussions.models import Discussion, Message
 from discussions.services import engine
+from discussions.services.providers import ProviderError
 
 from .fakes import FakeProvider
 
@@ -33,20 +38,26 @@ class EngineTests(TestCase):
         )
 
     def run_to_completion(self):
-        created = 0
+        steps = 0
         while True:
-            message = engine.advance(
+            messages = engine.advance(
                 self.discussion, provider_factory=self.provider_factory
             )
             self.discussion.refresh_from_db()
-            if message is None:
+            if not messages and self.discussion.phase == Discussion.Phase.DONE:
                 break
-            created += 1
-            self.assertLess(created, 50, 'движок не завершується')
-        return created
+            steps += 1
+            self.assertLess(steps, 50, 'движок не завершується')
+        return steps
+
+    def ai_messages(self, phase):
+        return list(
+            self.discussion.messages.filter(phase=phase, role=Message.Role.AI)
+            .order_by('seq')
+        )
 
     def test_full_flow_creates_all_phases(self):
-        created = self.run_to_completion()
+        steps = self.run_to_completion()
 
         self.assertEqual(self.discussion.phase, Discussion.Phase.DONE)
         self.assertEqual(self.discussion.status, Discussion.Status.DONE)
@@ -54,6 +65,7 @@ class EngineTests(TestCase):
         self.assertIsNotNone(self.discussion.devil_review)
         self.assertIsNotNone(self.discussion.final_summary)
         self.assertIsNotNone(self.discussion.finished_at)
+        self.assertFalse(self.discussion.early_stop)
         self.assertIn('confirmed', self.discussion.final_summary)
 
         phases = set(self.discussion.messages.values_list('phase', flat=True))
@@ -64,17 +76,48 @@ class EngineTests(TestCase):
                 Discussion.Phase.DEBATE,
                 Discussion.Phase.SYNTHESIS,
                 Discussion.Phase.DEVIL,
+                Discussion.Phase.REBUTTAL,
                 Discussion.Phase.FINAL,
             },
         )
-        # user msg + 3 opening + 3*2 debate + synthesis + devil + final
-        self.assertEqual(created, 12)
-        self.assertEqual(self.discussion.messages.count(), 1 + created)
+        # кроки: вступ (паралельно) + 3*2 дебати + синтез + devil + відповіді + фінал
+        self.assertEqual(steps, 11)
+        # user + 3 вступи + 6 дебатів + синтез + devil + 3 відповіді + фінал
+        self.assertEqual(self.discussion.messages.count(), 16)
 
         synthesis = self.discussion.messages.get(phase=Discussion.Phase.SYNTHESIS)
         final = self.discussion.messages.get(phase=Discussion.Phase.FINAL)
         self.assertIn('\n\n', synthesis.content)
         self.assertIn('\n\n', final.content)
+
+    def test_json_steps_request_json_mode(self):
+        self.run_to_completion()
+        json_calls = [call for call in self.provider.calls if call['json_mode']]
+        self.assertEqual(len(json_calls), 3)
+        text_calls = [call for call in self.provider.calls if not call['json_mode']]
+        self.assertEqual(len(text_calls), 12)
+
+    def test_openings_are_parallel_and_independent(self):
+        messages = engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.discussion.refresh_from_db()
+
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(
+            [message.persona_slug for message in messages],
+            ['logician', 'skeptic', 'creative'],
+        )
+        self.assertTrue(all(message.reply_to == '' for message in messages))
+        self.assertEqual(self.discussion.phase, Discussion.Phase.DEBATE)
+        self.assertEqual(self.discussion.current_round, 1)
+        for call in self.provider.calls:
+            self.assertNotIn('Тестова репліка', call['prompt'])
+            self.assertIn('одночасно', call['prompt'])
+
+    def test_service_lines_are_stripped_and_stored(self):
+        messages = engine.advance(self.discussion, provider_factory=self.provider_factory)
+        for message in messages:
+            self.assertNotIn('ТЕЗА', message.content)
+            self.assertTrue(message.thesis.startswith('Теза репліки #'))
 
     def test_messages_have_sequential_unique_seq(self):
         self.run_to_completion()
@@ -87,18 +130,31 @@ class EngineTests(TestCase):
         self.assertIsNotNone(devil)
         self.assertTrue(devil.content.strip())
 
-    def test_advance_after_done_returns_none(self):
+    def test_participants_respond_to_devil(self):
         self.run_to_completion()
-        self.assertIsNone(engine.advance(self.discussion))
+        rebuttals = self.ai_messages(Discussion.Phase.REBUTTAL)
+        self.assertEqual(
+            [message.persona_slug for message in rebuttals],
+            ['logician', 'skeptic', 'creative'],
+        )
+        self.assertTrue(all(message.reply_to_slug == 'devil' for message in rebuttals))
+        devil = self.discussion.messages.get(phase=Discussion.Phase.DEVIL)
+        self.assertTrue(all(message.seq > devil.seq for message in rebuttals))
+        final_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('[Відповідь на AI Devil]', final_prompt)
+
+    def test_advance_after_done_returns_empty(self):
+        self.run_to_completion()
+        self.assertEqual(engine.advance(self.discussion), [])
 
     def test_failed_discussion_can_resume(self):
         self.discussion.status = Discussion.Status.FAILED
         self.discussion.save(update_fields=['status'])
-        message = engine.advance(
+        messages = engine.advance(
             self.discussion, provider_factory=self.provider_factory
         )
         self.discussion.refresh_from_db()
-        self.assertIsNotNone(message)
+        self.assertTrue(messages)
         self.assertEqual(self.discussion.status, Discussion.Status.IN_PROGRESS)
 
     def test_persona_overrides_used(self):
@@ -111,6 +167,7 @@ class EngineTests(TestCase):
         self.run_to_completion()
         opening = self.discussion.messages.filter(phase=Discussion.Phase.OPENING).first()
         self.assertTrue(opening.content.strip())
+        self.assertIn(0.2, [call['temperature'] for call in self.provider.calls])
 
     def test_persona_models_are_used(self):
         self.discussion.personas = [
@@ -125,18 +182,21 @@ class EngineTests(TestCase):
             used_models.append(model_id)
             return self.provider
 
-        for _ in range(3):
+        for _ in range(2):
             engine.advance(self.discussion, provider_factory=factory)
             self.discussion.refresh_from_db()
 
         self.assertEqual(
-            used_models,
-            [
-                'openai:gpt-6-luna',
-                'groq:openai/gpt-oss-120b',
-                'gemini:gemini-3.8-flash',
-            ],
+            sorted(used_models[:3]),
+            sorted(
+                [
+                    'openai:gpt-6-luna',
+                    'groq:openai/gpt-oss-120b',
+                    'gemini:gemini-3.8-flash',
+                ]
+            ),
         )
+        self.assertEqual(used_models[3], 'openai:gpt-6-luna')
 
     @override_settings(
         LLM_DEFAULT_MODEL='openai:gpt-6-luna',
@@ -161,7 +221,7 @@ class EngineTests(TestCase):
 
         engine.advance(self.discussion, provider_factory=factory)
 
-        self.assertEqual(used_models, ['groq:openai/gpt-oss-120b'])
+        self.assertEqual(used_models, ['groq:openai/gpt-oss-120b'] * 3)
 
     def test_prompt_contains_full_persona_context(self):
         self.discussion.personas = [
@@ -176,25 +236,115 @@ class EngineTests(TestCase):
         ]
         self.discussion.save()
         engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.discussion.refresh_from_db()
+        engine.advance(self.discussion, provider_factory=self.provider_factory)
 
-        prompt = self.provider.calls[0]['prompt']
-        self.assertIn(self.discussion.question, prompt)
-        self.assertIn('Темперамент: Спокійний, раціональний', prompt)
-        self.assertIn('Опис: Тримається фактів', prompt)
-        self.assertIn('Додатковий стиль від користувача: Ти — стратег.', prompt)
-        self.assertIn('Додаткові риси: Перфекціоніст, Стратег', prompt)
-        self.assertIn('Учасники дискусії:', prompt)
-        self.assertIn('Скептик', prompt)
-        self.assertIn('Повна історія дискусії:', prompt)
+        call = next(
+            call for call in self.provider.calls if 'Ім’я: Логік' in call['system']
+        )
+        self.assertIn('Темперамент: Спокійний, раціональний', call['system'])
+        self.assertIn('Опис: Тримається фактів', call['system'])
+        self.assertIn('Додатковий стиль від користувача: Ти — стратег.', call['system'])
+        self.assertIn('Додаткові риси: Перфекціоніст, Стратег', call['system'])
+        self.assertIn(self.discussion.question, call['prompt'])
+        self.assertIn('Учасники дискусії:', call['prompt'])
+        self.assertIn('Скептик', call['prompt'])
+        # опис персони не дублюється в user-промпті
+        self.assertNotIn('Темперамент: Спокійний', call['prompt'])
 
-    def test_prompt_contains_full_history(self):
+        debate_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('Історія дискусії', debate_prompt)
+
+    def test_traits_are_turned_into_behavior_rules(self):
+        self.discussion.personas = [
+            {
+                'slug': 'logician',
+                'name': 'Юрист',
+                'traits': ['Перфекціоніст', 'Стратег'],
+            },
+            {'slug': 'skeptic'},
+        ]
+        self.discussion.save()
+        engine.advance(self.discussion, provider_factory=self.provider_factory)
+
+        call = next(
+            call for call in self.provider.calls if 'Ім’я: Юрист' in call['system']
+        )
+        self.assertIn('Правила характеру:', call['system'])
+        self.assertIn('Перфекціоніст', call['system'])
+        self.assertIn('Помічай дрібні недоліки', call['system'])
+        self.assertIn('Стратег', call['system'])
+        self.assertIn('Твоя роль у цій дискусії:', call['system'])
+        self.assertIn('Ти — Юрист.', call['prompt'])
+
+    def test_debaters_reply_to_each_other(self):
+        self.run_to_completion()
+        debaters = self.ai_messages(Discussion.Phase.DEBATE)
+        self.assertEqual(len(debaters), 6)
+        self.assertTrue(all(message.reply_to for message in debaters))
+        self.assertTrue(
+            all(message.reply_to_slug != message.persona_slug for message in debaters)
+        )
+        debate_prompt = self.provider.calls[4]['prompt']
+        self.assertIn('Ти відповідаєш учаснику «', debate_prompt)
+        self.assertIn('→ відповідає', debate_prompt)
+
+    def test_addressed_participant_answers_first(self):
+        for _ in range(4):  # вступ + три репліки першого раунду
+            engine.advance(self.discussion, provider_factory=self.provider_factory)
+            self.discussion.refresh_from_db()
+        first, second, third = self.ai_messages(Discussion.Phase.DEBATE)
+        # Логік звернувся до Креативника, тож Креативник відповідає саме йому
+        self.assertEqual(first.reply_to_slug, 'creative')
+        self.assertEqual(third.persona_slug, 'creative')
+        self.assertEqual(third.reply_to_slug, 'logician')
+        self.assertIn('звернувся до тебе', self.provider.calls[-1]['prompt'])
+
+    def test_reply_target_avoids_repeating_same_partner(self):
+        self.run_to_completion()
+        by_speaker = {}
+        for message in self.ai_messages(Discussion.Phase.DEBATE):
+            by_speaker.setdefault(message.persona_slug, []).append(message.reply_to_slug)
+        for targets in by_speaker.values():
+            self.assertEqual(len(targets), 2)
+
+    def test_custom_participant_names_are_used(self):
+        self.discussion.personas = [
+            {'slug': 'logician', 'name': 'Анна'},
+            {'slug': 'skeptic', 'name': 'Богдан'},
+            {'slug': 'creative', 'name': 'Віра'},
+        ]
+        self.discussion.save()
+        for _ in range(2):
+            engine.advance(self.discussion, provider_factory=self.provider_factory)
+            self.discussion.refresh_from_db()
+
+        names = set(
+            self.discussion.messages.filter(role=Message.Role.AI)
+            .values_list('persona_name', flat=True)
+        )
+        self.assertEqual(names, {'Анна', 'Богдан', 'Віра'})
+        debate_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('Ти — Анна.', debate_prompt)
+        self.assertIn('Віра', debate_prompt)
+
+    def test_prompt_contains_full_history_for_moderator(self):
         self.run_to_completion()
         final_prompt = self.provider.calls[-1]['prompt']
-        self.assertIn('Тестова репліка #1', final_prompt)
-        self.assertIn('Тестова репліка #9', final_prompt)
+        self.assertIn('Тестова репліка #1.', final_prompt)
+        self.assertIn('Тестова репліка #9.', final_prompt)
         self.assertIn('Логік', final_prompt)
         self.assertIn('Скептик', final_prompt)
         self.assertIn('Креативник', final_prompt)
+
+    def test_debate_history_compacts_old_replies(self):
+        for _ in range(6):  # вступ + 5 реплік дебатів
+            engine.advance(self.discussion, provider_factory=self.provider_factory)
+            self.discussion.refresh_from_db()
+        last_prompt = self.provider.calls[-1]['prompt']
+        # 3 вступи + 4 репліки до цього кроку: 4 найстаріші — лише тезою
+        self.assertEqual(last_prompt.count('— коротко: Теза репліки'), 4)
+        self.assertEqual(last_prompt.count('Аргумент для перевірки контексту'), 3)
 
     def test_yes_no_mode_flow(self):
         self.discussion.mode = Discussion.Mode.YES_NO
@@ -213,3 +363,218 @@ class EngineTests(TestCase):
             'Купити',
         )
         self.assertEqual(self.discussion.final_summary.get('answer'), 'Купити')
+
+    def test_lease_blocks_parallel_advance(self):
+        self.discussion.advance_token = uuid.uuid4()
+        self.discussion.advance_started_at = timezone.now()
+        self.discussion.save(update_fields=['advance_token', 'advance_started_at'])
+        before = self.discussion.messages.count()
+
+        with self.assertRaises(engine.EngineBusy):
+            engine.advance(self.discussion, provider_factory=self.provider_factory)
+
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.messages.count(), before)
+
+    def test_expired_lease_can_be_reclaimed(self):
+        self.discussion.advance_token = uuid.uuid4()
+        self.discussion.advance_started_at = timezone.now() - timedelta(days=1)
+        self.discussion.save(update_fields=['advance_token', 'advance_started_at'])
+
+        messages = engine.advance(
+            self.discussion, provider_factory=self.provider_factory
+        )
+        self.discussion.refresh_from_db()
+        self.assertTrue(messages)
+        self.assertIsNone(self.discussion.advance_token)
+        self.assertEqual(self.discussion.status, Discussion.Status.IN_PROGRESS)
+
+    def test_provider_failure_releases_lease_and_can_resume(self):
+        def failing_factory(model_id):
+            raise ProviderError('provider is down')
+
+        with self.assertRaises(engine.EngineError):
+            engine.advance(self.discussion, provider_factory=failing_factory)
+
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.status, Discussion.Status.FAILED)
+        self.assertIsNone(self.discussion.advance_token)
+        self.assertIn('provider is down', self.discussion.error)
+
+        messages = engine.advance(
+            self.discussion, provider_factory=self.provider_factory
+        )
+        self.assertTrue(messages)
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.status, Discussion.Status.IN_PROGRESS)
+
+    def test_invalid_json_is_repaired(self):
+        class RepairingProvider(FakeProvider):
+            failed_once = False
+
+            def complete(inner_self, *, system, prompt, temperature=0.7, json_mode=False):
+                if '"supporting_arguments"' in prompt and not inner_self.failed_once:
+                    inner_self.failed_once = True
+                    inner_self.calls.append(
+                        {
+                            'system': system,
+                            'prompt': prompt,
+                            'temperature': temperature,
+                        }
+                    )
+                    return 'Це не JSON, але модель виправиться.'
+                return super().complete(
+                    system=system,
+                    prompt=prompt,
+                    temperature=temperature,
+                    json_mode=json_mode,
+                )
+
+        self.provider = RepairingProvider()
+        self.run_to_completion()
+        self.assertIsNotNone(self.discussion.final_summary)
+        self.assertEqual(
+            self.discussion.best_solution['decision'],
+            'Тестове рішення',
+        )
+
+    @override_settings(LLM_HISTORY_MAX_CHARS=2000)
+    def test_long_history_is_trimmed(self):
+        for index in range(3):
+            self.discussion.messages.create(
+                seq=2 + index,
+                phase=Discussion.Phase.OPENING,
+                role=Message.Role.AI,
+                persona_slug='logician',
+                persona_name='Логік',
+                avatar='🧠',
+                content='Дуже довга репліка для перевірки контексту. ' * 80,
+            )
+        self.run_to_completion()
+        final_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('Частину давніших повідомлень скорочено', final_prompt)
+        self.assertIn('Тестова репліка #9.', final_prompt)
+
+    def test_partial_parallel_failure_keeps_successful_replies(self):
+        def factory(model_id):
+            return self.provider
+
+        class FlakyProvider(FakeProvider):
+            def complete(inner_self, *, system, prompt, temperature=0.7, json_mode=False):
+                if 'Ім’я: Скептик' in system:
+                    raise ProviderError('skeptic model is down')
+                return super().complete(
+                    system=system, prompt=prompt, temperature=temperature
+                )
+
+        flaky = FlakyProvider()
+        with self.assertRaises(engine.EngineError):
+            engine.advance(self.discussion, provider_factory=lambda model_id: flaky)
+
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.status, Discussion.Status.FAILED)
+        self.assertEqual(self.discussion.phase, Discussion.Phase.OPENING)
+        self.assertIsNone(self.discussion.advance_token)
+        self.assertEqual(
+            [m.persona_slug for m in self.ai_messages(Discussion.Phase.OPENING)],
+            ['logician', 'creative'],
+        )
+
+        messages = engine.advance(self.discussion, provider_factory=factory)
+        self.discussion.refresh_from_db()
+        self.assertEqual([m.persona_slug for m in messages], ['skeptic'])
+        self.assertEqual(self.discussion.phase, Discussion.Phase.DEBATE)
+        self.assertEqual(self.discussion.status, Discussion.Status.IN_PROGRESS)
+
+
+class ConsensusTests(TestCase):
+    """Раннє завершення дебатів, коли всі учасники зайняли однакову позицію."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email='consensus@test.com', name='Тест', password='pass123!A'
+        )
+
+    def make(self, stance, *, mode=Discussion.Mode.YES_NO, rounds=3, options=None):
+        self.provider = FakeProvider(stance=stance)
+        discussion = Discussion.objects.create(
+            user=self.user,
+            question='Чи варто змінювати роботу на стартап?',
+            personas=['logician', 'skeptic'],
+            rounds=rounds,
+            mode=mode,
+            options=options or [],
+        )
+        while discussion.phase != Discussion.Phase.DONE:
+            engine.advance(discussion, provider_factory=lambda model_id: self.provider)
+            discussion.refresh_from_db()
+        return discussion
+
+    def debate_count(self, discussion):
+        return discussion.messages.filter(phase=Discussion.Phase.DEBATE).count()
+
+    def test_unanimous_yes_no_stops_after_first_round(self):
+        discussion = self.make('так')
+        self.assertTrue(discussion.early_stop)
+        self.assertEqual(self.debate_count(discussion), 2)
+        stances = set(
+            discussion.messages.filter(role=Message.Role.AI).values_list('stance', flat=True)
+        )
+        self.assertEqual(stances, {'так'})
+        synthesis_call = next(
+            call for call in self.provider.calls if '"supporting_arguments"' in call['prompt']
+            and '"verdict"' not in call['prompt'] and '"confirmed"' not in call['prompt']
+        )
+        self.assertIn('достроково', synthesis_call['prompt'])
+
+    def test_no_stance_runs_all_rounds(self):
+        discussion = self.make(None)
+        self.assertFalse(discussion.early_stop)
+        self.assertEqual(self.debate_count(discussion), 6)
+
+    def test_last_round_is_not_marked_early(self):
+        discussion = self.make('так', rounds=1)
+        self.assertFalse(discussion.early_stop)
+        self.assertEqual(self.debate_count(discussion), 2)
+
+    def test_open_mode_needs_explicit_agreement(self):
+        self.assertTrue(self.make('згода', mode=Discussion.Mode.OPEN).early_stop)
+        self.assertFalse(self.make('суперечка', mode=Discussion.Mode.OPEN).early_stop)
+
+    def test_choose_one_partial_option_match(self):
+        discussion = self.make(
+            '**Зачекати** — так безпечніше',
+            mode=Discussion.Mode.CHOOSE_ONE,
+            options=['Купити', 'Не купувати', 'Зачекати'],
+        )
+        self.assertTrue(discussion.early_stop)
+        stance = discussion.messages.filter(role=Message.Role.AI).first().stance
+        self.assertEqual(stance, 'Зачекати')
+
+
+class ParseReplyTests(TestCase):
+    def test_markdown_service_lines(self):
+        content, thesis, stance = engine.parse_reply(
+            'Перший абзац.\n\nДругий абзац.\n\n**ТЕЗА:** Головна думка\n**Позиція:** Ні.',
+            Discussion.Mode.YES_NO,
+            [],
+        )
+        self.assertEqual(content, 'Перший абзац.\n\nДругий абзац.')
+        self.assertEqual(thesis, 'Головна думка')
+        self.assertEqual(stance, 'ні')
+
+    def test_missing_thesis_falls_back_to_first_sentence(self):
+        content, thesis, stance = engine.parse_reply(
+            'Коротка думка. Далі пояснення.', Discussion.Mode.OPEN, []
+        )
+        self.assertEqual(content, 'Коротка думка. Далі пояснення.')
+        self.assertEqual(thesis, 'Коротка думка.')
+        self.assertEqual(stance, '')
+
+    def test_ambiguous_choose_one_stance_is_empty(self):
+        _, _, stance = engine.parse_reply(
+            'Текст.\nПОЗИЦІЯ: Купити або Зачекати',
+            Discussion.Mode.CHOOSE_ONE,
+            ['Купити', 'Зачекати'],
+        )
+        self.assertEqual(stance, '')
