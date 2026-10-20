@@ -63,6 +63,18 @@ const ThemeIcon = () => (
   </svg>
 );
 
+const MoonIcon = () => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <path
+      d="M20.5 14.4A8.5 8.5 0 0 1 10.6 4.5 8.5 8.5 0 1 0 20.5 14.4Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const VolumeIcon = () => (
   <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
     <path d="M17.1943 8.7085C17.861 9.75016 18.236 10.9863 18.236 12.3057C18.236 13.6252 17.861 14.8613 17.1943 15.9029" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" strokeLinecap="round" />
@@ -103,8 +115,15 @@ const NAV_ITEMS = [
 const isItemActive = (item, pathname) =>
   (item.match || []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-export default function Sidebar({ activePath, collapsed, onToggle }) {
+export default function Sidebar({
+  activePath,
+  collapsed,
+  onToggle,
+  theme,
+  onToggleTheme,
+}) {
   const navigate = useNavigate();
+  const themeActionLabel = theme === 'dark' ? t.themeLight : t.themeDark;
 
   const handleLogout = async () => {
     try {
@@ -154,10 +173,15 @@ export default function Sidebar({ activePath, collapsed, onToggle }) {
       </nav>
 
       <div className="sidebar__controls">
-        {/* TODO: підключити перемикання теми та звуку */}
-        <button type="button" className="sidebar__control" aria-label="Тема" title={collapsed ? 'Тема' : undefined}>
-          <ThemeIcon />
-          {!collapsed && <span className="sidebar__label">Тема</span>}
+        <button
+          type="button"
+          className="sidebar__control"
+          onClick={onToggleTheme}
+          aria-label={themeActionLabel}
+          title={collapsed ? themeActionLabel : undefined}
+        >
+          {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
+          {!collapsed && <span className="sidebar__label">{themeActionLabel}</span>}
         </button>
         <button type="button" className="sidebar__control" aria-label="Звук" title={collapsed ? 'Звук' : undefined}>
           <VolumeIcon />
@@ -182,4 +206,6 @@ Sidebar.propTypes = {
   activePath: PropTypes.string.isRequired,
   collapsed: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,
+  theme: PropTypes.oneOf(['light', 'dark']).isRequired,
+  onToggleTheme: PropTypes.func.isRequired,
 };

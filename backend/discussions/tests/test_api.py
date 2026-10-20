@@ -1,15 +1,16 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from discussions.models import Discussion
 
+from .fakes import FakeProvider
+
 User = get_user_model()
 
 
-@override_settings(LLM_PROVIDER='mock')
 class DiscussionApiTests(TestCase):
     def setUp(self):
         # DRF кешує THROTTLE_RATES при імпорті, тому вимикаємо throttle патчем
@@ -19,6 +20,14 @@ class DiscussionApiTests(TestCase):
         )
         patcher.start()
         self.addCleanup(patcher.stop)
+
+        self.provider = FakeProvider()
+        provider_patcher = mock.patch(
+            'discussions.services.engine.get_provider',
+            side_effect=lambda model_id: self.provider,
+        )
+        provider_patcher.start()
+        self.addCleanup(provider_patcher.stop)
 
         self.client = APIClient()
         self.user = User.objects.create_user(
@@ -60,6 +69,51 @@ class DiscussionApiTests(TestCase):
         response = self.client.get('/api/models/')
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['models'])
+        model_ids = {item['id'] for item in response.data['models']}
+        self.assertIn('openai:gpt-6-luna', model_ids)
+        self.assertIn('groq:openai/gpt-oss-120b', model_ids)
+        self.assertNotIn('mock', model_ids)
+        for item in response.data['models']:
+            self.assertNotIn('mock', item['provider'].lower())
+
+    def test_persona_model_and_traits_accepted(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {
+                        'slug': 'logician',
+                        'model': 'openai:gpt-6-luna',
+                        'traits': ['Стратег', 'Перфекціоніст'],
+                    },
+                    {'slug': 'creative', 'model': 'groq:openai/gpt-oss-120b'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['personas'][0]['model'], 'openai:gpt-6-luna')
+        self.assertEqual(
+            response.data['personas'][0]['traits'],
+            ['Стратег', 'Перфекціоніст'],
+        )
+
+    def test_unknown_model_rejected(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {'slug': 'logician', 'model': 'stub:fake-model'},
+                    {'slug': 'creative', 'model': 'openai:gpt-6-luna'},
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_create_discussion_and_complete(self):
         self.auth()

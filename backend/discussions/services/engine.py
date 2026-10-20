@@ -1,19 +1,21 @@
 """Движок дискусії: стан-машина, яка робить один крок за виклик.
 
 Фази: opening → debate (N раундів) → synthesis → devil → final → done.
-Один крок = одне повідомлення в чаті — фронтенд може малювати їх послідовно.
-Після перевірки AI Devil фінальний крок або підтверджує висновок, або переглядає його.
+Один крок = одне повідомлення в чаті. Кожен AI-учасник викликає власну модель,
+а модератор і AI Devil використовують модель першого учасника.
 """
 
 import json
 import re
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from ..models import Discussion, Message
 from ..personas import DEVIL, MODERATOR, PERSONA_BY_SLUG
 from . import prompts
+from .catalog import default_model_id
 from .providers import ProviderError, get_provider
 
 MAX_SEQ_STEP = 1
@@ -62,8 +64,12 @@ def _list_messages(discussion):
     return list(discussion.messages.order_by('seq'))
 
 
+def _default_model():
+    return default_model_id() or settings.LLM_DEFAULT_MODEL
+
+
 def _resolved_personas(discussion):
-    """Повертає повні описи персон з урахуванням user-оверайдів (style, temperature)."""
+    """Повертає персон з усіма user-оверайдами: name, style, traits, model."""
     resolved = []
     for item in discussion.personas:
         if isinstance(item, dict):
@@ -75,15 +81,31 @@ def _resolved_personas(discussion):
             continue
         persona = dict(base)
         persona.setdefault('temperature', DEFAULT_TEMPERATURE)
+        persona['model'] = _default_model()
+        persona['traits'] = []
         if isinstance(item, dict):
             if item.get('name'):
                 persona['name'] = item['name']
             if item.get('style'):
-                persona['style'] = item['style']
+                persona['custom_style'] = item['style']
+            if item.get('traits'):
+                persona['traits'] = list(item['traits'])
+            if item.get('model'):
+                persona['model'] = item['model']
             if item.get('temperature') is not None:
                 persona['temperature'] = float(item['temperature'])
         resolved.append(persona)
     return resolved
+
+
+def _model_for_persona(persona):
+    return persona.get('model') or _default_model()
+
+
+def _moderator_model(personas):
+    if personas:
+        return _model_for_persona(personas[0])
+    return _default_model()
 
 
 def _mode_ctx(discussion):
@@ -104,82 +126,102 @@ def _move_to(discussion, *, phase=None, status=None, round=None, speaker_index=N
     discussion.save()
 
 
-def _complete(provider, system, prompt, temperature=DEFAULT_TEMPERATURE):
+def _complete(
+    provider_factory,
+    model_id,
+    system,
+    prompt,
+    temperature=DEFAULT_TEMPERATURE,
+):
     try:
+        provider = provider_factory(model_id) if provider_factory else get_provider(model_id)
         return provider.complete(system=system, prompt=prompt, temperature=temperature)
     except ProviderError as exc:
-        raise EngineError(str(exc)) from exc
+        raise EngineError(f'{model_id}: {exc}') from exc
 
 
 def _moderator_text(best_solution):
     decision = best_solution.get('decision', 'рішення не визначено')
     reasoning = best_solution.get('reasoning', '')
-    args = ' • '.join(best_solution.get('supporting_arguments', [])[:4])
-    lines = []
+    args = '; '.join(best_solution.get('supporting_arguments', [])[:4])
+    paragraphs = []
     answer = best_solution.get('answer')
     if answer:
-        lines.append(f'Відповідь: {answer}')
-    lines.append(f'Пропозиція рішення: {decision}')
+        paragraphs.append(f'Відповідь: {answer}')
+    paragraphs.append(f'Пропоноване рішення: {decision}')
     if reasoning:
-        lines.append(reasoning)
+        paragraphs.append(reasoning)
     if args:
-        lines.append(f'Аргументи: {args}')
-    return '\n'.join(lines).strip()
+        paragraphs.append(f'Аргументи на користь рішення: {args}.')
+    return '\n\n'.join(paragraphs).strip()
 
 
 def _devil_text(review):
+    paragraphs = []
     verdict = review.get('verdict', '')
-    risks = review.get('risks', [])
-    lines = [verdict]
-    for risk in risks:
+    if verdict:
+        paragraphs.append(verdict)
+
+    for risk in review.get('risks', []):
         title = risk.get('title', '')
+        description = risk.get('description', '')
         severity = risk.get('severity', '')
-        lines.append(f'— {title} ({severity})' if severity else f'— {title}')
-    for weak in review.get('weak_spots', [])[:3]:
-        lines.append(f'Слабке місце: {weak}')
-    for counter in review.get('counter_arguments', [])[:3]:
-        lines.append(f'Контраргумент: {counter}')
-    return '\n'.join(line for line in lines if line).strip()
+        details = ' — '.join(part for part in (title, description) if part)
+        if details:
+            suffix = f' (ризик: {severity})' if severity else ''
+            paragraphs.append(f'{details}{suffix}.')
+
+    weak_spots = review.get('weak_spots', [])[:3]
+    if weak_spots:
+        paragraphs.append(f'Слабкі місця: {"; ".join(weak_spots)}.')
+
+    counter_arguments = review.get('counter_arguments', [])[:3]
+    if counter_arguments:
+        paragraphs.append(f'Контраргументи: {"; ".join(counter_arguments)}.')
+
+    return '\n\n'.join(paragraphs).strip()
 
 
 def _final_text(summary):
-    lines = []
+    paragraphs = []
     confirmed = summary.get('confirmed')
     answer = summary.get('answer')
     if answer:
-        lines.append(f'Відповідь: {answer}')
+        paragraphs.append(f'Відповідь: {answer}')
+
     decision = summary.get('decision', '')
-    lines.append(f'Фінальне рішення: {decision}')
+    paragraphs.append(f'Фінальне рішення: {decision}')
 
     if confirmed is False:
-        lines.append('Висновок ПЕРЕГЛЯНУТО після перевірки AI Devil.')
-        if summary.get('revision'):
-            lines.append(f'Що змінилось: {summary["revision"]}')
+        revision = summary.get('revision')
+        text = 'Висновок переглянуто після перевірки AI Devil.'
+        if revision:
+            text = f'{text} Що змінилось: {revision}'
+        paragraphs.append(text)
     else:
-        lines.append('Висновок ПІДТВЕРДЖЕНО після перевірки AI Devil.')
+        paragraphs.append('Висновок підтверджено після перевірки AI Devil.')
 
     confidence = summary.get('confidence', '—')
-    lines.append(f'Впевненість: {confidence}%')
+    paragraphs.append(f'Впевненість: {confidence}%.')
+
     if summary.get('recommendation'):
-        lines.append(f'Що робити далі: {summary["recommendation"]}')
-    return '\n'.join(lines).strip()
+        paragraphs.append(f'Що робити далі: {summary["recommendation"]}')
+    return '\n\n'.join(paragraphs).strip()
 
 
 @transaction.atomic
-def advance(discussion):
+def advance(discussion, provider_factory=None):
     """Робить один крок дискусії. Повертає нове Message або None, якщо все готово."""
-    if discussion.status == Discussion.Status.FAILED:
-        raise EngineError('Дискусію зупинено через помилку')
     if discussion.phase == Discussion.Phase.DONE:
         return None
 
-    provider = get_provider()
-    if discussion.status == Discussion.Status.NEW:
+    if discussion.status in {Discussion.Status.FAILED, Discussion.Status.NEW}:
         discussion.status = Discussion.Status.IN_PROGRESS
-        discussion.save(update_fields=['status', 'updated_at'])
+        discussion.error = ''
+        discussion.save(update_fields=['status', 'error', 'updated_at'])
 
     try:
-        message = _step(discussion, provider)
+        message = _step(discussion, provider_factory)
     except EngineError:
         _move_to(discussion, status=Discussion.Status.FAILED)
         raise
@@ -187,7 +229,7 @@ def advance(discussion):
     return message
 
 
-def _step(discussion, provider):
+def _step(discussion, provider_factory):
     handler = {
         Discussion.Phase.OPENING: _step_opening,
         Discussion.Phase.DEBATE: _step_debate,
@@ -198,18 +240,27 @@ def _step(discussion, provider):
 
     if handler is None:
         raise EngineError(f'Невідома фаза: {discussion.phase}')
-    return handler(discussion, provider)
+    return handler(discussion, provider_factory)
 
 
-def _step_opening(discussion, provider):
+def _step_opening(discussion, provider_factory):
     personas = _resolved_personas(discussion)
+    if not personas:
+        raise EngineError('У дискусії немає AI-учасників')
     persona = personas[discussion.speaker_index]
     mode, options = _mode_ctx(discussion)
     content = _complete(
-        provider,
+        provider_factory,
+        _model_for_persona(persona),
         system=prompts.SYSTEM_BASE,
         prompt=prompts.opening_prompt(
-            discussion.question, persona, mode=mode, options=options
+            discussion.question,
+            persona,
+            personas,
+            _list_messages(discussion),
+            mode=mode,
+            options=options,
+            rounds=discussion.rounds,
         ),
         temperature=persona.get('temperature', DEFAULT_TEMPERATURE),
     )
@@ -234,20 +285,25 @@ def _step_opening(discussion, provider):
     return message
 
 
-def _step_debate(discussion, provider):
+def _step_debate(discussion, provider_factory):
     personas = _resolved_personas(discussion)
+    if not personas:
+        raise EngineError('У дискусії немає AI-учасників')
     persona = personas[discussion.speaker_index]
     mode, options = _mode_ctx(discussion)
     content = _complete(
-        provider,
+        provider_factory,
+        _model_for_persona(persona),
         system=prompts.SYSTEM_BASE,
         prompt=prompts.debate_prompt(
             discussion.question,
             persona,
+            personas,
             _list_messages(discussion),
             discussion.current_round,
             mode=mode,
             options=options,
+            rounds=discussion.rounds,
         ),
         temperature=persona.get('temperature', DEFAULT_TEMPERATURE),
     )
@@ -270,14 +326,22 @@ def _step_debate(discussion, provider):
     return message
 
 
-def _step_synthesis(discussion, provider):
+def _step_synthesis(discussion, provider_factory):
+    personas = _resolved_personas(discussion)
     messages = _list_messages(discussion)
     mode, options = _mode_ctx(discussion)
     raw = _complete(
-        provider,
+        provider_factory,
+        _moderator_model(personas),
         system=prompts.MODERATOR_SYSTEM,
         prompt=prompts.synthesis_prompt(
-            discussion.question, messages, mode=mode, options=options
+            discussion.question,
+            personas,
+            MODERATOR,
+            messages,
+            mode=mode,
+            options=options,
+            rounds=discussion.rounds,
         ),
     )
     best_solution = parse_json(
@@ -303,18 +367,23 @@ def _step_synthesis(discussion, provider):
     return message
 
 
-def _step_devil(discussion, provider):
+def _step_devil(discussion, provider_factory):
+    personas = _resolved_personas(discussion)
     messages = _list_messages(discussion)
     mode, options = _mode_ctx(discussion)
     raw = _complete(
-        provider,
+        provider_factory,
+        _moderator_model(personas),
         system=prompts.DEVIL_SYSTEM,
         prompt=prompts.devil_prompt(
             discussion.question,
+            personas,
+            DEVIL,
             discussion.best_solution or {},
             messages,
             mode=mode,
             options=options,
+            rounds=discussion.rounds,
         ),
     )
     devil_review = parse_json(
@@ -340,19 +409,24 @@ def _step_devil(discussion, provider):
     return message
 
 
-def _step_final(discussion, provider):
+def _step_final(discussion, provider_factory):
+    personas = _resolved_personas(discussion)
     messages = _list_messages(discussion)
     mode, options = _mode_ctx(discussion)
     raw = _complete(
-        provider,
+        provider_factory,
+        _moderator_model(personas),
         system=prompts.MODERATOR_SYSTEM,
         prompt=prompts.final_prompt(
             discussion.question,
+            personas,
+            MODERATOR,
             discussion.best_solution or {},
             discussion.devil_review or {},
             messages,
             mode=mode,
             options=options,
+            rounds=discussion.rounds,
         ),
     )
     final_summary = parse_json(

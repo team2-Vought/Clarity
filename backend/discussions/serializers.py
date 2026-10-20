@@ -10,6 +10,7 @@ from .personas import (
     QUESTION_MAX,
     QUESTION_MIN,
 )
+from .services.catalog import resolve_model
 
 REQUIRED = 'Це поле обов’язкове'
 QUESTION_TOO_SHORT = f'Запитання має бути довшим за {QUESTION_MIN} символів'
@@ -29,9 +30,16 @@ OPTION_NOT_ALLOWED = 'Варіанти потрібні лише для режи
 STYLE_TOO_LONG = 'Опис характеру задовгий (максимум 300 символів)'
 NAME_TOO_LONG = 'Ім’я учасника задовге (максимум 64 символи)'
 TEMPERATURE_RANGE = 'Температура має бути від 0 до 1'
+MODEL_TOO_LONG = 'Ідентифікатор моделі задовгий (максимум 120 символів)'
+MODEL_UNKNOWN = 'Невідома модель: {model}'
+TRAITS_TYPE = 'Риси характеру мають бути списком'
+TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
+TRAIT_TOO_LONG = 'Риса характеру задовга (максимум 40 символів)'
 
 MODES = {m.value for m in Discussion.Mode}
 OPTION_MAX = 8
+TRAITS_MAX = 20
+TRAIT_LENGTH_MAX = 40
 
 
 class CreateDiscussionSerializer(serializers.Serializer):
@@ -114,6 +122,33 @@ class CreateDiscussionSerializer(serializers.Serializer):
                     if len(style) > 300:
                         raise serializers.ValidationError(STYLE_TOO_LONG)
                     persona['style'] = style
+                traits = item.get('traits')
+                if traits is not None:
+                    if not isinstance(traits, list):
+                        raise serializers.ValidationError(TRAITS_TYPE)
+                    cleaned_traits = []
+                    for trait in traits:
+                        text = str(trait).strip()
+                        if not text:
+                            continue
+                        if len(text) > TRAIT_LENGTH_MAX:
+                            raise serializers.ValidationError(TRAIT_TOO_LONG)
+                        if text not in cleaned_traits:
+                            cleaned_traits.append(text)
+                    if len(cleaned_traits) > TRAITS_MAX:
+                        raise serializers.ValidationError(TRAITS_TOO_MANY)
+                    if cleaned_traits:
+                        persona['traits'] = cleaned_traits
+                model = item.get('model')
+                if model:
+                    model = str(model).strip()
+                    if len(model) > 120:
+                        raise serializers.ValidationError(MODEL_TOO_LONG)
+                    if resolve_model(model) is None:
+                        raise serializers.ValidationError(
+                            MODEL_UNKNOWN.format(model=model)
+                        )
+                    persona['model'] = model
                 temperature = item.get('temperature')
                 if temperature is not None:
                     try:

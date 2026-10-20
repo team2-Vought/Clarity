@@ -178,9 +178,31 @@ REST_FRAMEWORK = {
     },
 }
 
-# LLM provider (mock — локально без ключів, openai_compatible — реальні виклики)
-LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'mock')
-LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-LLM_OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1').rstrip('/')
-LLM_MODEL = os.getenv('LLM_MODEL', 'gpt-4o-mini')
-LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '60'))
+# LLM providers. Ключі читаються лише на бекенді з backend/.env.
+LLM_DEFAULT_MODEL = os.getenv('LLM_DEFAULT_MODEL', 'openai:gpt-6-luna').strip()
+LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '120'))
+
+LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
+LLM_ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
+LLM_GEMINI_API_KEY = (
+    os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GOOGLE_API_KEY', '').strip()
+)
+LLM_GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()
+LLM_CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY', '').strip()
+LLM_DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '').strip()
+LLM_MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY', '').strip()
+LLM_OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '').strip()
+
+LLM_OLLAMA_BASE_URL = os.getenv(
+    'OLLAMA_BASE_URL', 'http://localhost:11434/v1'
+).rstrip('/')
+LLM_OLLAMA_MODELS = [
+    item.strip()
+    for item in os.getenv('OLLAMA_MODELS', '').split(',')
+    if item.strip()
+]
+
+LLM_CUSTOM_LABEL = os.getenv('CUSTOM_LLM_LABEL', '').strip()
+LLM_CUSTOM_BASE_URL = os.getenv('CUSTOM_LLM_BASE_URL', '').rstrip('/')
+LLM_CUSTOM_MODEL = os.getenv('CUSTOM_LLM_MODEL', '').strip()
+LLM_CUSTOM_API_KEY = os.getenv('CUSTOM_LLM_API_KEY', '').strip()

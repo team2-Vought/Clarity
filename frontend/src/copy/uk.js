@@ -79,6 +79,8 @@ export const uk = {
     help: 'Допомога',
     logout: 'Вийти',
     appName: 'Clarity',
+    themeLight: 'Світла тема',
+    themeDark: 'Темна тема',
   },
 
   debate: {
@@ -91,6 +93,9 @@ export const uk = {
     scrollRight: 'Прокрутити праворуч',
     aiModel: 'Модель AI',
     chooseModel: 'Оберіть модель',
+    modelUnavailable: 'потрібен ключ',
+    noModel: 'Оберіть доступну модель для кожного учасника',
+    noModelsAvailable: 'Немає доступних моделей. Додайте API-ключ у backend/.env або налаштуйте Ollama.',
     character: 'Характер',
     placeholderCharacter: 'Оберіть характер',
     description: 'Опис',
@@ -102,10 +107,20 @@ export const uk = {
   },
 
   chat: {
-    back: '↖ Назад до дебатів',
     messages: 'Повідомлення',
-    empty: 'Повідомлень ще немає. Розпочніть дискусію.',
+    loading: 'Завантажуємо дискусію…',
+    loadError: 'Не вдалося завантажити дискусію',
     advancing: 'Аналізуємо…',
+    thoughtDone: 'Готово',
+    retry: 'Спробувати ще раз',
+    errorAdvance: 'Не вдалося продовжити дискусію',
+    stopped: 'Дискусію зупинено. Спробуйте продовжити.',
+    fallbackParticipant: (index) => `Учасник ${index}`,
+    stageOpening: (name) => `Відкриття · ${name}`,
+    stageRound: (round, name) => `Раунд ${round} · ${name}`,
+    stageSynthesis: 'Узагальнення · Модератор',
+    stageDevil: 'Перевірка · AI Devil',
+    stageFinal: 'Фінальний висновок · Модератор',
   },
 
   field: {
