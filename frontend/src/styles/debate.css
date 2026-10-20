@@ -320,6 +320,63 @@
   transition: background 0.18s, color 0.18s, filter 0.18s;
 }
 
+/* обгортка картки: дає точку відліку для хрестика видалення */
+.debate__participant-item {
+  position: relative;
+  flex: 0 0 100px;
+  width: 100px;
+}
+
+.debate__participant-item > .debate__participant {
+  width: 100%;
+  height: 100%;
+}
+
+.debate__participant-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.15s, transform 0.15s, background 0.15s, color 0.15s;
+}
+
+.debate__participant-remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+.debate__participant-item:hover .debate__participant-remove,
+.debate__participant-item:focus-within .debate__participant-remove {
+  opacity: 1;
+  transform: none;
+}
+
+.debate__participant-remove:hover,
+.debate__participant-remove:focus-visible {
+  background: #c93a62;
+  color: #ffffff;
+  outline: none;
+}
+
+/* на сенсорних екранах наведення немає — хрестик видно завжди */
+@media (hover: none) {
+  .debate__participant-remove {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .debate__participant-label {
   max-width: 100%;
   overflow: hidden;
@@ -577,12 +634,19 @@
   gap: 4px;
 }
 
-/* Додаткові налаштування */
+/* Додаткові налаштування: кнопка притиснута до низу панелі, вміст —
+   спливаюче вікно вгору поверх панелі (висота сайдбару не змінюється) */
 
 .debate__advanced {
-  gap: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  flex-shrink: 0;
+  margin-top: auto;
   border-radius: 12px;
   background: var(--card);
+  /* затінює контент, що прокручується під притиснутою кнопкою */
+  box-shadow: 0 -10px 16px -6px var(--panel);
 }
 
 .debate__advanced-toggle {
@@ -625,15 +689,43 @@
   white-space: nowrap;
 }
 
-.debate__advanced-toggle--open .debate__model-chevron {
+/* вікно відкривається вгору: шеврон дивиться вгору, відкрите — вниз */
+.debate__advanced .debate__model-chevron {
   transform: rotate(180deg);
 }
 
+.debate__advanced-toggle--open .debate__model-chevron {
+  transform: none;
+}
+
 .debate__advanced-body {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 2px 12px 12px;
+  max-height: min(70dvh, 560px);
+  padding: 12px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.24);
+  scrollbar-width: thin;
+  transform-origin: bottom center;
+  animation: debate-advanced-in 0.16s ease-out;
+}
+
+@keyframes debate-advanced-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .debate__advanced-body .debate__card,
@@ -657,28 +749,6 @@
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
-}
-
-.debate__remove-participant {
-  align-self: flex-start;
-  padding: 6px 10px;
-  border: 1px solid var(--divider);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.debate__remove-participant:hover:not(:disabled) {
-  border-color: #c93a62;
-  color: #c93a62;
-}
-
-.debate__remove-participant:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .debate__error-block {
@@ -864,14 +934,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 16px;
+  padding: 9px 15px;
   border: 0;
   border-radius: 999px;
   background: var(--card);
   color: var(--muted);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.18s, color 0.18s, box-shadow 0.18s;
 }
@@ -935,47 +1006,155 @@
 
 /* Кнопка «Почати» */
 
-.debate__start-btn {
-  flex-shrink: 0;
-  margin-top: auto;
-  min-height: 44px;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--btn-bg, #121212);
-  color: var(--btn-text, #ffffff);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
-}
-
-.debate__start-btn:not(:disabled):hover {
-  opacity: 0.88;
-}
-
-.debate__start-btn:active {
-  transform: scale(0.985);
-}
-
-.debate__start-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Основна область: заголовок по центру */
+/* Основна область: заголовок і поле промпту по центру */
 
 .debate__main {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 14px;
   min-width: 0;
   min-height: 0;
-  padding: 32px 24px;
-  text-align: center;
+  padding: 32px clamp(16px, 4vw, 48px);
   overflow-y: auto;
+}
+
+.debate__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: clamp(10px, 3vh, 26px);
+  text-align: center;
+}
+
+.debate__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(760px, 100%);
+  padding: 14px 14px 10px 18px;
+  border: 1.5px solid transparent;
+  border-radius: 26px;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd), var(--lilac, #b4b5ce)) border-box;
+  box-shadow: 0 10px 30px rgba(18, 18, 18, 0.08);
+  cursor: text;
+  transition: box-shadow 0.2s;
+}
+
+.debate__composer:focus-within {
+  box-shadow:
+    0 0 0 4px rgba(127, 128, 172, 0.18),
+    0 10px 30px rgba(18, 18, 18, 0.1);
+}
+
+:root[data-theme='dark'] .debate__composer {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.debate__composer--busy {
+  opacity: 0.75;
+}
+
+.debate__composer-input {
+  width: 100%;
+  min-height: 28px;
+  max-height: min(42vh, 360px);
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.debate__composer-input::placeholder {
+  color: var(--muted);
+}
+
+.debate__composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.debate__composer-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.debate__send {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--btn-bg, #121212);
+  color: var(--btn-text, #ffffff);
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.debate__send svg {
+  width: 20px;
+  height: 20px;
+}
+
+.debate__send:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.debate__send:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.debate__send:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.debate__send-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: debate-spin 0.7s linear infinite;
+}
+
+@keyframes debate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.debate__composer-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.debate__main .debate__error-block {
+  align-items: center;
+  width: min(760px, 100%);
 }
 
 .debate__title {
@@ -1281,6 +1460,51 @@
   margin-top: 0.85em;
 }
 
+/* Поява нової репліки: м'який виїзд, далі текст «друкується» */
+
+.chat__row--enter {
+  animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes chat-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chat__bubble--typing {
+  cursor: pointer;
+}
+
+.chat__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  vertical-align: -0.15em;
+  animation: chat-caret-blink 0.9s steps(1) infinite;
+}
+
+@keyframes chat-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__row--enter,
+  .chat__caret {
+    animation: none;
+  }
+}
+
 .chat__thought {
   align-self: flex-start;
   width: 100%;
@@ -1514,18 +1738,14 @@
   }
 
   .debate__trait-chip {
-    padding: 6px 12px;
-    font-size: 0.8125rem;
+    padding: 7px 13px;
+    font-size: 1rem;
   }
 
   .debate__textarea {
     height: 78px;
   }
 
-  .debate__start-btn {
-    min-height: 38px;
-    font-size: 0.9375rem;
-  }
 }
 
 @media (max-width: 900px) {
@@ -1568,7 +1788,8 @@
     transform: none;
   }
 
-  /* на мобільних форма зверху, результат знизу, скролиться вся сторінка */
+  /* на мобільних спершу поле промпту, під ним налаштування;
+     скролиться вся сторінка */
   .debate-page {
     display: flex;
     flex: none;
@@ -1582,8 +1803,22 @@
   }
 
   .debate__main {
-    min-height: 42vh;
+    order: -1;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 28px 16px 24px;
     overflow: visible;
+  }
+
+  .debate__hero {
+    margin-bottom: 8px;
+  }
+
+  /* сторінка скролиться цілком — липка кнопка тут лише заважала б */
+  .debate__advanced {
+    position: relative;
+    margin-top: 4px;
+    box-shadow: none;
   }
 
   .chat__main {
@@ -1634,7 +1869,7 @@
     height: 20px;
   }
 
-  .debate__participant,
+  .debate__participant-item,
   .debate__participant-add {
     flex-basis: 88px;
     width: 88px;
@@ -1644,5 +1879,11 @@
 @media (prefers-reduced-motion: reduce) {
   .sidebar {
     transition: none;
+  }
+}
+/* підказка про Enter не має сенсу на сенсорних екранах */
+@media (hover: none) {
+  .debate__composer-hint {
+    display: none;
   }
 }

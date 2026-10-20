@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPersonas, fetchModels, createDiscussion } from '../api/discussions';
 import { getToken } from '../api/client';
-import { AiModelIcon, ChevronIcon, PlusIcon, UserPlusIcon } from '../components/DebateIcons';
+import {
+  AiModelIcon,
+  ArrowUpIcon,
+  ChevronIcon,
+  CloseIcon,
+  PlusIcon,
+  UserPlusIcon,
+} from '../components/DebateIcons';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 
@@ -17,15 +24,6 @@ const MAX_STYLE = 300;
 const MAX_NAME = 64;
 const MAX_TRAIT = 40;
 const DEFAULT_TEMPERATURE = 0.7;
-const ADVANCED_STORAGE_KEY = 'clarity:debate-advanced-open';
-
-const readAdvancedOpen = () => {
-  try {
-    return window.localStorage.getItem(ADVANCED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
 
 const MODES = [
   { value: 'yes_no', label: t.modeYesNo },
@@ -53,7 +51,7 @@ export default function DebatePage() {
   const [optionDraft, setOptionDraft] = useState('');
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
   const [maxRounds, setMaxRounds] = useState(5);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(readAdvancedOpen);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +59,10 @@ export default function DebatePage() {
   const allTraits = [...TRAITS, ...customTraits];
   const participantListRef = useRef(null);
   const modelRef = useRef(null);
+  const advancedRef = useRef(null);
   const cancelRenameRef = useRef(false);
+  const formRef = useRef(null);
+  const questionRef = useRef(null);
   const activeParticipant =
     participants.find((p) => p.slug === activeSlug) || participants[0];
   const activeTraits = activeParticipant?.traits || [];
@@ -87,6 +88,12 @@ export default function DebatePage() {
   ]
     .filter(Boolean)
     .join(' · ');
+  const canStart =
+    !isCreating
+    && !isLoading
+    && description.trim().length > 0
+    && participants.length >= MIN_PARTICIPANTS
+    && allParticipantsHaveModels;
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
 
@@ -134,6 +141,20 @@ export default function DebatePage() {
     const timer = setTimeout(loadData, 0);
     return () => clearTimeout(timer);
   }, [loadData, navigate]);
+
+  // Поле промпту росте разом із текстом; після max-height з'являється скрол.
+  useLayoutEffect(() => {
+    const el = questionRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [description]);
+
+  const handleQuestionKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (canStart) formRef.current?.requestSubmit();
+  };
 
   const updateScrollState = useCallback(() => {
     const el = participantListRef.current;
@@ -188,6 +209,22 @@ export default function DebatePage() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isModelOpen]);
+
+  useEffect(() => {
+    if (!isAdvancedOpen) return undefined;
+    const handleMouseDown = (e) => {
+      if (!advancedRef.current?.contains(e.target)) setIsAdvancedOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsAdvancedOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAdvancedOpen]);
 
   const scrollParticipants = (direction) => {
     const el = participantListRef.current;
@@ -246,24 +283,21 @@ export default function DebatePage() {
     setIsModelOpen(false);
   };
 
-  const handleRemoveParticipant = () => {
-    if (participants.length <= MIN_PARTICIPANTS || !activeParticipant) return;
-    const next = participants.filter((p) => p.slug !== activeParticipant.slug);
+  const handleRemoveParticipant = (slug) => {
+    if (participants.length <= MIN_PARTICIPANTS) return;
+    const index = participants.findIndex((p) => p.slug === slug);
+    if (index < 0) return;
+    const next = participants.filter((p) => p.slug !== slug);
     setParticipants(next);
-    setActiveSlug(next[0]?.slug || '');
+    if (slug === activeParticipant?.slug) {
+      // активним стає сусід зліва (або новий перший)
+      setActiveSlug(next[Math.max(0, index - 1)]?.slug || '');
+    }
     setRenamingSlug(null);
   };
 
-  const setAdvancedOpen = (open) => {
-    setIsAdvancedOpen(open);
-    try {
-      window.localStorage.setItem(ADVANCED_STORAGE_KEY, open ? '1' : '0');
-    } catch {
-      // сховище недоступне (приватний режим) — просто не запам'ятовуємо
-    }
-  };
-
-  const toggleAdvanced = () => setAdvancedOpen(!isAdvancedOpen);
+  const setAdvancedOpen = setIsAdvancedOpen;
+  const toggleAdvanced = () => setIsAdvancedOpen((open) => !open);
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
@@ -420,8 +454,8 @@ export default function DebatePage() {
   };
 
   return (
-    <div className="debate-page">
-      <form className="debate__form-panel" onSubmit={handleStart}>
+    <form className="debate-page" ref={formRef} onSubmit={handleStart} noValidate>
+      <div className="debate__form-panel">
         <section className="debate__section">
           <h2 className="debate__section-title">{t.participants}</h2>
           <div className="debate__participant-row">
@@ -442,42 +476,57 @@ export default function DebatePage() {
             >
               {participants.map((p, i) => {
                 const active = p.slug === activeParticipant?.slug;
+                const label = p.name || String(i + 1);
+                const canRemove = participants.length > MIN_PARTICIPANTS && !isCreating;
                 if (renamingSlug === p.slug) {
                   return (
-                    <div
-                      key={p.slug}
-                      className="debate__card debate__participant debate__participant--active debate__participant--renaming"
-                      style={{ '--chip': p.color }}
-                    >
-                      <UserPlusIcon />
-                      <input
-                        className="debate__participant-input"
-                        type="text"
-                        value={nameDraft}
-                        maxLength={MAX_NAME}
-                        onChange={(e) => setNameDraft(e.target.value)}
-                        onBlur={handleRenameBlur}
-                        onKeyDown={handleRenameKeyDown}
-                        aria-label={`${t.renameParticipant} ${i + 1}`}
-                        autoFocus
-                      />
+                    <div key={p.slug} className="debate__participant-item">
+                      <div
+                        className="debate__card debate__participant debate__participant--active debate__participant--renaming"
+                        style={{ '--chip': p.color }}
+                      >
+                        <UserPlusIcon />
+                        <input
+                          className="debate__participant-input"
+                          type="text"
+                          value={nameDraft}
+                          maxLength={MAX_NAME}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          onBlur={handleRenameBlur}
+                          onKeyDown={handleRenameKeyDown}
+                          aria-label={`${t.renameParticipant} ${i + 1}`}
+                          autoFocus
+                        />
+                      </div>
                     </div>
                   );
                 }
                 return (
-                  <button
-                    key={p.slug}
-                    type="button"
-                    className={`debate__card debate__participant ${active ? 'debate__participant--active' : ''}`}
-                    style={{ '--chip': p.color }}
-                    data-active={active ? 'true' : undefined}
-                    aria-label={`${t.participant} ${i + 1}`}
-                    aria-pressed={active}
-                    onClick={() => handleParticipantClick(p, i)}
-                  >
-                    <UserPlusIcon />
-                    <span className="debate__participant-label">{p.name || i + 1}</span>
-                  </button>
+                  <div key={p.slug} className="debate__participant-item">
+                    <button
+                      type="button"
+                      className={`debate__card debate__participant ${active ? 'debate__participant--active' : ''}`}
+                      style={{ '--chip': p.color }}
+                      data-active={active ? 'true' : undefined}
+                      aria-label={`${t.participant} ${i + 1}`}
+                      aria-pressed={active}
+                      onClick={() => handleParticipantClick(p, i)}
+                    >
+                      <UserPlusIcon />
+                      <span className="debate__participant-label">{label}</span>
+                    </button>
+                    {canRemove && (
+                      <button
+                        type="button"
+                        className="debate__participant-remove"
+                        onClick={() => handleRemoveParticipant(p.slug)}
+                        aria-label={t.removeParticipant(label)}
+                        title={t.removeParticipant(label)}
+                      >
+                        <CloseIcon />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
               <button
@@ -603,43 +652,23 @@ export default function DebatePage() {
               );
             })}
           </div>
-          <p className="debate__hint">{t.characterHint}</p>
-          <button
-            type="button"
-            className="debate__remove-participant"
-            onClick={handleRemoveParticipant}
-            disabled={isCreating || participants.length <= MIN_PARTICIPANTS}
-          >
-            {t.removeParticipant}
-          </button>
         </section>
 
-        <section className="debate__section debate__section--description">
-          <h2 className="debate__section-title">{t.description}</h2>
-          <textarea
-            className="debate__textarea"
-            placeholder={t.placeholderDescription}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={MAX_QUESTION}
-            disabled={isCreating}
-          />
-          <p className={`debate__hint ${description.length > MAX_QUESTION ? 'debate__hint--error' : ''}`}>
-            {description.length} / {MAX_QUESTION}
-          </p>
-        </section>
-
-        <section className="debate__section debate__advanced">
+        {isLoading && (
+          <p className="debate__hint" role="status">Завантаження…</p>
+        )}
+        <section className="debate__advanced" ref={advancedRef}>
           <button
             type="button"
             className={`debate__advanced-toggle ${isAdvancedOpen ? 'debate__advanced-toggle--open' : ''}`}
             onClick={toggleAdvanced}
             aria-expanded={isAdvancedOpen}
+            aria-haspopup="dialog"
             aria-controls="debate-advanced"
           >
             <span className="debate__advanced-heading">
               <span className="debate__section-title">{t.advanced}</span>
-              {!isAdvancedOpen && advancedSummary && (
+              {advancedSummary && (
                 <span className="debate__advanced-summary">{advancedSummary}</span>
               )}
             </span>
@@ -648,7 +677,12 @@ export default function DebatePage() {
             </span>
           </button>
           {isAdvancedOpen && (
-            <div id="debate-advanced" className="debate__advanced-body">
+            <div
+              id="debate-advanced"
+              className="debate__advanced-body"
+              role="dialog"
+              aria-label={t.advanced}
+            >
               <h3 className="debate__advanced-group">{t.advancedGeneral}</h3>
               <span className="debate__field-label">{t.mode}</span>
               <div className="debate__mode-list" role="group" aria-label={t.mode}>
@@ -756,6 +790,51 @@ export default function DebatePage() {
           )}
         </section>
 
+      </div>
+
+      <main className="debate__main">
+        <div className="debate__hero">
+          <h1 className="debate__title">{t.title}</h1>
+          <div className="debate__underline" />
+        </div>
+
+        <div
+          className={`debate__composer ${isCreating ? 'debate__composer--busy' : ''}`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) questionRef.current?.focus();
+          }}
+        >
+          <textarea
+            ref={questionRef}
+            className="debate__composer-input"
+            placeholder={t.placeholderDescription}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onKeyDown={handleQuestionKeyDown}
+            maxLength={MAX_QUESTION}
+            rows={1}
+            disabled={isCreating}
+            aria-label={t.description}
+          />
+          <div className="debate__composer-bar">
+            <span
+              className={`debate__composer-count ${description.length >= MAX_QUESTION ? 'debate__hint--error' : ''}`}
+            >
+              {description.length > 0 ? `${description.length} / ${MAX_QUESTION}` : ''}
+            </span>
+            <button
+              type="submit"
+              className="debate__send"
+              disabled={!canStart}
+              aria-label={isCreating ? t.creating : t.start}
+              title={isCreating ? t.creating : t.start}
+            >
+              {isCreating ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+            </button>
+          </div>
+        </div>
+        <p className="debate__composer-hint">{t.composerHint}</p>
+
         {error && (
           <div className="debate__error-block">
             <p className="debate__error" role="alert">
@@ -768,30 +847,8 @@ export default function DebatePage() {
             )}
           </div>
         )}
-
-        {isLoading ? (
-          <p className="debate__hint" role="status">Завантаження…</p>
-        ) : (
-          <button
-            type="submit"
-            className="debate__start-btn"
-            disabled={
-              isCreating
-              || !description.trim()
-              || participants.length < MIN_PARTICIPANTS
-              || !allParticipantsHaveModels
-            }
-          >
-            {isCreating ? t.creating : t.start}
-          </button>
-        )}
-      </form>
-
-      <main className="debate__main">
-        <h1 className="debate__title">{t.title}</h1>
-        <div className="debate__underline" />
       </main>
-    </div>
+    </form>
   );
 }
 

@@ -282,7 +282,7 @@ class DiscussionApiTests(TestCase):
         # вступ паралельний: один крок повертає репліки всіх учасників
         self.assertEqual(
             [m['persona_name'] for m in step.data['messages']],
-            ['Юрист', 'Креативник'],
+            ['Юрист', 'Учасник 2'],
         )
         self.assertIn('thesis', step.data['messages'][0])
         self.assertEqual(step.data['discussion']['phase'], 'debate')
@@ -291,7 +291,43 @@ class DiscussionApiTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(len(second.data['messages']), 1)
         self.assertEqual(second.data['message']['persona_name'], 'Юрист')
-        self.assertEqual(second.data['message']['reply_to'], 'Креативник')
+        self.assertEqual(second.data['message']['reply_to'], 'Учасник 2')
+
+    def test_unnamed_participants_get_numbered_names(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [
+                    {'slug': 'logician'},
+                    {'slug': 'skeptic', 'name': 'Оля'},
+                    'creative',
+                ],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            [p['name'] for p in response.data['personas']],
+            ['Учасник 1', 'Оля', 'Учасник 3'],
+        )
+        step = self.client.post(f'/api/discussions/{response.data["id"]}/advance/')
+        names = [m['persona_name'] for m in step.data['messages']]
+        self.assertEqual(names, ['Учасник 1', 'Оля', 'Учасник 3'])
+        self.assertNotIn('Логік', ' '.join(call['prompt'] for call in self.provider.calls))
+
+    def test_name_clashing_with_default_is_rejected(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [{'slug': 'logician', 'name': 'Учасник 2'}, {'slug': 'skeptic'}],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_persona_temperature_range(self):
         self.auth()
@@ -364,8 +400,8 @@ class DiscussionApiTests(TestCase):
             {
                 'question': 'Чи варто запускати власний продукт?',
                 'personas': [
-                    {'slug': 'logician', 'name': 'Скептик'},
-                    {'slug': 'skeptic'},
+                    {'slug': 'logician', 'name': 'Оля'},
+                    {'slug': 'skeptic', 'name': 'оля'},
                 ],
             },
             format='json',

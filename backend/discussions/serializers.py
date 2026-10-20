@@ -36,6 +36,7 @@ MODEL_TOO_LONG = 'Ідентифікатор моделі задовгий (ма
 MODEL_UNKNOWN = 'Невідома модель: {model}'
 MODEL_UNAVAILABLE = 'Модель «{model}» недоступна: додайте ключ у backend/.env або виберіть іншу'
 NAMES_DUPLICATE = 'Імена учасників мають бути різними'
+DEFAULT_NAME = 'Учасник {index}'
 NAME_INVALID = 'Ім’я містить недопустимі символи'
 TRAITS_TYPE = 'Риси характеру мають бути списком'
 TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
@@ -102,7 +103,7 @@ class CreateDiscussionSerializer(serializers.Serializer):
         seen = set()
         seen_names = set()
         normalized = []
-        for item in value:
+        for index, item in enumerate(value):
             if isinstance(item, dict):
                 slug = item.get('slug', '')
             elif isinstance(item, str):
@@ -178,7 +179,10 @@ class CreateDiscussionSerializer(serializers.Serializer):
                     if not (0 <= temperature <= 1):
                         raise serializers.ValidationError(TEMPERATURE_RANGE)
                     persona['temperature'] = temperature
-            effective_name = name or PERSONA_BY_SLUG[slug]['name']
+            # Користувач не бачить архетипів персон («Логік», «Скептик»), лише
+            # своїх учасників, тож безіменному даємо те саме ім'я, що й в UI.
+            effective_name = name or DEFAULT_NAME.format(index=index + 1)
+            persona['name'] = effective_name
             folded_name = effective_name.casefold()
             if folded_name in seen_names:
                 raise serializers.ValidationError(NAMES_DUPLICATE)

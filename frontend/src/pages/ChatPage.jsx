@@ -9,6 +9,7 @@ import {
 } from '../api/discussions';
 import { AiModelIcon, ChevronIcon, UserPlusIcon } from '../components/DebateIcons';
 import ThoughtLine from '../components/ThoughtLine';
+import TypewriterText from '../components/TypewriterText';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 
@@ -77,6 +78,24 @@ const phaseLabel = (message) => {
   }
 };
 
+function MessageText({ id, content, caret = false }) {
+  const paragraphs = splitParagraphs(content);
+  const caretNode = caret ? <span className="chat__caret" aria-hidden="true" /> : null;
+  if (paragraphs.length === 0) {
+    return <div className="chat__text">{content}{caretNode}</div>;
+  }
+  return (
+    <div className="chat__text">
+      {paragraphs.map((paragraph, index) => (
+        <p key={`${id}-${index}`}>
+          {paragraph}
+          {index === paragraphs.length - 1 && caretNode}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function ChatPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -92,6 +111,10 @@ export default function ChatPage() {
   const [loadError, setLoadError] = useState('');
   const [stopReason, setStopReason] = useState('');
   const [copyState, setCopyState] = useState('');
+  // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
+  // навіть якщо паралельний крок приніс кілька одразу.
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [skipTyping, setSkipTyping] = useState(false);
   const discussionRef = useRef(null);
   const runningRef = useRef(false);
   const autoStartedRef = useRef(null);
@@ -110,6 +133,8 @@ export default function ChatPage() {
       ]);
       discussionRef.current = data;
       setDiscussion(data);
+      // те, що вже було в дискусії до відкриття сторінки, не анімуємо
+      setRevealedCount((data.messages || []).filter((m) => m.role !== 'user').length);
       setActiveSlug(data.personas?.[0]?.slug || '');
       if (personaData?.personas) setPersonas(personaData.personas);
       if (modelData?.models) {
@@ -358,12 +383,26 @@ export default function ChatPage() {
     0,
     isFinished ? stagePlan.length : Math.min(currentStage + 1, stagePlan.length)
   );
-  const showThoughtLine = stagePlan.length > 0 && (isAdvancing || isFinished);
+  const typingIndex = revealedCount < visibleMessages.length ? revealedCount : -1;
+  const isRevealing = typingIndex !== -1;
+  const shownMessages = visibleMessages.slice(0, revealedCount + 1);
+  // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
+  const showThoughtLine = stagePlan.length > 0 && !isRevealing && (isAdvancing || isFinished);
+
+  const followBottom = useCallback(() => {
+    if (!stickToBottomRef.current) return;
+    bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+  }, []);
+
+  const handleTypingDone = useCallback((index) => {
+    setRevealedCount((count) => Math.max(count, index + 1));
+    setSkipTyping(false);
+  }, []);
 
   useEffect(() => {
     if (!stickToBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: isAdvancing ? 'smooth' : 'auto', block: 'end' });
-  }, [visibleMessages.length, isAdvancing, error, stopReason]);
+  }, [revealedCount, isAdvancing, error, stopReason, isRevealing]);
 
   const handleMainScroll = () => {
     const el = mainRef.current;
@@ -661,10 +700,10 @@ export default function ChatPage() {
           </div>
         )}
 
-        {visibleMessages.map((message, index) => {
+        {shownMessages.map((message, index) => {
           const speakerKey = message.persona_name || message.role;
           const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
-          const paragraphs = splitParagraphs(message.content);
+          const typing = index === typingIndex;
           const authorName =
             (message.role === 'ai' && customNames.get(message.persona_slug))
             || message.persona_name;
@@ -685,7 +724,7 @@ export default function ChatPage() {
                   <span>{divider}</span>
                 </div>
               )}
-              <div className={`chat__row chat__row--${side}`}>
+              <div className={`chat__row chat__row--${side} ${typing ? 'chat__row--enter' : ''}`}>
                 <span
                   className="chat__avatar"
                   style={{ '--avatar': color }}
@@ -694,7 +733,12 @@ export default function ChatPage() {
                   <AvatarIcon />
                 </span>
                 <div className="chat__body">
-                  <div className="chat__bubble" style={{ '--bubble': color }}>
+                  <div
+                    className={`chat__bubble ${typing ? 'chat__bubble--typing' : ''}`}
+                    style={{ '--bubble': color }}
+                    onClick={typing ? () => setSkipTyping(true) : undefined}
+                    title={typing ? t.skipTyping : undefined}
+                  >
                     <div className="chat__name">{authorName}</div>
                     {(replyTo || stance) && (
                       <div className="chat__meta">
@@ -702,13 +746,25 @@ export default function ChatPage() {
                         {stance && <span className="chat__stance">{t.stanceLabel(stance)}</span>}
                       </div>
                     )}
-                    <div className="chat__text">
-                      {paragraphs.length > 0
-                        ? paragraphs.map((paragraph, pIndex) => (
-                            <p key={`${message.id}-${pIndex}`}>{paragraph}</p>
-                          ))
-                        : message.content}
-                    </div>
+                    {typing ? (
+                      <TypewriterText
+                        key={message.id}
+                        text={message.content}
+                        skip={skipTyping}
+                        onProgress={followBottom}
+                        onDone={() => handleTypingDone(index)}
+                      >
+                        {(visible, isTyping) => (
+                          <MessageText
+                            id={message.id}
+                            content={visible}
+                            caret={isTyping}
+                          />
+                        )}
+                      </TypewriterText>
+                    ) : (
+                      <MessageText id={message.id} content={message.content} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -716,7 +772,7 @@ export default function ChatPage() {
           );
         })}
 
-        {summaryDecision && (
+        {summaryDecision && !isRevealing && (
           <section className="chat__summary" aria-labelledby="chat-summary-title">
             <div className="chat__summary-heading">
               <h2 id="chat-summary-title" className="chat__summary-title">
