@@ -202,7 +202,7 @@ REST_FRAMEWORK = {
 }
 
 # LLM providers. Ключі читаються лише на бекенді з backend/.env.
-LLM_DEFAULT_MODEL = os.getenv('LLM_DEFAULT_MODEL', 'openai:gpt-6-luna').strip()
+LLM_DEFAULT_MODEL = os.getenv('LLM_DEFAULT_MODEL', 'groq:qwen/qwen3.8-27b').strip()
 LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '120'))
 LLM_MAX_RETRIES = int(os.getenv('LLM_MAX_RETRIES', '2'))
 LLM_RETRY_DELAY_SECONDS = float(os.getenv('LLM_RETRY_DELAY_SECONDS', '0.6'))

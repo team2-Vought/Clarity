@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  ArrowDown01Icon,
   ArrowDown02Icon,
   Copy01Icon,
   Download04Icon,
@@ -86,6 +87,61 @@ const domainOf = (url) => {
     return '';
   }
 };
+
+const faviconOf = (url) => {
+  const domain = domainOf(url);
+  return domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : '';
+};
+
+function SourceFavicon({ url }) {
+  const [failed, setFailed] = useState(false);
+  const src = faviconOf(url);
+  if (!src || failed) {
+    return (
+      <span className="chat__source-icon chat__source-icon--letter" aria-hidden="true">
+        {(domainOf(url)[0] || '?').toUpperCase()}
+      </span>
+    );
+  }
+  return (
+    <img
+      className="chat__source-icon"
+      src={src}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+// Згорнуто — рядок із кількома логотипами, розгорнуто — список посилань
+function SourceList({ sources }) {
+  return (
+    <details className="chat__sources">
+      <summary>
+        <span className="chat__sources-icons" aria-hidden="true">
+          {sources.slice(0, 4).map((source) => (
+            <SourceFavicon key={source.id} url={source.url} />
+          ))}
+        </span>
+        {`${t.sources} · ${sources.length}`}
+        <HugeiconsIcon icon={ArrowDown01Icon} size={14} className="chat__sources-chevron" />
+      </summary>
+      <ol>
+        {sources.map((source) => (
+          <li key={source.id}>
+            <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
+              <SourceFavicon url={source.url} />
+              <span className="chat__source-title">{source.title || domainOf(source.url)}</span>
+              <span className="chat__source-domain">{domainOf(source.url)}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
 
 const stanceText = (stance) => (stance ? t.stance[stance] || stance : '');
 
@@ -520,7 +576,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!stickToBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: isRunning ? 'smooth' : 'auto', block: 'end' });
+    bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
   }, [revealedCount, isRunning, actionError, isStopped, isRevealing]);
 
   // Стрілка «до рішення» з'являється, коли рішення (а поки його немає —
@@ -537,12 +593,31 @@ export default function ChatPage() {
     setShowJump(el.scrollHeight - el.scrollTop - el.clientHeight > JUMP_THRESHOLD);
   }, [composerHeight]);
 
+  // Програмна прокрутка (плавна теж) не має відв'язувати чат від низу —
+  // відв'язують лише жести користувача, а повертає доскрол до самого низу.
   const handleMainScroll = () => {
     const el = mainRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickToBottomRef.current = distance < STICK_THRESHOLD;
+    if (distance < STICK_THRESHOLD) stickToBottomRef.current = true;
     updateJump();
+  };
+
+  const releaseBottom = () => {
+    stickToBottomRef.current = false;
+  };
+
+  const handleMainWheel = (e) => {
+    if (e.deltaY < 0) releaseBottom();
+  };
+
+  const handleMainKeyDown = (e) => {
+    if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) releaseBottom();
+  };
+
+  // тяга смуги прокрутки: клік припадає на сам контейнер, а не на вміст
+  const handleMainPointerDown = (e) => {
+    if (e.target === e.currentTarget) releaseBottom();
   };
 
   useEffect(() => {
@@ -965,6 +1040,10 @@ export default function ChatPage() {
           className="chat__main"
           ref={mainRef}
           onScroll={handleMainScroll}
+          onWheel={handleMainWheel}
+          onTouchMove={releaseBottom}
+          onKeyDown={handleMainKeyDown}
+          onPointerDown={handleMainPointerDown}
           aria-busy={isRunning}
         >
           {discussion && (
@@ -1176,27 +1255,10 @@ export default function ChatPage() {
                   {copyState === 'error' ? t.copyError : t.pdfError}
                 </p>
               )}
+              {discussion?.sources?.length > 0 && <SourceList sources={discussion.sources} />}
             </section>
           )}
 
-          {discussion?.sources?.length > 0 && (
-            <details className="chat__sources">
-              <summary>{`${t.sources} (${discussion.sources.length})`}</summary>
-              <ol>
-                {discussion.sources.map((source) => (
-                  <li key={source.id} value={source.id}>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.title}
-                    </a>
-                    <span className="chat__source-meta">
-                      {domainOf(source.url)}
-                      {source.added_by ? ` · ${t.sourceBy(source.added_by)}` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </details>
-          )}
 
           {showThoughtLine && (
             <ThoughtLine

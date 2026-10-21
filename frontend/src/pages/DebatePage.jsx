@@ -16,6 +16,9 @@ import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 
 const t = uk.debate;
 
+// Фраза заголовка обирається випадково один раз на завантаження сторінки
+const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
+
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_MAX_PARTICIPANTS = 5;
 const DEFAULT_ROUNDS = 2;
@@ -877,7 +880,7 @@ export default function DebatePage() {
 
       <main className="debate__main">
         <div className="debate__hero">
-          <h1 className="debate__title">{t.title}</h1>
+          <h1 className="debate__title">{TITLE}</h1>
           <div className="debate__underline" />
         </div>
 
@@ -916,7 +919,6 @@ export default function DebatePage() {
             </button>
           </div>
         </div>
-        <p className="debate__composer-hint">{t.composerHint}</p>
 
         {error && (
           <div className="debate__error-block">

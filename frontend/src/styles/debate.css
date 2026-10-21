@@ -1209,13 +1209,6 @@ body:has(.app-shell) {
   }
 }
 
-.debate__composer-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  text-align: center;
-}
-
 .debate__main .debate__error-block {
   align-items: center;
   width: min(760px, 100%);
@@ -1223,8 +1216,8 @@ body:has(.app-shell) {
 
 .debate__title {
   margin: 0;
-  font-size: clamp(1.5rem, 3.2vw, 2rem);
-  font-weight: 700;
+  font-size: clamp(1.875rem, 4vw, 2.625rem);
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--ink);
@@ -1570,10 +1563,9 @@ body:has(.app-shell) {
 }
 
 .chat__thought {
-  align-self: flex-start;
   width: 100%;
   max-width: 820px;
-  padding: 2px 4px;
+  padding: 2px 0 2px 48px;
   color: var(--muted);
 }
 
@@ -2182,8 +2174,8 @@ body:has(.app-shell) {
   }
 
   .debate__title {
-    max-width: 170px;
-    font-size: 1.25rem;
+    max-width: 200px;
+    font-size: 1.5rem;
     text-wrap: balance;
   }
 
@@ -2196,10 +2188,6 @@ body:has(.app-shell) {
     font-size: 1rem;
   }
 
-
-  .debate__composer-hint {
-    display: none;
-  }
 
   /* ---- чат: вміст 72–374px, поле внизу врівень зі смугою ---- */
   .chat__main {
@@ -2218,6 +2206,10 @@ body:has(.app-shell) {
   .chat__avatar {
     width: 35px;
     height: 35px;
+  }
+
+  .chat__thought {
+    padding-left: 38px;
   }
 
   .chat__body {
@@ -2338,12 +2330,6 @@ body:has(.app-shell) {
     transition: none;
   }
 }
-/* підказка про Enter не має сенсу на сенсорних екранах */
-@media (hover: none) {
-  .debate__composer-hint {
-    display: none;
-  }
-}
 
 /* ---------- Роль учасника: ті самі бейджі, що й характер ---------- */
 .debate__trait-chip:disabled:not(.debate__trait-chip--active) {
@@ -2397,33 +2383,114 @@ body:has(.app-shell) {
   opacity: 0.7;
 }
 .chat__sources {
-  width: min(760px, 100%);
-  padding: 12px 16px;
-  border-radius: 16px;
-  background: var(--card);
-  color: var(--ink);
-  font-size: 0.8125rem;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 0.875rem;
 }
+
 .chat__sources summary {
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 99px;
+  list-style: none;
   cursor: pointer;
+  transition: background 0.18s, color 0.18s;
 }
+
+.chat__sources summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat__sources summary:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.chat__sources summary:focus-visible {
+  outline: 2px solid var(--focus, #7f80ac);
+  outline-offset: 1px;
+}
+
+.chat__sources-icons {
+  display: flex;
+}
+
+/* логотипи в згорнутому рядку трохи накладаються один на одного */
+.chat__sources-icons .chat__source-icon + .chat__source-icon {
+  margin-left: -6px;
+}
+
+.chat__sources-icons .chat__source-icon {
+  box-shadow: 0 0 0 2px var(--bg, #fff);
+}
+
+.chat__sources-chevron {
+  transition: transform 0.2s;
+}
+
+.chat__sources[open] .chat__sources-chevron {
+  transform: rotate(180deg);
+}
+
+.chat__source-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  object-fit: contain;
+}
+
+.chat__source-icon--letter {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .chat__sources ol {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 10px 0 0;
-  padding-left: 22px;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
 }
+
 .chat__sources a {
-  color: inherit;
-  overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px 6px 4px;
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.18s;
 }
-.chat__source-meta {
-  display: block;
+
+.chat__sources a:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.chat__source-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__source-domain {
+  flex-shrink: 0;
+  margin-left: auto;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
+
 /* Колонка чату: прокручуваний список і поле вводу, закріплене поверх
    нього внизу. Поле не входить у потік прокрутки, тож не зсувається,
    коли список доходить до кінця. */

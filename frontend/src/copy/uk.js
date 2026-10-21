@@ -125,7 +125,13 @@ export const uk = {
   },
 
   debate: {
-    title: 'Маєш складне питання?',
+    titles: [
+      'Маєш складні обставини?',
+      'Треба щось вирішити?',
+      'Не бійся, ми тут',
+      'Команда у зборі!',
+      'Розставимо по поличках',
+    ],
     participants: 'Учасники',
     participant: 'Учасник',
     addParticipant: 'Додати',
@@ -164,11 +170,9 @@ export const uk = {
     retry: 'Спробувати ще раз',
     namePlaceholder: 'Ім’я',
     description: 'Опис',
-    placeholderDescription:
-      'Детально опишіть проблему та обставини: бюджет, терміни, обмеження, що вже пробували',
+    placeholderDescription: 'Детально опишіть проблему та обставини',
     start: 'Почати дискусію',
     creating: 'Створюємо дискусію…',
-    composerHint: 'Enter — почати, Shift + Enter — новий рядок',
     errorCreate: 'Не вдалося створити дискусію',
     noPersonas: 'Оберіть хоча б двох учасників',
     minParticipants: 'Потрібно щонайменше два учасники',
@@ -218,7 +222,6 @@ export const uk = {
     role: (name) => `Роль: ${name}`,
     searchedFor: (query) => `Шукав: ${query}`,
     sources: 'Джерела',
-    sourceBy: (who) => `додав(-ла) ${who}`,
     resume: 'Продовжити',
     delete: 'Видалити дискусію',
     deleting: 'Видаляємо…',
