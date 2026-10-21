@@ -16,3 +16,7 @@ export const TRAIT_COLORS = [
   '#f4c1cf', '#feedd5', '#c2effd', '#b4b5ce', '#d3f0dc', '#fff1b8',
   '#e4d4f4', '#ffd9c7', '#cfe3fb', '#f6d5ea', '#d9ecc6', '#ffe0b8',
 ];
+
+// Порядок ролей за замовчуванням: уже двоє учасників дають різні погляди
+// (аналітичний і людський), далі — критика, практичність, нестандартність.
+export const ROLE_ORDER = ['logician', 'emotional', 'skeptic', 'pragmatist', 'creative'];

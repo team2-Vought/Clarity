@@ -4,6 +4,9 @@ from .views import (
     DiscussionAdvanceView,
     DiscussionDetailView,
     DiscussionListCreateView,
+    DiscussionMessageView,
+    DiscussionRunView,
+    DiscussionStopView,
     FreeModelListView,
     PersonaListView,
 )
@@ -23,5 +26,12 @@ urlpatterns = [
         'discussions/<uuid:pk>/advance/',
         DiscussionAdvanceView.as_view(),
         name='discussion-advance',
+    ),
+    path('discussions/<uuid:pk>/run/', DiscussionRunView.as_view(), name='discussion-run'),
+    path('discussions/<uuid:pk>/stop/', DiscussionStopView.as_view(), name='discussion-stop'),
+    path(
+        'discussions/<uuid:pk>/messages/',
+        DiscussionMessageView.as_view(),
+        name='discussion-messages',
     ),
 ]

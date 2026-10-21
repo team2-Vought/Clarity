@@ -12,6 +12,7 @@ class Discussion(models.Model):
         FAILED = 'failed', 'Помилка'
 
     class Phase(models.TextChoices):
+        RESEARCH = 'research', 'Пошук джерел'
         OPENING = 'opening', 'Вступні слова'
         DEBATE = 'debate', 'Дискусія'
         SYNTHESIS = 'synthesis', 'Пропозиція рішення'
@@ -32,7 +33,7 @@ class Discussion(models.Model):
         related_name='discussions',
         verbose_name='користувач',
     )
-    question = models.TextField('запитання', max_length=2000)
+    question = models.TextField('запитання', max_length=6000)
     mode = models.CharField(
         max_length=16,
         choices=Mode.choices,
@@ -42,6 +43,13 @@ class Discussion(models.Model):
     options = models.JSONField('варіанти відповіді', default=list, blank=True)
     personas = models.JSONField('персони', default=list)
     rounds = models.PositiveSmallIntegerField('раундів дискусії', default=2)
+    web_search = models.BooleanField('пошук в інтернеті', default=False)
+    sources = models.JSONField('знайдені джерела', default=list, blank=True)
+    search_count = models.PositiveSmallIntegerField('пошукових запитів', default=0)
+    moderator_model = models.CharField('модель модератора', max_length=120, blank=True, default='')
+    devil_model = models.CharField('модель AI Devil', max_length=120, blank=True, default='')
+    followups = models.PositiveSmallIntegerField('уточнень після фіналу', default=0)
+    stop_requested = models.BooleanField('зупинку запитано', default=False)
 
     status = models.CharField(
         max_length=16,
@@ -64,6 +72,9 @@ class Discussion(models.Model):
     devil_review = models.JSONField(null=True, blank=True)
     final_summary = models.JSONField(null=True, blank=True)
     error = models.TextField(blank=True)
+    error_code = models.CharField(max_length=32, blank=True, default='')
+    # Безпечний для показу користувачу текст помилки (без сирих відповідей провайдера).
+    error_public = models.CharField(max_length=300, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -91,6 +102,7 @@ class Message(models.Model):
         AI = 'ai', 'AI-учасник'
         MODERATOR = 'moderator', 'Модератор'
         DEVIL = 'devil', 'AI Devil'
+        RESEARCH = 'research', 'Пошук'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     discussion = models.ForeignKey(
@@ -117,6 +129,8 @@ class Message(models.Model):
     content = models.TextField('текст')
     thesis = models.CharField('головна теза', max_length=300, blank=True, default='')
     stance = models.CharField('позиція', max_length=100, blank=True, default='')
+    search_query = models.CharField('пошуковий запит', max_length=300, blank=True, default='')
+    source_ids = models.JSONField('додані джерела', default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

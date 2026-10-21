@@ -212,3 +212,39 @@ class RateLimitRetryTests(SimpleTestCase):
         sleep.assert_called_once()
         self.assertGreaterEqual(sleep.call_args.args[0], 9.8)
         self.assertLessEqual(sleep.call_args.args[0], 9.8 * 1.5)
+
+
+class QuotaTests(SimpleTestCase):
+    @override_settings(LLM_GEMINI_API_KEY='g-test', LLM_MAX_RETRIES=2)
+    def test_exhausted_quota_is_not_retried(self):
+        provider = get_provider('gemini:gemini-3.8-flash')
+        response = fake_response(
+            {'error': {'code': 429, 'message': 'You exceeded your current quota'}},
+            status_code=429,
+        )
+        response.text = '{"error": {"message": "You exceeded your current quota"}}'
+        response.headers = {}
+        with mock.patch(
+            'discussions.services.providers.httpx.post', return_value=response
+        ) as post, mock.patch('discussions.services.providers.time.sleep') as sleep:
+            with self.assertRaises(ProviderError) as ctx:
+                provider.complete(system='s', prompt='p')
+        self.assertEqual(post.call_count, 1)
+        sleep.assert_not_called()
+        self.assertTrue(ctx.exception.quota)
+        self.assertTrue(ctx.exception.config)
+
+    @override_settings(LLM_GROQ_API_KEY='gsk-test', LLM_MAX_RETRIES=1)
+    def test_per_minute_rate_limit_is_retried(self):
+        provider = get_provider('groq:openai/gpt-oss-120b')
+        limited = fake_response({}, status_code=429)
+        limited.text = (
+            '{"error":{"message":"Rate limit reached ... on tokens per minute (TPM): '
+            'Please try again in 1.5s. Upgrade at https://console.groq.com/settings/billing"}}'
+        )
+        limited.headers = {'Retry-After': '1'}
+        ok = fake_response({'choices': [{'message': {'content': 'Готово'}}]})
+        with mock.patch(
+            'discussions.services.providers.httpx.post', side_effect=[limited, ok]
+        ), mock.patch('discussions.services.providers.time.sleep'):
+            self.assertEqual(provider.complete(system='s', prompt='p'), 'Готово')

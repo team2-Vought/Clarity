@@ -7,12 +7,14 @@ class FakeProvider:
 
     `stance` — значення службового рядка ПОЗИЦІЯ у репліках учасників
     (None — рядок не додається, тож консенсус ніколи не настає).
+    `search_query` — службовий рядок ПОШУК у першій репліці, де пошук дозволено.
     """
 
-    def __init__(self, stance=None):
+    def __init__(self, stance=None, search_query=None):
         self.calls = []
         self.counter = 0
         self.stance = stance
+        self.search_query = search_query
         self._lock = threading.Lock()
 
     def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
@@ -25,6 +27,8 @@ class FakeProvider:
                     'json_mode': json_mode,
                 }
             )
+            if '{"queries"' in prompt:
+                return json.dumps({'queries': ['тестовий запит']}, ensure_ascii=False)
             if '"confirmed"' in prompt:
                 return json.dumps(self._final(prompt), ensure_ascii=False)
             if '"verdict"' in prompt:
@@ -39,6 +43,9 @@ class FakeProvider:
             ]
             if self.stance:
                 lines.append(f'ПОЗИЦІЯ: {self.stance}')
+            if self.search_query and 'ПОШУК:' in prompt:
+                lines.append(f'ПОШУК: {self.search_query}')
+                self.search_query = None
             return '\n'.join(lines)
 
     def _answer(self, prompt):
@@ -84,6 +91,7 @@ class FakeProvider:
             'pros': ['Тестова перевага'],
             'cons': [],
             'risks': [],
+            'dissenting_points': [],
             'confidence': 80,
             'recommendation': 'Тестова рекомендація',
         }

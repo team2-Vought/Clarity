@@ -111,6 +111,14 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        # Дискусії виконуються у фонових потоках паралельно з HTTP-запитами:
+        # WAL дає читати під час запису, IMMEDIATE серіалізує записи (lease),
+        # timeout — чекати блокування замість «database is locked».
+        'OPTIONS': {
+            'timeout': 20,
+            'transaction_mode': 'IMMEDIATE',
+            'init_command': 'PRAGMA journal_mode=WAL;',
+        },
     }
 }
 
@@ -185,9 +193,11 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '60/min',
-        'user': '120/min',
+        # клієнт опитує стан дискусії раз на ~2 с
+        'user': '240/min',
         'discussion_create': '10/min',
         'discussion_advance': '60/min',
+        'discussion_note': '20/min',
     },
 }
 
@@ -202,17 +212,38 @@ LLM_RATE_LIMIT_MAX_DELAY_SECONDS = float(
 )
 LLM_MAX_OUTPUT_TOKENS = int(os.getenv('LLM_MAX_OUTPUT_TOKENS', '1600'))
 LLM_HISTORY_MAX_CHARS = int(os.getenv('LLM_HISTORY_MAX_CHARS', '24000'))
-LLM_ADVANCE_LEASE_SECONDS = int(
-    os.getenv(
-        'LLM_ADVANCE_LEASE_SECONDS',
-        str(int(
-            LLM_TIMEOUT_SECONDS
-            + max(30, LLM_MAX_RETRIES * LLM_RATE_LIMIT_MAX_DELAY_SECONDS)
-            + 30
-        )),
-    )
+# Lease кроку дискусії: короткий, бо його продовжує heartbeat, поки крок триває.
+# Якщо процес упав, через LLM_ADVANCE_LEASE_SECONDS крок можна перезапустити.
+LLM_ADVANCE_LEASE_SECONDS = int(os.getenv('LLM_ADVANCE_LEASE_SECONDS', '90'))
+LLM_HEARTBEAT_SECONDS = float(
+    os.getenv('LLM_HEARTBEAT_SECONDS', str(max(5, LLM_ADVANCE_LEASE_SECONDS // 3)))
 )
+# Моделі «суддів». Порожньо — обирається автоматично: модель, якої немає
+# в жодного учасника, а для Devil — ще й відмінна від моделі модератора.
+LLM_MODERATOR_MODEL = os.getenv('LLM_MODERATOR_MODEL', '').strip()
+LLM_DEVIL_MODEL = os.getenv('LLM_DEVIL_MODEL', '').strip()
 DISCUSSION_DAILY_LIMIT = int(os.getenv('DISCUSSION_DAILY_LIMIT', '20'))
+DISCUSSION_MAX_FOLLOWUPS = int(os.getenv('DISCUSSION_MAX_FOLLOWUPS', '3'))
+DISCUSSION_NOTE_MAX_CHARS = int(os.getenv('DISCUSSION_NOTE_MAX_CHARS', '1000'))
+# Фоновий раннер дискусій. SYNC=1 — виконувати кроки в самому запиті (тести).
+DISCUSSION_RUNNER_SYNC = os.getenv('DISCUSSION_RUNNER_SYNC', '').lower() in {'1', 'true', 'yes'}
+DISCUSSION_RUNNER_MAX_RETRIES = int(os.getenv('DISCUSSION_RUNNER_MAX_RETRIES', '2'))
+DISCUSSION_RUNNER_RETRY_DELAY_SECONDS = float(
+    os.getenv('DISCUSSION_RUNNER_RETRY_DELAY_SECONDS', '5')
+)
+
+# Пошук в інтернеті для моделей. SEARCH_PROVIDER: auto | tavily | brave |
+# searxng | wikipedia | off. auto — перший налаштований, інакше Wikipedia.
+SEARCH_PROVIDER = os.getenv('SEARCH_PROVIDER', 'auto').strip().lower()
+TAVILY_API_KEY = os.getenv('TAVILY_API_KEY', '').strip()
+BRAVE_SEARCH_API_KEY = os.getenv('BRAVE_SEARCH_API_KEY', '').strip()
+SEARXNG_URL = os.getenv('SEARXNG_URL', '').strip().rstrip('/')
+SEARCH_TIMEOUT_SECONDS = float(os.getenv('SEARCH_TIMEOUT_SECONDS', '15'))
+SEARCH_MAX_RESULTS = int(os.getenv('SEARCH_MAX_RESULTS', '4'))
+# Запитів на одну дискусію (етап пошуку + запити учасників і Devil).
+SEARCH_MAX_QUERIES = int(os.getenv('SEARCH_MAX_QUERIES', '10'))
+SEARCH_MAX_SOURCES = int(os.getenv('SEARCH_MAX_SOURCES', '30'))
+SEARCH_MAX_SOURCES_IN_PROMPT = int(os.getenv('SEARCH_MAX_SOURCES_IN_PROMPT', '16'))
 DISCUSSION_DAILY_ADVANCE_LIMIT = int(
     os.getenv('DISCUSSION_DAILY_ADVANCE_LIMIT', '500')
 )

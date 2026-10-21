@@ -439,7 +439,7 @@ class EngineTests(TestCase):
         )
 
     @override_settings(LLM_HISTORY_MAX_CHARS=2000)
-    def test_long_history_is_trimmed(self):
+    def test_long_history_is_compacted_before_trimming(self):
         for index in range(3):
             self.discussion.messages.create(
                 seq=2 + index,
@@ -452,8 +452,16 @@ class EngineTests(TestCase):
             )
         self.run_to_completion()
         final_prompt = self.provider.calls[-1]['prompt']
-        self.assertIn('Частину давніших повідомлень скорочено', final_prompt)
+        # давні репліки стиснуто до тез, а не викинуто
+        self.assertNotIn('контексту. Дуже довга репліка', final_prompt)
+        self.assertIn('Логік (AI-учасник) — коротко: Дуже довга репліка', final_prompt)
         self.assertIn('Тестова репліка #9.', final_prompt)
+
+    @override_settings(LLM_HISTORY_MAX_CHARS=600)
+    def test_history_trimmed_when_compaction_is_not_enough(self):
+        self.run_to_completion()
+        final_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('Частину давніших повідомлень скорочено', final_prompt)
 
     def test_partial_parallel_failure_keeps_successful_replies(self):
         def factory(model_id):
@@ -553,28 +561,48 @@ class ConsensusTests(TestCase):
 
 
 class ParseReplyTests(TestCase):
+    def parse(self, raw, mode=Discussion.Mode.OPEN, options=None):
+        reply = engine.parse_reply(raw, mode, options or [])
+        return reply['content'], reply['thesis'], reply['stance']
+
     def test_markdown_service_lines(self):
-        content, thesis, stance = engine.parse_reply(
+        content, thesis, stance = self.parse(
             'Перший абзац.\n\nДругий абзац.\n\n**ТЕЗА:** Головна думка\n**Позиція:** Ні.',
             Discussion.Mode.YES_NO,
-            [],
         )
         self.assertEqual(content, 'Перший абзац.\n\nДругий абзац.')
         self.assertEqual(thesis, 'Головна думка')
         self.assertEqual(stance, 'ні')
 
     def test_missing_thesis_falls_back_to_first_sentence(self):
-        content, thesis, stance = engine.parse_reply(
-            'Коротка думка. Далі пояснення.', Discussion.Mode.OPEN, []
-        )
+        content, thesis, stance = self.parse('Коротка думка. Далі пояснення.')
         self.assertEqual(content, 'Коротка думка. Далі пояснення.')
         self.assertEqual(thesis, 'Коротка думка.')
         self.assertEqual(stance, '')
 
     def test_ambiguous_choose_one_stance_is_empty(self):
-        _, _, stance = engine.parse_reply(
+        _, _, stance = self.parse(
             'Текст.\nПОЗИЦІЯ: Купити або Зачекати',
             Discussion.Mode.CHOOSE_ONE,
             ['Купити', 'Зачекати'],
         )
         self.assertEqual(stance, '')
+
+    def test_body_line_does_not_hijack_service_stance(self):
+        content, _, stance = self.parse(
+            'Позиція: так, але лише за умови резерву.\n\nДругий абзац.\n\n'
+            'ТЕЗА: Потрібен резерв\nПОЗИЦІЯ: ні',
+            Discussion.Mode.YES_NO,
+        )
+        self.assertEqual(stance, 'ні')
+        self.assertIn('Позиція: так, але лише за умови резерву.', content)
+        self.assertNotIn('ПОЗИЦІЯ: ні', content)
+
+    def test_search_line_is_extracted(self):
+        reply = engine.parse_reply(
+            'Текст.\n\nТЕЗА: Теза\nПОШУК: «середня зарплата Київ 2026»',
+            Discussion.Mode.OPEN,
+            [],
+        )
+        self.assertEqual(reply['search_query'], 'середня зарплата Київ 2026')
+        self.assertEqual(reply['content'], 'Текст.')

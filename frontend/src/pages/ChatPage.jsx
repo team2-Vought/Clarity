@@ -1,13 +1,17 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  advanceDiscussion,
   deleteDiscussion,
   fetchDiscussion,
   fetchModels,
   fetchPersonas,
+  postNote,
+  runDiscussion,
+  stopDiscussion,
+  updateDiscussion,
 } from '../api/discussions';
-import { AiModelIcon, ChevronIcon, UserPlusIcon } from '../components/DebateIcons';
+import { ArrowUpIcon, ChevronIcon, UserPlusIcon } from '../components/DebateIcons';
+import ModelPicker from '../components/ModelPicker';
 import ThoughtLine from '../components/ThoughtLine';
 import TypewriterText from '../components/TypewriterText';
 import { uk } from '../copy/uk';
@@ -18,25 +22,15 @@ const d = uk.debate;
 
 const DEVIL_COLOR = '#fde3c6';
 const USER_COLOR = '#f0f0f0';
-const MAX_AUTO_STEPS = 50;
+const RESEARCH_COLOR = '#d6eefb';
 const STICK_THRESHOLD = 120;
-// 502 (модель не відповіла) і 409 (крок ще виконується) часто минають самі:
-// повторюємо кілька разів із паузою, перш ніж показати помилку.
-const AUTO_RETRY_DELAYS = [4000, 12000];
-const RETRYABLE_STATUSES = new Set([0, 409, 502, 503, 504]);
-
-const wait = (ms, signal) =>
-  new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(new DOMException('Aborted', 'AbortError'));
-      },
-      { once: true }
-    );
-  });
+// Дискусію виконує сервер; сторінка лише опитує стан.
+const POLL_MS = 2000;
+// Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
+// (перезапуск процесу), перш ніж показати помилку.
+const MAX_KICKS = 3;
+const MAX_NOTE = 1000;
+const CITATION_RE = /(\[\d+\])/g;
 
 const AvatarIcon = () => (
   <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
@@ -57,10 +51,20 @@ const listOf = (value) =>
     .map((item) => String(item ?? '').trim())
     .filter(Boolean);
 
+const domainOf = (url) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+};
+
 const stanceText = (stance) => (stance ? t.stance[stance] || stance : '');
 
 const phaseLabel = (message) => {
   switch (message.phase) {
+    case 'research':
+      return t.phaseResearch;
     case 'opening':
       return t.phaseOpening;
     case 'debate':
@@ -78,7 +82,46 @@ const phaseLabel = (message) => {
   }
 };
 
-function MessageText({ id, content, caret = false }) {
+const mergeMessages = (current, incoming) => {
+  if (!incoming?.length) return current || [];
+  const known = new Set((current || []).map((message) => message.id));
+  const fresh = incoming.filter((message) => !known.has(message.id));
+  if (fresh.length === 0) return current;
+  return [...(current || []), ...fresh].sort((a, b) => a.seq - b.seq);
+};
+
+const lastSeqOf = (discussion) =>
+  (discussion?.messages || []).reduce((max, message) => Math.max(max, message.seq || 0), 0);
+
+// Порядок виступів зсувається щораунду — так само, як на сервері.
+const rotate = (list, round) => {
+  if (list.length === 0) return list;
+  const shift = (Math.max(1, round) - 1) % list.length;
+  return [...list.slice(shift), ...list.slice(0, shift)];
+};
+
+function Cited({ text, sources, prefix }) {
+  const parts = String(text).split(CITATION_RE);
+  return parts.map((part, index) => {
+    const match = /^\[(\d+)\]$/.exec(part);
+    const source = match ? sources.get(Number(match[1])) : null;
+    if (!source) return <Fragment key={`${prefix}-${index}`}>{part}</Fragment>;
+    return (
+      <a
+        key={`${prefix}-${index}`}
+        className="chat__cite"
+        href={source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={source.title}
+      >
+        {part}
+      </a>
+    );
+  });
+}
+
+function MessageText({ id, content, sources, caret = false }) {
   const paragraphs = splitParagraphs(content);
   const caretNode = caret ? <span className="chat__caret" aria-hidden="true" /> : null;
   if (paragraphs.length === 0) {
@@ -88,7 +131,7 @@ function MessageText({ id, content, caret = false }) {
     <div className="chat__text">
       {paragraphs.map((paragraph, index) => (
         <p key={`${id}-${index}`}>
-          {paragraph}
+          <Cited text={paragraph} sources={sources} prefix={`${id}-${index}`} />
           {index === paragraphs.length - 1 && caretNode}
         </p>
       ))}
@@ -105,24 +148,50 @@ export default function ChatPage() {
   const [defaultModel, setDefaultModel] = useState('');
   const [activeSlug, setActiveSlug] = useState('');
   const [scrollState, setScrollState] = useState({ overflow: false, left: false, right: false });
-  const [isAdvancing, setIsAdvancing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
-  const [stopReason, setStopReason] = useState('');
   const [copyState, setCopyState] = useState('');
+  const [note, setNote] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [pollTick, setPollTick] = useState(0);
   // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
   // навіть якщо паралельний крок приніс кілька одразу.
   const [revealedCount, setRevealedCount] = useState(0);
   const [skipTyping, setSkipTyping] = useState(false);
   const discussionRef = useRef(null);
-  const runningRef = useRef(false);
-  const autoStartedRef = useRef(null);
-  const abortRef = useRef(null);
+  const kicksRef = useRef(0);
+  const progressRef = useRef(0);
   const bottomRef = useRef(null);
   const mainRef = useRef(null);
   const stickToBottomRef = useRef(true);
   const participantListRef = useRef(null);
+
+  const applyState = useCallback((data, { replaceMessages = false } = {}) => {
+    if (!data) return;
+    setDiscussion((previous) => {
+      if (!previous || replaceMessages) return data;
+      return {
+        ...previous,
+        ...data,
+        messages: mergeMessages(previous.messages, data.messages),
+      };
+    });
+  }, []);
+
+  const startRunner = useCallback(
+    async (discussionId) => {
+      try {
+        const state = await runDiscussion(discussionId);
+        applyState(state);
+        setActionError('');
+      } catch (err) {
+        setActionError(err.message || t.errorAdvance);
+      }
+    },
+    [applyState]
+  );
 
   const loadDiscussion = useCallback(async () => {
     try {
@@ -131,10 +200,10 @@ export default function ChatPage() {
         fetchPersonas().catch(() => null),
         fetchModels().catch(() => null),
       ]);
-      discussionRef.current = data;
       setDiscussion(data);
       // те, що вже було в дискусії до відкриття сторінки, не анімуємо
-      setRevealedCount((data.messages || []).filter((m) => m.role !== 'user').length);
+      // (мінус перше повідомлення — саме запитання, воно в заголовку)
+      setRevealedCount(Math.max(0, (data.messages || []).length - 1));
       setActiveSlug(data.personas?.[0]?.slug || '');
       if (personaData?.personas) setPersonas(personaData.personas);
       if (modelData?.models) {
@@ -145,139 +214,91 @@ export default function ChatPage() {
             || ''
         );
       }
-      setError('');
-      setStopReason('');
+      setActionError('');
       setLoadError('');
+      kicksRef.current = 0;
+      progressRef.current = lastSeqOf(data);
+      const idle = !data.is_running && !data.is_finished && !data.stop_requested;
+      if (idle && data.status !== 'failed') startRunner(data.id);
     } catch (err) {
       setLoadError(err.message || t.loadError);
     }
-  }, [id]);
+  }, [id, startRunner]);
 
   useEffect(() => {
-    autoStartedRef.current = null;
     const timer = setTimeout(loadDiscussion, 0);
     return () => clearTimeout(timer);
   }, [loadDiscussion]);
 
-  const runDiscussion = useCallback(async () => {
-    const start = discussionRef.current;
-    if (!start || runningRef.current || start.phase === 'done' || start.is_finished) {
-      return;
-    }
-
-    runningRef.current = true;
-    setIsAdvancing(true);
-    setError('');
-    setStopReason('');
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    let current = start;
-    let retries = 0;
-    try {
-      for (let step = 0; step < MAX_AUTO_STEPS; step += 1) {
-        if (!current || current.phase === 'done' || current.is_finished) break;
-        if (controller.signal.aborted) break;
-
-        let data;
-        try {
-          data = await advanceDiscussion(current.id, {
-            signal: controller.signal,
-          });
-        } catch (err) {
-          if (
-            err?.name === 'AbortError'
-            || retries >= AUTO_RETRY_DELAYS.length
-            || !RETRYABLE_STATUSES.has(err?.status)
-          ) {
-            throw err;
-          }
-          // частина паралельних відповідей могла зберегтися — підтягуємо їх
-          const fresh = await fetchDiscussion(current.id).catch(() => null);
-          if (fresh) {
-            current = fresh;
-            discussionRef.current = fresh;
-            setDiscussion(fresh);
-          }
-          await wait(AUTO_RETRY_DELAYS[retries], controller.signal);
-          retries += 1;
-          continue;
-        }
-        retries = 0;
-        // паралельні фази (вступ, відповіді на Devil) повертають кілька реплік
-        const created = Array.isArray(data?.messages)
-          ? data.messages
-          : [data?.message].filter(Boolean);
-        const previousPhase = current.phase;
-        current = {
-          ...current,
-          ...(data?.discussion || {}),
-          messages: [...(current.messages || []), ...created],
-        };
-        discussionRef.current = current;
-        setDiscussion(current);
-
-        if (current.phase === 'done' || current.is_finished) break;
-        if (created.length === 0 && current.phase === previousPhase) {
-          setError(t.stopped);
-          break;
-        }
-      }
-
-      if (controller.signal.aborted) {
-        setStopReason(t.stoppedByUser);
-      } else if (current && current.phase !== 'done' && !current.is_finished) {
-        setError((previous) => previous || t.stopped);
-      }
-    } catch (err) {
-      if (err?.name === 'AbortError') {
-        setStopReason(t.stoppedByUser);
-      } else {
-        setError(err.message || t.errorAdvance);
-        // частина паралельних відповідей могла зберегтися — синхронізуємося
-        try {
-          const fresh = await fetchDiscussion(start.id);
-          discussionRef.current = fresh;
-          setDiscussion(fresh);
-        } catch {
-          // залишаємо локальний стан; «Продовжити» повторить крок
-        }
-      }
-    } finally {
-      runningRef.current = false;
-      abortRef.current = null;
-      setIsAdvancing(false);
-    }
-  }, []);
+  const isFinished = discussion ? discussion.phase === 'done' || discussion.is_finished : false;
+  const isRunning = Boolean(discussion?.is_running);
+  const isFailed = discussion?.status === 'failed';
+  const isStopped = Boolean(discussion?.stop_requested);
+  // Опитуємо, доки сервер працює або має працювати (раннер ще стартує).
+  const shouldPoll = Boolean(discussion) && (isRunning || (!isFinished && !isFailed && !isStopped));
+  const discussionId = discussion?.id;
 
   useEffect(() => {
-    if (!discussion) return;
-    if (autoStartedRef.current === discussion.id) return;
-    autoStartedRef.current = discussion.id;
-    runDiscussion();
-  }, [discussion, runDiscussion]);
+    discussionRef.current = discussion;
+  });
 
-  useEffect(
-    () => () => {
-      abortRef.current?.abort();
-    },
-    []
-  );
+  useEffect(() => {
+    if (!discussionId || !shouldPoll) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const known = lastSeqOf(discussionRef.current);
+        const data = await fetchDiscussion(discussionId, {
+          after: known,
+          signal: controller.signal,
+        });
+        applyState(data);
+        const seq = Math.max(known, ...(data.messages || []).map((m) => m.seq));
+        if (seq > progressRef.current) {
+          progressRef.current = seq;
+          kicksRef.current = 0;
+        }
+        // Сервер втратив раннер (перезапуск) — підштовхуємо, але не нескінченно.
+        const idle = !data.is_running && !data.is_finished && !data.stop_requested;
+        if (idle && data.status !== 'failed') {
+          if (kicksRef.current < MAX_KICKS) {
+            kicksRef.current += 1;
+            await startRunner(discussionId);
+          } else {
+            setActionError(t.stopped);
+          }
+        }
+      } catch (err) {
+        if (err?.name !== 'AbortError') setActionError(err.message || t.errorAdvance);
+      } finally {
+        if (!controller.signal.aborted) setPollTick((tick) => tick + 1);
+      }
+    }, POLL_MS);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [discussionId, shouldPoll, pollTick, applyState, startRunner]);
 
   const messages = discussion?.messages;
-  const visibleMessages = (messages || []).filter((message) => message.role !== 'user');
-  const isFinished = discussion
-    ? discussion.phase === 'done' || discussion.is_finished
-    : false;
+  const questionMessage = useMemo(
+    () => (messages || []).find((message) => message.role === 'user'),
+    [messages]
+  );
+  const visibleMessages = useMemo(
+    () => (messages || []).filter((message) => message !== questionMessage),
+    [messages, questionMessage]
+  );
 
-  const personaNames = useMemo(() => {
-    const map = new Map();
-    personas.forEach((persona) => map.set(persona.slug, persona.name));
-    (discussion?.personas || []).forEach((persona) => {
-      if (persona.name) map.set(persona.slug, persona.name);
-    });
-    return map;
-  }, [personas, discussion?.personas]);
+  const sourcesById = useMemo(
+    () => new Map((discussion?.sources || []).map((source) => [source.id, source])),
+    [discussion?.sources]
+  );
+
+  const personaInfo = useMemo(
+    () => new Map(personas.map((persona) => [persona.slug, persona])),
+    [personas]
+  );
 
   const customNames = useMemo(() => {
     const map = new Map();
@@ -293,13 +314,14 @@ export default function ChatPage() {
         key: persona.slug || `participant-${index}`,
         label:
           persona.name
-          || personaNames.get(persona.slug)
+          || personaInfo.get(persona.slug)?.name
           || t.fallbackParticipant(index + 1),
+        role: personaInfo.get(persona.slug)?.name || '',
         model: persona.model || defaultModel || '',
         traits: Array.isArray(persona.traits) ? persona.traits : [],
         color: TRAIT_COLORS[index % TRAIT_COLORS.length],
       })),
-    [discussion?.personas, defaultModel, personaNames]
+    [discussion?.personas, defaultModel, personaInfo]
   );
 
   const participantColors = useMemo(
@@ -311,10 +333,6 @@ export default function ChatPage() {
     participantEntries.find((participant) => participant.key === activeSlug)
     || participantEntries[0];
   const activeTraits = activeParticipant?.traits || [];
-  const selectedModel = models.find((model) => model.id === activeParticipant?.model);
-  const selectedModelLabel = selectedModel
-    ? `${selectedModel.provider} — ${selectedModel.label || selectedModel.model}`
-    : activeParticipant?.model || '';
 
   const allTraits = useMemo(() => {
     const customTraits = [];
@@ -329,12 +347,8 @@ export default function ChatPage() {
   }, [participantEntries]);
 
   const participantNames = useMemo(
-    () =>
-      (discussion?.personas || []).map(
-        (persona, index) =>
-          persona.name || personaNames.get(persona.slug) || t.fallbackParticipant(index + 1)
-      ),
-    [discussion?.personas, personaNames]
+    () => participantEntries.map((participant) => participant.label),
+    [participantEntries]
   );
 
   // Етапи дискусії: вступ і відповіді на Devil — паралельні, тож це один етап.
@@ -342,24 +356,28 @@ export default function ChatPage() {
   const plannedRounds = discussion?.early_stop
     ? Number(discussion?.current_round) || 1
     : Math.max(1, Number(discussion?.rounds) || 1);
+  const hasResearch = Boolean(discussion?.web_search);
 
   const stagePlan = useMemo(() => {
     if (participantNames.length === 0) return [];
-    const stages = [t.stageOpening];
+    const stages = hasResearch ? [t.stageResearch, t.stageOpening] : [t.stageOpening];
     for (let round = 1; round <= plannedRounds; round += 1) {
-      participantNames.forEach((name) => stages.push(t.stageRound(round, name)));
+      rotate(participantNames, round).forEach((name) => stages.push(t.stageRound(round, name)));
     }
     stages.push(t.stageSynthesis, t.stageDevil, t.stageRebuttal, t.stageFinal);
     return stages;
-  }, [participantNames, plannedRounds]);
+  }, [participantNames, plannedRounds, hasResearch]);
 
   const currentStage = useMemo(() => {
     if (!discussion) return 0;
-    const debateStart = 1;
+    const offset = hasResearch ? 1 : 0;
+    const debateStart = offset + 1;
     const afterDebate = debateStart + plannedRounds * participantNames.length;
     switch (discussion.phase) {
-      case 'opening':
+      case 'research':
         return 0;
+      case 'opening':
+        return offset;
       case 'debate':
         return (
           debateStart
@@ -377,39 +395,47 @@ export default function ChatPage() {
       default:
         return stagePlan.length;
     }
-  }, [discussion, plannedRounds, participantNames.length, stagePlan.length]);
+  }, [discussion, plannedRounds, participantNames.length, stagePlan.length, hasResearch]);
 
   const traceSteps = stagePlan.slice(
     0,
     isFinished ? stagePlan.length : Math.min(currentStage + 1, stagePlan.length)
   );
-  const typingIndex = revealedCount < visibleMessages.length ? revealedCount : -1;
-  const isRevealing = typingIndex !== -1;
+  const pendingMessage =
+    revealedCount < visibleMessages.length ? visibleMessages[revealedCount] : null;
+  const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
+  const isRevealing = Boolean(typingMessage);
   const shownMessages = visibleMessages.slice(0, revealedCount + 1);
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
-  const showThoughtLine = stagePlan.length > 0 && !isRevealing && (isAdvancing || isFinished);
+  const showThoughtLine = stagePlan.length > 0 && !isRevealing && (isRunning || isFinished);
+
+  // уточнення користувача показуємо одразу, без «друку»
+  useEffect(() => {
+    if (pendingMessage?.role !== 'user') return undefined;
+    const timer = setTimeout(() => setRevealedCount((count) => count + 1), 0);
+    return () => clearTimeout(timer);
+  }, [pendingMessage]);
 
   const followBottom = useCallback(() => {
     if (!stickToBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
   }, []);
 
-  const handleTypingDone = useCallback((index) => {
-    setRevealedCount((count) => Math.max(count, index + 1));
+  const handleTypingDone = useCallback(() => {
+    setRevealedCount((count) => count + 1);
     setSkipTyping(false);
   }, []);
 
   useEffect(() => {
     if (!stickToBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: isAdvancing ? 'smooth' : 'auto', block: 'end' });
-  }, [revealedCount, isAdvancing, error, stopReason, isRevealing]);
+    bottomRef.current?.scrollIntoView({ behavior: isRunning ? 'smooth' : 'auto', block: 'end' });
+  }, [revealedCount, isRunning, actionError, isStopped, isRevealing]);
 
   const handleMainScroll = () => {
     const el = mainRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     stickToBottomRef.current = distance < STICK_THRESHOLD;
-    if (distance < STICK_THRESHOLD) stickToBottomRef.current = true;
   };
 
   const updateScrollState = useCallback(() => {
@@ -456,49 +482,100 @@ export default function ChatPage() {
     el.scrollBy({ left: direction * 108, behavior: 'smooth' });
   };
 
-  const handleStop = () => {
-    abortRef.current?.abort();
+  const handleStop = async () => {
+    if (!discussion) return;
+    try {
+      applyState(await stopDiscussion(discussion.id));
+    } catch (err) {
+      setActionError(err.message || t.errorAdvance);
+    }
   };
 
-  const handleRetry = () => {
-    if (runningRef.current) return;
-    runDiscussion();
+  const handleResume = () => {
+    if (!discussion) return;
+    kicksRef.current = 0;
+    startRunner(discussion.id);
   };
 
   const handleDelete = async () => {
     if (isDeleting) return;
     if (!window.confirm(t.deleteConfirm)) return;
-    abortRef.current?.abort();
     setIsDeleting(true);
     setLoadError('');
     try {
       await deleteDiscussion(id);
       navigate('/home', { replace: true });
     } catch (err) {
-      setError(err.message || t.deleteError);
+      setActionError(err.message || t.deleteError);
       setIsDeleting(false);
     }
+  };
+
+  const saveModels = async (changes) => {
+    if (!discussion || isSaving) return;
+    setIsSaving(true);
+    try {
+      const data = await updateDiscussion(discussion.id, changes);
+      applyState(data);
+      setActionError('');
+    } catch (err) {
+      setActionError(err.message || t.modelChangeError);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const followupsLeft = Math.max(
+    0,
+    (Number(discussion?.max_followups) || 0) - (Number(discussion?.followups) || 0)
+  );
+  const canSendNote =
+    Boolean(discussion) && !isSending && note.trim().length > 0 && (!isFinished || followupsLeft > 0);
+
+  const handleSendNote = async (e) => {
+    e.preventDefault();
+    if (!canSendNote) return;
+    setIsSending(true);
+    try {
+      const data = await postNote(discussion.id, note.trim());
+      applyState({ ...data.discussion, messages: [data.message] });
+      kicksRef.current = 0;
+      setNote('');
+      setActionError('');
+      stickToBottomRef.current = true;
+    } catch (err) {
+      setActionError(err.message || t.noteError);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleNoteKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    e.currentTarget.form?.requestSubmit();
   };
 
   const speakers = useMemo(() => {
     const map = new Map();
     let index = 0;
     (messages || []).forEach((message) => {
-      const key = message.persona_name || message.role;
+      const key = message.role === 'user' ? 'user' : message.persona_name || message.role;
       if (map.has(key)) return;
       if (message.role === 'devil') {
-        map.set(key, { color: DEVIL_COLOR, side: 'right', participant: true });
+        map.set(key, { color: DEVIL_COLOR, side: 'right' });
       } else if (message.role === 'moderator') {
-        map.set(key, { color: DEVIL_COLOR, side: 'left', participant: false });
+        map.set(key, { color: DEVIL_COLOR, side: 'left' });
+      } else if (message.role === 'research') {
+        map.set(key, { color: RESEARCH_COLOR, side: 'left' });
       } else if (message.role === 'user') {
-        map.set(key, { color: USER_COLOR, side: 'right', participant: false });
+        map.set(key, { color: USER_COLOR, side: 'right' });
       } else {
         map.set(key, {
           color:
             participantColors.get(message.persona_slug) ||
             TRAIT_COLORS[index % TRAIT_COLORS.length],
           side: index % 2 === 0 ? 'left' : 'right',
-          participant: true,
         });
         index += 1;
       }
@@ -508,22 +585,28 @@ export default function ChatPage() {
 
   const summary = discussion?.final_summary || null;
   const summaryDecision = summary?.decision ? String(summary.decision) : '';
+  const summaryConfirmed = typeof summary?.confirmed === 'boolean' ? summary.confirmed : null;
   const summaryConfidence = Number.isFinite(Number(summary?.confidence))
     && summary?.confidence !== null
     ? Math.max(0, Math.min(100, Math.round(Number(summary.confidence))))
     : null;
+  const agreement = summary?.agreement?.total ? summary.agreement : null;
   const summaryLists = [
     { key: 'pros', title: t.summaryPros, items: listOf(summary?.pros) },
     { key: 'cons', title: t.summaryCons, items: listOf(summary?.cons) },
     { key: 'risks', title: t.summaryRisks, items: listOf(summary?.risks) },
+    { key: 'dissent', title: t.summaryDissent, items: listOf(summary?.dissenting_points) },
   ].filter((list) => list.items.length > 0);
 
   const handleCopySummary = async () => {
     const lines = [discussion.question, ''];
     if (summary?.answer) lines.push(`${t.summaryAnswer}: ${summary.answer}`);
     lines.push(`${t.summaryDecision}: ${summaryDecision}`);
-    if (!summary?.confirmed && summary?.revision) {
+    if (summaryConfirmed === false && summary?.revision) {
       lines.push(`${t.summaryRevision}: ${summary.revision}`);
+    }
+    if (agreement) {
+      lines.push(`${t.summaryAgreement}: ${t.summaryAgreementValue(agreement.agree, agreement.total)}`);
     }
     if (summaryConfidence !== null) lines.push(`${t.summaryConfidence}: ${summaryConfidence}%`);
     summaryLists.forEach(({ title, items }) => {
@@ -531,6 +614,10 @@ export default function ChatPage() {
     });
     if (summary?.recommendation) {
       lines.push('', `${t.summaryNextStep}: ${summary.recommendation}`);
+    }
+    if (discussion.sources?.length) {
+      lines.push('', `${t.sources}:`);
+      discussion.sources.forEach((source) => lines.push(`[${source.id}] ${source.title} — ${source.url}`));
     }
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
@@ -540,6 +627,21 @@ export default function ChatPage() {
     }
     window.setTimeout(() => setCopyState(''), 2000);
   };
+
+  const statusText = (() => {
+    if (actionError) return actionError;
+    if (isFailed) {
+      // помилку прибирає сервер, коли користувач змінив модель
+      if (!discussion.error_public && !discussion.error_code) return t.modelChanged;
+      const base = discussion.error_public || t.errorAdvance;
+      return discussion.retryable === false ? `${base} ${t.errorFixModel}` : base;
+    }
+    if (isStopped && isRunning) return t.stopping;
+    if (isStopped && !isFinished) return t.stoppedByUser;
+    return '';
+  })();
+  const canResume = !isFinished && !isRunning && (isFailed || isStopped || Boolean(actionError));
+  const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
   return (
     <div className="debate-page chat-page">
@@ -594,38 +696,49 @@ export default function ChatPage() {
                   </button>
                 )}
               </div>
+              {activeParticipant?.role && (
+                <p className="debate__hint">{t.role(activeParticipant.role)}</p>
+              )}
             </section>
 
             <section className="debate__section">
               <h2 className="debate__section-title">{d.aiModel}</h2>
-              <div className="debate__model-card">
-                <div className="debate__model-toggle">
-                  <AiModelIcon />
-                  <span className="debate__model-row">
-                    <span
-                      className={`debate__model-value ${selectedModelLabel ? '' : 'debate__model-value--placeholder'}`}
-                    >
-                      {selectedModelLabel || d.chooseModel}
-                    </span>
-                  </span>
-                </div>
-              </div>
+              <ModelPicker
+                models={models}
+                value={activeParticipant?.model || ''}
+                onChange={(modelId) =>
+                  saveModels({ personas: [{ slug: activeParticipant.key, model: modelId }] })
+                }
+                disabled={!canEditModels || !activeParticipant}
+              />
+            </section>
+
+            <section className="debate__section">
+              <h2 className="debate__section-title">{t.judges}</h2>
+              <span className="debate__field-label">{t.moderatorModel}</span>
+              <ModelPicker
+                models={models}
+                value={discussion.moderator_model || ''}
+                onChange={(modelId) => saveModels({ moderatorModel: modelId })}
+                disabled={!canEditModels}
+                label={t.moderatorModel}
+                autoLabel={t.autoModel}
+                compact
+              />
+              <span className="debate__field-label">{t.devilModel}</span>
+              <ModelPicker
+                models={models}
+                value={discussion.devil_model || ''}
+                onChange={(modelId) => saveModels({ devilModel: modelId })}
+                disabled={!canEditModels}
+                label={t.devilModel}
+                autoLabel={t.autoModel}
+                compact
+              />
             </section>
 
             <section className="debate__section">
               <h2 className="debate__section-title">{d.character}</h2>
-              <label className="debate__card">
-                <UserPlusIcon />
-                <input
-                  className="debate__card-input"
-                  type="text"
-                  value=""
-                  readOnly
-                  tabIndex={-1}
-                  placeholder={activeTraits.length ? String(activeTraits.length) : d.placeholderCharacter}
-                  aria-label={d.character}
-                />
-              </label>
               <div className="debate__trait-list">
                 {allTraits.map((trait, index) => {
                   const active = activeTraits.includes(trait);
@@ -660,21 +773,20 @@ export default function ChatPage() {
         className="chat__main"
         ref={mainRef}
         onScroll={handleMainScroll}
-        aria-busy={isAdvancing}
+        aria-busy={isRunning}
       >
         {discussion && (
           <header className="chat__prompt">
             <div className="chat__toolbar">
-              {isAdvancing ? (
+              {isRunning && !isStopped && (
                 <button type="button" className="chat__tool" onClick={handleStop}>
                   {t.stop}
                 </button>
-              ) : (
-                !isFinished && (error || stopReason) && (
-                  <button type="button" className="chat__tool" onClick={handleRetry}>
-                    {t.resume}
-                  </button>
-                )
+              )}
+              {canResume && (
+                <button type="button" className="chat__tool" onClick={handleResume}>
+                  {t.resume}
+                </button>
               )}
               <button
                 type="button"
@@ -701,17 +813,21 @@ export default function ChatPage() {
         )}
 
         {shownMessages.map((message, index) => {
-          const speakerKey = message.persona_name || message.role;
+          const speakerKey = message.role === 'user' ? 'user' : message.persona_name || message.role;
           const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
-          const typing = index === typingIndex;
+          const typing = message === typingMessage;
           const authorName =
             (message.role === 'ai' && customNames.get(message.persona_slug))
             || message.persona_name;
           const replyTo = message.reply_to || '';
           const stance = message.role === 'ai' ? stanceText(message.stance) : '';
-          const previous = visibleMessages[index - 1];
+          const searched = message.search_query || '';
+          const previous = shownMessages[index - 1];
           const divider = phaseLabel(message);
-          const showDivider = divider && (!previous || phaseLabel(previous) !== divider);
+          const showDivider =
+            divider
+            && message.role !== 'user'
+            && (!previous || phaseLabel(previous) !== divider);
           const showEarlyStop =
             showDivider && message.phase === 'synthesis' && discussion?.early_stop;
           return (
@@ -740,10 +856,11 @@ export default function ChatPage() {
                     title={typing ? t.skipTyping : undefined}
                   >
                     <div className="chat__name">{authorName}</div>
-                    {(replyTo || stance) && (
+                    {(replyTo || stance || searched) && (
                       <div className="chat__meta">
                         {replyTo && <span className="chat__reply">{t.replyTo(replyTo)}</span>}
                         {stance && <span className="chat__stance">{t.stanceLabel(stance)}</span>}
+                        {searched && <span className="chat__search">{t.searchedFor(searched)}</span>}
                       </div>
                     )}
                     {typing ? (
@@ -752,18 +869,19 @@ export default function ChatPage() {
                         text={message.content}
                         skip={skipTyping}
                         onProgress={followBottom}
-                        onDone={() => handleTypingDone(index)}
+                        onDone={handleTypingDone}
                       >
                         {(visible, isTyping) => (
                           <MessageText
                             id={message.id}
                             content={visible}
+                            sources={sourcesById}
                             caret={isTyping}
                           />
                         )}
                       </TypewriterText>
                     ) : (
-                      <MessageText id={message.id} content={message.content} />
+                      <MessageText id={message.id} content={message.content} sources={sourcesById} />
                     )}
                   </div>
                 </div>
@@ -772,33 +890,41 @@ export default function ChatPage() {
           );
         })}
 
-        {summaryDecision && !isRevealing && (
+        {summaryDecision && isFinished && !isRevealing && (
           <section className="chat__summary" aria-labelledby="chat-summary-title">
             <div className="chat__summary-heading">
               <h2 id="chat-summary-title" className="chat__summary-title">
                 {t.summary}
               </h2>
-              <span
-                className={`chat__summary-badge ${summary?.confirmed ? '' : 'chat__summary-badge--pending'}`}
-              >
-                {summary?.confirmed ? t.summaryConfirmed : t.summaryRevised}
-              </span>
+              {summaryConfirmed !== null && (
+                <span
+                  className={`chat__summary-badge ${summaryConfirmed ? '' : 'chat__summary-badge--pending'}`}
+                >
+                  {summaryConfirmed ? t.summaryConfirmed : t.summaryRevised}
+                </span>
+              )}
             </div>
             {summary?.answer && (
               <p className="chat__summary-answer">{String(summary.answer)}</p>
             )}
             <p className="chat__summary-decision">
               <span>{t.summaryDecision}</span>
-              {summaryDecision}
+              <Cited text={summaryDecision} sources={sourcesById} prefix="decision" />
             </p>
-            {!summary?.confirmed && summary?.revision && (
+            {summaryConfirmed === false && summary?.revision && (
               <p className="chat__summary-line">
                 <span>{t.summaryRevision}</span>
                 {String(summary.revision)}
               </p>
             )}
+            {agreement && (
+              <p className="chat__summary-line">
+                <span>{t.summaryAgreement}</span>
+                {t.summaryAgreementValue(agreement.agree, agreement.total)}
+              </p>
+            )}
             {summaryConfidence !== null && (
-              <div className="chat__summary-confidence">
+              <div className="chat__summary-confidence" title={t.summaryConfidenceHint}>
                 <span>{t.summaryConfidence}</span>
                 <div
                   className="chat__confidence-bar"
@@ -819,7 +945,9 @@ export default function ChatPage() {
                   <h3>{title}</h3>
                   <ul>
                     {items.map((item, itemIndex) => (
-                      <li key={`${key}-${itemIndex}`}>{item}</li>
+                      <li key={`${key}-${itemIndex}`}>
+                        <Cited text={item} sources={sourcesById} prefix={`${key}-${itemIndex}`} />
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -843,9 +971,28 @@ export default function ChatPage() {
           </section>
         )}
 
+        {discussion?.sources?.length > 0 && (
+          <details className="chat__sources">
+            <summary>{`${t.sources} (${discussion.sources.length})`}</summary>
+            <ol>
+              {discussion.sources.map((source) => (
+                <li key={source.id} value={source.id}>
+                  <a href={source.url} target="_blank" rel="noopener noreferrer">
+                    {source.title}
+                  </a>
+                  <span className="chat__source-meta">
+                    {domainOf(source.url)}
+                    {source.added_by ? ` · ${t.sourceBy(source.added_by)}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+
         {showThoughtLine && (
           <ThoughtLine
-            working={isAdvancing}
+            working={isRunning}
             steps={traceSteps}
             label={t.advancing}
             doneLabel={t.thoughtDone}
@@ -855,15 +1002,52 @@ export default function ChatPage() {
           />
         )}
 
-        {(error || stopReason) && (
+        {statusText && (
           <div className="chat__error-block" role="alert" aria-live="polite">
-            <p className="debate__error">{error || stopReason}</p>
-            {!isAdvancing && (
-              <button type="button" className="chat__advance" onClick={handleRetry}>
+            <p className="debate__error">{statusText}</p>
+            {canResume && (
+              <button type="button" className="chat__advance" onClick={handleResume}>
                 {t.resume}
               </button>
             )}
           </div>
+        )}
+
+        {discussion && (
+          <form className="chat__composer" onSubmit={handleSendNote}>
+            {isFinished && (
+              <p className="chat__composer-hint">
+                {followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}
+              </p>
+            )}
+            <div className="debate__composer chat__composer-box">
+              <textarea
+                className="debate__composer-input"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onKeyDown={handleNoteKeyDown}
+                maxLength={MAX_NOTE}
+                rows={1}
+                placeholder={isFinished ? t.followupPlaceholder : t.notePlaceholder}
+                disabled={isSending || (isFinished && followupsLeft === 0)}
+                aria-label={isFinished ? t.followupPlaceholder : t.notePlaceholder}
+              />
+              <div className="debate__composer-bar">
+                <span className="debate__composer-count">
+                  {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
+                </span>
+                <button
+                  type="submit"
+                  className="debate__send"
+                  disabled={!canSendNote}
+                  aria-label={isSending ? t.noteSending : t.noteSend}
+                  title={isSending ? t.noteSending : t.noteSend}
+                >
+                  {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+                </button>
+              </div>
+            </div>
+          </form>
         )}
 
         <div ref={bottomRef} />

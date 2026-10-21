@@ -20,12 +20,22 @@ logger = logging.getLogger(__name__)
 RETRYABLE_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
 
 
-class ProviderError(Exception):
-    """Помилка виклику LLM-провайдера."""
+# Помилки налаштування: повтор не допоможе, потрібна інша модель або ключ.
+CONFIG_STATUSES = {401, 403, 404}
 
-    def __init__(self, message, *, status=None):
+
+class ProviderError(Exception):
+    """Помилка виклику LLM-провайдера.
+
+    `config=True` — проблема налаштування (ключ, модель недоступна): повторювати
+    запит марно, користувачу треба змінити модель або ключ.
+    """
+
+    def __init__(self, message, *, status=None, config=False, quota=False):
         super().__init__(message)
         self.status = status
+        self.quota = quota
+        self.config = config or quota or status in CONFIG_STATUSES
 
 
 def _retry_after(response):
@@ -41,6 +51,31 @@ def _retry_after(response):
         return max(0.0, min(float(value), cap))
     except (TypeError, ValueError):
         return None
+
+
+QUOTA_MARKERS = (
+    'insufficient_quota',
+    'exceeded your current quota',
+    'quota exceeded',
+    'credit balance',
+    'resource_exhausted',
+)
+DAILY_MARKERS = ('per day', 'perday', 'daily')
+MINUTE_MARKERS = ('per minute', 'perminute', 'per second', '(tpm)', '(rpm)')
+
+
+def _quota_exhausted(response):
+    """429 через вичерпану квоту чи денний ліміт, а не хвилинний rate limit.
+
+    Хвилинні ліміти (TPM/RPM) минають за секунди — їх варто повторити;
+    денні ліміти й порожній баланс — ні.
+    """
+    text = (response.text or '')[:2000].casefold()
+    if any(marker in text for marker in DAILY_MARKERS):
+        return True
+    if any(marker in text for marker in MINUTE_MARKERS):
+        return False
+    return any(marker in text for marker in QUOTA_MARKERS)
 
 
 def _post_with_retries(url, *, headers, payload, timeout, provider_label):
@@ -73,6 +108,15 @@ def _post_with_retries(url, *, headers, payload, timeout, provider_label):
             )
             time.sleep(delay)
             continue
+
+        if response.status_code == 429 and _quota_exhausted(response):
+            # денна/місячна квота не відновиться за секунди — повтори марні
+            raise ProviderError(
+                f'{provider_label} 429: квоту вичерпано — {response.text[:300]}',
+                status=429,
+                config=True,
+                quota=True,
+            )
 
         if response.status_code in RETRYABLE_STATUSES and attempt + 1 < attempts:
             delay = _retry_after(response)
@@ -233,22 +277,26 @@ def get_provider(model_id):
     if spec is None:
         raise ProviderError(
             f'Модель «{model_id}» не знайдена в каталозі. '
-            'Оновіть каталог або виберіть іншу модель.'
+            'Оновіть каталог або виберіть іншу модель.',
+            config=True,
         )
     if not spec['available']:
         if spec['provider_id'] == 'ollama':
             raise ProviderError(
                 'Ollama не налаштована: задайте OLLAMA_MODELS у backend/.env '
-                'і переконайтеся, що локальний сервер запущений.'
+                'і переконайтеся, що локальний сервер запущений.',
+                config=True,
             )
         if spec['provider_id'] == 'custom':
             raise ProviderError(
                 'Custom-провайдер не налаштований: задайте CUSTOM_LLM_BASE_URL '
-                'і CUSTOM_LLM_MODEL у backend/.env.'
+                'і CUSTOM_LLM_MODEL у backend/.env.',
+                config=True,
             )
         raise ProviderError(
             f'Модель «{model_id}» недоступна: додайте {spec["key_env"]} '
-            'у backend/.env і перезапустіть backend.'
+            'у backend/.env і перезапустіть backend.',
+            config=True,
         )
 
     if spec['transport'] == ANTHROPIC:

@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import Discussion, Message
@@ -12,6 +13,7 @@ from .personas import (
     QUESTION_MAX,
     QUESTION_MIN,
 )
+from .services import engine, runner, search
 from .services.catalog import resolve_model
 
 REQUIRED = 'Це поле обов’язкове'
@@ -41,11 +43,38 @@ NAME_INVALID = 'Ім’я містить недопустимі символи'
 TRAITS_TYPE = 'Риси характеру мають бути списком'
 TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
 TRAIT_TOO_LONG = 'Риса характеру задовга (максимум 40 символів)'
+SEARCH_UNAVAILABLE = 'Пошук в інтернеті вимкнено на сервері'
+PERSONA_NOT_IN_DISCUSSION = 'Учасника «{slug}» немає в цій дискусії'
+
+# Помилки, які не минуть від повтору: потрібно змінити модель чи налаштування.
+NON_RETRYABLE_CODES = {
+    'provider_config',
+    'no_personas',
+    'bad_state',
+    'not_found',
+    'daily_limit',
+    'followup_limit',
+}
 
 MODES = {m.value for m in Discussion.Mode}
 OPTION_MAX = 8
 TRAITS_MAX = 20
 TRAIT_LENGTH_MAX = 40
+
+
+def validate_model_id(value):
+    """Порожньо — автоматичний вибір; інакше модель має бути в каталозі й доступна."""
+    model = str(value or '').strip()
+    if not model:
+        return ''
+    if len(model) > 120:
+        raise serializers.ValidationError(MODEL_TOO_LONG)
+    spec = resolve_model(model)
+    if spec is None:
+        raise serializers.ValidationError(MODEL_UNKNOWN.format(model=model))
+    if not spec.get('available'):
+        raise serializers.ValidationError(MODEL_UNAVAILABLE.format(model=model))
+    return model
 
 
 class CreateDiscussionSerializer(serializers.Serializer):
@@ -70,6 +99,20 @@ class CreateDiscussionSerializer(serializers.Serializer):
         error_messages={'required': REQUIRED},
     )
     rounds = serializers.IntegerField(required=False, default=DEFAULT_ROUNDS)
+    web_search = serializers.BooleanField(required=False, default=False)
+    moderator_model = serializers.CharField(required=False, allow_blank=True, default='')
+    devil_model = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_web_search(self, value):
+        if value and not search.is_available():
+            raise serializers.ValidationError(SEARCH_UNAVAILABLE)
+        return value
+
+    def validate_moderator_model(self, value):
+        return validate_model_id(value)
+
+    def validate_devil_model(self, value):
+        return validate_model_id(value)
 
     def validate_question(self, value):
         value = value.replace('\r\n', '\n').replace('\r', '\n')
@@ -155,20 +198,8 @@ class CreateDiscussionSerializer(serializers.Serializer):
                         raise serializers.ValidationError(TRAITS_TOO_MANY)
                     if cleaned_traits:
                         persona['traits'] = cleaned_traits
-                model = item.get('model')
+                model = validate_model_id(item.get('model'))
                 if model:
-                    model = str(model).strip()
-                    if len(model) > 120:
-                        raise serializers.ValidationError(MODEL_TOO_LONG)
-                    spec = resolve_model(model)
-                    if spec is None:
-                        raise serializers.ValidationError(
-                            MODEL_UNKNOWN.format(model=model)
-                        )
-                    if not spec.get('available'):
-                        raise serializers.ValidationError(
-                            MODEL_UNAVAILABLE.format(model=model)
-                        )
                     persona['model'] = model
                 temperature = item.get('temperature')
                 if temperature is not None:
@@ -225,13 +256,94 @@ class MessageSerializer(serializers.ModelSerializer):
             'content',
             'thesis',
             'stance',
+            'search_query',
+            'source_ids',
             'created_at',
         ]
 
 
+class UpdateDiscussionSerializer(serializers.Serializer):
+    """Зміна моделей, поки дискусія не виконується (наприклад, після помилки ключа)."""
+
+    personas = serializers.ListField(child=serializers.DictField(), required=False)
+    moderator_model = serializers.CharField(required=False, allow_blank=True)
+    devil_model = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_personas(self, value):
+        result = {}
+        for item in value:
+            slug = str(item.get('slug', ''))
+            if not slug:
+                raise serializers.ValidationError(PERSONAS_TYPE)
+            result[slug] = validate_model_id(item.get('model'))
+        return result
+
+    def validate_moderator_model(self, value):
+        return validate_model_id(value)
+
+    def validate_devil_model(self, value):
+        return validate_model_id(value)
+
+    def update(self, instance, validated_data):
+        models = validated_data.get('personas') or {}
+        known = {
+            (item.get('slug') if isinstance(item, dict) else str(item))
+            for item in instance.personas
+        }
+        unknown = [slug for slug in models if slug not in known]
+        if unknown:
+            raise serializers.ValidationError(
+                {'personas': PERSONA_NOT_IN_DISCUSSION.format(slug=unknown[0])}
+            )
+        personas = []
+        for item in instance.personas:
+            persona = dict(item) if isinstance(item, dict) else {'slug': str(item)}
+            if persona['slug'] in models:
+                if models[persona['slug']]:
+                    persona['model'] = models[persona['slug']]
+                else:
+                    persona.pop('model', None)
+            personas.append(persona)
+        instance.personas = personas
+        for field in ('moderator_model', 'devil_model'):
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+        if instance.status == Discussion.Status.FAILED:
+            # нова модель — нова спроба: прибираємо стару помилку
+            instance.error_code = ''
+            instance.error_public = ''
+        instance.save()
+        return instance
+
+
 class DiscussionSerializer(serializers.ModelSerializer):
-    messages = MessageSerializer(many=True, read_only=True)
+    """Повний стан дискусії. З context['after'] повертає лише нові повідомлення."""
+
+    messages = serializers.SerializerMethodField()
     is_finished = serializers.BooleanField(read_only=True)
+    is_running = serializers.SerializerMethodField()
+    retryable = serializers.SerializerMethodField()
+    search = serializers.SerializerMethodField()
+    max_followups = serializers.SerializerMethodField()
+
+    def get_messages(self, obj):
+        queryset = obj.messages.order_by('seq')
+        after = self.context.get('after')
+        if after is not None:
+            queryset = queryset.filter(seq__gt=after)
+        return MessageSerializer(queryset, many=True).data
+
+    def get_is_running(self, obj):
+        return engine.is_running(obj) or runner.is_active(obj.pk)
+
+    def get_retryable(self, obj):
+        return obj.error_code not in NON_RETRYABLE_CODES
+
+    def get_search(self, obj):
+        return search.status()
+
+    def get_max_followups(self, obj):
+        return int(settings.DISCUSSION_MAX_FOLLOWUPS)
 
     class Meta:
         model = Discussion
@@ -242,12 +354,24 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'options',
             'personas',
             'rounds',
+            'web_search',
+            'sources',
+            'moderator_model',
+            'devil_model',
+            'followups',
+            'max_followups',
+            'stop_requested',
             'status',
             'phase',
             'current_round',
             'speaker_index',
             'early_stop',
             'is_finished',
+            'is_running',
+            'error_code',
+            'error_public',
+            'retryable',
+            'search',
             'best_solution',
             'devil_review',
             'final_summary',

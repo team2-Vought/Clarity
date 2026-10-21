@@ -365,3 +365,18 @@ def catalog():
             'перезапустіть backend.'
         ),
     }
+
+
+def model_label(model_id):
+    """Людська назва моделі для повідомлень користувачу."""
+    spec = resolve_model(model_id) if model_id else None
+    if spec is None:
+        return model_id or 'модель'
+    return f"{spec['provider']} — {spec['label']}"
+
+
+def available_model_ids():
+    """Доступні моделі: спершу рекомендовані, потім решта в порядку каталогу."""
+    available = [spec['id'] for spec in _all_specs() if _is_available(spec)]
+    preferred = [model_id for model_id in RECOMMENDED if model_id in available]
+    return preferred + [model_id for model_id in available if model_id not in preferred]

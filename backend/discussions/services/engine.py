@@ -1,19 +1,27 @@
 """Движок дискусії: стан-машина, яка робить один крок за виклик.
 
-Фази: opening → debate (до N раундів) → synthesis → devil → rebuttal → final → done.
+Фази: research → opening → debate (до N раундів) → synthesis → devil → rebuttal
+→ final → done. Етап research є лише тоді, коли увімкнено пошук в інтернеті.
+
 Вступ (opening) і відповідь на Devil (rebuttal) виконуються паралельно: один
 крок створює повідомлення всіх учасників. Дебати — по одній репліці за крок;
-якщо всі учасники в раунді зайняли однакову позицію, решта раундів
-пропускається. Кожен AI-учасник викликає власну модель, а модератор і AI Devil
-використовують модель першого доступного учасника.
+порядок виступів ротується щораунду, щоб ніхто не мав постійного «останнього
+слова». Якщо учасники два раунди поспіль займають однакову позицію, решта
+раундів пропускається.
+
+Кожен AI-учасник викликає власну модель. Модератор і AI Devil — окремі
+«судді»: користувач може задати їм моделі явно, інакше обирається модель, що
+не належить жодному учаснику (і для Devil — відмінна від моделі модератора).
+Якщо модель судді не відповідає, крок повторюється на наступній доступній.
+
+Моделі можуть шукати в інтернеті: етап research формує запити до старту,
+учасники додають службовий рядок ПОШУК, а Devil — поле search_queries.
 
 Крок розділений на три частини:
-1. атомарний «lease» на дискусії (захист від паралельних advance);
-2. LLM-виклик поза транзакцією;
+1. атомарний «lease» на дискусії (захист від паралельних advance), який
+   продовжує heartbeat-потік, доки триває крок;
+2. LLM-виклики та пошук поза транзакцією;
 3. атомарне збереження результату з перевіркою lease-токена.
-
-Така схема не тримає транзакцію під час мережевого запиту і не дозволяє двом
-запитам одночасно створити повідомлення з однаковим seq.
 """
 
 from __future__ import annotations
@@ -21,20 +29,22 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
 import uuid
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from ..models import Discussion, Message
-from ..personas import DEVIL, MODERATOR
-from . import prompts
-from .catalog import default_model_id, resolve_model
+from ..personas import DEVIL, MODERATOR, RESEARCHER
+from . import prompts, search
+from .catalog import available_model_ids, default_model_id, model_label, resolve_model
 from .providers import ProviderError, get_provider
 
 logger = logging.getLogger(__name__)
@@ -43,12 +53,17 @@ MAX_SEQ_STEP = 1
 DEFAULT_TEMPERATURE = 0.7
 JSON_TEMPERATURE = 0.2
 MAX_ERROR_DETAIL = 4000
+MAX_ERROR_PUBLIC = 300
 MAX_PARALLEL_CALLS = 5
+MAX_RESEARCH_QUERIES = 3
+MAX_DEVIL_QUERIES = 2
 STANCE_AGREE = 'згода'
 STANCE_DISPUTE = 'суперечка'
+USER_SLUG = 'user'
+GENERIC_PUBLIC_ERROR = 'Не вдалося отримати відповідь від AI. Спробуйте ще раз.'
 
 _SERVICE_LINE_RE = re.compile(
-    r'^[ \t>*_#\-]*(ТЕЗА|ПОЗИЦІЯ)[ \t*_]*:[ \t*_]*(.*?)[ \t*_]*$',
+    r'^[ \t>*_#\-]*(ТЕЗА|ПОЗИЦІЯ|ПОШУК)[ \t*_]*:[ \t*_]*(.*?)[ \t*_]*$',
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -59,12 +74,18 @@ _JSON_FENCE_RE = re.compile(
 
 
 class EngineError(Exception):
-    """Помилка, яку можна показати користувачу без технічних деталей."""
+    """Помилка кроку.
 
-    def __init__(self, message, *, detail='', code='engine_error'):
+    `public` — текст, який безпечно показати користувачу (без сирих відповідей
+    провайдера); `retryable=False` — повтор без змін (моделі, ключа) не допоможе.
+    """
+
+    def __init__(self, message, *, detail='', code='engine_error', public='', retryable=True):
         super().__init__(message)
         self.detail = detail or message
         self.code = code
+        self.public = (public or '')[:MAX_ERROR_PUBLIC]
+        self.retryable = retryable
 
 
 class EngineBusy(EngineError):
@@ -88,6 +109,13 @@ class StepPlan:
     reply_to_slug: str = ''
     debate_round: int | None = None
     json_kind: str | None = None
+    fallback_models: list = field(default_factory=list)
+    can_search: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Розбір і нормалізація відповідей моделей
+# ---------------------------------------------------------------------------
 
 
 def _strip_code_fences(raw):
@@ -170,14 +198,14 @@ def _answer(value, mode, options):
     if not text:
         return None
     if mode == Discussion.Mode.YES_NO:
-        normalized = text.casefold().strip(' .,!?:;')
+        normalized = text.casefold().strip(' .,!?:;«»"\'')
         if normalized in {'так', 'yes', 'true', 'позитивно', 'згоден', 'згодна'}:
             return 'так'
         if normalized in {'ні', 'no', 'false', 'негативно', 'не згоден', 'не згодна'}:
             return 'ні'
         return None
     if mode == Discussion.Mode.CHOOSE_ONE:
-        folded = text.casefold()
+        folded = text.casefold().strip(' .,!?:;«»"\'')
         for option in options or []:
             if folded == str(option).casefold():
                 return str(option)
@@ -185,7 +213,7 @@ def _answer(value, mode, options):
     return text
 
 
-def _as_bool(value, default=True):
+def _as_bool(value, default=None):
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)) and value in {0, 1}:
@@ -209,23 +237,44 @@ def _confidence(value):
     return max(0, min(100, number))
 
 
-def normalize_solution(data, mode, options, raw=''):
+def _queries(value, limit):
+    result = []
+    for item in _text_list(value, limit=limit * 2, item_limit=300):
+        query = search.normalize_query(item)
+        if query and query.casefold() not in {q.casefold() for q in result}:
+            result.append(query)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _derive_answer(text, mode, options):
+    """Відповідь із вільного тексту рішення, якщо модель не заповнила answer."""
+    if mode == Discussion.Mode.OPEN or not text:
+        return None
+    return _answer(text, mode, options) or _normalize_stance(text, mode, options) or None
+
+
+def normalize_solution(data, mode, options, fallback_answer=''):
     data = data if isinstance(data, dict) else {}
+    decision = _text(data.get('decision'), 'Рішення не сформовано', limit=2000)
     result = {
-        'decision': _text(data.get('decision'), 'Рішення не сформовано', limit=2000),
+        'decision': decision,
         'reasoning': _text(data.get('reasoning'), limit=4000),
         'supporting_arguments': _text_list(data.get('supporting_arguments')),
         'dissenting_points': _text_list(data.get('dissenting_points')),
     }
-    answer = _answer(data.get('answer'), mode, options)
+    answer = (
+        _answer(data.get('answer'), mode, options)
+        or _derive_answer(decision, mode, options)
+        or (fallback_answer if mode != Discussion.Mode.OPEN else None)
+    )
     if answer:
         result['answer'] = answer
-    if not result['reasoning'] and raw:
-        result['reasoning'] = _text(raw, limit=500)
     return result
 
 
-def normalize_review(data, raw=''):
+def normalize_review(data):
     data = data if isinstance(data, dict) else {}
     risks = []
     for item in data.get('risks') or []:
@@ -248,44 +297,101 @@ def normalize_review(data, raw=''):
         if len(risks) >= 8:
             break
     return {
-        'verdict': _text(data.get('verdict'), raw[:300] if raw else 'Не вдалося отримати відповідь AI Devil'),
+        'verdict': _text(data.get('verdict'), limit=1000),
         'risks': risks,
         'weak_spots': _text_list(data.get('weak_spots')),
         'counter_arguments': _text_list(data.get('counter_arguments')),
     }
 
 
-def normalize_summary(data, best_solution, mode, options, raw=''):
+def normalize_summary(data, best_solution, mode, options):
     data = data if isinstance(data, dict) else {}
-    fallback_decision = (best_solution or {}).get('decision', '')
+    best_solution = best_solution if isinstance(best_solution, dict) else {}
+    decision = _text(data.get('decision'), best_solution.get('decision', ''), limit=2000)
     result = {
-        'decision': _text(data.get('decision'), fallback_decision, limit=2000),
-        'confirmed': _as_bool(data.get('confirmed'), False),
+        'decision': decision,
+        'confirmed': _as_bool(data.get('confirmed'), None),
         'revision': _text(data.get('revision'), limit=2000),
         'pros': _text_list(data.get('pros')),
         'cons': _text_list(data.get('cons')),
         'risks': _text_list(data.get('risks')),
+        'dissenting_points': (
+            _text_list(data.get('dissenting_points'))
+            or _text_list(best_solution.get('dissenting_points'))
+        ),
         'confidence': _confidence(data.get('confidence')),
-        'recommendation': _text(data.get('recommendation'), raw[:500] if raw else '', limit=2000),
+        'recommendation': _text(data.get('recommendation'), limit=2000),
     }
-    answer = _answer(data.get('answer'), mode, options)
-    if answer:
+    best_answer = _answer(best_solution.get('answer'), mode, options)
+    answer = (
+        _answer(data.get('answer'), mode, options)
+        or _derive_answer(decision, mode, options)
+        or best_answer
+    )
+    if answer and mode != Discussion.Mode.OPEN:
         result['answer'] = answer
+        if best_answer and answer != best_answer:
+            # Відповідь змінилась — це перегляд, навіть якщо модель написала інакше.
+            result['confirmed'] = False
+            if not result['revision']:
+                result['revision'] = (
+                    f'Відповідь змінено з «{best_answer}» на «{answer}» '
+                    'після перевірки AI Devil.'
+                )
+        elif result['confirmed'] is None and best_answer:
+            result['confirmed'] = True
+    elif answer:
+        result['answer'] = answer
+    if result['confirmed'] is True:
+        result['revision'] = ''
     return result
 
 
-def _valid_solution(data):
-    return isinstance(data, dict) and bool(_text(data.get('decision')))
+def _answer_problems(data, mode, options):
+    if mode == Discussion.Mode.OPEN or _answer(data.get('answer'), mode, options):
+        return []
+    if mode == Discussion.Mode.YES_NO:
+        return ['поле "answer" має бути рівно "так" або "ні"']
+    variants = '; '.join(str(option) for option in options or [])
+    return [f'поле "answer" має дослівно збігатися з одним із варіантів: {variants}']
 
 
-def _valid_review(data):
-    return isinstance(data, dict) and bool(
-        _text(data.get('verdict')) or data.get('risks')
-    )
+def _solution_problems(data, mode, options):
+    if not isinstance(data, dict):
+        return ['відповідь не є JSON-об’єктом']
+    problems = [] if _text(data.get('decision')) else ['поле "decision" порожнє']
+    return problems + _answer_problems(data, mode, options)
 
 
-def _valid_summary(data):
-    return isinstance(data, dict) and bool(_text(data.get('decision')))
+def _review_problems(data, mode, options):
+    if not isinstance(data, dict):
+        return ['відповідь не є JSON-об’єктом']
+    if _text(data.get('verdict')) or data.get('risks'):
+        return []
+    return ['потрібні поле "verdict" або непорожній список "risks"']
+
+
+def _summary_problems(data, mode, options):
+    if not isinstance(data, dict):
+        return ['відповідь не є JSON-об’єктом']
+    problems = [] if _text(data.get('decision')) else ['поле "decision" порожнє']
+    if _as_bool(data.get('confirmed'), None) is None:
+        problems.append('поле "confirmed" має бути true або false')
+    return problems + _answer_problems(data, mode, options)
+
+
+def _queries_problems(data, mode, options):
+    if isinstance(data, dict) and isinstance(data.get('queries'), list):
+        return []
+    return ['потрібне поле "queries" зі списком рядків']
+
+
+PROBLEM_CHECKS = {
+    'solution': _solution_problems,
+    'review': _review_problems,
+    'summary': _summary_problems,
+    'queries': _queries_problems,
+}
 
 
 def _next_seq(discussion):
@@ -305,6 +411,8 @@ def _add_message(
     reply_to_slug='',
     thesis='',
     stance='',
+    search_query='',
+    source_ids=None,
 ):
     return Message.objects.create(
         discussion=discussion,
@@ -321,6 +429,8 @@ def _add_message(
         reply_to_slug=reply_to_slug,
         thesis=thesis,
         stance=stance,
+        search_query=search_query[:300],
+        source_ids=source_ids or [],
     )
 
 
@@ -329,7 +439,7 @@ def _list_messages(discussion):
 
 
 def _normalize_stance(value, mode, options):
-    text = _text(value, limit=200).strip(' .,!?:;«»"\'')
+    text = _text(value, limit=200).strip(' .,!?:;«»"\'*_')
     if not text:
         return ''
     if mode == Discussion.Mode.YES_NO:
@@ -359,30 +469,76 @@ def _normalize_stance(value, mode, options):
 
 
 def parse_reply(raw, mode, options):
-    """Відокремлює службові рядки ТЕЗА/ПОЗИЦІЯ від тексту репліки."""
+    """Відокремлює службові рядки ТЕЗА/ПОЗИЦІЯ/ПОШУК від тексту репліки.
+
+    Службові рядки стоять наприкінці, тож для кожного ключа береться останній
+    збіг і вирізається лише він: рядок «Позиція: …» усередині тексту
+    залишається частиною репліки.
+    """
     text = str(raw or '').replace('\r\n', '\n')
-    thesis = ''
-    stance = ''
+    last = {}
     for match in _SERVICE_LINE_RE.finditer(text):
-        key = match.group(1).casefold()
-        value = match.group(2)
-        if key == 'теза':
-            thesis = thesis or _text(value, limit=300)
-        else:
-            stance = stance or _normalize_stance(value, mode, options)
-    content = _SERVICE_LINE_RE.sub('', text)
+        last[match.group(1).casefold()] = match
+    thesis = _text(last['теза'].group(2), limit=300) if 'теза' in last else ''
+    stance = (
+        _normalize_stance(last['позиція'].group(2), mode, options)
+        if 'позиція' in last
+        else ''
+    )
+    query = search.normalize_query(last['пошук'].group(2)) if 'пошук' in last else ''
+
+    content = text
+    for match in sorted(last.values(), key=lambda item: item.start(), reverse=True):
+        content = content[: match.start()] + content[match.end():]
     content = re.sub(r'\n{3,}', '\n\n', content).strip() or text.strip()
     if not thesis:
         thesis = prompts.fallback_thesis(content)
-    return content, thesis[:300], stance[:100]
+    return {
+        'content': content,
+        'thesis': thesis[:300],
+        'stance': stance[:100],
+        'search_query': query,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Хто говорить і кому відповідає
+# ---------------------------------------------------------------------------
+
+
+def _question_message(messages):
+    return next((message for message in messages if message.role == Message.Role.USER), None)
+
+
+def _user_notes(messages):
+    """Уточнення користувача — усі його повідомлення, крім самого запитання."""
+    question = _question_message(messages)
+    return [
+        message
+        for message in messages
+        if message.role == Message.Role.USER and message is not question
+    ]
+
+
+def _notes_since(messages, seq):
+    return [note for note in _user_notes(messages) if note.seq > seq]
+
+
+def _speaker_order(personas, debate_round):
+    """Порядок виступів у раунді: зсув на один щораунду."""
+    if not personas:
+        return []
+    shift = (max(1, debate_round or 1) - 1) % len(personas)
+    return personas[shift:] + personas[:shift]
 
 
 def _reply_target(messages, persona):
     """Обирає, кому відповідає учасник у раунді дебатів.
 
-    Пріоритет: незакрите звернення до мовця → не той самий співрозмовник, що
-    минулого разу → учасник з іншою позицією → той, кому мовець ще не
-    відповідав → найсвіжіша репліка. Повертає (Message | None, причина).
+    Пріоритет: уточнення користувача, на яке ще ніхто не відповів → незакрите
+    звернення до мовця → не той самий співрозмовник, що минулого разу →
+    учасник з іншою позицією → той, кому мовець ще не відповідав →
+    найсвіжіша репліка. Повертає (Message | None, причина).
     """
     slug = persona['slug']
     ai = [
@@ -393,6 +549,15 @@ def _reply_target(messages, persona):
     ]
     mine = [message for message in ai if message.persona_slug == slug]
     my_last_seq = mine[-1].seq if mine else 0
+
+    for note in reversed(_notes_since(messages, my_last_seq)):
+        answered = any(
+            message.reply_to_slug == USER_SLUG and message.seq > note.seq
+            for message in messages
+        )
+        if not answered:
+            return note, 'user'
+
     my_last_target = mine[-1].reply_to_slug if mine else ''
     my_stance = next((message.stance for message in reversed(mine) if message.stance), '')
     replied = {message.reply_to_slug for message in mine if message.reply_to_slug}
@@ -432,6 +597,11 @@ def _reply_target(messages, persona):
     return best
 
 
+# ---------------------------------------------------------------------------
+# Моделі
+# ---------------------------------------------------------------------------
+
+
 def _default_model():
     return default_model_id() or settings.LLM_DEFAULT_MODEL
 
@@ -443,19 +613,34 @@ def _is_available(model_id):
     return bool(spec and spec.get('available'))
 
 
-def _moderator_model(personas):
+def _judge_models(discussion, personas, role):
+    """Моделі для модератора чи Devil у порядку спроб.
+
+    Явний вибір користувача → налаштування → модель, якої немає в жодного
+    учасника (неупереджений суддя) → найпоширеніша модель учасників → решта
+    доступних. Devil уникає моделі модератора, щоб не перевіряти сам себе.
+    """
+    persona_models = [persona.get('model') for persona in personas if persona.get('model')]
+    counts = Counter(persona_models)
+    if role == 'devil':
+        explicit = [discussion.devil_model, getattr(settings, 'LLM_DEVIL_MODEL', '')]
+    else:
+        explicit = [discussion.moderator_model, getattr(settings, 'LLM_MODERATOR_MODEL', '')]
+    available = available_model_ids()
+    neutral = [model_id for model_id in available if model_id not in counts]
+    popular = [model_id for model_id, _ in counts.most_common()]
+
     candidates = []
-    for persona in personas:
-        model_id = persona.get('model')
-        if model_id and model_id not in candidates:
+    for model_id in [*explicit, *neutral, *popular, *available, _default_model()]:
+        if model_id and model_id not in candidates and _is_available(model_id):
             candidates.append(model_id)
-    for model_id in (_default_model(), settings.LLM_DEFAULT_MODEL):
-        if model_id and model_id not in candidates:
-            candidates.append(model_id)
-    for model_id in candidates:
-        if _is_available(model_id):
-            return model_id
-    return candidates[0] if candidates else _default_model()
+    if role == 'devil':
+        moderator = (_judge_models(discussion, personas, 'moderator') or [''])[0]
+        if not (discussion.devil_model or getattr(settings, 'LLM_DEVIL_MODEL', '')):
+            candidates.sort(key=lambda model_id: model_id == moderator)
+    if not candidates:
+        candidates = [model_id for model_id in [*persona_models, _default_model()] if model_id]
+    return candidates
 
 
 def _resolved_personas(discussion):
@@ -504,13 +689,51 @@ def _mode_ctx(discussion):
     return discussion.mode, list(discussion.options or [])
 
 
-def _json_repair_prompt(plan, raw):
+# ---------------------------------------------------------------------------
+# LLM-виклики
+# ---------------------------------------------------------------------------
+
+
+def _json_repair_prompt(plan, raw, problems):
+    issues = '; '.join(problems) if problems else 'формат не відповідає схемі'
     return (
         f'{plan.prompt}\n\n'
-        'ВАЖЛИВО: попередня відповідь була невалідною або неповною. '
-        'Поверни ЛИШЕ один валідний JSON-об’єкт без markdown, коментарів '
-        'і тексту до/після нього. Ось попередня відповідь для виправлення:\n'
+        f'ВАЖЛИВО: попередня відповідь була невалідною або неповною ({issues}). '
+        'Поверни ЛИШЕ один валідний JSON-об’єкт за схемою вище, без markdown, '
+        'коментарів і тексту до/після нього. Ось попередня відповідь для виправлення:\n'
         f'{str(raw)[:4000]}'
+    )
+
+
+def _provider_failure(model_id, exc):
+    label = model_label(model_id)
+    if getattr(exc, 'quota', False):
+        return EngineError(
+            'Квоту моделі вичерпано.',
+            detail=f'{model_id}: {exc}',
+            code='provider_config',
+            public=(
+                f'У моделі «{label}» вичерпано квоту або ліміт тарифу. '
+                'Оберіть іншу модель або поповніть баланс у провайдера.'
+            ),
+            retryable=False,
+        )
+    if getattr(exc, 'config', False):
+        return EngineError(
+            'Модель недоступна.',
+            detail=f'{model_id}: {exc}',
+            code='provider_config',
+            public=(
+                f'Модель «{label}» недоступна (немає або невірний API-ключ, '
+                'модель не знайдено). Оберіть іншу модель.'
+            ),
+            retryable=False,
+        )
+    return EngineError(
+        'Модель не змогла відповісти. Спробуйте ще раз.',
+        detail=f'{model_id}: {exc}',
+        code='provider_error',
+        public=f'Модель «{label}» тимчасово не відповідає. Спробуйте ще раз.',
     )
 
 
@@ -537,17 +760,14 @@ def _complete(
             'LLM provider error',
             extra={'model': model_id, 'error': str(exc)},
         )
-        raise EngineError(
-            'Модель не змогла відповісти. Спробуйте ще раз.',
-            detail=f'{model_id}: {exc}',
-            code='provider_error',
-        ) from exc
+        raise _provider_failure(model_id, exc) from exc
     except Exception as exc:
         logger.exception('Unexpected LLM provider failure', extra={'model': model_id})
         raise EngineError(
             'Під час звернення до моделі сталася помилка. Спробуйте ще раз.',
             detail=f'{model_id}: {type(exc).__name__}: {exc}',
             code='provider_error',
+            public=f'Модель «{model_label(model_id)}» повернула помилку. Спробуйте ще раз.',
         ) from exc
 
     if not isinstance(text, str) or not text.strip():
@@ -555,6 +775,7 @@ def _complete(
             'Модель повернула порожню відповідь. Спробуйте ще раз.',
             detail=f'{model_id}: empty completion',
             code='empty_response',
+            public=f'Модель «{model_label(model_id)}» повернула порожню відповідь.',
         )
 
     logger.info(
@@ -564,190 +785,83 @@ def _complete(
     return text.strip()
 
 
-def _complete_json(provider_factory, plan):
+def _complete_json(provider_factory, plan, model_id, mode, options):
+    check = PROBLEM_CHECKS[plan.json_kind]
     raw = _complete(
-        provider_factory,
-        plan.model_id,
-        plan.system,
-        plan.prompt,
-        plan.temperature,
-        json_mode=True,
+        provider_factory, model_id, plan.system, plan.prompt, plan.temperature, json_mode=True
     )
     data = _extract_json(raw)
-    validators = {
-        'solution': _valid_solution,
-        'review': _valid_review,
-        'summary': _valid_summary,
-    }
-    validator = validators[plan.json_kind]
-    if not validator(data):
+    problems = check(data, mode, options)
+    if problems:
         logger.warning(
             'Invalid JSON completion, requesting repair',
-            extra={'model': plan.model_id, 'kind': plan.json_kind},
+            extra={'model': model_id, 'kind': plan.json_kind, 'problems': problems},
         )
         repaired = _complete(
             provider_factory,
-            plan.model_id,
+            model_id,
             plan.system,
-            _json_repair_prompt(plan, raw),
+            _json_repair_prompt(plan, raw, problems),
             JSON_TEMPERATURE,
             json_mode=True,
         )
-        data = _extract_json(repaired) or data
-    return raw, data or {}
+        fixed = _extract_json(repaired)
+        if fixed is not None and len(check(fixed, mode, options)) <= len(problems):
+            data = fixed
+    return data if isinstance(data, dict) else {}
 
 
-def _speakers_done(messages, phase):
-    return {
-        message.persona_slug
-        for message in messages
-        if message.role == Message.Role.AI and message.phase == phase
-    }
+def _run_searches(queries):
+    """[(query, results)] для кожного запиту; помилки пошуку не зупиняють крок."""
+    queries = [query for query in queries if query]
+    if not queries:
+        return []
+
+    def run(query):
+        try:
+            return query, search.search(query)
+        except search.SearchError as exc:
+            logger.warning('Web search failed', extra={'query': query, 'error': str(exc)})
+            return query, []
+
+    if len(queries) == 1:
+        return [run(queries[0])]
+    with ThreadPoolExecutor(max_workers=min(len(queries), MAX_PARALLEL_CALLS)) as pool:
+        return list(pool.map(run, queries))
 
 
-def _persona_plan(persona, phase, prompt, **extra):
-    return StepPlan(
-        phase=phase,
-        role=Message.Role.AI,
-        persona=persona,
-        model_id=_model_for_persona(persona),
-        system=prompts.persona_system(persona),
-        prompt=prompt,
-        temperature=persona.get('temperature', DEFAULT_TEMPERATURE),
-        **extra,
-    )
-
-
-def _prepare_step(discussion):
-    """Будує LLM-виклики для поточного кроку.
-
-    Вступ і відповідь на Devil — паралельні кроки: по виклику на кожного
-    учасника, який ще не висловився в цій фазі. Решта фаз — один виклик.
-    """
-    personas = _resolved_personas(discussion)
-    if not personas:
-        raise EngineError('У дискусії немає AI-учасників.', code='no_personas')
-    messages = _list_messages(discussion)
+def _run_json_plan(plan, provider_factory, discussion):
+    """JSON-крок судді з перемиканням на наступну модель, якщо поточна впала."""
     mode, options = _mode_ctx(discussion)
-    phase = discussion.phase
-    common = {'mode': mode, 'options': options, 'rounds': discussion.rounds}
-
-    if phase == Discussion.Phase.OPENING:
-        done = _speakers_done(messages, phase)
-        return [
-            _persona_plan(
-                persona,
-                phase,
-                prompts.opening_prompt(discussion.question, persona, personas, **common),
+    models = [plan.model_id, *[m for m in plan.fallback_models if m != plan.model_id]]
+    last_error = None
+    for model_id in models:
+        try:
+            return model_id, _complete_json(provider_factory, plan, model_id, mode, options)
+        except EngineError as exc:
+            if exc.code not in {'provider_error', 'provider_config', 'empty_response'}:
+                raise
+            last_error = exc
+            logger.warning(
+                'Judge model failed, trying fallback',
+                extra={'model': model_id, 'kind': plan.json_kind},
             )
-            for persona in personas
-            if persona['slug'] not in done
-        ]
+    raise last_error
 
-    if phase == Discussion.Phase.DEBATE:
-        if discussion.speaker_index >= len(personas):
-            raise EngineError('Некоректний індекс учасника дискусії.', code='bad_state')
-        persona = personas[discussion.speaker_index]
-        target, reason = _reply_target(messages, persona)
-        reply_to = target.persona_name if target else ''
-        return [
-            _persona_plan(
-                persona,
-                phase,
-                prompts.debate_prompt(
-                    discussion.question,
-                    persona,
-                    personas,
-                    messages,
-                    discussion.current_round,
-                    reply_to=reply_to,
-                    reply_reason=reason,
-                    **common,
-                ),
-                debate_round=discussion.current_round,
-                reply_to=reply_to,
-                reply_to_slug=target.persona_slug if target else '',
-            )
-        ]
 
-    if phase == Discussion.Phase.REBUTTAL:
-        done = _speakers_done(messages, phase)
-        return [
-            _persona_plan(
-                persona,
-                phase,
-                prompts.rebuttal_prompt(
-                    discussion.question, persona, personas, messages, **common
-                ),
-                reply_to=DEVIL['name'],
-                reply_to_slug=DEVIL['slug'],
-            )
-            for persona in personas
-            if persona['slug'] not in done
-        ]
-
-    if phase == Discussion.Phase.SYNTHESIS:
-        return [
-            StepPlan(
-                phase=phase,
-                role=Message.Role.MODERATOR,
-                persona=MODERATOR,
-                model_id=_moderator_model(personas),
-                system=prompts.MODERATOR_SYSTEM,
-                prompt=prompts.synthesis_prompt(
-                    discussion.question,
-                    personas,
-                    messages,
-                    early_stop=discussion.early_stop,
-                    **common,
-                ),
-                temperature=JSON_TEMPERATURE,
-                json_kind='solution',
-            )
-        ]
-
-    if phase == Discussion.Phase.DEVIL:
-        return [
-            StepPlan(
-                phase=phase,
-                role=Message.Role.DEVIL,
-                persona=DEVIL,
-                model_id=_moderator_model(personas),
-                system=prompts.DEVIL_SYSTEM,
-                prompt=prompts.devil_prompt(
-                    discussion.question,
-                    personas,
-                    discussion.best_solution or {},
-                    messages,
-                    **common,
-                ),
-                temperature=JSON_TEMPERATURE,
-                json_kind='review',
-            )
-        ]
-
-    if phase == Discussion.Phase.FINAL:
-        return [
-            StepPlan(
-                phase=phase,
-                role=Message.Role.MODERATOR,
-                persona=MODERATOR,
-                model_id=_moderator_model(personas),
-                system=prompts.MODERATOR_SYSTEM,
-                prompt=prompts.final_prompt(
-                    discussion.question,
-                    personas,
-                    discussion.best_solution or {},
-                    discussion.devil_review or {},
-                    messages,
-                    **common,
-                ),
-                temperature=JSON_TEMPERATURE,
-                json_kind='summary',
-            )
-        ]
-
-    raise EngineError(f'Невідома фаза: {discussion.phase}', code='bad_state')
+def _majority_stance(discussion, personas):
+    """Найпоширеніша остання позиція учасників (для режимів з вибором)."""
+    latest = {}
+    for message in discussion.messages.filter(role=Message.Role.AI).order_by('seq'):
+        if message.stance:
+            latest[message.persona_slug] = message.stance
+    values = [latest[p['slug']] for p in personas if latest.get(p['slug'])]
+    if not values:
+        return ''
+    (value, count), *rest = Counter(values).most_common()
+    if rest and rest[0][1] == count:
+        return ''
+    return value
 
 
 def _run_plan(plan, provider_factory, discussion):
@@ -760,16 +874,34 @@ def _run_plan(plan, provider_factory, discussion):
             plan.prompt,
             plan.temperature,
         )
-        return parse_reply(raw, mode, options)
+        reply = parse_reply(raw, mode, options)
+        if not plan.can_search:
+            reply['search_query'] = ''
+        reply['search'] = _run_searches([reply['search_query']])
+        return reply
 
-    raw, data = _complete_json(provider_factory, plan)
+    if plan.json_kind == 'queries':
+        try:
+            _, data = _run_json_plan(plan, provider_factory, discussion)
+            queries = _queries(data.get('queries'), MAX_RESEARCH_QUERIES)
+        except EngineError as exc:
+            # Без запитів від моделі шукаємо за самим питанням — дебати важливіші.
+            logger.warning('Research planning failed', extra={'error': exc.detail})
+            queries = [search.normalize_query(discussion.question)]
+        return {'queries': queries, 'search': _run_searches(queries)}
+
+    _, data = _run_json_plan(plan, provider_factory, discussion)
     if plan.json_kind == 'solution':
-        return normalize_solution(data, mode, options, raw=raw)
+        return normalize_solution(
+            data,
+            mode,
+            options,
+            fallback_answer=_majority_stance(discussion, _resolved_personas(discussion)),
+        )
     if plan.json_kind == 'review':
-        return normalize_review(data, raw=raw)
-    return normalize_summary(
-        data, discussion.best_solution or {}, mode, options, raw=raw
-    )
+        queries = _queries(data.get('search_queries'), MAX_DEVIL_QUERIES) if plan.can_search else []
+        return {'review': normalize_review(data), 'search': _run_searches(queries)}
+    return normalize_summary(data, discussion.best_solution or {}, mode, options)
 
 
 def _run_plans(plans, provider_factory, discussion):
@@ -788,6 +920,9 @@ def _run_plans(plans, provider_factory, discussion):
             try:
                 results.append((plan, future.result(), None))
             except EngineError as exc:
+                exc.public = (
+                    f'{plan.persona["name"]}: {exc.public or GENERIC_PUBLIC_ERROR}'
+                )[:MAX_ERROR_PUBLIC]
                 results.append((plan, None, exc))
             except Exception as exc:
                 logger.exception('Unexpected parallel step failure')
@@ -799,10 +934,266 @@ def _run_plans(plans, provider_factory, discussion):
                             'Не вдалося отримати відповідь учасника.',
                             detail=f'{type(exc).__name__}: {exc}',
                             code='internal_error',
+                            public=f'{plan.persona["name"]}: не вдалося отримати відповідь.',
                         ),
                     )
                 )
     return results
+
+
+# ---------------------------------------------------------------------------
+# Підготовка кроку
+# ---------------------------------------------------------------------------
+
+
+def _phase_start_seq(messages, phase):
+    """Повідомлення фази рахуються від її останнього старту.
+
+    Після уточнення користувача дискусія проходить синтез → Devil → відповіді
+    вдруге, тож старі відповіді на Devil не мають зараховуватися новому колу.
+    """
+    if phase == Discussion.Phase.REBUTTAL:
+        return max(
+            (message.seq for message in messages if message.role == Message.Role.DEVIL),
+            default=0,
+        )
+    return 0
+
+
+def _speakers_done(messages, phase):
+    start = _phase_start_seq(messages, phase)
+    return {
+        message.persona_slug
+        for message in messages
+        if message.role == Message.Role.AI and message.phase == phase and message.seq > start
+    }
+
+
+def _search_budget(discussion):
+    if not discussion.web_search or not search.is_available():
+        return 0
+    return max(0, int(settings.SEARCH_MAX_QUERIES) - (discussion.search_count or 0))
+
+
+def _persona_plan(persona, phase, prompt, **extra):
+    return StepPlan(
+        phase=phase,
+        role=Message.Role.AI,
+        persona=persona,
+        model_id=_model_for_persona(persona),
+        system=prompts.persona_system(persona),
+        prompt=prompt,
+        temperature=persona.get('temperature', DEFAULT_TEMPERATURE),
+        **extra,
+    )
+
+
+def _judge_plan(discussion, personas, judge, **kwargs):
+    models = _judge_models(discussion, personas, judge)
+    return StepPlan(
+        model_id=models[0] if models else _default_model(),
+        fallback_models=models[1:],
+        temperature=JSON_TEMPERATURE,
+        **kwargs,
+    )
+
+
+def _prepare_step(discussion):
+    """Будує LLM-виклики для поточного кроку.
+
+    Вступ і відповідь на Devil — паралельні кроки: по виклику на кожного
+    учасника, який ще не висловився в цій фазі. Решта фаз — один виклик.
+    """
+    personas = _resolved_personas(discussion)
+    if not personas:
+        raise EngineError(
+            'У дискусії немає AI-учасників.',
+            code='no_personas',
+            public='У дискусії немає AI-учасників.',
+            retryable=False,
+        )
+    messages = _list_messages(discussion)
+    mode, options = _mode_ctx(discussion)
+    phase = discussion.phase
+    sources = discussion.sources if discussion.web_search else None
+    can_search = _search_budget(discussion) > 0
+    common = {
+        'mode': mode,
+        'options': options,
+        'rounds': discussion.rounds,
+        'sources': sources,
+    }
+
+    if phase == Discussion.Phase.RESEARCH:
+        return [
+            _judge_plan(
+                discussion,
+                personas,
+                'moderator',
+                phase=phase,
+                role=Message.Role.RESEARCH,
+                persona=RESEARCHER,
+                system=prompts.RESEARCH_SYSTEM,
+                prompt=prompts.research_prompt(
+                    discussion.question,
+                    mode=mode,
+                    options=options,
+                    max_queries=min(MAX_RESEARCH_QUERIES, _search_budget(discussion)),
+                ),
+                json_kind='queries',
+            )
+        ]
+
+    if phase == Discussion.Phase.OPENING:
+        done = _speakers_done(messages, phase)
+        return [
+            _persona_plan(
+                persona,
+                phase,
+                prompts.opening_prompt(
+                    discussion.question, persona, personas, can_search=can_search, **common
+                ),
+                can_search=can_search,
+            )
+            for persona in personas
+            if persona['slug'] not in done
+        ]
+
+    if phase == Discussion.Phase.DEBATE:
+        order = _speaker_order(personas, discussion.current_round)
+        if discussion.speaker_index >= len(order):
+            raise EngineError(
+                'Некоректний індекс учасника дискусії.', code='bad_state', retryable=False
+            )
+        persona = order[discussion.speaker_index]
+        target, reason = _reply_target(messages, persona)
+        mine = [m for m in messages if m.role == Message.Role.AI and m.persona_slug == persona['slug']]
+        notes = _notes_since(messages, mine[-1].seq if mine else 0)
+        reply_to = target.persona_name if target else ''
+        reply_to_slug = (USER_SLUG if reason == 'user' else target.persona_slug) if target else ''
+        return [
+            _persona_plan(
+                persona,
+                phase,
+                prompts.debate_prompt(
+                    discussion.question,
+                    persona,
+                    personas,
+                    messages,
+                    discussion.current_round,
+                    reply_to=reply_to,
+                    reply_reason=reason,
+                    can_search=can_search,
+                    user_notes=notes,
+                    **common,
+                ),
+                debate_round=discussion.current_round,
+                reply_to=reply_to,
+                reply_to_slug=reply_to_slug,
+                can_search=can_search,
+            )
+        ]
+
+    if phase == Discussion.Phase.REBUTTAL:
+        done = _speakers_done(messages, phase)
+        plans = []
+        for persona in personas:
+            if persona['slug'] in done:
+                continue
+            mine = [
+                m for m in messages
+                if m.role == Message.Role.AI and m.persona_slug == persona['slug']
+            ]
+            plans.append(
+                _persona_plan(
+                    persona,
+                    phase,
+                    prompts.rebuttal_prompt(
+                        discussion.question,
+                        persona,
+                        personas,
+                        messages,
+                        user_notes=_notes_since(messages, mine[-1].seq if mine else 0),
+                        **common,
+                    ),
+                    reply_to=DEVIL['name'],
+                    reply_to_slug=DEVIL['slug'],
+                )
+            )
+        return plans
+
+    if phase == Discussion.Phase.SYNTHESIS:
+        return [
+            _judge_plan(
+                discussion,
+                personas,
+                'moderator',
+                phase=phase,
+                role=Message.Role.MODERATOR,
+                persona=MODERATOR,
+                system=prompts.MODERATOR_SYSTEM,
+                prompt=prompts.synthesis_prompt(
+                    discussion.question,
+                    personas,
+                    messages,
+                    early_stop=discussion.early_stop,
+                    **common,
+                ),
+                json_kind='solution',
+            )
+        ]
+
+    if phase == Discussion.Phase.DEVIL:
+        return [
+            _judge_plan(
+                discussion,
+                personas,
+                'devil',
+                phase=phase,
+                role=Message.Role.DEVIL,
+                persona=DEVIL,
+                system=prompts.DEVIL_SYSTEM,
+                prompt=prompts.devil_prompt(
+                    discussion.question,
+                    personas,
+                    discussion.best_solution or {},
+                    messages,
+                    can_search=can_search,
+                    **common,
+                ),
+                json_kind='review',
+                can_search=can_search,
+            )
+        ]
+
+    if phase == Discussion.Phase.FINAL:
+        return [
+            _judge_plan(
+                discussion,
+                personas,
+                'moderator',
+                phase=phase,
+                role=Message.Role.MODERATOR,
+                persona=MODERATOR,
+                system=prompts.MODERATOR_SYSTEM,
+                prompt=prompts.final_prompt(
+                    discussion.question,
+                    personas,
+                    discussion.best_solution or {},
+                    discussion.devil_review or {},
+                    messages,
+                    **common,
+                ),
+                json_kind='summary',
+            )
+        ]
+
+    raise EngineError(f'Невідома фаза: {discussion.phase}', code='bad_state', retryable=False)
+
+
+# ---------------------------------------------------------------------------
+# Тексти повідомлень судді
+# ---------------------------------------------------------------------------
 
 
 def _join_items(items):
@@ -815,6 +1206,7 @@ def _moderator_text(best_solution):
     decision = _text(best_solution.get('decision'), 'рішення не визначено', limit=2000)
     reasoning = _text(best_solution.get('reasoning'), limit=4000)
     args = _join_items(_text_list(best_solution.get('supporting_arguments'), limit=4))
+    dissent = _join_items(_text_list(best_solution.get('dissenting_points'), limit=4))
     paragraphs = []
     answer = _text(best_solution.get('answer'), limit=200)
     if answer:
@@ -824,6 +1216,8 @@ def _moderator_text(best_solution):
         paragraphs.append(reasoning)
     if args:
         paragraphs.append(f'Аргументи на користь рішення: {args}.')
+    if dissent:
+        paragraphs.append(f'Що залишилось спірним: {dissent}.')
     return '\n\n'.join(paragraphs).strip()
 
 
@@ -874,19 +1268,135 @@ def _final_text(summary):
         if revision:
             text = f'{text} Що змінилось: {revision}'
         paragraphs.append(text)
-    else:
+    elif summary.get('confirmed') is True:
         paragraphs.append('Висновок підтверджено після перевірки AI Devil.')
 
-    confidence = summary.get('confidence')
-    if confidence is None:
-        paragraphs.append('Впевненість: не визначено.')
-    else:
-        paragraphs.append(f'Впевненість: {confidence}%.')
+    agreement = summary.get('agreement') or {}
+    if agreement.get('total'):
+        paragraphs.append(
+            f'Згода учасників: {agreement.get("agree", 0)} з {agreement["total"]}.'
+        )
+
+    dissent = _join_items(_text_list(summary.get('dissenting_points'), limit=4))
+    if dissent:
+        paragraphs.append(f'Окремі думки: {dissent}.')
 
     recommendation = _text(summary.get('recommendation'), limit=2000)
     if recommendation:
         paragraphs.append(f'Що робити далі: {recommendation}')
     return '\n\n'.join(paragraphs).strip()
+
+
+def _research_text(queries, added):
+    if not queries:
+        return 'Зовнішні джерела для цього питання не потрібні — учасники спиратимуться на ваш опис.'
+    # самі запити показуються окремо (search_query), тут — лише результат
+    if added:
+        return (
+            f'Знайдено джерел: {len(added)}. Учасники бачать їх і посилатимуться '
+            'на них як [n]; повний список — у блоці «Джерела».'
+        )
+    return 'Нічого корисного не знайдено — дискусія спиратиметься на ваш опис.'
+
+
+def _merge_sources(discussion, found, added_by):
+    """Додає знайдене до discussion.sources без дублікатів. Повертає нові id."""
+    sources = list(discussion.sources or [])
+    known = {source.get('url') for source in sources}
+    limit = int(settings.SEARCH_MAX_SOURCES)
+    added = []
+    queries = 0
+    for query, items in found or []:
+        queries += 1
+        for item in items:
+            if len(sources) >= limit:
+                break
+            if item.get('url') in known:
+                continue
+            known.add(item['url'])
+            source_id = len(sources) + 1
+            sources.append({**item, 'id': source_id, 'query': query, 'added_by': added_by})
+            added.append(source_id)
+    discussion.sources = sources
+    discussion.search_count = (discussion.search_count or 0) + queries
+    return added
+
+
+def _agreement(discussion, personas, answer):
+    """Скільки учасників наприкінці підтримують висновок — за їхніми позиціями."""
+    messages = list(discussion.messages.order_by('seq'))
+    devil_seq = _phase_start_seq(messages, Discussion.Phase.REBUTTAL)
+    agree = disagree = unknown = 0
+    for persona in personas:
+        mine = [
+            m for m in messages
+            if m.role == Message.Role.AI and m.persona_slug == persona['slug'] and m.stance
+        ]
+        after_devil = [m for m in mine if m.seq > devil_seq]
+        stance = (after_devil or mine)[-1].stance if (after_devil or mine) else ''
+        if not stance:
+            unknown += 1
+        elif discussion.mode == Discussion.Mode.OPEN:
+            if stance == STANCE_AGREE:
+                agree += 1
+            else:
+                disagree += 1
+        elif answer:
+            if stance.casefold() == str(answer).casefold():
+                agree += 1
+            else:
+                disagree += 1
+        else:
+            unknown += 1
+    return {'agree': agree, 'disagree': disagree, 'unknown': unknown, 'total': len(personas)}
+
+
+# ---------------------------------------------------------------------------
+# Lease, heartbeat і збереження
+# ---------------------------------------------------------------------------
+
+
+class _Heartbeat:
+    """Продовжує lease, доки триває довгий крок (повтори, кілька викликів)."""
+
+    def __init__(self, discussion_id, token):
+        self.discussion_id = discussion_id
+        self.token = token
+        self.interval = max(1.0, float(settings.LLM_HEARTBEAT_SECONDS))
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+
+    def _run(self):
+        touched = False
+        try:
+            while not self.stop_event.wait(self.interval):
+                touched = True
+                Discussion.objects.filter(
+                    pk=self.discussion_id, advance_token=self.token
+                ).update(advance_started_at=timezone.now())
+        except Exception:
+            logger.exception('Lease heartbeat failed')
+        finally:
+            if touched:
+                connection.close()
+
+
+def _lease_active(discussion, now=None):
+    if not discussion.advance_token:
+        return False
+    now = now or timezone.now()
+    started = discussion.advance_started_at or now
+    return started + timedelta(seconds=settings.LLM_ADVANCE_LEASE_SECONDS) > now
+
+
+def is_running(discussion):
+    return _lease_active(discussion)
 
 
 def _claim(discussion_id, token):
@@ -897,23 +1407,22 @@ def _claim(discussion_id, token):
             Discussion.objects.select_for_update().filter(pk=discussion_id).first()
         )
         if discussion is None:
-            raise EngineError('Дискусію не знайдено.', code='not_found')
+            raise EngineError('Дискусію не знайдено.', code='not_found', retryable=False)
         if discussion.phase == Discussion.Phase.DONE:
             return None
-        if discussion.advance_token:
-            started = discussion.advance_started_at or now
-            lease_until = started + timedelta(seconds=settings.LLM_ADVANCE_LEASE_SECONDS)
-            if lease_until > now:
-                raise EngineBusy(
-                    'Дискусія вже обробляється. Зачекайте кілька секунд.',
-                    code='busy',
-                )
+        if _lease_active(discussion, now):
+            raise EngineBusy(
+                'Дискусія вже обробляється. Зачекайте кілька секунд.',
+                code='busy',
+            )
         discussion.advance_token = token
         discussion.advance_started_at = now
         discussion.advance_count = (discussion.advance_count or 0) + 1
         if discussion.status in {Discussion.Status.NEW, Discussion.Status.FAILED}:
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.error = ''
+            discussion.error_code = ''
+            discussion.error_public = ''
         discussion.save(
             update_fields=[
                 'advance_token',
@@ -921,13 +1430,22 @@ def _claim(discussion_id, token):
                 'advance_count',
                 'status',
                 'error',
+                'error_code',
+                'error_public',
                 'updated_at',
             ]
         )
         return discussion
 
 
-def _fail(discussion_id, token, detail):
+def _set_error(discussion, exc):
+    discussion.status = Discussion.Status.FAILED
+    discussion.error = str(exc.detail or '')[:MAX_ERROR_DETAIL]
+    discussion.error_code = exc.code[:32]
+    discussion.error_public = (exc.public or GENERIC_PUBLIC_ERROR)[:MAX_ERROR_PUBLIC]
+
+
+def _fail(discussion_id, token, exc):
     """Позначає крок failed, але лише якщо lease все ще належить цьому запиту."""
     with transaction.atomic():
         discussion = (
@@ -935,14 +1453,15 @@ def _fail(discussion_id, token, detail):
         )
         if discussion is None or discussion.advance_token != token:
             return
-        discussion.status = Discussion.Status.FAILED
-        discussion.error = str(detail or '')[:MAX_ERROR_DETAIL]
+        _set_error(discussion, exc)
         discussion.advance_token = None
         discussion.advance_started_at = None
         discussion.save(
             update_fields=[
                 'status',
                 'error',
+                'error_code',
+                'error_public',
                 'advance_token',
                 'advance_started_at',
                 'updated_at',
@@ -950,24 +1469,36 @@ def _fail(discussion_id, token, detail):
         )
 
 
-def _round_consensus(discussion, personas):
-    """Усі учасники в щойно завершеному раунді мають однакову позицію."""
-    stances = dict(
-        Message.objects.filter(
-            discussion=discussion,
-            phase=Discussion.Phase.DEBATE,
-            round=discussion.current_round,
-            role=Message.Role.AI,
-        )
-        .order_by('seq')
-        .values_list('persona_slug', 'stance')
-    )
+def _round_value(discussion, personas, debate_round):
+    """Спільна позиція всіх учасників у раунді або '' (0 — вступні слова)."""
+    query = Message.objects.filter(discussion=discussion, role=Message.Role.AI)
+    if debate_round == 0:
+        query = query.filter(phase=Discussion.Phase.OPENING)
+    else:
+        query = query.filter(phase=Discussion.Phase.DEBATE, round=debate_round)
+    stances = dict(query.order_by('seq').values_list('persona_slug', 'stance'))
     values = [stances.get(persona['slug'], '') for persona in personas]
-    if not values or not all(values):
+    if not values or not all(values) or len(set(values)) != 1:
+        return ''
+    return values[0]
+
+
+def _should_stop_early(discussion, personas):
+    """Дострокове завершення: однакова позиція два раунди поспіль.
+
+    Один раунд згоди LLM-учасників часто означає ввічливе підтакування, а не
+    консенсус, тож потрібне підтвердження. Для «Так/ні» та «Варіантів» першим
+    з двох може бути вступ; у вільному режимі у вступі позиції немає, тому
+    потрібні два раунди дебатів зі «згодою».
+    """
+    current = discussion.current_round
+    value = _round_value(discussion, personas, current)
+    if not value:
         return False
     if discussion.mode == Discussion.Mode.OPEN:
-        return all(value == STANCE_AGREE for value in values)
-    return len(set(values)) == 1
+        if value != STANCE_AGREE or current < 2:
+            return False
+    return _round_value(discussion, personas, current - 1) == value
 
 
 def _next_speaker_transition(discussion, personas):
@@ -976,7 +1507,7 @@ def _next_speaker_transition(discussion, personas):
         discussion.speaker_index = next_index
         return
     discussion.speaker_index = 0
-    if discussion.current_round < discussion.rounds and not _round_consensus(
+    if discussion.current_round < discussion.rounds and not _should_stop_early(
         discussion, personas
     ):
         discussion.current_round += 1
@@ -986,52 +1517,63 @@ def _next_speaker_transition(discussion, personas):
 
 
 def _all_spoke(discussion, personas, phase):
-    done = set(
-        Message.objects.filter(
-            discussion=discussion, phase=phase, role=Message.Role.AI
-        ).values_list('persona_slug', flat=True)
-    )
+    done = _speakers_done(_list_messages(discussion), phase)
     return all(persona['slug'] in done for persona in personas)
 
 
-def _store(discussion, plan, payload):
+def _store(discussion, plan, payload, personas):
     if plan.role == Message.Role.AI:
-        content, thesis, stance = payload
+        added = _merge_sources(discussion, payload.get('search'), plan.persona['name'])
         return _add_message(
             discussion,
             persona=plan.persona,
             role=Message.Role.AI,
             phase=plan.phase,
-            content=content,
+            content=payload['content'],
             debate_round=plan.debate_round,
             reply_to=plan.reply_to,
             reply_to_slug=plan.reply_to_slug,
-            thesis=thesis,
-            stance=stance,
+            thesis=payload['thesis'],
+            stance=payload['stance'],
+            search_query=payload.get('search_query', ''),
+            source_ids=added,
         )
-    if plan.phase == Discussion.Phase.SYNTHESIS:
+    search_query = ''
+    added = []
+    if plan.phase == Discussion.Phase.RESEARCH:
+        added = _merge_sources(discussion, payload.get('search'), RESEARCHER['name'])
+        search_query = '; '.join(payload.get('queries') or [])
+        content = _research_text(payload.get('queries'), added)
+    elif plan.phase == Discussion.Phase.SYNTHESIS:
         discussion.best_solution = payload
         content = _moderator_text(payload)
     elif plan.phase == Discussion.Phase.DEVIL:
-        discussion.devil_review = payload
-        content = _devil_text(payload)
+        discussion.devil_review = payload['review']
+        added = _merge_sources(discussion, payload.get('search'), DEVIL['name'])
+        search_query = '; '.join(query for query, _ in payload.get('search') or [])
+        content = _devil_text(payload['review'])
     elif plan.phase == Discussion.Phase.FINAL:
+        payload['agreement'] = _agreement(discussion, personas, payload.get('answer'))
         discussion.final_summary = payload
         content = _final_text(payload)
     else:
-        raise EngineError(f'Невідома фаза: {plan.phase}', code='bad_state')
+        raise EngineError(f'Невідома фаза: {plan.phase}', code='bad_state', retryable=False)
     return _add_message(
         discussion,
         persona=plan.persona,
         role=plan.role,
         phase=plan.phase,
         content=content,
+        search_query=search_query,
+        source_ids=added,
     )
 
 
 def _transition(discussion, personas):
     phase = discussion.phase
-    if phase == Discussion.Phase.OPENING:
+    if phase == Discussion.Phase.RESEARCH:
+        discussion.phase = Discussion.Phase.OPENING
+    elif phase == Discussion.Phase.OPENING:
         if _all_spoke(discussion, personas, phase):
             discussion.phase = Discussion.Phase.DEBATE
             discussion.current_round = 1
@@ -1050,10 +1592,10 @@ def _transition(discussion, personas):
         discussion.status = Discussion.Status.DONE
         discussion.finished_at = timezone.now()
     else:
-        raise EngineError(f'Невідома фаза: {phase}', code='bad_state')
+        raise EngineError(f'Невідома фаза: {phase}', code='bad_state', retryable=False)
 
 
-def _commit(discussion_id, token, phase, results, error_detail=''):
+def _commit(discussion_id, token, phase, results, error=None):
     """Зберігає результати кроку. Якщо частина паралельних викликів упала,
     зберігає вдалі відповіді й позначає дискусію failed без переходу фази."""
     with transaction.atomic():
@@ -1061,7 +1603,7 @@ def _commit(discussion_id, token, phase, results, error_detail=''):
             Discussion.objects.select_for_update().filter(pk=discussion_id).first()
         )
         if discussion is None:
-            raise EngineError('Дискусію не знайдено.', code='not_found')
+            raise EngineError('Дискусію не знайдено.', code='not_found', retryable=False)
         if discussion.advance_token != token:
             raise EngineConflict(
                 'Дискусію вже оновив інший запит.',
@@ -1074,13 +1616,14 @@ def _commit(discussion_id, token, phase, results, error_detail=''):
             )
 
         personas = _resolved_personas(discussion)
-        created = [_store(discussion, plan, payload) for plan, payload in results]
-        if error_detail:
-            discussion.status = Discussion.Status.FAILED
-            discussion.error = error_detail[:MAX_ERROR_DETAIL]
+        created = [_store(discussion, plan, payload, personas) for plan, payload in results]
+        if error is not None:
+            _set_error(discussion, error)
         else:
             _transition(discussion, personas)
             discussion.error = ''
+            discussion.error_code = ''
+            discussion.error_public = ''
 
         discussion.advance_token = None
         discussion.advance_started_at = None
@@ -1095,7 +1638,7 @@ def advance(discussion, provider_factory=None):
     для паралельних фаз, порожній — якщо дискусію вже завершено.
     """
     if discussion is None or not getattr(discussion, 'pk', None):
-        raise EngineError('Дискусію не знайдено.', code='not_found')
+        raise EngineError('Дискусію не знайдено.', code='not_found', retryable=False)
 
     discussion_id = discussion.pk
     token = uuid.uuid4()
@@ -1103,6 +1646,8 @@ def advance(discussion, provider_factory=None):
     if claimed is None:
         return []
 
+    heartbeat = _Heartbeat(discussion_id, token)
+    heartbeat.start()
     try:
         plans = _prepare_step(claimed)
         results = _run_plans(plans, provider_factory, claimed) if plans else []
@@ -1110,10 +1655,18 @@ def advance(discussion, provider_factory=None):
         errors = [error for _, _, error in results if error is not None]
         if errors and not succeeded:
             raise errors[0]
-        detail = '; '.join(error.detail for error in errors)
-        created = _commit(discussion_id, token, claimed.phase, succeeded, detail)
+        combined = None
         if errors:
-            raise EngineError(str(errors[0]), detail=detail, code=errors[0].code)
+            combined = EngineError(
+                str(errors[0]),
+                detail='; '.join(error.detail for error in errors),
+                code=errors[0].code,
+                public=errors[0].public,
+                retryable=all(error.retryable for error in errors),
+            )
+        created = _commit(discussion_id, token, claimed.phase, succeeded, combined)
+        if combined is not None:
+            raise combined
         return created
 
     except EngineBusy:
@@ -1121,17 +1674,85 @@ def advance(discussion, provider_factory=None):
     except EngineConflict:
         raise
     except EngineError as exc:
-        _fail(discussion_id, token, exc.detail)
+        _fail(discussion_id, token, exc)
         raise
     except Exception as exc:
         logger.exception('Unexpected engine failure', extra={'discussion': str(discussion_id)})
-        _fail(
-            discussion_id,
-            token,
-            f'{type(exc).__name__}: {exc}',
-        )
-        raise EngineError(
+        error = EngineError(
             'Не вдалося продовжити дискусію через внутрішню помилку.',
             detail=f'{type(exc).__name__}: {exc}',
             code='internal_error',
-        ) from exc
+            public='Внутрішня помилка сервера. Спробуйте продовжити ще раз.',
+        )
+        _fail(discussion_id, token, error)
+        raise error from exc
+    finally:
+        heartbeat.stop()
+
+
+# ---------------------------------------------------------------------------
+# Уточнення користувача
+# ---------------------------------------------------------------------------
+
+
+def add_user_message(discussion_id, author_name, content):
+    """Додає уточнення користувача.
+
+    Під час дискусії воно потрапляє в історію, і наступні учасники на нього
+    реагують. Після фіналу — відкриває ще один раунд дебатів, після якого
+    синтез, перевірка Devil і фінал проходять заново.
+    Повертає (message, reopened).
+    """
+    content = _text(content, limit=int(settings.DISCUSSION_NOTE_MAX_CHARS))
+    if not content:
+        raise EngineError(
+            'Повідомлення порожнє.',
+            code='empty_note',
+            public='Повідомлення порожнє.',
+            retryable=False,
+        )
+    with transaction.atomic():
+        discussion = (
+            Discussion.objects.select_for_update().filter(pk=discussion_id).first()
+        )
+        if discussion is None:
+            raise EngineError(
+                'Дискусію не знайдено.',
+                code='not_found',
+                public='Дискусію не знайдено.',
+                retryable=False,
+            )
+        reopened = discussion.phase == Discussion.Phase.DONE
+        if reopened:
+            limit = int(settings.DISCUSSION_MAX_FOLLOWUPS)
+            if discussion.followups >= limit:
+                raise EngineError(
+                    'Ліміт уточнень вичерпано.',
+                    code='followup_limit',
+                    public=f'Після фіналу можна поставити не більше {limit} уточнень. '
+                    'Створіть нову дискусію.',
+                    retryable=False,
+                )
+            discussion.followups += 1
+            discussion.current_round += 1
+            discussion.rounds = discussion.current_round
+            discussion.speaker_index = 0
+            discussion.early_stop = False
+            discussion.phase = Discussion.Phase.DEBATE
+            discussion.status = Discussion.Status.IN_PROGRESS
+            discussion.finished_at = None
+        discussion.stop_requested = False
+        phase = discussion.phase
+        message = Message.objects.create(
+            discussion=discussion,
+            seq=_next_seq(discussion),
+            phase=phase,
+            round=discussion.current_round if phase == Discussion.Phase.DEBATE else None,
+            role=Message.Role.USER,
+            persona_slug=USER_SLUG,
+            persona_name=author_name or 'Користувач',
+            avatar='🧑',
+            content=content,
+        )
+        discussion.save()
+        return message, reopened

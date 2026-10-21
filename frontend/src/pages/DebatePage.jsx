@@ -3,23 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { fetchPersonas, fetchModels, createDiscussion } from '../api/discussions';
 import { getToken } from '../api/client';
 import {
-  AiModelIcon,
   ArrowUpIcon,
   ChevronIcon,
   CloseIcon,
   PlusIcon,
   UserPlusIcon,
 } from '../components/DebateIcons';
+import ModelPicker from '../components/ModelPicker';
 import { uk } from '../copy/uk';
-import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 
 const t = uk.debate;
 
-const MODEL_PLACEHOLDER = 'Оберіть модель';
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_MAX_PARTICIPANTS = 5;
 const DEFAULT_ROUNDS = 2;
-const MAX_QUESTION = 2000;
+const MAX_QUESTION = 6000;
 const MAX_STYLE = 300;
 const MAX_NAME = 64;
 const MAX_TRAIT = 40;
@@ -31,26 +30,48 @@ const MODES = [
   { value: 'open', label: t.modeOpen },
 ];
 
+// Ролі за замовчуванням ідуть у порядку, що дає різні погляди вже з двох учасників.
+const orderRoles = (list) =>
+  [...list].sort((a, b) => {
+    const ia = ROLE_ORDER.indexOf(a.slug);
+    const ib = ROLE_ORDER.indexOf(b.slug);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+
+// Різні моделі для різних учасників: одна модель N разів повторює ті самі
+// знання й упередження. Спершу рекомендовані, потім решта доступних.
+const modelPool = (models, recommended, defaultId) => {
+  const available = models.filter((m) => m.available).map((m) => m.id);
+  const ordered = [defaultId, ...recommended, ...available].filter(
+    (id, index, list) => id && available.includes(id) && list.indexOf(id) === index
+  );
+  return ordered;
+};
+
 export default function DebatePage() {
   const navigate = useNavigate();
   const [personas, setPersonas] = useState([]);
   const [models, setModels] = useState([]);
   const [defaultModel, setDefaultModel] = useState('');
+  const [modelOrder, setModelOrder] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [activeSlug, setActiveSlug] = useState('');
   const [maxParticipants, setMaxParticipants] = useState(DEFAULT_MAX_PARTICIPANTS);
   const [renamingSlug, setRenamingSlug] = useState(null);
   const [nameDraft, setNameDraft] = useState('');
-  const [isModelOpen, setIsModelOpen] = useState(false);
   const [scrollState, setScrollState] = useState({ overflow: false, left: false, right: false });
   const [customTraits, setCustomTraits] = useState([]);
   const [traitDraft, setTraitDraft] = useState('');
   const [description, setDescription] = useState('');
+  const [searchStatus, setSearchStatus] = useState({ available: false, provider: '', limited: false });
+  const [webSearch, setWebSearch] = useState(false);
+  const [moderatorModel, setModeratorModel] = useState('');
+  const [devilModel, setDevilModel] = useState('');
   const [mode, setMode] = useState('open');
   const [options, setOptions] = useState([]);
   const [optionDraft, setOptionDraft] = useState('');
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
-  const [maxRounds, setMaxRounds] = useState(5);
+  const [maxRounds, setMaxRounds] = useState(3);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +79,6 @@ export default function DebatePage() {
 
   const allTraits = [...TRAITS, ...customTraits];
   const participantListRef = useRef(null);
-  const modelRef = useRef(null);
   const advancedRef = useRef(null);
   const cancelRenameRef = useRef(false);
   const formRef = useRef(null);
@@ -68,10 +88,7 @@ export default function DebatePage() {
   const activeTraits = activeParticipant?.traits || [];
   const activeStyle = activeParticipant?.style || '';
   const activeTemperature = activeParticipant?.temperature ?? DEFAULT_TEMPERATURE;
-  const selectedModel = models.find((m) => m.id === activeParticipant?.model);
-  const selectedModelLabel = selectedModel
-    ? `${selectedModel.provider} — ${selectedModel.label || selectedModel.model}`
-    : '';
+  const activeRole = personas.find((p) => p.slug === activeParticipant?.slug);
   const hasAvailableModels = models.some((m) => m.available);
   const allParticipantsHaveModels =
     participants.length > 0
@@ -84,6 +101,8 @@ export default function DebatePage() {
   const advancedSummary = [
     mode !== 'open' ? MODES.find((item) => item.value === mode)?.label : '',
     rounds !== DEFAULT_ROUNDS ? t.advancedRounds(rounds) : '',
+    webSearch ? t.webSearchOn : '',
+    moderatorModel || devilModel ? t.judgesCustomized : '',
     customizedCount ? t.advancedCustomized(customizedCount) : '',
   ]
     .filter(Boolean)
@@ -102,25 +121,31 @@ export default function DebatePage() {
     setError('');
     try {
       const [pData, mData] = await Promise.all([fetchPersonas(), fetchModels()]);
-      const personaList = pData.personas || [];
+      const personaList = orderRoles(pData.personas || []);
       const modelList = mData.models || [];
       const availableModels = modelList.filter((m) => m.available);
       const selectedDefault =
         availableModels.find((model) => model.id === mData.default_model)?.id
         || availableModels[0]?.id
         || '';
+      const pool = modelPool(modelList, mData.recommended || [], selectedDefault);
       const initial = personaList.slice(0, MIN_PARTICIPANTS).map((persona, i) => ({
         slug: persona.slug,
         name: '',
         color: TRAIT_COLORS[i % TRAIT_COLORS.length],
-        model: selectedDefault,
+        model: pool.length ? pool[i % pool.length] : selectedDefault,
         traits: [],
         style: '',
         temperature: DEFAULT_TEMPERATURE,
       }));
+      const search = pData.search || { available: false };
+      setSearchStatus(search);
+      // Wikipedia без ключа дає лише енциклопедичні факти — вмикаємо за бажанням.
+      setWebSearch(Boolean(search.available && !search.limited));
+      setModelOrder(pool);
       setPersonas(personaList);
       setMaxParticipants(pData.max_ai || DEFAULT_MAX_PARTICIPANTS);
-      setMaxRounds(pData.max_rounds || 5);
+      setMaxRounds(pData.max_rounds || 3);
       setParticipants(initial);
       setActiveSlug(initial[0]?.slug || '');
       setModels(modelList);
@@ -195,22 +220,6 @@ export default function DebatePage() {
   }, [activeSlug, participants.length, scrollState.overflow]);
 
   useEffect(() => {
-    if (!isModelOpen) return undefined;
-    const handleMouseDown = (e) => {
-      if (!modelRef.current?.contains(e.target)) setIsModelOpen(false);
-    };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsModelOpen(false);
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isModelOpen]);
-
-  useEffect(() => {
     if (!isAdvancedOpen) return undefined;
     const handleMouseDown = (e) => {
       if (!advancedRef.current?.contains(e.target)) setIsAdvancedOpen(false);
@@ -280,7 +289,16 @@ export default function DebatePage() {
 
   const handleModelSelect = (modelId) => {
     updateActiveParticipant((p) => ({ ...p, model: modelId }));
-    setIsModelOpen(false);
+  };
+
+  // Роль (архетип) учасника: визначає базовий спосіб мислення.
+  const handleRoleSelect = (slug) => {
+    if (!activeParticipant || slug === activeParticipant.slug) return;
+    if (participants.some((p) => p.slug === slug)) return;
+    const previous = activeParticipant.slug;
+    setParticipants((prev) => prev.map((p) => (p.slug === previous ? { ...p, slug } : p)));
+    setActiveSlug(slug);
+    setRenamingSlug(null);
   };
 
   const handleRemoveParticipant = (slug) => {
@@ -366,7 +384,7 @@ export default function DebatePage() {
         slug: persona.slug,
         name: '',
         color: TRAIT_COLORS[prev.length % TRAIT_COLORS.length],
-        model: defaultModel,
+        model: modelOrder.length ? modelOrder[prev.length % modelOrder.length] : defaultModel,
         traits: [],
         style: '',
         temperature: DEFAULT_TEMPERATURE,
@@ -444,6 +462,9 @@ export default function DebatePage() {
         options: mode === 'choose_one' ? options : [],
         personas: selectedPersonas,
         rounds,
+        webSearch,
+        moderatorModel,
+        devilModel,
       });
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
@@ -553,57 +574,38 @@ export default function DebatePage() {
         </section>
 
         <section className="debate__section">
-          <h2 className="debate__section-title">{t.aiModel}</h2>
-          <div className="debate__model-card" ref={modelRef}>
-            <button
-              type="button"
-              className={`debate__model-toggle ${isModelOpen ? 'debate__model-toggle--open' : ''}`}
-              onClick={() => setIsModelOpen((open) => !open)}
-              disabled={isCreating || !activeParticipant}
-              aria-haspopup="listbox"
-              aria-expanded={isModelOpen}
-              aria-label={t.aiModel}
-            >
-              <AiModelIcon />
-              <span className="debate__model-row">
-                <span
-                  className={`debate__model-value ${selectedModelLabel ? '' : 'debate__model-value--placeholder'}`}
+          <h2 className="debate__section-title">{t.role}</h2>
+          <div className="debate__trait-list" role="group" aria-label={t.role}>
+            {personas.map((persona) => {
+              const active = persona.slug === activeParticipant?.slug;
+              const taken = !active && participants.some((p) => p.slug === persona.slug);
+              return (
+                <button
+                  key={persona.slug}
+                  type="button"
+                  className={`debate__trait-chip ${active ? 'debate__trait-chip--active' : ''}`}
+                  style={{ '--chip': activeParticipant?.color }}
+                  aria-pressed={active}
+                  disabled={isCreating || taken}
+                  title={taken ? t.roleTaken : persona.description}
+                  onClick={() => handleRoleSelect(persona.slug)}
                 >
-                  {selectedModelLabel || MODEL_PLACEHOLDER}
-                </span>
-                <span className="debate__model-chevron">
-                  <ChevronIcon />
-                </span>
-              </span>
-            </button>
-            {isModelOpen && (
-              <ul className="debate__model-menu" role="listbox" aria-label={t.aiModel}>
-                {models.map((m) => {
-                  const active = activeParticipant?.model === m.id;
-                  return (
-                    <li key={m.id} role="presentation">
-                      <button
-                        type="button"
-                        className={`debate__model-option ${active ? 'debate__model-option--active' : ''}`}
-                        role="option"
-                        aria-selected={active}
-                        disabled={!m.available}
-                        title={m.available ? m.notes : `${t.modelUnavailable}: ${m.key_env}`}
-                        onClick={() => handleModelSelect(m.id)}
-                      >
-                        <span>{m.provider} — {m.label || m.model}</span>
-                        {!m.available && (
-                          <span className="debate__model-option-note">
-                            {t.modelUnavailable}
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                  <span>{persona.name}</span>
+                </button>
+              );
+            })}
           </div>
+          {activeRole && <p className="debate__hint">{activeRole.description}</p>}
+        </section>
+
+        <section className="debate__section">
+          <h2 className="debate__section-title">{t.aiModel}</h2>
+          <ModelPicker
+            models={models}
+            value={activeParticipant?.model || ''}
+            onChange={handleModelSelect}
+            disabled={isCreating || !activeParticipant}
+          />
           {models.length > 0 && !hasAvailableModels && (
             <p className="debate__hint">{t.noModelsAvailable}</p>
           )}
@@ -755,6 +757,46 @@ export default function DebatePage() {
                 <span className="debate__range-value">{rounds}</span>
               </label>
               <p className="debate__hint">{t.roundsHint}</p>
+
+              <span className="debate__field-label">{t.webSearch}</span>
+              <label className={`debate__switch ${searchStatus.available ? '' : 'debate__switch--disabled'}`}>
+                <input
+                  type="checkbox"
+                  checked={webSearch}
+                  onChange={(e) => setWebSearch(e.target.checked)}
+                  disabled={isCreating || !searchStatus.available}
+                />
+                <span>
+                  {searchStatus.available
+                    ? t.webSearchLabel(searchStatus.provider)
+                    : t.webSearchUnavailable}
+                </span>
+              </label>
+              <p className="debate__hint">
+                {searchStatus.limited ? t.webSearchLimitedHint : t.webSearchHint}
+              </p>
+
+              <span className="debate__field-label">{t.moderatorModel}</span>
+              <ModelPicker
+                models={models}
+                value={moderatorModel}
+                onChange={setModeratorModel}
+                disabled={isCreating}
+                label={t.moderatorModel}
+                autoLabel={t.autoModel}
+                compact
+              />
+              <span className="debate__field-label">{t.devilModel}</span>
+              <ModelPicker
+                models={models}
+                value={devilModel}
+                onChange={setDevilModel}
+                disabled={isCreating}
+                label={t.devilModel}
+                autoLabel={t.autoModel}
+                compact
+              />
+              <p className="debate__hint">{t.judgesHint}</p>
 
               <h3 className="debate__advanced-group">
                 {t.advancedParticipant(activeLabel)}
