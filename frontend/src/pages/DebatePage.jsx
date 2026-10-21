@@ -719,158 +719,158 @@ export default function DebatePage() {
               <ChevronIcon />
             </span>
           </button>
-          {isAdvancedOpen && (
-            <div
-              id="debate-advanced"
-              className="debate__advanced-body"
-              role="dialog"
-              aria-label={t.advanced}
-            >
-              <h3 className="debate__advanced-group">{t.advancedGeneral}</h3>
-              <span className="debate__field-label">{t.mode}</span>
-              <div className="debate__mode-list" role="group" aria-label={t.mode}>
-                {MODES.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={`debate__mode-chip ${mode === item.value ? 'debate__mode-chip--active' : ''}`}
-                    aria-pressed={mode === item.value}
-                    onClick={() => handleModeChange(item.value)}
-                    disabled={isCreating}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              {mode === 'choose_one' && (
-                <div className="debate__options">
-                  <div className="debate__option-list">
-                    {options.map((option) => (
-                      <span key={option} className="debate__option-chip">
-                        {option}
-                        <button
-                          type="button"
-                          className="debate__option-remove"
-                          onClick={() => removeOption(option)}
-                          aria-label={t.removeOption(option)}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="debate__card debate__option-input">
-                    <input
-                      className="debate__card-input"
-                      type="text"
-                      value={optionDraft}
-                      maxLength={100}
-                      onChange={(e) => setOptionDraft(e.target.value)}
-                      onKeyDown={handleOptionKeyDown}
-                      placeholder={t.optionPlaceholder}
-                      aria-label={t.options}
-                      disabled={isCreating || options.length >= 8}
-                    />
-                    <button
-                      type="button"
-                      className="debate__mini-add"
-                      onClick={addOption}
-                      disabled={isCreating || !optionDraft.trim() || options.length >= 8}
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p className="debate__hint">Потрібно від 2 до 8 варіантів.</p>
-                </div>
-              )}
-              <span className="debate__field-label">{t.rounds}</span>
-              <label className="debate__range-card">
-                <input
-                  type="range"
-                  min="1"
-                  max={maxRounds}
-                  step="1"
-                  value={rounds}
-                  onChange={(e) => setRounds(Number(e.target.value))}
+          <div
+            id="debate-advanced"
+            className={`debate__advanced-body ${isAdvancedOpen ? 'debate__advanced-body--open' : ''}`}
+            inert={!isAdvancedOpen}
+            aria-hidden={!isAdvancedOpen}
+            role="dialog"
+            aria-label={t.advanced}
+          >
+            <h3 className="debate__advanced-group">{t.advancedGeneral}</h3>
+            <span className="debate__field-label">{t.mode}</span>
+            <div className="debate__mode-list" role="group" aria-label={t.mode}>
+              {MODES.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`debate__mode-chip ${mode === item.value ? 'debate__mode-chip--active' : ''}`}
+                  aria-pressed={mode === item.value}
+                  onClick={() => handleModeChange(item.value)}
                   disabled={isCreating}
-                  aria-label={t.rounds}
-                />
-                <span className="debate__range-value">{rounds}</span>
-              </label>
-              <p className="debate__hint">{t.roundsHint}</p>
-
-              <span className="debate__field-label">{t.webSearch}</span>
-              <label className={`debate__switch ${searchStatus.available ? '' : 'debate__switch--disabled'}`}>
-                <input
-                  type="checkbox"
-                  checked={webSearch}
-                  onChange={(e) => setWebSearch(e.target.checked)}
-                  disabled={isCreating || !searchStatus.available}
-                />
-                <span>
-                  {searchStatus.available
-                    ? t.webSearchLabel(searchStatus.provider)
-                    : t.webSearchUnavailable}
-                </span>
-              </label>
-              <p className="debate__hint">
-                {searchStatus.limited ? t.webSearchLimitedHint : t.webSearchHint}
-              </p>
-
-              <span className="debate__field-label">{t.moderatorModel}</span>
-              <ModelPicker
-                models={models}
-                value={moderatorModel}
-                onChange={setModeratorModel}
-                disabled={isCreating}
-                label={t.moderatorModel}
-                autoLabel={t.autoModel}
-                compact
-              />
-              <span className="debate__field-label">{t.devilModel}</span>
-              <ModelPicker
-                models={models}
-                value={devilModel}
-                onChange={setDevilModel}
-                disabled={isCreating}
-                label={t.devilModel}
-                autoLabel={t.autoModel}
-                compact
-              />
-              <p className="debate__hint">{t.judgesHint}</p>
-
-              <h3 className="debate__advanced-group">
-                {t.advancedParticipant(activeLabel)}
-              </h3>
-              <label className="debate__card debate__style-card">
-                <span className="debate__field-label">{t.style}</span>
-                <input
-                  className="debate__card-input"
-                  type="text"
-                  value={activeStyle}
-                  maxLength={MAX_STYLE}
-                  onChange={(e) => updateStyle(e.target.value)}
-                  placeholder={t.placeholderStyle}
-                  disabled={isCreating}
-                />
-              </label>
-              <label className="debate__range-card">
-                <span className="debate__field-label">{t.temperature}</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={activeTemperature}
-                  onChange={(e) => updateTemperature(e.target.value)}
-                  disabled={isCreating}
-                  aria-label={t.temperature}
-                />
-                <span className="debate__range-value">{Number(activeTemperature).toFixed(1)}</span>
-              </label>
-              <p className="debate__hint">{t.temperatureHint}</p>
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
-          )}
+            {mode === 'choose_one' && (
+              <div className="debate__options">
+                <div className="debate__option-list">
+                  {options.map((option) => (
+                    <span key={option} className="debate__option-chip">
+                      {option}
+                      <button
+                        type="button"
+                        className="debate__option-remove"
+                        onClick={() => removeOption(option)}
+                        aria-label={t.removeOption(option)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="debate__card debate__option-input">
+                  <input
+                    className="debate__card-input"
+                    type="text"
+                    value={optionDraft}
+                    maxLength={100}
+                    onChange={(e) => setOptionDraft(e.target.value)}
+                    onKeyDown={handleOptionKeyDown}
+                    placeholder={t.optionPlaceholder}
+                    aria-label={t.options}
+                    disabled={isCreating || options.length >= 8}
+                  />
+                  <button
+                    type="button"
+                    className="debate__mini-add"
+                    onClick={addOption}
+                    disabled={isCreating || !optionDraft.trim() || options.length >= 8}
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="debate__hint">Потрібно від 2 до 8 варіантів.</p>
+              </div>
+            )}
+            <span className="debate__field-label">{t.rounds}</span>
+            <label className="debate__range-card">
+              <input
+                type="range"
+                min="1"
+                max={maxRounds}
+                step="1"
+                value={rounds}
+                onChange={(e) => setRounds(Number(e.target.value))}
+                disabled={isCreating}
+                aria-label={t.rounds}
+              />
+              <span className="debate__range-value">{rounds}</span>
+            </label>
+            <p className="debate__hint">{t.roundsHint}</p>
+
+            <span className="debate__field-label">{t.webSearch}</span>
+            <label className={`debate__switch ${searchStatus.available ? '' : 'debate__switch--disabled'}`}>
+              <input
+                type="checkbox"
+                checked={webSearch}
+                onChange={(e) => setWebSearch(e.target.checked)}
+                disabled={isCreating || !searchStatus.available}
+              />
+              <span>
+                {searchStatus.available
+                  ? t.webSearchLabel(searchStatus.provider)
+                  : t.webSearchUnavailable}
+              </span>
+            </label>
+            <p className="debate__hint">
+              {searchStatus.limited ? t.webSearchLimitedHint : t.webSearchHint}
+            </p>
+
+            <span className="debate__field-label">{t.moderatorModel}</span>
+            <ModelPicker
+              models={models}
+              value={moderatorModel}
+              onChange={setModeratorModel}
+              disabled={isCreating}
+              label={t.moderatorModel}
+              autoLabel={t.autoModel}
+              compact
+            />
+            <span className="debate__field-label">{t.devilModel}</span>
+            <ModelPicker
+              models={models}
+              value={devilModel}
+              onChange={setDevilModel}
+              disabled={isCreating}
+              label={t.devilModel}
+              autoLabel={t.autoModel}
+              compact
+            />
+            <p className="debate__hint">{t.judgesHint}</p>
+
+            <h3 className="debate__advanced-group">
+              {t.advancedParticipant(activeLabel)}
+            </h3>
+            <label className="debate__card debate__style-card">
+              <span className="debate__field-label">{t.style}</span>
+              <input
+                className="debate__card-input"
+                type="text"
+                value={activeStyle}
+                maxLength={MAX_STYLE}
+                onChange={(e) => updateStyle(e.target.value)}
+                placeholder={t.placeholderStyle}
+                disabled={isCreating}
+              />
+            </label>
+            <label className="debate__range-card">
+              <span className="debate__field-label">{t.temperature}</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={activeTemperature}
+                onChange={(e) => updateTemperature(e.target.value)}
+                disabled={isCreating}
+                aria-label={t.temperature}
+              />
+              <span className="debate__range-value">{Number(activeTemperature).toFixed(1)}</span>
+            </label>
+            <p className="debate__hint">{t.temperatureHint}</p>
+          </div>
         </section>
 
       </div>

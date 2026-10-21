@@ -150,11 +150,11 @@ export default function Sidebar({
         }}
       >
         <Logo onHome={() => {}} />
-        {!collapsed && <span className="sidebar__brand-label">{t.appName}</span>}
+        <span className="sidebar__brand-label">{t.appName}</span>
       </div>
 
       <nav className="sidebar__nav" aria-label="Основна навігація">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item, index) => {
           const active = isItemActive(item, activePath);
           const Icon = ICONS[item.key];
           return (
@@ -162,6 +162,7 @@ export default function Sidebar({
               key={item.key}
               type="button"
               className={`sidebar__item ${active ? 'sidebar__item--active' : ''}`}
+              style={{ '--i': index }}
               title={
                 item.key === 'debates' && active
                   ? t.togglePanel
@@ -178,7 +179,7 @@ export default function Sidebar({
               }}
             >
               <Icon />
-              {!collapsed && <span className="sidebar__label">{item.label}</span>}
+              <span className="sidebar__label">{item.label}</span>
             </button>
           );
         })}
@@ -188,26 +189,34 @@ export default function Sidebar({
         <button
           type="button"
           className="sidebar__control"
+          style={{ '--i': NAV_ITEMS.length }}
           onClick={onToggleTheme}
           aria-label={themeActionLabel}
           title={collapsed ? themeActionLabel : undefined}
         >
           {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
-          {!collapsed && <span className="sidebar__label">{themeActionLabel}</span>}
+          <span className="sidebar__label">{themeActionLabel}</span>
         </button>
-        <button type="button" className="sidebar__control" aria-label="Звук" title={collapsed ? 'Звук' : undefined}>
+        <button
+          type="button"
+          className="sidebar__control"
+          style={{ '--i': NAV_ITEMS.length + 1 }}
+          aria-label="Звук"
+          title={collapsed ? 'Звук' : undefined}
+        >
           <VolumeIcon />
-          {!collapsed && <span className="sidebar__label">Звук</span>}
+          <span className="sidebar__label">Звук</span>
         </button>
         <button
           type="button"
           className="sidebar__control sidebar__control--logout"
+          style={{ '--i': NAV_ITEMS.length + 2 }}
           onClick={handleLogout}
           aria-label={t.logout}
           title={collapsed ? t.logout : undefined}
         >
           <LogoutIcon />
-          {!collapsed && <span className="sidebar__label">{t.logout}</span>}
+          <span className="sidebar__label">{t.logout}</span>
         </button>
       </div>
     </aside>

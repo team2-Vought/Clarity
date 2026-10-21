@@ -65,11 +65,33 @@ body:has(.app-shell) {
   inset: 0;
   z-index: 90;
   background: rgba(0, 0, 0, 0.25);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.26s ease,
+    visibility 0s linear 0.26s;
+}
+
+.app-shell__backdrop--visible {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.26s ease;
 }
 
 /* ---------- Sidebar ---------- */
 
 .sidebar {
+  /* Розміри в змінних: іконки й логотип стоять на тому самому місці
+     в обох станах, тож при розгортанні рухається лише ширина, а підписи
+     плавно проявляються — без стрибків з центру до лівого краю. */
+  --nav-pad: clamp(10px, 1vw, 16px);
+  --item-icon: clamp(28px, 2.3vw, 36px);
+  --ctrl-icon: clamp(21px, 1.7vw, 24px);
+  --logo-w: clamp(34px, 2.6vw, 40px);
+  --sidebar-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
   position: absolute;
   inset: 0 auto 0 0;
   z-index: 100;
@@ -82,7 +104,9 @@ body:has(.app-shell) {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
-  transition: width 0.2s ease, transform 0.2s ease;
+  transition:
+    width 0.26s var(--sidebar-ease),
+    box-shadow 0.26s var(--sidebar-ease);
 }
 
 .sidebar::-webkit-scrollbar {
@@ -97,17 +121,16 @@ body:has(.app-shell) {
 .sidebar__brand {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  padding: 0 0 clamp(10px, 1.8vh, 20px);
+  padding: 0 0 clamp(10px, 1.8vh, 20px) calc((var(--rail-w) - var(--logo-w)) / 2);
   cursor: pointer;
 }
 
 .sidebar__brand svg,
 .sidebar__brand img {
   display: block;
-  width: clamp(34px, 2.6vw, 40px);
-  max-width: 100%;
+  flex-shrink: 0;
+  width: var(--logo-w);
   height: auto;
 }
 
@@ -115,27 +138,21 @@ body:has(.app-shell) {
   display: none;
 }
 
-.sidebar:not(.sidebar--collapsed) .sidebar__brand {
-  justify-content: flex-start;
-  padding-left: 14px;
-}
-
 .sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: clamp(2px, 0.7vh, 6px);
-  padding: 0 clamp(10px, 1vw, 16px);
+  padding: 0 var(--nav-pad);
 }
 
 .sidebar__item,
 .sidebar__control {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   width: 100%;
   height: clamp(32px, 4.4vh, 38px);
-  padding: 0;
+  padding: 0 12px 0 calc((var(--rail-w) - 2 * var(--nav-pad) - var(--item-icon)) / 2);
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -149,23 +166,21 @@ body:has(.app-shell) {
   transition: background 0.18s;
 }
 
-.sidebar:not(.sidebar--collapsed) .sidebar__item,
-.sidebar:not(.sidebar--collapsed) .sidebar__control {
-  justify-content: flex-start;
-  padding-right: 12px;
+.sidebar__control {
+  padding-left: calc((var(--rail-w) - 2 * var(--nav-pad) - var(--ctrl-icon)) / 2);
+  gap: 14px;
 }
 
 .sidebar__item svg {
   flex-shrink: 0;
-  width: clamp(28px, 2.3vw, 36px);
-  height: clamp(28px, 2.3vw, 36px);
+  width: var(--item-icon);
+  height: var(--item-icon);
 }
 
 .sidebar__control svg {
   flex-shrink: 0;
-  width: clamp(21px, 1.7vw, 24px);
-  height: clamp(21px, 1.7vw, 24px);
-  margin: 0 6px;
+  width: var(--ctrl-icon);
+  height: var(--ctrl-icon);
 }
 
 .sidebar__item:hover,
@@ -184,10 +199,28 @@ body:has(.app-shell) {
   color: #121212;
 }
 
+/* підпис завжди в розмітці: згорнутий — прозорий, розгорнутий —
+   проявляється по черзі зверху вниз (--i — номер пункту), злегка
+   виїжджаючи зліва; при згортанні всі ховаються разом і швидко */
 .sidebar__label {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.sidebar:not(.sidebar--collapsed) .sidebar__label {
+  --label-delay: calc(0.06s + var(--i, 0) * 0.03s);
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.22s ease var(--label-delay),
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) var(--label-delay);
 }
 
 .sidebar__controls {
@@ -195,7 +228,7 @@ body:has(.app-shell) {
   flex-direction: column;
   gap: clamp(2px, 0.7vh, 6px);
   margin-top: auto;
-  padding: clamp(8px, 1.6vh, 12px) clamp(10px, 1vw, 16px) 0;
+  padding: clamp(8px, 1.6vh, 12px) var(--nav-pad) 0;
 }
 
 .sidebar__control--logout {
@@ -209,8 +242,11 @@ body:has(.app-shell) {
 /* ---------- Debate page ---------- */
 
 .debate-page {
+  /* ширина панелі налаштувань — змінна, щоб панель могла згортатися
+     анімовано (колонка 0 ↔ --panel-w), зберігаючи власну ширину */
+  --panel-w: clamp(236px, 24vw, 360px);
   display: grid;
-  grid-template-columns: clamp(236px, 24vw, 360px) minmax(0, 1fr);
+  grid-template-columns: var(--panel-w) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -690,6 +726,7 @@ body:has(.app-shell) {
 /* вікно відкривається вгору: шеврон дивиться вгору, відкрите — вниз */
 .debate__advanced .debate__model-chevron {
   transform: rotate(180deg);
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .debate__advanced-toggle--open .debate__model-chevron {
@@ -711,19 +748,26 @@ body:has(.app-shell) {
   background: var(--card);
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.24);
   scrollbar-width: thin;
-  transform-origin: bottom center;
-  animation: debate-advanced-in 0.16s ease-out;
+  /* закрите вікно лишається в розмітці: відкриття й закриття — плавний
+     перехід без масштабування (від нього тремтить текст) */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.22s;
 }
 
-@keyframes debate-advanced-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.debate__advanced-body--open {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .debate__advanced-body .debate__card,
@@ -856,20 +900,31 @@ body:has(.app-shell) {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   list-style: none;
   scrollbar-width: thin;
-  transform-origin: top center;
-  animation: debate-model-menu-in 0.16s ease-out;
+  /* розгортання шторкою зверху вниз і згортання назад: меню лишається
+     в розмітці, тож анімоване й закриття */
+  visibility: hidden;
+  opacity: 0;
+  /* межі обрізання ширші за меню, щоб не різати тінь */
+  clip-path: inset(-12px -28px 100% -28px);
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    clip-path 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.16s ease,
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.24s;
 }
 
-@keyframes debate-model-menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.debate__model-menu--open {
+  visibility: visible;
+  opacity: 1;
+  clip-path: inset(-12px -28px -36px -28px);
+  transform: none;
+  pointer-events: auto;
+  transition:
+    clip-path 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.14s ease,
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .debate__model-option {
@@ -1027,11 +1082,12 @@ body:has(.app-shell) {
 }
 
 .debate__composer {
+  /* текст і кнопка в одному ряду; кнопка тримається нижнього рядка тексту */
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 10px;
   width: min(760px, 100%);
-  padding: 14px 14px 10px 18px;
+  padding: 8px 8px 8px 18px;
   border: 1.5px solid transparent;
   border-radius: 26px;
   background:
@@ -1057,10 +1113,12 @@ body:has(.app-shell) {
 }
 
 .debate__composer-input {
-  width: 100%;
-  min-height: 28px;
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
   max-height: min(42vh, 360px);
-  padding: 4px 0;
+  /* рядок тексту (25.5px) + відступи = 38px — як висота кнопки */
+  padding: 6px 0;
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -1077,11 +1135,19 @@ body:has(.app-shell) {
   color: var(--muted);
 }
 
+/* порожнє поле — один рядок: довга підказка обрізається трикрапкою, а не
+   переноситься (висота поля рахується за вмістом, і підказка його роздувала) */
+.debate__composer-input:placeholder-shown {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .debate__composer-bar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .debate__composer-count {
@@ -1691,7 +1757,7 @@ body:has(.app-shell) {
 
 @media (max-width: 1100px) {
   .debate-page {
-    grid-template-columns: clamp(208px, 23vw, 260px) minmax(0, 1fr);
+    --panel-w: clamp(208px, 23vw, 260px);
   }
 
   .debate__form-panel {
@@ -1737,7 +1803,7 @@ body:has(.app-shell) {
 
 @media (max-width: 900px) {
   .debate-page {
-    grid-template-columns: 240px minmax(0, 1fr);
+    --panel-w: 240px;
   }
   .chat__main {
     padding: 28px 20px 32px;
@@ -1751,14 +1817,53 @@ body:has(.app-shell) {
   }
 }
 
-/* Панель налаштувань, схована повторним кліком на «Дебати» (десктоп, планшет) */
+/* Панель налаштувань ховається повторним кліком на «Дебати» (десктоп,
+   планшет). Колонка плавно звужується до нуля, а панель тримає власну
+   ширину (текст у ній не перескладається), зсувається вліво й згасає. */
 @media (min-width: 640px) {
+  .debate-page {
+    transition: grid-template-columns 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
   .debate-page.debate-page--panel-collapsed {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 0px minmax(0, 1fr);
+  }
+
+  /* основна область — шаром вище з фоном сторінки: панель, що зберігає
+     ширину, ховається під неї, а не просвічує крізь текст */
+  .debate__main,
+  .chat__column {
+    position: relative;
+    z-index: 1;
+    background: var(--main-bg);
+  }
+
+  .debate__form-panel {
+    width: var(--panel-w);
+    min-width: var(--panel-w);
+    transition:
+      opacity 0.24s ease 0.06s,
+      transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 0s linear 0s;
   }
 
   .debate-page--panel-collapsed .debate__form-panel {
-    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateX(-24px);
+    pointer-events: none;
+    transition:
+      opacity 0.18s ease,
+      transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 0s linear 0.34s;
+  }
+}
+
+@media (min-width: 640px) and (prefers-reduced-motion: reduce) {
+  .debate-page,
+  .debate__form-panel,
+  .debate-page--panel-collapsed .debate__form-panel {
+    transition: none;
   }
 }
 
@@ -1782,42 +1887,64 @@ body:has(.app-shell) {
     background: var(--main-bg);
   }
 
-  .app-shell__backdrop {
-    background: transparent;
+  /* ---- смуга іконок і розгорнуте меню ----
+     Геометрія підібрана так, щоб логотип і іконки стояли на тих самих
+     координатах в обох станах: при розгортанні картка плавно розтягується
+     до краю екрана, а іконки не стрибають. Сума «відступ картки + відступ
+     списку + відступ пункту» однакова в обох станах, тож під час анімації
+     вона теж стала. */
+  .sidebar {
+    --nav-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --nav-time: 0.28s;
+    transition:
+      width var(--nav-time) var(--nav-ease),
+      top var(--nav-time) var(--nav-ease),
+      left var(--nav-time) var(--nav-ease),
+      bottom var(--nav-time) var(--nav-ease),
+      padding var(--nav-time) var(--nav-ease),
+      border-radius var(--nav-time) var(--nav-ease);
   }
 
-  /* ---- смуга іконок ---- */
+  .sidebar__brand,
+  .sidebar__brand img,
+  .sidebar__nav,
+  .sidebar__item,
+  .sidebar__controls {
+    transition:
+      margin var(--nav-time) var(--nav-ease),
+      padding var(--nav-time) var(--nav-ease),
+      width var(--nav-time) var(--nav-ease),
+      background-color var(--nav-time) var(--nav-ease);
+  }
+
   .sidebar.sidebar--collapsed {
     inset: 25px auto 25px 16px;
     width: 50px;
-    padding: 10px 5px;
+    padding: 10px 0;
     border-radius: 10px;
   }
 
-  .sidebar--collapsed .sidebar__brand {
-    padding: 0 0 20px;
+  .sidebar__brand {
+    gap: 0;
+    margin: 0 0 20px 5px;
+    padding: 0;
+    border-radius: 10px;
+    background-color: transparent;
   }
 
-  .sidebar--collapsed .sidebar__brand img {
+  .sidebar__brand img {
     width: 40px;
   }
 
-  .sidebar--collapsed .sidebar__nav,
-  .sidebar--collapsed .sidebar__controls {
-    align-items: center;
-    gap: 5px;
+  .sidebar__nav {
+    gap: 3px;
+    padding: 0 10px;
+  }
+
+  .sidebar__item {
+    height: 32px;
     padding: 0;
-  }
-
-  .sidebar--collapsed .sidebar__item {
-    width: 30px;
-    height: 30px;
     border-radius: 8px;
-  }
-
-  .sidebar--collapsed .sidebar__control {
-    width: 30px;
-    height: 23px;
   }
 
   .sidebar__item svg {
@@ -1825,10 +1952,21 @@ body:has(.app-shell) {
     height: 30px;
   }
 
+  .sidebar__controls {
+    gap: 5px;
+    padding: 0 0 0 16px;
+  }
+
+  .sidebar__control {
+    width: auto;
+    height: 23px;
+    padding: 0;
+    gap: 6px;
+  }
+
   .sidebar__control svg {
     width: 18px;
     height: 18px;
-    margin: 0;
   }
 
   .sidebar__control--logout svg {
@@ -1836,14 +1974,13 @@ body:has(.app-shell) {
     height: 20px;
   }
 
-  /* ---- розгорнуте меню: шухляда 220px ----
-     Зліва той самий суцільний колір, що й у згорнутої смуги, праворуч
-     плавно стає прозорим — легке розмиття видно лише там, де крізь фон
-     проступає сторінка. */
+  /* розгорнуте меню: шухляда 220px. Зліва той самий суцільний колір, що
+     й у згорнутої смуги, праворуч плавно стає прозорим із легким розмиттям */
   .sidebar:not(.sidebar--collapsed) {
     inset: 0 auto 0 0;
     width: 220px;
-    padding: 25px 10px;
+    /* знизу 35 = 25 відступу картки + 10 її внутрішнього: кнопки не зсуваються */
+    padding: 25px 0 35px;
     border-radius: 0;
     background: linear-gradient(
       to right,
@@ -1855,51 +1992,61 @@ body:has(.app-shell) {
     box-shadow: none;
   }
 
+  /* логотип лишається на x 21→26, картка з назвою проступає навколо нього */
   .sidebar:not(.sidebar--collapsed) .sidebar__brand {
     gap: 6px;
-    margin: 0 0 20px 6px;
+    margin: 0 10px 10px 16px;
     padding: 5px 10px;
-    border-radius: 10px;
-    background: var(--card);
+    background-color: var(--card);
   }
 
   .sidebar:not(.sidebar--collapsed) .sidebar__brand img {
     width: 55px;
   }
 
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand-label {
+  .sidebar__brand-label {
     display: inline;
+    overflow: hidden;
+    max-width: 0;
+    color: var(--ink);
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--ink);
+    white-space: nowrap;
+    opacity: 0;
+    transition:
+      max-width var(--nav-time) var(--nav-ease),
+      opacity 0.12s ease;
   }
 
+  .sidebar:not(.sidebar--collapsed) .sidebar__brand-label {
+    max-width: 120px;
+    opacity: 1;
+    transition:
+      max-width var(--nav-time) var(--nav-ease),
+      opacity 0.2s ease 0.08s;
+  }
+
+  /* іконки пунктів стоять на x 26: картка 16 + список 10 → край 0 + 16 + 10 */
   .sidebar:not(.sidebar--collapsed) .sidebar__nav {
-    gap: 6px;
-    padding: 0 0 0 6px;
+    padding: 0 10px 0 16px;
   }
 
   .sidebar:not(.sidebar--collapsed) .sidebar__item {
-    gap: 6px;
-    height: 36px;
-    padding: 3px 5px;
+    padding: 0 10px;
     font-size: 0.875rem;
     font-weight: 400;
   }
 
   .sidebar:not(.sidebar--collapsed) .sidebar__controls {
-    gap: 6px;
-    padding: 0 0 0 15px;
+    padding-left: 32px;
   }
 
   .sidebar:not(.sidebar--collapsed) .sidebar__control {
-    gap: 6px;
-    height: 20px;
-    padding: 0;
     font-size: 0.875rem;
     font-weight: 400;
   }
 
+  .sidebar__control:hover,
   .sidebar:not(.sidebar--collapsed) .sidebar__control:hover {
     background: transparent;
   }
@@ -2041,7 +2188,6 @@ body:has(.app-shell) {
   }
 
   .debate__main .debate__composer {
-    min-height: 139px;
     padding: 8px 8px 8px 12px;
     border-radius: 10px;
   }
@@ -2050,9 +2196,6 @@ body:has(.app-shell) {
     font-size: 1rem;
   }
 
-  .debate__main .debate__composer-bar {
-    margin-top: auto;
-  }
 
   .debate__composer-hint {
     display: none;
@@ -2133,21 +2276,13 @@ body:has(.app-shell) {
     padding-bottom: 25px;
   }
 
-  /* кнопка надсилання — у правому нижньому куті поряд із текстом, як у макеті */
   .chat__composer-box {
-    position: relative;
-    min-height: 80px;
-    padding: 8px 48px 8px 12px;
+    padding: 8px 8px 8px 12px;
     border-radius: 10px;
   }
 
-  .chat__composer-box .debate__composer-bar {
-    position: absolute;
-    right: 8px;
-    bottom: 8px;
-  }
-
-  .chat__composer-box .debate__composer-count {
+  /* на вузькому екрані лічильник лише забирав би місце в рядку */
+  .debate__composer-count {
     display: none;
   }
 }
@@ -2171,14 +2306,9 @@ body:has(.app-shell) {
     gap: 2px;
   }
 
-  .sidebar__item svg {
-    width: 26px;
-    height: 26px;
-  }
-
-  .sidebar__control svg {
-    width: 20px;
-    height: 20px;
+  .sidebar {
+    --item-icon: 26px;
+    --ctrl-icon: 20px;
   }
 
   .debate__participant-item,
@@ -2193,7 +2323,18 @@ body:has(.app-shell) {
     animation: none;
   }
 
-  .sidebar {
+  .sidebar,
+  .sidebar__brand,
+  .sidebar__brand img,
+  .sidebar__brand-label,
+  .sidebar__nav,
+  .sidebar__item,
+  .sidebar__controls,
+  .sidebar__label,
+  .debate__advanced-body,
+  .debate__advanced .debate__model-chevron,
+  .debate__model-menu,
+  .app-shell__backdrop {
     transition: none;
   }
 }
@@ -2391,11 +2532,43 @@ body:has(.app-shell) {
 }
 /* власний фон: напис лежить поверх тексту повідомлень, що прокручуються */
 .chat__composer-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
-  padding: 3px 10px;
+  padding: 3px 4px 3px 10px;
   border-radius: 999px;
   background: var(--main-bg);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.chat__composer-hint-close {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.chat__composer-hint-close:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+.chat__composer-hint-close:focus-visible {
+  outline: 2px solid var(--focus, #7f80ac);
+  outline-offset: 1px;
+}
+
+.chat__composer-hint-close svg {
+  width: 10px;
+  height: 10px;
 }

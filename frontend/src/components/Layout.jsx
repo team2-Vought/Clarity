@@ -67,7 +67,12 @@ export default function Layout() {
         />
       </div>
 
-      {!collapsed && <div className="app-shell__backdrop" onClick={() => setCollapsed(true)} aria-hidden="true" />}
+      {/* затемнення завжди в розмітці, тож проявляється й зникає плавно */}
+      <div
+        className={`app-shell__backdrop ${collapsed ? '' : 'app-shell__backdrop--visible'}`}
+        onClick={() => setCollapsed(true)}
+        aria-hidden="true"
+      />
 
       <main className="app-shell__main">
         <Outlet context={outletContext} />

@@ -18,7 +18,13 @@ import {
   stopDiscussion,
   updateDiscussion,
 } from '../api/discussions';
-import { ArrowUpIcon, ChevronIcon, PanelIcon, UserPlusIcon } from '../components/DebateIcons';
+import {
+  ArrowUpIcon,
+  ChevronIcon,
+  CloseIcon,
+  PanelIcon,
+  UserPlusIcon,
+} from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
 import ThoughtLine from '../components/ThoughtLine';
 import TypewriterText from '../components/TypewriterText';
@@ -41,6 +47,18 @@ const POLL_MS = 2000;
 const MAX_KICKS = 3;
 const MAX_NOTE = 1000;
 const CITATION_RE = /(\[\d+\])/g;
+
+// Закритий бейдж «Уточнень залишилось» пам'ятаємо для дискусії й кількості:
+// після нового уточнення число змінюється, і бейдж з'являється знову.
+const hintStorageKey = (id, left) => `clarity:followup-hint:${id}:${left}`;
+
+const isHintDismissed = (key) => {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+};
 
 const AvatarIcon = () => (
   <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
@@ -192,6 +210,7 @@ export default function ChatPage() {
   const summaryRef = useRef(null);
   const [showJump, setShowJump] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [dismissedHints, setDismissedHints] = useState(() => new Set());
   const advancedRef = useRef(null);
   const [composerHeight, setComposerHeight] = useState(0);
 
@@ -633,6 +652,17 @@ export default function ChatPage() {
     0,
     (Number(discussion?.max_followups) || 0) - (Number(discussion?.followups) || 0)
   );
+  const hintKey = hintStorageKey(discussion?.id, followupsLeft);
+  const isHintVisible = !dismissedHints.has(hintKey) && !isHintDismissed(hintKey);
+
+  const dismissHint = () => {
+    setDismissedHints((current) => new Set(current).add(hintKey));
+    try {
+      localStorage.setItem(hintKey, '1');
+    } catch {
+      // без сховища бейдж просто з'явиться знову після перезавантаження
+    }
+  };
   const canSendNote =
     Boolean(discussion) && !isSending && note.trim().length > 0 && (!isFinished || followupsLeft > 0);
 
@@ -894,37 +924,37 @@ export default function ChatPage() {
                   <ChevronIcon />
                 </span>
               </button>
-              {isAdvancedOpen && (
-                <div
-                  id="chat-advanced"
-                  className="debate__advanced-body"
-                  role="dialog"
-                  aria-label={d.advanced}
-                >
-                  <h3 className="debate__advanced-group">{d.advancedGeneral}</h3>
-                  <span className="debate__field-label">{d.moderatorModel}</span>
-                  <ModelPicker
-                    models={models}
-                    value={discussion.moderator_model || ''}
-                    onChange={(modelId) => saveModels({ moderatorModel: modelId })}
-                    disabled={!canEditModels}
-                    label={d.moderatorModel}
-                    autoLabel={d.autoModel}
-                    compact
-                  />
-                  <span className="debate__field-label">{d.devilModel}</span>
-                  <ModelPicker
-                    models={models}
-                    value={discussion.devil_model || ''}
-                    onChange={(modelId) => saveModels({ devilModel: modelId })}
-                    disabled={!canEditModels}
-                    label={d.devilModel}
-                    autoLabel={d.autoModel}
-                    compact
-                  />
-                  <p className="debate__hint">{d.judgesHint}</p>
-                </div>
-              )}
+              <div
+                id="chat-advanced"
+                className={`debate__advanced-body ${isAdvancedOpen ? 'debate__advanced-body--open' : ''}`}
+                inert={!isAdvancedOpen}
+                aria-hidden={!isAdvancedOpen}
+                role="dialog"
+                aria-label={d.advanced}
+              >
+                <h3 className="debate__advanced-group">{d.advancedGeneral}</h3>
+                <span className="debate__field-label">{d.moderatorModel}</span>
+                <ModelPicker
+                  models={models}
+                  value={discussion.moderator_model || ''}
+                  onChange={(modelId) => saveModels({ moderatorModel: modelId })}
+                  disabled={!canEditModels}
+                  label={d.moderatorModel}
+                  autoLabel={d.autoModel}
+                  compact
+                />
+                <span className="debate__field-label">{d.devilModel}</span>
+                <ModelPicker
+                  models={models}
+                  value={discussion.devil_model || ''}
+                  onChange={(modelId) => saveModels({ devilModel: modelId })}
+                  disabled={!canEditModels}
+                  label={d.devilModel}
+                  autoLabel={d.autoModel}
+                  compact
+                />
+                <p className="debate__hint">{d.judgesHint}</p>
+              </div>
             </section>
           </>
         )}
@@ -1208,9 +1238,18 @@ export default function ChatPage() {
                 <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
               </button>
             )}
-            {isFinished && (
+            {isFinished && isHintVisible && (
               <p className="chat__composer-hint">
-                {followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}
+                <span>{followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}</span>
+                <button
+                  type="button"
+                  className="chat__composer-hint-close"
+                  onClick={dismissHint}
+                  aria-label={t.hideHint}
+                  title={t.hideHint}
+                >
+                  <CloseIcon />
+                </button>
               </p>
             )}
             <div className="debate__composer chat__composer-box">

@@ -69,44 +69,48 @@ export default function ModelPicker({
           )}
         </span>
       </button>
-      {isOpen && (
-        <ul className="debate__model-menu" role="listbox" aria-label={label}>
-          {autoLabel && (
-            <li role="presentation">
+      <ul
+        className={`debate__model-menu ${isOpen ? 'debate__model-menu--open' : ''}`}
+        role="listbox"
+        aria-label={label}
+        inert={!isOpen}
+        aria-hidden={!isOpen}
+      >
+        {autoLabel && (
+          <li role="presentation">
+            <button
+              type="button"
+              className={`debate__model-option ${!value ? 'debate__model-option--active' : ''}`}
+              role="option"
+              aria-selected={!value}
+              onClick={() => choose('')}
+            >
+              <span>{autoLabel}</span>
+            </button>
+          </li>
+        )}
+        {models.map((model) => {
+          const active = value === model.id;
+          return (
+            <li key={model.id} role="presentation">
               <button
                 type="button"
-                className={`debate__model-option ${!value ? 'debate__model-option--active' : ''}`}
+                className={`debate__model-option ${active ? 'debate__model-option--active' : ''}`}
                 role="option"
-                aria-selected={!value}
-                onClick={() => choose('')}
+                aria-selected={active}
+                disabled={!model.available}
+                title={model.available ? model.notes : `${t.modelUnavailable}: ${model.key_env}`}
+                onClick={() => choose(model.id)}
               >
-                <span>{autoLabel}</span>
+                <span>{modelLabel(model)}</span>
+                {!model.available && (
+                  <span className="debate__model-option-note">{t.modelUnavailable}</span>
+                )}
               </button>
             </li>
-          )}
-          {models.map((model) => {
-            const active = value === model.id;
-            return (
-              <li key={model.id} role="presentation">
-                <button
-                  type="button"
-                  className={`debate__model-option ${active ? 'debate__model-option--active' : ''}`}
-                  role="option"
-                  aria-selected={active}
-                  disabled={!model.available}
-                  title={model.available ? model.notes : `${t.modelUnavailable}: ${model.key_env}`}
-                  onClick={() => choose(model.id)}
-                >
-                  <span>{modelLabel(model)}</span>
-                  {!model.available && (
-                    <span className="debate__model-option-note">{t.modelUnavailable}</span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
     </div>
   );
 }
