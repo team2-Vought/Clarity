@@ -1747,10 +1747,9 @@
   }
 }
 
-/* Кнопка «≡», затемнення і кнопка «Почати» в панелі існують лише на телефоні */
+/* Кнопка «≡» і затемнення висувної панелі існують лише на телефоні */
 .debate__panel-toggle,
-.debate__panel-backdrop,
-.debate__panel-start {
+.debate__panel-backdrop {
   display: none;
 }
 
@@ -1961,33 +1960,6 @@
   .debate__advanced {
     position: relative;
     box-shadow: none;
-  }
-
-  /* «Почати» завжди видно внизу панелі, як у макеті */
-  .debate__panel-start {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: 0 -12px 16px -4px var(--panel);
-    width: 100%;
-    padding: 8px 10px;
-    border: 0;
-    border-radius: 30px;
-    background: #121212;
-    color: #e0e0e0;
-    font: inherit;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .debate__panel-start:disabled {
-    background: #777777;
-    cursor: not-allowed;
   }
 
   /* кнопка «≡»: іконка 24px у точці (72, 35) */

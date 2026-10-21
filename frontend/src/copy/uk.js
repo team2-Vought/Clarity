@@ -155,7 +155,6 @@ export const uk = {
     placeholderDescription:
       'Детально опишіть проблему та обставини: бюджет, терміни, обмеження, що вже пробували',
     start: 'Почати дискусію',
-    startShort: 'Почати',
     creating: 'Створюємо дискусію…',
     composerHint: 'Enter — почати, Shift + Enter — новий рядок',
     errorCreate: 'Не вдалося створити дискусію',
