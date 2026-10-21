@@ -1821,14 +1821,22 @@
     height: 20px;
   }
 
-  /* ---- розгорнуте меню: шухляда 174px ---- */
+  /* ---- розгорнуте меню: шухляда 220px ----
+     Зліва той самий суцільний колір, що й у згорнутої смуги, праворуч
+     плавно стає прозорим — легке розмиття видно лише там, де крізь фон
+     проступає сторінка. */
   .sidebar:not(.sidebar--collapsed) {
     inset: 0 auto 0 0;
-    width: 174px;
+    width: 220px;
     padding: 25px 10px;
     border-radius: 0;
-    background: var(--drawer-bg);
-    backdrop-filter: blur(4px);
+    background: linear-gradient(
+      to right,
+      var(--panel) 0%,
+      var(--panel) 45%,
+      color-mix(in srgb, var(--panel) 60%, transparent) 100%
+    );
+    backdrop-filter: blur(2px);
     box-shadow: none;
   }
 
