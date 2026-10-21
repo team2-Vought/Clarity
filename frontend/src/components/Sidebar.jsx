@@ -149,6 +149,7 @@ export default function Sidebar({
         }}
       >
         <Logo onHome={() => {}} />
+        {!collapsed && <span className="sidebar__brand-label">{t.appName}</span>}
       </div>
 
       <nav className="sidebar__nav" aria-label="Основна навігація">

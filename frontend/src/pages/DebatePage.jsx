@@ -866,6 +866,10 @@ export default function DebatePage() {
           )}
         </section>
 
+        {/* на телефоні панель висувна, тож запуск дублюємо внизу панелі, як у макеті */}
+        <button type="submit" className="debate__panel-start" disabled={!canStart}>
+          {isCreating ? t.creating : t.startShort}
+        </button>
       </div>
 
       <main className="debate__main">
