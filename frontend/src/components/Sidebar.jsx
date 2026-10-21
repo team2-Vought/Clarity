@@ -121,6 +121,7 @@ export default function Sidebar({
   onToggle,
   theme,
   onToggleTheme,
+  onTogglePanel,
 }) {
   const navigate = useNavigate();
   const themeActionLabel = theme === 'dark' ? t.themeLight : t.themeDark;
@@ -161,10 +162,20 @@ export default function Sidebar({
               key={item.key}
               type="button"
               className={`sidebar__item ${active ? 'sidebar__item--active' : ''}`}
-              title={collapsed ? item.label : undefined}
+              title={
+                item.key === 'debates' && active
+                  ? t.togglePanel
+                  : collapsed
+                    ? item.label
+                    : undefined
+              }
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                // повторний клік на активні «Дебати» ховає / показує панель налаштувань
+                if (item.key === 'debates' && active && onTogglePanel?.()) return;
+                navigate(item.path);
+              }}
             >
               <Icon />
               {!collapsed && <span className="sidebar__label">{item.label}</span>}
@@ -209,4 +220,5 @@ Sidebar.propTypes = {
   onToggle: PropTypes.func.isRequired,
   theme: PropTypes.oneOf(['light', 'dark']).isRequired,
   onToggleTheme: PropTypes.func.isRequired,
+  onTogglePanel: PropTypes.func,
 };

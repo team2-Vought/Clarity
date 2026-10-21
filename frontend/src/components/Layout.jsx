@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
@@ -21,6 +21,36 @@ export default function Layout() {
     } catch {}
   }, [theme]);
 
+  // Панель налаштувань дебату ховається повторним кліком на «Дебати».
+  // Стан живе тут, тож не губиться при переході між головною й чатом.
+  // На телефоні панель висувна — її відкриває сама сторінка.
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const phonePanelToggleRef = useRef(null);
+
+  const registerPanelToggle = useCallback((fn) => {
+    phonePanelToggleRef.current = fn;
+    return () => {
+      if (phonePanelToggleRef.current === fn) phonePanelToggleRef.current = null;
+    };
+  }, []);
+
+  const togglePanel = () => {
+    const isPhone = window.matchMedia?.('(max-width: 639px)').matches;
+    if (isPhone) {
+      if (!phonePanelToggleRef.current) return false;
+      phonePanelToggleRef.current();
+    } else {
+      setPanelCollapsed((current) => !current);
+    }
+    setCollapsed(true);
+    return true;
+  };
+
+  const outletContext = useMemo(
+    () => ({ panelCollapsed, registerPanelToggle }),
+    [panelCollapsed, registerPanelToggle]
+  );
+
   const toggle = () => setCollapsed((c) => !c);
   const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
 
@@ -33,13 +63,14 @@ export default function Layout() {
           onToggle={toggle}
           theme={theme}
           onToggleTheme={toggleTheme}
+          onTogglePanel={togglePanel}
         />
       </div>
 
       {!collapsed && <div className="app-shell__backdrop" onClick={() => setCollapsed(true)} aria-hidden="true" />}
 
       <main className="app-shell__main">
-        <Outlet />
+        <Outlet context={outletContext} />
       </main>
     </div>
   );

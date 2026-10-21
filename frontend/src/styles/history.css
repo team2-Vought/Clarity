@@ -1,5 +1,7 @@
 .history {
-  min-height: 100%;
+  /* займає висоту обгортки й прокручується сама — обгортка не скролиться */
+  flex: 1;
+  min-height: 0;
   padding: clamp(24px, 4vw, 48px) clamp(18px, 4vw, 44px);
   overflow-y: auto;
 }

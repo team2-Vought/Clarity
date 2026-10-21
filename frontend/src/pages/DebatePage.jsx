@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { fetchPersonas, fetchModels, createDiscussion } from '../api/discussions';
 import { getToken } from '../api/client';
 import {
@@ -76,6 +76,13 @@ export default function DebatePage() {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+
+  // на телефоні іконка «Дебати» в смузі відкриває / закриває висувну панель
+  useEffect(
+    () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
+    [registerPanelToggle]
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -488,7 +495,7 @@ export default function DebatePage() {
 
   return (
     <form
-      className={`debate-page ${isPanelOpen ? 'debate-page--panel-open' : ''}`}
+      className={`debate-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
       ref={formRef}
       onSubmit={handleStart}
       noValidate

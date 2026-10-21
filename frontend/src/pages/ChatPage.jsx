@@ -1,5 +1,13 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  ArrowDown02Icon,
+  Copy01Icon,
+  Download04Icon,
+  Loading03Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import {
   deleteDiscussion,
   fetchDiscussion,
@@ -16,6 +24,7 @@ import ThoughtLine from '../components/ThoughtLine';
 import TypewriterText from '../components/TypewriterText';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { downloadSummaryPdf } from '../utils/summaryPdf';
 
 const t = uk.chat;
 const d = uk.debate;
@@ -24,6 +33,7 @@ const DEVIL_COLOR = '#fde3c6';
 const USER_COLOR = '#f0f0f0';
 const RESEARCH_COLOR = '#d6eefb';
 const STICK_THRESHOLD = 120;
+const JUMP_THRESHOLD = 400;
 // Дискусію виконує сервер; сторінка лише опитує стан.
 const POLL_MS = 2000;
 // Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
@@ -152,12 +162,20 @@ export default function ChatPage() {
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [copyState, setCopyState] = useState('');
+  const [pdfState, setPdfState] = useState('');
   const [note, setNote] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pollTick, setPollTick] = useState(0);
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+
+  // на телефоні іконка «Дебати» в смузі відкриває / закриває висувну панель
+  useEffect(
+    () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
+    [registerPanelToggle]
+  );
   // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
   // навіть якщо паралельний крок приніс кілька одразу.
   const [revealedCount, setRevealedCount] = useState(0);
@@ -170,6 +188,12 @@ export default function ChatPage() {
   const stickToBottomRef = useRef(true);
   const participantListRef = useRef(null);
   const noteRef = useRef(null);
+  const composerRef = useRef(null);
+  const summaryRef = useRef(null);
+  const [showJump, setShowJump] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const advancedRef = useRef(null);
+  const [composerHeight, setComposerHeight] = useState(0);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
@@ -410,7 +434,8 @@ export default function ChatPage() {
   const isRevealing = Boolean(typingMessage);
   const shownMessages = visibleMessages.slice(0, revealedCount + 1);
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
-  const showThoughtLine = stagePlan.length > 0 && !isRevealing && (isRunning || isFinished);
+  // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
+  const showThoughtLine = stagePlan.length > 0 && !isRevealing && isRunning && !isFinished;
 
   // уточнення користувача показуємо одразу, без «друку»
   useEffect(() => {
@@ -418,6 +443,18 @@ export default function ChatPage() {
     const timer = setTimeout(() => setRevealedCount((count) => count + 1), 0);
     return () => clearTimeout(timer);
   }, [pendingMessage]);
+
+  // Поле вводу закріплене поверх чату, тож список отримує нижній відступ
+  // рівно на висоту поля — останні репліки не ховаються під ним.
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return undefined;
+    const update = () => setComposerHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [discussion?.id]);
 
   // Поле уточнення росте разом із текстом; після max-height з'являється скрол.
   useLayoutEffect(() => {
@@ -428,13 +465,29 @@ export default function ChatPage() {
   }, [note, isFinished]);
 
   useEffect(() => {
+    if (!isAdvancedOpen) return undefined;
+    const handleMouseDown = (e) => {
+      if (!advancedRef.current?.contains(e.target)) setIsAdvancedOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsAdvancedOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAdvancedOpen]);
+
+  useEffect(() => {
     if (!isPanelOpen) return undefined;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsPanelOpen(false);
+      if (e.key === 'Escape' && !isAdvancedOpen) setIsPanelOpen(false);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isPanelOpen]);
+  }, [isPanelOpen, isAdvancedOpen]);
 
   const followBottom = useCallback(() => {
     if (!stickToBottomRef.current) return;
@@ -451,11 +504,42 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: isRunning ? 'smooth' : 'auto', block: 'end' });
   }, [revealedCount, isRunning, actionError, isStopped, isRevealing]);
 
+  // Стрілка «до рішення» з'являється, коли рішення (а поки його немає —
+  // кінець чату) опинилося нижче видимої частини, тобто користувач гортав угору.
+  const updateJump = useCallback(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const visibleBottom = el.getBoundingClientRect().bottom - composerHeight;
+    const summaryEl = summaryRef.current;
+    if (summaryEl) {
+      setShowJump(summaryEl.getBoundingClientRect().top > visibleBottom);
+      return;
+    }
+    setShowJump(el.scrollHeight - el.scrollTop - el.clientHeight > JUMP_THRESHOLD);
+  }, [composerHeight]);
+
   const handleMainScroll = () => {
     const el = mainRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     stickToBottomRef.current = distance < STICK_THRESHOLD;
+    updateJump();
+  };
+
+  useEffect(() => {
+    updateJump();
+  }, [updateJump, messages, isFinished]);
+
+  const handleJumpToDecision = () => {
+    const el = mainRef.current;
+    if (!el) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const summaryEl = summaryRef.current;
+    const top = summaryEl
+      ? el.scrollTop + summaryEl.getBoundingClientRect().top - el.getBoundingClientRect().top - 16
+      : el.scrollHeight;
+    if (!summaryEl) stickToBottomRef.current = true;
+    el.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
   };
 
   const updateScrollState = useCallback(() => {
@@ -648,6 +732,27 @@ export default function ChatPage() {
     window.setTimeout(() => setCopyState(''), 2000);
   };
 
+  const handleDownloadPdf = async () => {
+    if (pdfState === 'busy') return;
+    setPdfState('busy');
+    try {
+      await downloadSummaryPdf({
+        question: discussion.question,
+        summary: { ...summary, decision: summaryDecision, confirmed: summaryConfirmed, confidence: summaryConfidence },
+        lists: summaryLists,
+        sources: discussion.sources,
+        t,
+      });
+      setPdfState('');
+    } catch {
+      setPdfState('error');
+      window.setTimeout(() => setPdfState(''), 2500);
+    }
+  };
+
+  const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
+  const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
+
   const statusText = (() => {
     if (actionError) return actionError;
     if (isFailed) {
@@ -664,7 +769,9 @@ export default function ChatPage() {
   const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
   return (
-    <div className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''}`}>
+    <div
+      className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
+    >
       <button
         type="button"
         className="debate__panel-toggle"
@@ -751,30 +858,6 @@ export default function ChatPage() {
             </section>
 
             <section className="debate__section">
-              <h2 className="debate__section-title">{t.judges}</h2>
-              <span className="debate__field-label">{t.moderatorModel}</span>
-              <ModelPicker
-                models={models}
-                value={discussion.moderator_model || ''}
-                onChange={(modelId) => saveModels({ moderatorModel: modelId })}
-                disabled={!canEditModels}
-                label={t.moderatorModel}
-                autoLabel={t.autoModel}
-                compact
-              />
-              <span className="debate__field-label">{t.devilModel}</span>
-              <ModelPicker
-                models={models}
-                value={discussion.devil_model || ''}
-                onChange={(modelId) => saveModels({ devilModel: modelId })}
-                disabled={!canEditModels}
-                label={t.devilModel}
-                autoLabel={t.autoModel}
-                compact
-              />
-            </section>
-
-            <section className="debate__section">
               <h2 className="debate__section-title">{d.character}</h2>
               <div className="debate__trait-list">
                 {allTraits.map((trait, index) => {
@@ -792,266 +875,339 @@ export default function ChatPage() {
               </div>
             </section>
 
-            <section className="debate__section debate__section--description">
-              <h2 className="debate__section-title">{d.description}</h2>
-              <textarea
-                className="debate__textarea"
-                value={discussion.question}
-                readOnly
-                tabIndex={-1}
-                aria-label={d.description}
-              />
+            <section className="debate__advanced" ref={advancedRef}>
+              <button
+                type="button"
+                className={`debate__advanced-toggle ${isAdvancedOpen ? 'debate__advanced-toggle--open' : ''}`}
+                onClick={() => setIsAdvancedOpen((open) => !open)}
+                aria-expanded={isAdvancedOpen}
+                aria-haspopup="dialog"
+                aria-controls="chat-advanced"
+              >
+                <span className="debate__advanced-heading">
+                  <span className="debate__section-title">{d.advanced}</span>
+                  {(discussion.moderator_model || discussion.devil_model) && (
+                    <span className="debate__advanced-summary">{d.judgesCustomized}</span>
+                  )}
+                </span>
+                <span className="debate__model-chevron">
+                  <ChevronIcon />
+                </span>
+              </button>
+              {isAdvancedOpen && (
+                <div
+                  id="chat-advanced"
+                  className="debate__advanced-body"
+                  role="dialog"
+                  aria-label={d.advanced}
+                >
+                  <h3 className="debate__advanced-group">{d.advancedGeneral}</h3>
+                  <span className="debate__field-label">{d.moderatorModel}</span>
+                  <ModelPicker
+                    models={models}
+                    value={discussion.moderator_model || ''}
+                    onChange={(modelId) => saveModels({ moderatorModel: modelId })}
+                    disabled={!canEditModels}
+                    label={d.moderatorModel}
+                    autoLabel={d.autoModel}
+                    compact
+                  />
+                  <span className="debate__field-label">{d.devilModel}</span>
+                  <ModelPicker
+                    models={models}
+                    value={discussion.devil_model || ''}
+                    onChange={(modelId) => saveModels({ devilModel: modelId })}
+                    disabled={!canEditModels}
+                    label={d.devilModel}
+                    autoLabel={d.autoModel}
+                    compact
+                  />
+                  <p className="debate__hint">{d.judgesHint}</p>
+                </div>
+              )}
             </section>
           </>
         )}
       </aside>
 
-      <section
-        className="chat__main"
-        ref={mainRef}
-        onScroll={handleMainScroll}
-        aria-busy={isRunning}
-      >
-        {discussion && (
-          <header className="chat__prompt">
-            <div className="chat__toolbar">
-              {isRunning && !isStopped && (
-                <button type="button" className="chat__tool" onClick={handleStop}>
-                  {t.stop}
+      <div className="chat__column" style={{ '--composer-h': `${composerHeight}px` }}>
+        <section
+          className="chat__main"
+          ref={mainRef}
+          onScroll={handleMainScroll}
+          aria-busy={isRunning}
+        >
+          {discussion && (
+            <header className="chat__prompt">
+              <div className="chat__toolbar">
+                {isRunning && !isStopped && (
+                  <button type="button" className="chat__tool" onClick={handleStop}>
+                    {t.stop}
+                  </button>
+                )}
+                {canResume && (
+                  <button type="button" className="chat__tool" onClick={handleResume}>
+                    {t.resume}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="chat__tool chat__tool--danger"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t.deleting : t.delete}
+                </button>
+              </div>
+              <p className="chat__prompt-text">{discussion.question}</p>
+            </header>
+          )}
+
+          {!discussion && (
+            <div className="chat__empty" role="status">
+              {loadError || t.loading}
+              {loadError && (
+                <button type="button" className="chat__advance" onClick={loadDiscussion}>
+                  {t.retry}
                 </button>
               )}
+            </div>
+          )}
+
+          {shownMessages.map((message, index) => {
+            const speakerKey = message.role === 'user' ? 'user' : message.persona_name || message.role;
+            const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
+            const typing = message === typingMessage;
+            const authorName =
+              (message.role === 'ai' && customNames.get(message.persona_slug))
+              || message.persona_name;
+            const replyTo = message.reply_to || '';
+            const stance = message.role === 'ai' ? stanceText(message.stance) : '';
+            const searched = message.search_query || '';
+            const previous = shownMessages[index - 1];
+            const divider = phaseLabel(message);
+            const showDivider =
+              divider
+              && message.role !== 'user'
+              && (!previous || phaseLabel(previous) !== divider);
+            const showEarlyStop =
+              showDivider && message.phase === 'synthesis' && discussion?.early_stop;
+            return (
+              <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
+                {showEarlyStop && (
+                  <p className="chat__notice">{t.earlyStop(discussion.current_round)}</p>
+                )}
+                {showDivider && (
+                  <div className="chat__divider" role="separator">
+                    <span>{divider}</span>
+                  </div>
+                )}
+                <div className={`chat__row chat__row--${side} ${typing ? 'chat__row--enter' : ''}`}>
+                  <span
+                    className="chat__avatar"
+                    style={{ '--avatar': color }}
+                    aria-hidden="true"
+                  >
+                    <AvatarIcon />
+                  </span>
+                  <div className="chat__body">
+                    <div
+                      className={`chat__bubble ${typing ? 'chat__bubble--typing' : ''}`}
+                      style={{ '--bubble': color }}
+                      onClick={typing ? () => setSkipTyping(true) : undefined}
+                      title={typing ? t.skipTyping : undefined}
+                    >
+                      <div className="chat__name">{authorName}</div>
+                      {(replyTo || stance || searched) && (
+                        <div className="chat__meta">
+                          {replyTo && <span className="chat__reply">{t.replyTo(replyTo)}</span>}
+                          {stance && <span className="chat__stance">{t.stanceLabel(stance)}</span>}
+                          {searched && <span className="chat__search">{t.searchedFor(searched)}</span>}
+                        </div>
+                      )}
+                      {typing ? (
+                        <TypewriterText
+                          key={message.id}
+                          text={message.content}
+                          skip={skipTyping}
+                          onProgress={followBottom}
+                          onDone={handleTypingDone}
+                        >
+                          {(visible, isTyping) => (
+                            <MessageText
+                              id={message.id}
+                              content={visible}
+                              sources={sourcesById}
+                              caret={isTyping}
+                            />
+                          )}
+                        </TypewriterText>
+                      ) : (
+                        <MessageText id={message.id} content={message.content} sources={sourcesById} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Fragment>
+            );
+          })}
+
+          {summaryDecision && isFinished && !isRevealing && (
+            <section className="chat__summary" ref={summaryRef} aria-label={t.summary}>
+              {summary?.answer && (
+                <div className="chat__summary-item">
+                  <span className="chat__summary-label">{t.summaryAnswer}</span>
+                  <p>{String(summary.answer)}</p>
+                </div>
+              )}
+              <div className="chat__summary-item">
+                <span className="chat__summary-label">{t.summaryDecision}</span>
+                <p>
+                  <Cited text={summaryDecision} sources={sourcesById} prefix="decision" />
+                </p>
+              </div>
+              {summaryConfirmed === false && summary?.revision && (
+                <div className="chat__summary-item">
+                  <span className="chat__summary-label">{t.summaryRevision}</span>
+                  <p>{String(summary.revision)}</p>
+                </div>
+              )}
+              {(agreement || summaryConfidence !== null) && (
+                <div className="chat__summary-meta">
+                  {agreement && (
+                    <div className="chat__summary-item">
+                      <span className="chat__summary-label">{t.summaryAgreement}</span>
+                      <p>{t.summaryAgreementValue(agreement.agree, agreement.total)}</p>
+                    </div>
+                  )}
+                  {summaryConfidence !== null && (
+                    <div className="chat__summary-item" title={t.summaryConfidenceHint}>
+                      <span className="chat__summary-label">{t.summaryConfidence}</span>
+                      <p>{summaryConfidence}%</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {summaryLists.length > 0 && (
+                <table className="chat__summary-table">
+                  <tbody>
+                    {summaryLists.map(({ key, title, items }) => (
+                      <tr key={key}>
+                        <th scope="row">
+                          <span className="chat__summary-label">{title}</span>
+                        </th>
+                        <td>
+                          <ul>
+                            {items.map((item, itemIndex) => (
+                              <li key={`${key}-${itemIndex}`}>
+                                <Cited text={item} sources={sourcesById} prefix={`${key}-${itemIndex}`} />
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {summary?.recommendation && (
+                <div className="chat__summary-item">
+                  <span className="chat__summary-label">{t.summaryNextStep}</span>
+                  <p>{String(summary.recommendation)}</p>
+                </div>
+              )}
+              <div className="chat__summary-actions">
+                <button
+                  type="button"
+                  className="chat__icon-button"
+                  onClick={handleCopySummary}
+                  aria-label={copyLabel}
+                  title={copyLabel}
+                >
+                  <HugeiconsIcon icon={copyState === 'done' ? Tick02Icon : Copy01Icon} size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="chat__icon-button"
+                  onClick={handleDownloadPdf}
+                  disabled={pdfState === 'busy'}
+                  aria-label={pdfLabel}
+                  title={pdfLabel}
+                >
+                  <HugeiconsIcon
+                    icon={pdfState === 'busy' ? Loading03Icon : Download04Icon}
+                    size={18}
+                    className={pdfState === 'busy' ? 'chat__icon-spin' : undefined}
+                  />
+                </button>
+              </div>
+              {(copyState === 'error' || pdfState === 'error') && (
+                <p className="chat__summary-note" role="alert">
+                  {copyState === 'error' ? t.copyError : t.pdfError}
+                </p>
+              )}
+            </section>
+          )}
+
+          {discussion?.sources?.length > 0 && (
+            <details className="chat__sources">
+              <summary>{`${t.sources} (${discussion.sources.length})`}</summary>
+              <ol>
+                {discussion.sources.map((source) => (
+                  <li key={source.id} value={source.id}>
+                    <a href={source.url} target="_blank" rel="noopener noreferrer">
+                      {source.title}
+                    </a>
+                    <span className="chat__source-meta">
+                      {domainOf(source.url)}
+                      {source.added_by ? ` · ${t.sourceBy(source.added_by)}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+
+          {showThoughtLine && (
+            <ThoughtLine
+              working={isRunning}
+              steps={traceSteps}
+              label={t.advancing}
+              doneLabel={t.thoughtDone}
+              glyph="sparkle"
+              fontSize={16}
+              className="chat__thought"
+            />
+          )}
+
+          {statusText && (
+            <div className="chat__error-block" role="alert" aria-live="polite">
+              <p className="debate__error">{statusText}</p>
               {canResume && (
-                <button type="button" className="chat__tool" onClick={handleResume}>
+                <button type="button" className="chat__advance" onClick={handleResume}>
                   {t.resume}
                 </button>
               )}
-              <button
-                type="button"
-                className="chat__tool chat__tool--danger"
-                onClick={handleDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t.deleting : t.delete}
-              </button>
             </div>
-            <p className="chat__prompt-text">{discussion.question}</p>
-          </header>
-        )}
+          )}
 
-        {!discussion && (
-          <div className="chat__empty" role="status">
-            {loadError || t.loading}
-            {loadError && (
-              <button type="button" className="chat__advance" onClick={loadDiscussion}>
-                {t.retry}
-              </button>
-            )}
-          </div>
-        )}
 
-        {shownMessages.map((message, index) => {
-          const speakerKey = message.role === 'user' ? 'user' : message.persona_name || message.role;
-          const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
-          const typing = message === typingMessage;
-          const authorName =
-            (message.role === 'ai' && customNames.get(message.persona_slug))
-            || message.persona_name;
-          const replyTo = message.reply_to || '';
-          const stance = message.role === 'ai' ? stanceText(message.stance) : '';
-          const searched = message.search_query || '';
-          const previous = shownMessages[index - 1];
-          const divider = phaseLabel(message);
-          const showDivider =
-            divider
-            && message.role !== 'user'
-            && (!previous || phaseLabel(previous) !== divider);
-          const showEarlyStop =
-            showDivider && message.phase === 'synthesis' && discussion?.early_stop;
-          return (
-            <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
-              {showEarlyStop && (
-                <p className="chat__notice">{t.earlyStop(discussion.current_round)}</p>
-              )}
-              {showDivider && (
-                <div className="chat__divider" role="separator">
-                  <span>{divider}</span>
-                </div>
-              )}
-              <div className={`chat__row chat__row--${side} ${typing ? 'chat__row--enter' : ''}`}>
-                <span
-                  className="chat__avatar"
-                  style={{ '--avatar': color }}
-                  aria-hidden="true"
-                >
-                  <AvatarIcon />
-                </span>
-                <div className="chat__body">
-                  <div
-                    className={`chat__bubble ${typing ? 'chat__bubble--typing' : ''}`}
-                    style={{ '--bubble': color }}
-                    onClick={typing ? () => setSkipTyping(true) : undefined}
-                    title={typing ? t.skipTyping : undefined}
-                  >
-                    <div className="chat__name">{authorName}</div>
-                    {(replyTo || stance || searched) && (
-                      <div className="chat__meta">
-                        {replyTo && <span className="chat__reply">{t.replyTo(replyTo)}</span>}
-                        {stance && <span className="chat__stance">{t.stanceLabel(stance)}</span>}
-                        {searched && <span className="chat__search">{t.searchedFor(searched)}</span>}
-                      </div>
-                    )}
-                    {typing ? (
-                      <TypewriterText
-                        key={message.id}
-                        text={message.content}
-                        skip={skipTyping}
-                        onProgress={followBottom}
-                        onDone={handleTypingDone}
-                      >
-                        {(visible, isTyping) => (
-                          <MessageText
-                            id={message.id}
-                            content={visible}
-                            sources={sourcesById}
-                            caret={isTyping}
-                          />
-                        )}
-                      </TypewriterText>
-                    ) : (
-                      <MessageText id={message.id} content={message.content} sources={sourcesById} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Fragment>
-          );
-        })}
-
-        {summaryDecision && isFinished && !isRevealing && (
-          <section className="chat__summary" aria-labelledby="chat-summary-title">
-            <div className="chat__summary-heading">
-              <h2 id="chat-summary-title" className="chat__summary-title">
-                {t.summary}
-              </h2>
-              {summaryConfirmed !== null && (
-                <span
-                  className={`chat__summary-badge ${summaryConfirmed ? '' : 'chat__summary-badge--pending'}`}
-                >
-                  {summaryConfirmed ? t.summaryConfirmed : t.summaryRevised}
-                </span>
-              )}
-            </div>
-            {summary?.answer && (
-              <p className="chat__summary-answer">{String(summary.answer)}</p>
-            )}
-            <p className="chat__summary-decision">
-              <span>{t.summaryDecision}</span>
-              <Cited text={summaryDecision} sources={sourcesById} prefix="decision" />
-            </p>
-            {summaryConfirmed === false && summary?.revision && (
-              <p className="chat__summary-line">
-                <span>{t.summaryRevision}</span>
-                {String(summary.revision)}
-              </p>
-            )}
-            {agreement && (
-              <p className="chat__summary-line">
-                <span>{t.summaryAgreement}</span>
-                {t.summaryAgreementValue(agreement.agree, agreement.total)}
-              </p>
-            )}
-            {summaryConfidence !== null && (
-              <div className="chat__summary-confidence" title={t.summaryConfidenceHint}>
-                <span>{t.summaryConfidence}</span>
-                <div
-                  className="chat__confidence-bar"
-                  role="meter"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={summaryConfidence}
-                  aria-label={t.summaryConfidence}
-                >
-                  <div style={{ width: `${summaryConfidence}%` }} />
-                </div>
-                <strong>{summaryConfidence}%</strong>
-              </div>
-            )}
-            <div className="chat__summary-grid">
-              {summaryLists.map(({ key, title, items }) => (
-                <div key={key} className={`chat__summary-block chat__summary-block--${key}`}>
-                  <h3>{title}</h3>
-                  <ul>
-                    {items.map((item, itemIndex) => (
-                      <li key={`${key}-${itemIndex}`}>
-                        <Cited text={item} sources={sourcesById} prefix={`${key}-${itemIndex}`} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            {summary?.recommendation && (
-              <p className="chat__summary-line chat__summary-next">
-                <span>{t.summaryNextStep}</span>
-                {String(summary.recommendation)}
-              </p>
-            )}
-            <div className="chat__summary-actions">
-              <button type="button" className="chat__tool" onClick={handleCopySummary}>
-                {copyState === 'done'
-                  ? t.copied
-                  : copyState === 'error'
-                    ? t.copyError
-                    : t.copySummary}
-              </button>
-            </div>
-          </section>
-        )}
-
-        {discussion?.sources?.length > 0 && (
-          <details className="chat__sources">
-            <summary>{`${t.sources} (${discussion.sources.length})`}</summary>
-            <ol>
-              {discussion.sources.map((source) => (
-                <li key={source.id} value={source.id}>
-                  <a href={source.url} target="_blank" rel="noopener noreferrer">
-                    {source.title}
-                  </a>
-                  <span className="chat__source-meta">
-                    {domainOf(source.url)}
-                    {source.added_by ? ` · ${t.sourceBy(source.added_by)}` : ''}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </details>
-        )}
-
-        {showThoughtLine && (
-          <ThoughtLine
-            working={isRunning}
-            steps={traceSteps}
-            label={t.advancing}
-            doneLabel={t.thoughtDone}
-            glyph="sparkle"
-            fontSize={16}
-            className="chat__thought"
-          />
-        )}
-
-        {statusText && (
-          <div className="chat__error-block" role="alert" aria-live="polite">
-            <p className="debate__error">{statusText}</p>
-            {canResume && (
-              <button type="button" className="chat__advance" onClick={handleResume}>
-                {t.resume}
-              </button>
-            )}
-          </div>
-        )}
+          <div ref={bottomRef} />
+        </section>
 
         {discussion && (
-          <form className="chat__composer" onSubmit={handleSendNote}>
+          <form className="chat__composer" ref={composerRef} onSubmit={handleSendNote}>
+            {showJump && (
+              <button
+                type="button"
+                className="chat__jump"
+                onClick={handleJumpToDecision}
+                aria-label={summary ? t.jumpToDecision : t.jumpToLatest}
+                title={summary ? t.jumpToDecision : t.jumpToLatest}
+              >
+                <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
+              </button>
+            )}
             {isFinished && (
               <p className="chat__composer-hint">
                 {followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}
@@ -1087,9 +1243,7 @@ export default function ChatPage() {
             </div>
           </form>
         )}
-
-        <div ref={bottomRef} />
-      </section>
+      </div>
     </div>
   );
 }
