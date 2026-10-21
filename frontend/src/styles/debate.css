@@ -1323,9 +1323,19 @@ body:has(.app-shell) {
 .chat__row {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
   max-width: 820px;
+}
+
+/* наступна репліка того ж автора тулиться до попередньої, як у месенджері */
+.chat__row--grouped {
+  margin-top: -14px;
+}
+
+.chat__row--grouped .chat__avatar {
+  visibility: hidden;
+  height: 0;
 }
 
 .chat__row--right {
@@ -1338,6 +1348,7 @@ body:has(.app-shell) {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
+  margin-top: 1px;
   border-radius: 50%;
   background: #414bb2;
   overflow: hidden;
@@ -1352,24 +1363,72 @@ body:has(.app-shell) {
 .chat__body {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  align-items: flex-start;
+  gap: 5px;
   min-width: 0;
-  max-width: min(76%, 720px);
+  max-width: min(90%, 740px);
 }
 
 .chat__row--right .chat__body {
   align-items: flex-end;
 }
 
+/* Бульбашка сіра, колір учасника лише ледь підфарбовує її */
 .chat__bubble {
+  --bubble-base: #f1f1f3;
+  --bubble-tint: 24%;
   position: relative;
-  padding: 14px 17px 16px;
-  border-radius: 8px;
-  background: var(--bubble, #f0f0f0);
-  color: #121212;
+  max-width: 100%;
+  padding: 10px 16px 12px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bubble, #f0f0f0) var(--bubble-tint), var(--bubble-base));
+  color: var(--ink);
   font-size: 1rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  transition: box-shadow 0.3s;
+}
+
+:root[data-theme='dark'] .chat__bubble {
+  --bubble-base: #232327;
+  --bubble-tint: 9%;
+}
+
+/* довгі репліки займають усю ширину одразу — бульбашка не стрибає вшир,
+   поки абзаци з'являються один за одним */
+.chat__bubble--wide {
+  width: 100%;
+}
+
+.chat__bubble--typing {
+  cursor: pointer;
+  animation: chat-bubble-glow 2.6s ease-in-out infinite;
+}
+
+/* поки репліка «пишеться», бульбашку ледь підсвічує колір автора */
+@keyframes chat-bubble-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 35%, transparent),
+      0 6px 22px -14px color-mix(in srgb, var(--bubble) 80%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 75%, transparent),
+      0 10px 30px -12px var(--bubble);
+  }
+}
+
+/* кут біля аватара гостріший — видно, чия це бульбашка */
+.chat__row--left .chat__bubble {
+  border-top-left-radius: 6px;
+}
+
+.chat__row--right .chat__bubble {
+  border-top-right-radius: 6px;
+}
+
+.chat__row--flash .chat__bubble {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bubble) 70%, var(--ink) 20%);
 }
 
 .chat__avatar {
@@ -1410,61 +1469,126 @@ body:has(.app-shell) {
   cursor: not-allowed;
 }
 
-/* «хвостик» біля аватара */
-.chat__bubble::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: 10px;
-  height: 10px;
-  background: inherit;
-}
-
-.chat__row--left .chat__bubble {
-  border-top-left-radius: 0;
-}
-
-.chat__row--left .chat__bubble::before {
-  left: -9px;
-  clip-path: polygon(100% 0, 0 0, 100% 100%);
-}
-
-.chat__row--right .chat__bubble {
-  border-top-right-radius: 0;
-}
-
-.chat__row--right .chat__bubble::before {
-  right: -9px;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.chat__name {
-  margin-bottom: 6px;
-  font-size: 0.9375rem;
-  font-weight: 700;
-}
-
-.chat__meta {
+.chat__head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
-  margin: -2px 0 7px;
+  gap: 4px 8px;
+  min-height: 20px;
+  padding: 0 6px;
 }
 
-.chat__reply {
-  color: rgba(18, 18, 18, 0.58);
-  font-size: 0.75rem;
-  font-weight: 500;
+.chat__row--right .chat__head {
+  flex-direction: row-reverse;
+}
+
+.chat__name {
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .chat__stance {
-  padding: 2px 8px;
+  padding: 1px 8px;
   border-radius: 999px;
-  background: rgba(18, 18, 18, 0.08);
-  color: rgba(18, 18, 18, 0.72);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--muted);
   font-size: 0.6875rem;
   font-weight: 600;
+  line-height: 1.5;
+}
+
+.chat__stance[data-stance='agree'] {
+  background: rgba(47, 158, 107, 0.14);
+  color: #2b8a5e;
+}
+
+.chat__stance[data-stance='disagree'] {
+  background: rgba(201, 58, 98, 0.12);
+  color: #c0395f;
+}
+
+:root[data-theme='dark'] .chat__stance[data-stance='agree'] {
+  background: rgba(111, 211, 163, 0.14);
+  color: #7fdcae;
+}
+
+:root[data-theme='dark'] .chat__stance[data-stance='disagree'] {
+  background: rgba(255, 147, 174, 0.14);
+  color: #ff9db6;
+}
+
+/* Цитата репліки, на яку відповідають: смуга кольору її автора й початок тексту */
+.chat__quote {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: calc(100% + 8px);
+  margin: 0 -4px 8px;
+  padding: 6px 10px 7px 11px;
+  border: 0;
+  border-left: 3px solid color-mix(in srgb, var(--quote, #b4b5ce) 70%, var(--ink) 30%);
+  border-radius: 6px 12px 12px 6px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.chat__quote:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+
+.chat__quote:disabled {
+  cursor: default;
+}
+
+.chat__quote:focus-visible {
+  outline: 2px solid var(--focus, #7f80ac);
+  outline-offset: 1px;
+}
+
+.chat__quote-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: color-mix(in srgb, var(--quote, #b4b5ce) 40%, var(--ink) 60%);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chat__quote-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Пошук джерел — системний рядок посередині, а не репліка учасника */
+.chat__system {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(640px, 100%);
+  padding: 7px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--muted);
+}
+
+.chat__system-icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.chat__system .chat__text {
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 /* Розділювачі фаз і раундів */
@@ -1503,18 +1627,212 @@ body:has(.app-shell) {
   text-align: center;
 }
 
+/* Текст репліки: абзаци, заголовки, списки — у стилі підсумку */
 .chat__text {
-  font-size: 1.0625rem;
-  line-height: 1.65;
-  white-space: pre-line;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
-.chat__text p {
+.chat__text > * {
   margin: 0;
 }
 
-.chat__text p + p {
-  margin-top: 0.85em;
+.chat__text > * + * {
+  margin-top: 0.65em;
+}
+
+.chat__text h4 {
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.chat__text > * + h4 {
+  margin-top: 1.15em;
+}
+
+.chat__text > h4 + * {
+  margin-top: 0.4em;
+}
+
+.chat__text strong {
+  font-weight: 650;
+}
+
+.chat__text :is(ul, ol) {
+  padding-left: 1.3em;
+}
+
+.chat__text li::marker {
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.chat__text li + li {
+  margin-top: 0.3em;
+}
+
+.chat__text hr {
+  height: 1px;
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.chat__text > * + hr,
+.chat__text > hr + * {
+  margin-top: 0.95em;
+}
+
+.chat__text blockquote {
+  padding-left: 12px;
+  border-left: 3px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  color: var(--muted);
+}
+
+.chat__text code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+/* Поява абзацу як у Siri: проявляється з розмиття, «змиваючись» згори донизу.
+   Пункти списку йдуть каскадом. */
+.chat__reveal {
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+  -webkit-mask-size: 100% 250%;
+  mask-size: 100% 250%;
+  animation: chat-reveal 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+ul.chat__reveal,
+ol.chat__reveal {
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+}
+
+/* у пунктів без маски: вона обрізала б маркер, що стоїть за межами пункту */
+.chat__reveal > li {
+  animation: chat-reveal-item 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--item, 0) * 110ms);
+}
+
+@keyframes chat-reveal-item {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(6px);
+  }
+}
+
+@keyframes chat-reveal {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px);
+    -webkit-mask-position: 0 100%;
+    mask-position: 0 100%;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+}
+
+/* «Модель дописує абзац»: два мерехтливі рядки замість наступного абзацу */
+.chat__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 7px 0 5px;
+}
+
+.chat__pending span {
+  height: 9px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink) 7%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 16%, transparent) 50%,
+    color-mix(in srgb, var(--ink) 7%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: chat-shimmer 1.3s linear infinite, chat-pending-in 0.4s ease-out both;
+}
+
+.chat__pending span:first-child {
+  width: min(320px, 100%);
+}
+
+.chat__pending span:last-child {
+  width: min(190px, 70%);
+}
+
+@keyframes chat-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes chat-pending-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* бульбашка плавно тягнеться за новими абзацами */
+.chat__grow {
+  overflow: hidden;
+  transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Під бульбашкою: копіювання й джерела репліки */
+.chat__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-height: 28px;
+  margin: -2px 0 -22px -4px;
+}
+
+.chat__row--right .chat__actions {
+  flex-direction: row-reverse;
+  margin: -2px -4px -22px 0;
+}
+
+/* розгорнуті джерела займають місце в потоці, а не наїжджають на наступне */
+.chat__actions:has(.chat__sources[open]) {
+  margin-bottom: 4px;
+}
+
+.chat__actions .chat__copy {
+  width: 28px;
+  height: 28px;
+  opacity: 0;
+  transition: opacity 0.18s, background 0.18s, color 0.18s;
+}
+
+.chat__row:hover .chat__copy,
+.chat__row:focus-within .chat__copy {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .chat__actions .chat__copy {
+    opacity: 1;
+  }
 }
 
 /* Поява нової репліки: м'який виїзд, далі текст «друкується» */
@@ -1534,31 +1852,17 @@ body:has(.app-shell) {
   }
 }
 
-.chat__bubble--typing {
-  cursor: pointer;
-}
-
-.chat__caret {
-  display: inline-block;
-  width: 2px;
-  height: 1.05em;
-  margin-left: 2px;
-  border-radius: 1px;
-  background: currentColor;
-  vertical-align: -0.15em;
-  animation: chat-caret-blink 0.9s steps(1) infinite;
-}
-
-@keyframes chat-caret-blink {
-  50% {
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .chat__row--enter,
-  .chat__caret {
+  .chat__bubble--typing,
+  .chat__pending span,
+  .chat__reveal,
+  .chat__reveal > li {
     animation: none;
+  }
+
+  .chat__grow {
+    transition: none;
   }
 }
 
@@ -2203,6 +2507,10 @@ body:has(.app-shell) {
     gap: 3px;
   }
 
+  .chat__row--grouped {
+    margin-top: -6px;
+  }
+
   .chat__avatar {
     width: 35px;
     height: 35px;
@@ -2213,19 +2521,17 @@ body:has(.app-shell) {
   }
 
   .chat__body {
-    max-width: calc(100% - 77px);
+    max-width: calc(100% - 40px);
   }
 
   .chat__bubble {
-    padding: 8px 10px;
-    border-radius: 10px;
+    padding: 8px 12px 9px;
+    border-radius: 18px;
     font-size: 0.875rem;
   }
 
-  .chat__name {
-    margin-bottom: 10px;
-    font-size: 0.875rem;
-    font-weight: 600;
+  .chat__quote-text {
+    font-size: 0.75rem;
   }
 
   .chat__text {
@@ -2365,12 +2671,17 @@ body:has(.app-shell) {
 
 /* ---------- Чат: пошук, джерела, уточнення ---------- */
 .chat__search {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(14, 165, 233, 0.14);
-  color: rgba(18, 18, 18, 0.72);
-  font-size: 0.6875rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.chat__search svg {
+  flex-shrink: 0;
 }
 .chat__cite {
   color: inherit;
@@ -2424,6 +2735,26 @@ body:has(.app-shell) {
 
 .chat__sources-icons .chat__source-icon {
   box-shadow: 0 0 0 2px var(--bg, #fff);
+}
+
+.chat__sources--compact {
+  margin-top: 0;
+  font-size: 0.8125rem;
+}
+
+.chat__sources--compact summary {
+  padding: 2px 8px 2px 4px;
+}
+
+.chat__sources--compact[open] {
+  width: min(520px, 100%);
+}
+
+.chat__sources-query {
+  padding: 2px 8px 6px 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
 }
 
 .chat__sources-chevron {

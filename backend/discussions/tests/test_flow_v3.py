@@ -194,7 +194,9 @@ class ConsensusAndOrderTests(Base):
         discussion = self.make()
         self.finish(discussion)
         synthesis = discussion.messages.get(phase=Discussion.Phase.SYNTHESIS)
-        self.assertIn('Що залишилось спірним: Скептик вважає ризик завеликим', synthesis.content)
+        self.assertIn(
+            '### Що лишилось спірним\n\n- Скептик вважає ризик завеликим', synthesis.content
+        )
         self.assertEqual(
             discussion.final_summary['dissenting_points'], ['Скептик вважає ризик завеликим']
         )

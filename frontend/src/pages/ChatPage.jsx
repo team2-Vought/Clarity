@@ -4,9 +4,11 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
   ArrowDown02Icon,
+  ArrowTurnBackwardIcon,
   Copy01Icon,
   Download04Icon,
   Loading03Icon,
+  Search01Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import {
@@ -28,9 +30,11 @@ import {
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
 import ThoughtLine from '../components/ThoughtLine';
-import TypewriterText from '../components/TypewriterText';
+import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
+import ParagraphReveal from '../components/ParagraphReveal';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { citedIds, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 
 const t = uk.chat;
@@ -39,7 +43,9 @@ const d = uk.debate;
 const DEVIL_COLOR = '#fde3c6';
 const USER_COLOR = '#f0f0f0';
 const RESEARCH_COLOR = '#d6eefb';
-const STICK_THRESHOLD = 120;
+const STICK_THRESHOLD = 96;
+// довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
+const WIDE_MESSAGE = 160;
 const JUMP_THRESHOLD = 400;
 // Дискусію виконує сервер; сторінка лише опитує стан.
 const POLL_MS = 2000;
@@ -67,13 +73,6 @@ const AvatarIcon = () => (
     <path d="M7 36c1.2-7.6 6-11.5 13-11.5s11.8 3.9 13 11.5H7Z" fill="#ffffff" />
   </svg>
 );
-
-const splitParagraphs = (content) =>
-  String(content || '')
-    .replace(/\r\n/g, '\n')
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
 
 const listOf = (value) =>
   (Array.isArray(value) ? value : [])
@@ -116,9 +115,9 @@ function SourceFavicon({ url }) {
 }
 
 // Згорнуто — рядок із кількома логотипами, розгорнуто — список посилань
-function SourceList({ sources }) {
+function SourceList({ sources, query = '', compact = false }) {
   return (
-    <details className="chat__sources">
+    <details className={`chat__sources ${compact ? 'chat__sources--compact' : ''}`}>
       <summary>
         <span className="chat__sources-icons" aria-hidden="true">
           {sources.slice(0, 4).map((source) => (
@@ -129,6 +128,7 @@ function SourceList({ sources }) {
         <HugeiconsIcon icon={ArrowDown01Icon} size={14} className="chat__sources-chevron" />
       </summary>
       <ol>
+        {query && <li className="chat__sources-query">{t.searchedFor(query)}</li>}
         {sources.map((source) => (
           <li key={source.id}>
             <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
@@ -144,6 +144,36 @@ function SourceList({ sources }) {
 }
 
 const stanceText = (stance) => (stance ? t.stance[stance] || stance : '');
+const stanceTone = (stance) =>
+  stance === 'згода' ? 'agree' : stance === 'суперечка' ? 'disagree' : 'neutral';
+
+const speakerKeyOf = (message) =>
+  message.role === 'user' ? 'user' : message.persona_name || message.role;
+
+const slugOf = (message) => (message.role === 'user' ? 'user' : message.persona_slug);
+
+// Остання репліка того, кому відповідають, — для цитати над текстом
+const findReplyTarget = (messages, index) => {
+  const message = messages[index];
+  if (!message.reply_to && !message.reply_to_slug) return null;
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const candidate = messages[i];
+    if (message.reply_to_slug ? slugOf(candidate) === message.reply_to_slug
+      : candidate.persona_name === message.reply_to) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+const snippetOf = (content) =>
+  plainText(content).replace(CITATION_RE, '').replace(/\s+/g, ' ').trim().slice(0, 220);
+
+// Джерела, які стосуються репліки: додані її пошуком і процитовані в тексті
+const messageSources = (message, sourcesById) => {
+  const ids = [...(message.source_ids || []), ...citedIds(message.content)];
+  return [...new Set(ids)].map((sourceId) => sourcesById.get(sourceId)).filter(Boolean);
+};
 
 const phaseLabel = (message) => {
   switch (message.phase) {
@@ -184,44 +214,7 @@ const rotate = (list, round) => {
   return [...list.slice(shift), ...list.slice(0, shift)];
 };
 
-function Cited({ text, sources, prefix }) {
-  const parts = String(text).split(CITATION_RE);
-  return parts.map((part, index) => {
-    const match = /^\[(\d+)\]$/.exec(part);
-    const source = match ? sources.get(Number(match[1])) : null;
-    if (!source) return <Fragment key={`${prefix}-${index}`}>{part}</Fragment>;
-    return (
-      <a
-        key={`${prefix}-${index}`}
-        className="chat__cite"
-        href={source.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={source.title}
-      >
-        {part}
-      </a>
-    );
-  });
-}
 
-function MessageText({ id, content, sources, caret = false }) {
-  const paragraphs = splitParagraphs(content);
-  const caretNode = caret ? <span className="chat__caret" aria-hidden="true" /> : null;
-  if (paragraphs.length === 0) {
-    return <div className="chat__text">{content}{caretNode}</div>;
-  }
-  return (
-    <div className="chat__text">
-      {paragraphs.map((paragraph, index) => (
-        <p key={`${id}-${index}`}>
-          <Cited text={paragraph} sources={sources} prefix={`${id}-${index}`} />
-          {index === paragraphs.length - 1 && caretNode}
-        </p>
-      ))}
-    </div>
-  );
-}
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -257,14 +250,17 @@ export default function ChatPage() {
   const discussionRef = useRef(null);
   const kicksRef = useRef(0);
   const progressRef = useRef(0);
-  const bottomRef = useRef(null);
   const mainRef = useRef(null);
   const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const touchYRef = useRef(0);
   const participantListRef = useRef(null);
   const noteRef = useRef(null);
   const composerRef = useRef(null);
   const summaryRef = useRef(null);
   const [showJump, setShowJump] = useState(false);
+  const [flashId, setFlashId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [dismissedHints, setDismissedHints] = useState(() => new Set());
   const advancedRef = useRef(null);
@@ -564,9 +560,12 @@ export default function ChatPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPanelOpen, isAdvancedOpen]);
 
-  const followBottom = useCallback(() => {
-    if (!stickToBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+  // Низ чату — це справжній кінець прокрутки, разом із відступом під полем
+  // вводу. scrollIntoView до останнього елемента зупинявся вище за нього й
+  // смикав чат угору щоразу, коли користувач догортав донизу.
+  const scrollToBottom = useCallback(() => {
+    const el = mainRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
   const handleTypingDone = useCallback(() => {
@@ -575,9 +574,24 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (!stickToBottomRef.current) return;
-    bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-  }, [revealedCount, isRunning, actionError, isStopped, isRevealing]);
+    if (stickToBottomRef.current) scrollToBottom();
+  }, [scrollToBottom, revealedCount, isRunning, actionError, isStopped, isRevealing]);
+
+  // Поки йде генерація, вміст росте плавно (поява абзаців, висота бульбашки),
+  // тож низ відстежується щокадру, а не за окремими подіями.
+  useEffect(() => {
+    if (!isRunning && !isRevealing) return undefined;
+    let frame = 0;
+    const tick = () => {
+      const el = mainRef.current;
+      if (el && stickToBottomRef.current && el.scrollHeight - el.clientHeight - el.scrollTop > 1) {
+        el.scrollTop = el.scrollHeight;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [isRunning, isRevealing]);
 
   // Стрілка «до рішення» з'являється, коли рішення (а поки його немає —
   // кінець чату) опинилося нижче видимої частини, тобто користувач гортав угору.
@@ -593,13 +607,18 @@ export default function ChatPage() {
     setShowJump(el.scrollHeight - el.scrollTop - el.clientHeight > JUMP_THRESHOLD);
   }, [composerHeight]);
 
-  // Програмна прокрутка (плавна теж) не має відв'язувати чат від низу —
-  // відв'язують лише жести користувача, а повертає доскрол до самого низу.
+  // Програмна прокрутка не відв'язує чат від низу — відв'язують лише жести
+  // користувача вгору. Знову прив'язує лише рух донизу до самого кінця:
+  // інакше перший же крок угору біля низу повертав би чат назад.
   const handleMainScroll = () => {
     const el = mainRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distance < STICK_THRESHOLD) stickToBottomRef.current = true;
+    const goingDown = el.scrollTop > lastScrollTopRef.current;
+    lastScrollTopRef.current = el.scrollTop;
+    if (distance <= 1 || (goingDown && distance < STICK_THRESHOLD)) {
+      stickToBottomRef.current = true;
+    }
     updateJump();
   };
 
@@ -609,6 +628,17 @@ export default function ChatPage() {
 
   const handleMainWheel = (e) => {
     if (e.deltaY < 0) releaseBottom();
+  };
+
+  const handleMainTouchStart = (e) => {
+    touchYRef.current = e.touches[0]?.clientY ?? 0;
+  };
+
+  // палець рухається донизу — вміст їде вгору, тобто користувач гортає назад
+  const handleMainTouchMove = (e) => {
+    const y = e.touches[0]?.clientY ?? 0;
+    if (y > touchYRef.current + 2) releaseBottom();
+    touchYRef.current = y;
   };
 
   const handleMainKeyDown = (e) => {
@@ -623,6 +653,37 @@ export default function ChatPage() {
   useEffect(() => {
     updateJump();
   }, [updateJump, messages, isFinished]);
+
+  const handleCopyMessage = async (message) => {
+    try {
+      await navigator.clipboard.writeText(plainText(message.content));
+      setCopiedId(message.id);
+    } catch {
+      setCopiedId(`error-${message.id}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!copiedId) return undefined;
+    const timer = setTimeout(() => setCopiedId(null), 2000);
+    return () => clearTimeout(timer);
+  }, [copiedId]);
+
+  // клік по цитаті веде до репліки, на яку відповідають, і коротко підсвічує її
+  const jumpToMessage = (messageId) => {
+    const target = document.getElementById(`message-${messageId}`);
+    if (!target) return;
+    stickToBottomRef.current = false;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    setFlashId(messageId);
+  };
+
+  useEffect(() => {
+    if (!flashId) return undefined;
+    const timer = setTimeout(() => setFlashId(null), 1600);
+    return () => clearTimeout(timer);
+  }, [flashId]);
 
   const handleJumpToDecision = () => {
     const el = mainRef.current;
@@ -769,7 +830,7 @@ export default function ChatPage() {
     const map = new Map();
     let index = 0;
     (messages || []).forEach((message) => {
-      const key = message.role === 'user' ? 'user' : message.persona_name || message.role;
+      const key = speakerKeyOf(message);
       if (map.has(key)) return;
       if (message.role === 'devil') {
         map.set(key, { color: DEVIL_COLOR, side: 'right' });
@@ -1041,7 +1102,8 @@ export default function ChatPage() {
           ref={mainRef}
           onScroll={handleMainScroll}
           onWheel={handleMainWheel}
-          onTouchMove={releaseBottom}
+          onTouchStart={handleMainTouchStart}
+          onTouchMove={handleMainTouchMove}
           onKeyDown={handleMainKeyDown}
           onPointerDown={handleMainPointerDown}
           aria-busy={isRunning}
@@ -1084,13 +1146,12 @@ export default function ChatPage() {
           )}
 
           {shownMessages.map((message, index) => {
-            const speakerKey = message.role === 'user' ? 'user' : message.persona_name || message.role;
+            const speakerKey = speakerKeyOf(message);
             const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
             const typing = message === typingMessage;
             const authorName =
               (message.role === 'ai' && customNames.get(message.persona_slug))
               || message.persona_name;
-            const replyTo = message.reply_to || '';
             const stance = message.role === 'ai' ? stanceText(message.stance) : '';
             const searched = message.search_query || '';
             const previous = shownMessages[index - 1];
@@ -1101,6 +1162,42 @@ export default function ChatPage() {
               && (!previous || phaseLabel(previous) !== divider);
             const showEarlyStop =
               showDivider && message.phase === 'synthesis' && discussion?.early_stop;
+            // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
+            const grouped =
+              !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
+            const replyTarget = findReplyTarget(shownMessages, index);
+            const replyName = message.reply_to
+              ? customNames.get(message.reply_to_slug) || message.reply_to
+              : '';
+            const replyColor = replyTarget
+              ? speakers.get(speakerKeyOf(replyTarget))?.color
+              : undefined;
+            const text = typing ? (
+              <ParagraphReveal
+                key={message.id}
+                content={message.content}
+                skip={skipTyping}
+                onDone={handleTypingDone}
+              >
+                {(blocks, pending) => (
+                  <MessageMarkdown blocks={blocks} sources={sourcesById} animate>
+                    {pending && (
+                      <span className="chat__pending" aria-hidden="true">
+                        <span />
+                        <span />
+                      </span>
+                    )}
+                  </MessageMarkdown>
+                )}
+              </ParagraphReveal>
+            ) : (
+              <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
+            );
+            const ownSources = typing ? [] : messageSources(message, sourcesById);
+            const copyStatus =
+              copiedId === message.id ? 'done' : copiedId === `error-${message.id}` ? 'error' : '';
+            const copyMessageLabel =
+              copyStatus === 'done' ? t.copied : copyStatus === 'error' ? t.copyError : t.copyMessage;
             return (
               <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
                 {showEarlyStop && (
@@ -1111,52 +1208,102 @@ export default function ChatPage() {
                     <span>{divider}</span>
                   </div>
                 )}
-                <div className={`chat__row chat__row--${side} ${typing ? 'chat__row--enter' : ''}`}>
-                  <span
-                    className="chat__avatar"
-                    style={{ '--avatar': color }}
-                    aria-hidden="true"
+                {message.role === 'research' ? (
+                  <div
+                    className={`chat__system ${typing ? 'chat__row--enter' : ''}`}
+                    onClick={typing ? () => setSkipTyping(true) : undefined}
                   >
-                    <AvatarIcon />
-                  </span>
-                  <div className="chat__body">
-                    <div
-                      className={`chat__bubble ${typing ? 'chat__bubble--typing' : ''}`}
-                      style={{ '--bubble': color }}
-                      onClick={typing ? () => setSkipTyping(true) : undefined}
-                      title={typing ? t.skipTyping : undefined}
+                    <HugeiconsIcon icon={Search01Icon} size={14} className="chat__system-icon" />
+                    {text}
+                  </div>
+                ) : (
+                  <div
+                    id={message.id ? `message-${message.id}` : undefined}
+                    className={[
+                      'chat__row',
+                      `chat__row--${side}`,
+                      grouped && 'chat__row--grouped',
+                      typing && 'chat__row--enter',
+                      flashId && flashId === message.id && 'chat__row--flash',
+                    ].filter(Boolean).join(' ')}
+                  >
+                    <span
+                      className="chat__avatar"
+                      style={{ '--avatar': color }}
+                      aria-hidden="true"
                     >
-                      <div className="chat__name">{authorName}</div>
-                      {(replyTo || stance || searched) && (
-                        <div className="chat__meta">
-                          {replyTo && <span className="chat__reply">{t.replyTo(replyTo)}</span>}
-                          {stance && <span className="chat__stance">{t.stanceLabel(stance)}</span>}
-                          {searched && <span className="chat__search">{t.searchedFor(searched)}</span>}
+                      <AvatarIcon />
+                    </span>
+                    <div className="chat__body">
+                      {!grouped && (
+                        <div className="chat__head">
+                          <span className="chat__name">{authorName}</span>
+                          {stance && (
+                            <span className="chat__stance" data-stance={stanceTone(message.stance)}>
+                              {stance}
+                            </span>
+                          )}
                         </div>
                       )}
-                      {typing ? (
-                        <TypewriterText
-                          key={message.id}
-                          text={message.content}
-                          skip={skipTyping}
-                          onProgress={followBottom}
-                          onDone={handleTypingDone}
-                        >
-                          {(visible, isTyping) => (
-                            <MessageText
-                              id={message.id}
-                              content={visible}
-                              sources={sourcesById}
-                              caret={isTyping}
-                            />
+                      <div
+                        className={[
+                          'chat__bubble',
+                          typing && 'chat__bubble--typing',
+                          (message.content || '').length > WIDE_MESSAGE && 'chat__bubble--wide',
+                        ].filter(Boolean).join(' ')}
+                        style={{ '--bubble': color }}
+                        onClick={typing ? () => setSkipTyping(true) : undefined}
+                        title={typing ? t.skipTyping : undefined}
+                      >
+                        {replyName && (
+                          <button
+                            type="button"
+                            className="chat__quote"
+                            style={replyColor ? { '--quote': replyColor } : undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (replyTarget) jumpToMessage(replyTarget.id);
+                            }}
+                            disabled={!replyTarget}
+                            aria-label={t.jumpToReply(replyName)}
+                          >
+                            <span className="chat__quote-name">
+                              <HugeiconsIcon icon={ArrowTurnBackwardIcon} size={13} />
+                              {replyName}
+                            </span>
+                            {replyTarget && (
+                              <span className="chat__quote-text">{snippetOf(replyTarget.content)}</span>
+                            )}
+                          </button>
+                        )}
+                        {text}
+                      </div>
+                      {!typing && (
+                        <div className="chat__actions">
+                          <button
+                            type="button"
+                            className="chat__icon-button chat__copy"
+                            onClick={() => handleCopyMessage(message)}
+                            aria-label={copyMessageLabel}
+                            title={copyMessageLabel}
+                          >
+                            <HugeiconsIcon icon={copyStatus === 'done' ? Tick02Icon : Copy01Icon} size={16} />
+                          </button>
+                          {ownSources.length > 0 ? (
+                            <SourceList sources={ownSources} query={searched} compact />
+                          ) : (
+                            searched && (
+                              <span className="chat__search" title={t.searchedFor(searched)}>
+                                <HugeiconsIcon icon={Search01Icon} size={12} />
+                                {t.searchedFor(searched)}
+                              </span>
+                            )
                           )}
-                        </TypewriterText>
-                      ) : (
-                        <MessageText id={message.id} content={message.content} sources={sourcesById} />
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
+                )}
               </Fragment>
             );
           })}
@@ -1172,7 +1319,7 @@ export default function ChatPage() {
               <div className="chat__summary-item">
                 <span className="chat__summary-label">{t.summaryDecision}</span>
                 <p>
-                  <Cited text={summaryDecision} sources={sourcesById} prefix="decision" />
+                  <InlineText text={summaryDecision} sources={sourcesById} />
                 </p>
               </div>
               {summaryConfirmed === false && summary?.revision && (
@@ -1209,7 +1356,7 @@ export default function ChatPage() {
                           <ul>
                             {items.map((item, itemIndex) => (
                               <li key={`${key}-${itemIndex}`}>
-                                <Cited text={item} sources={sourcesById} prefix={`${key}-${itemIndex}`} />
+                                <InlineText text={item} sources={sourcesById} />
                               </li>
                             ))}
                           </ul>
@@ -1284,7 +1431,6 @@ export default function ChatPage() {
           )}
 
 
-          <div ref={bottomRef} />
         </section>
 
         {discussion && (

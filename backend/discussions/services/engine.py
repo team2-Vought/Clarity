@@ -1196,95 +1196,94 @@ def _prepare_step(discussion):
 # ---------------------------------------------------------------------------
 
 
-def _join_items(items):
-    """Склеює пункти в одне речення без подвійних розділових знаків."""
-    return '; '.join(item.rstrip(' .;') for item in items if item.rstrip(' .;'))
+def _bullets(items):
+    """Markdown-список: кожен пункт з нового рядка, без хвостових розділових знаків."""
+    return '\n'.join(f'- {item.rstrip(" .;")}' for item in items if item.rstrip(' .;'))
+
+
+def _section(title, body):
+    return f'### {title}\n\n{body}' if body else ''
 
 
 def _moderator_text(best_solution):
     best_solution = best_solution if isinstance(best_solution, dict) else {}
     decision = _text(best_solution.get('decision'), 'рішення не визначено', limit=2000)
     reasoning = _text(best_solution.get('reasoning'), limit=4000)
-    args = _join_items(_text_list(best_solution.get('supporting_arguments'), limit=4))
-    dissent = _join_items(_text_list(best_solution.get('dissenting_points'), limit=4))
-    paragraphs = []
+    args = _bullets(_text_list(best_solution.get('supporting_arguments'), limit=4))
+    dissent = _bullets(_text_list(best_solution.get('dissenting_points'), limit=4))
+    parts = []
     answer = _text(best_solution.get('answer'), limit=200)
     if answer:
-        paragraphs.append(f'Відповідь: {answer}')
-    paragraphs.append(f'Пропоноване рішення: {decision}')
+        parts.append(f'**Відповідь: {answer}**')
+    parts.append(_section('Пропоноване рішення', decision))
     if reasoning:
-        paragraphs.append(reasoning)
-    if args:
-        paragraphs.append(f'Аргументи на користь рішення: {args}.')
-    if dissent:
-        paragraphs.append(f'Що залишилось спірним: {dissent}.')
-    return '\n\n'.join(paragraphs).strip()
+        parts.append(reasoning)
+    parts.append(_section('Аргументи на користь', args))
+    parts.append(_section('Що лишилось спірним', dissent))
+    return '\n\n'.join(part for part in parts if part).strip()
 
 
 def _devil_text(review):
     review = review if isinstance(review, dict) else {}
-    paragraphs = []
+    parts = []
     verdict = _text(review.get('verdict'), limit=1000)
     if verdict:
-        paragraphs.append(verdict)
+        parts.append(f'**{verdict.rstrip()}**')
 
+    risks = []
     for risk in review.get('risks') or []:
         if not isinstance(risk, dict):
             continue
-        title = _text(risk.get('title'), limit=300)
-        description = _text(risk.get('description'), limit=1000)
+        title = _text(risk.get('title'), limit=300).rstrip(' .;')
+        description = _text(risk.get('description'), limit=1000).rstrip(' .;')
         severity = _text(risk.get('severity'), limit=40)
-        details = ' — '.join(
-            part.rstrip(' .;') for part in (title, description) if part
-        )
-        if details:
-            suffix = f' (ризик: {severity})' if severity else ''
-            paragraphs.append(f'{details}{suffix}.')
+        if not (title or description):
+            continue
+        line = f'**{title}** — {description}' if title and description else f'**{title or description}**'
+        if severity:
+            line += f' _(ризик: {severity})_'
+        risks.append(f'- {line}')
+    if risks:
+        parts.append(_section('Ризики', '\n'.join(risks)))
 
-    weak_spots = _text_list(review.get('weak_spots'), limit=3)
-    if weak_spots:
-        paragraphs.append(f'Слабкі місця: {_join_items(weak_spots)}.')
-
-    counter_arguments = _text_list(review.get('counter_arguments'), limit=3)
-    if counter_arguments:
-        paragraphs.append(f'Контраргументи: {_join_items(counter_arguments)}.')
-
-    return '\n\n'.join(paragraphs).strip() or 'AI Devil не знайшов додаткових ризиків.'
+    parts.append(_section('Слабкі місця', _bullets(_text_list(review.get('weak_spots'), limit=3))))
+    parts.append(
+        _section('Контраргументи', _bullets(_text_list(review.get('counter_arguments'), limit=3)))
+    )
+    text = '\n\n'.join(part for part in parts if part).strip()
+    return text or 'AI Devil не знайшов додаткових ризиків.'
 
 
 def _final_text(summary):
     summary = summary if isinstance(summary, dict) else {}
-    paragraphs = []
+    parts = []
     answer = _text(summary.get('answer'), limit=200)
     if answer:
-        paragraphs.append(f'Відповідь: {answer}')
+        parts.append(f'**Відповідь: {answer}**')
 
     decision = _text(summary.get('decision'), 'рішення не визначено', limit=2000)
-    paragraphs.append(f'Фінальне рішення: {decision}')
+    parts.append(_section('Фінальне рішення', decision))
 
     if summary.get('confirmed') is False:
         revision = _text(summary.get('revision'), limit=2000)
-        text = 'Висновок переглянуто після перевірки AI Devil.'
+        text = 'Висновок **переглянуто** після перевірки AI Devil.'
         if revision:
             text = f'{text} Що змінилось: {revision}'
-        paragraphs.append(text)
+        parts.append(text)
     elif summary.get('confirmed') is True:
-        paragraphs.append('Висновок підтверджено після перевірки AI Devil.')
+        parts.append('Висновок **підтверджено** після перевірки AI Devil.')
 
     agreement = summary.get('agreement') or {}
     if agreement.get('total'):
-        paragraphs.append(
-            f'Згода учасників: {agreement.get("agree", 0)} з {agreement["total"]}.'
+        parts.append(
+            f'Згода учасників: **{agreement.get("agree", 0)} з {agreement["total"]}**.'
         )
 
-    dissent = _join_items(_text_list(summary.get('dissenting_points'), limit=4))
-    if dissent:
-        paragraphs.append(f'Окремі думки: {dissent}.')
-
-    recommendation = _text(summary.get('recommendation'), limit=2000)
-    if recommendation:
-        paragraphs.append(f'Що робити далі: {recommendation}')
-    return '\n\n'.join(paragraphs).strip()
+    parts.append(
+        _section('Окремі думки', _bullets(_text_list(summary.get('dissenting_points'), limit=4)))
+    )
+    parts.append(_section('Що робити далі', _text(summary.get('recommendation'), limit=2000)))
+    return '\n\n'.join(part for part in parts if part).strip()
 
 
 def _research_text(queries, added):

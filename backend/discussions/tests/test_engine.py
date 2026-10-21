@@ -606,3 +606,28 @@ class ParseReplyTests(TestCase):
         )
         self.assertEqual(reply['search_query'], 'середня зарплата Київ 2026')
         self.assertEqual(reply['content'], 'Текст.')
+
+
+class StructuredTextTests(TestCase):
+    """Тексти модератора й AI Devil — markdown із заголовками та списками."""
+
+    def test_devil_text_has_sections(self):
+        text = engine._devil_text({
+            'verdict': 'Рішення ризиковане',
+            'risks': [{'title': 'Касовий розрив', 'description': 'грошей на 3 місяці.', 'severity': 'висока'}],
+            'weak_spots': ['Немає плану Б.'],
+            'counter_arguments': [],
+        })
+        self.assertTrue(text.startswith('**Рішення ризиковане**'))
+        self.assertIn('### Ризики\n\n- **Касовий розрив** — грошей на 3 місяці _(ризик: висока)_', text)
+        self.assertIn('### Слабкі місця\n\n- Немає плану Б', text)
+        self.assertNotIn('Контраргументи', text)
+
+    def test_markdown_reply_keeps_formatting_and_plain_thesis(self):
+        reply = engine.parse_reply(
+            '**Не варто** переходити зараз.\n\n- ризик перший\n- ризик другий\n\nПОЗИЦІЯ: суперечка',
+            Discussion.Mode.OPEN,
+            [],
+        )
+        self.assertIn('- ризик перший\n- ризик другий', reply['content'])
+        self.assertEqual(reply['thesis'], 'Не варто переходити зараз.')
