@@ -6,6 +6,7 @@ import {
   ArrowUpIcon,
   ChevronIcon,
   CloseIcon,
+  PanelIcon,
   PlusIcon,
   UserPlusIcon,
 } from '../components/DebateIcons';
@@ -73,6 +74,8 @@ export default function DebatePage() {
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
   const [maxRounds, setMaxRounds] = useState(3);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -218,6 +221,15 @@ export default function DebatePage() {
       el.scrollBy({ left: activeRect.right - listRect.right + 4, behavior: 'smooth' });
     }
   }, [activeSlug, participants.length, scrollState.overflow]);
+
+  useEffect(() => {
+    if (!isPanelOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isAdvancedOpen) setIsPanelOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPanelOpen, isAdvancedOpen]);
 
   useEffect(() => {
     if (!isAdvancedOpen) return undefined;
@@ -475,8 +487,30 @@ export default function DebatePage() {
   };
 
   return (
-    <form className="debate-page" ref={formRef} onSubmit={handleStart} noValidate>
-      <div className="debate__form-panel">
+    <form
+      className={`debate-page ${isPanelOpen ? 'debate-page--panel-open' : ''}`}
+      ref={formRef}
+      onSubmit={handleStart}
+      noValidate
+    >
+      <button
+        type="button"
+        className="debate__panel-toggle"
+        onClick={() => setIsPanelOpen(true)}
+        aria-label={t.openSettings}
+        aria-expanded={isPanelOpen}
+        aria-controls="debate-settings"
+      >
+        <PanelIcon />
+      </button>
+      {isPanelOpen && (
+        <div
+          className="debate__panel-backdrop"
+          onClick={() => setIsPanelOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <div className="debate__form-panel" id="debate-settings">
         <section className="debate__section">
           <h2 className="debate__section-title">{t.participants}</h2>
           <div className="debate__participant-row">

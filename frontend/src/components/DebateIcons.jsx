@@ -66,3 +66,9 @@ export const CloseIcon = () => (
     />
   </svg>
 );
+
+export const PanelIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 8h16M4 15h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);

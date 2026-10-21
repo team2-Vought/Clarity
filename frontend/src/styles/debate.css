@@ -42,26 +42,6 @@
   background: var(--panel);
 }
 
-.app-shell__topbar {
-  display: none;
-  align-items: center;
-  height: 52px;
-  padding: 0 12px;
-  background: var(--panel);
-}
-
-.app-shell__burger {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-}
-
 .app-shell__backdrop {
   position: fixed;
   inset: 0;
@@ -1748,6 +1728,13 @@
 
 }
 
+@media (min-width: 640px) and (max-width: 1100px) {
+  /* планшет: смуга іконок ширша, як у макеті */
+  .app-shell {
+    --rail-w: 68px;
+  }
+}
+
 @media (max-width: 900px) {
   .debate-page {
     grid-template-columns: 240px minmax(0, 1fr);
@@ -1760,83 +1747,135 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Кнопка «≡» і затемнення висувної панелі існують лише на телефоні */
+.debate__panel-toggle,
+.debate__panel-backdrop {
+  display: none;
+}
+
+/* Телефон: смуга іконок — заокруглена картка зліва, панель налаштувань
+   (і бічна панель чату) — висувна, відкривається кнопкою «≡». */
+@media (max-width: 639px) {
   .app-shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    --rail-w: 52px;
+    grid-template-columns: calc(var(--rail-w) + 12px) minmax(0, 1fr);
   }
 
-  .app-shell__topbar {
-    display: flex;
-  }
-
-  /* сайдбар стає висувною шухлядою */
   .app-shell__rail {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 100;
-    width: 0;
-    background: transparent;
+    background: var(--main-bg);
   }
 
-  .sidebar {
-    width: 240px;
-    transform: translateX(-100%);
+  .sidebar.sidebar--collapsed {
+    inset: 12px auto 12px 12px;
+    border-radius: 18px;
+    padding: 12px 0;
+  }
+
+  .sidebar--collapsed .sidebar__nav,
+  .sidebar--collapsed .sidebar__controls {
+    padding-left: 6px;
+    padding-right: 6px;
   }
 
   .sidebar:not(.sidebar--collapsed) {
-    transform: none;
+    width: min(260px, 82vw);
   }
 
-  /* на мобільних спершу поле промпту, під ним налаштування;
-     скролиться вся сторінка */
   .debate-page {
-    display: flex;
-    flex: none;
-    flex-direction: column;
-    overflow: visible;
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .debate__form-panel {
-    overflow: visible;
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    width: min(300px, calc(100% - 36px));
+    padding: 16px 14px;
     background: var(--panel);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.16);
+    visibility: hidden;
+    transform: translateX(calc(-100% - 40px));
+    transition: transform 0.22s ease, visibility 0s linear 0.22s;
+  }
+
+  .debate-page--panel-open .debate__form-panel {
+    visibility: visible;
+    transform: none;
+    transition: transform 0.22s ease;
+  }
+
+  .debate__panel-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 55;
+    background: color-mix(in srgb, var(--main-bg) 55%, transparent);
+    backdrop-filter: blur(2px);
+  }
+
+  /* смуга під кнопкою «≡»: прокручений текст не налазить на неї */
+  .debate-page::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 25;
+    height: 58px;
+    background: linear-gradient(var(--main-bg) 78%, transparent);
+    pointer-events: none;
+  }
+
+  .debate__panel-toggle {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 10px;
+    left: 4px;
+    z-index: 30;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: var(--main-bg);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .debate__panel-toggle svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .debate__panel-toggle:focus-visible {
+    outline: 2px solid var(--focus, #7f80ac);
   }
 
   .debate__main {
-    order: -1;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 28px 16px 24px;
-    overflow: visible;
+    padding: 56px 12px 16px 8px;
   }
 
   .debate__hero {
     margin-bottom: 8px;
   }
 
-  /* сторінка скролиться цілком — липка кнопка тут лише заважала б */
-  .debate__advanced {
-    position: relative;
-    margin-top: 4px;
-    box-shadow: none;
-  }
-
   .chat__main {
-    gap: 26px;
-    padding: 24px 16px 30px;
-    overflow: visible;
+    gap: 22px;
+    padding: 56px 12px 0 8px;
   }
 
   .chat__body {
-    max-width: calc(100% - 48px);
-  }
-
-  .chat-page .chat__main {
-    order: -1;
+    max-width: calc(100% - 44px);
   }
 
   .chat__summary {
     padding: 16px;
+  }
+
+  .chat__composer {
+    bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 12px;
   }
 }
 

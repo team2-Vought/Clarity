@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   deleteDiscussion,
@@ -10,7 +10,7 @@ import {
   stopDiscussion,
   updateDiscussion,
 } from '../api/discussions';
-import { ArrowUpIcon, ChevronIcon, UserPlusIcon } from '../components/DebateIcons';
+import { ArrowUpIcon, ChevronIcon, PanelIcon, UserPlusIcon } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
 import ThoughtLine from '../components/ThoughtLine';
 import TypewriterText from '../components/TypewriterText';
@@ -156,6 +156,8 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pollTick, setPollTick] = useState(0);
+  // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
   // навіть якщо паралельний крок приніс кілька одразу.
   const [revealedCount, setRevealedCount] = useState(0);
@@ -167,6 +169,7 @@ export default function ChatPage() {
   const mainRef = useRef(null);
   const stickToBottomRef = useRef(true);
   const participantListRef = useRef(null);
+  const noteRef = useRef(null);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
@@ -416,6 +419,23 @@ export default function ChatPage() {
     return () => clearTimeout(timer);
   }, [pendingMessage]);
 
+  // Поле уточнення росте разом із текстом; після max-height з'являється скрол.
+  useLayoutEffect(() => {
+    const el = noteRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [note, isFinished]);
+
+  useEffect(() => {
+    if (!isPanelOpen) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsPanelOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isPanelOpen]);
+
   const followBottom = useCallback(() => {
     if (!stickToBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
@@ -644,8 +664,25 @@ export default function ChatPage() {
   const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
   return (
-    <div className="debate-page chat-page">
-      <aside className="debate__form-panel chat__sidebar">
+    <div className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''}`}>
+      <button
+        type="button"
+        className="debate__panel-toggle"
+        onClick={() => setIsPanelOpen(true)}
+        aria-label={d.openSettings}
+        aria-expanded={isPanelOpen}
+        aria-controls="chat-settings"
+      >
+        <PanelIcon />
+      </button>
+      {isPanelOpen && (
+        <div
+          className="debate__panel-backdrop"
+          onClick={() => setIsPanelOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside className="debate__form-panel chat__sidebar" id="chat-settings">
         {discussion && (
           <>
             <section className="debate__section">
@@ -1022,6 +1059,7 @@ export default function ChatPage() {
             )}
             <div className="debate__composer chat__composer-box">
               <textarea
+                ref={noteRef}
                 className="debate__composer-input"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}

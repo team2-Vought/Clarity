@@ -162,6 +162,7 @@ export const uk = {
     minParticipants: 'Потрібно щонайменше два учасники',
     tooLong: 'Опис задовгий (максимум 6000 символів)',
     role: 'Роль',
+    openSettings: 'Налаштування дебату',
     roleTaken: 'Цю роль уже має інший учасник',
     webSearch: 'Пошук в інтернеті',
     webSearchLabel: (provider) => `Моделі можуть шукати факти (${provider})`,
