@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, time, timedelta
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Discussion
+from .models import Discussion, Message
 from .personas import (
     DEVIL,
     MAX_AI,
@@ -131,9 +131,16 @@ class DiscussionListCreateView(APIView):
     throttle_scope = 'discussion_create'
 
     def get(self, request):
+        # остання репліка учасників — прев'ю для дискусій, що ще не мають рішення
+        last_reply = (
+            Message.objects.filter(discussion=OuterRef('pk'))
+            .exclude(role__in=[Message.Role.USER, Message.Role.RESEARCH])
+            .order_by('-seq')
+            .values('content')[:1]
+        )
         queryset = (
             Discussion.objects.filter(user=request.user)
-            .annotate(message_count=Count('messages'))
+            .annotate(message_count=Count('messages'), last_reply=Subquery(last_reply))
             .order_by('-created_at')[:50]
         )
         serializer = DiscussionListSerializer(queryset, many=True)

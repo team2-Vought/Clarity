@@ -377,6 +377,39 @@ class DiscussionApiTests(TestCase):
         response = self.client.get('/api/discussions/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
+
+    def test_list_preview_prefers_decision_then_last_reply(self):
+        self.auth()
+        base = {'user': self.user, 'personas': ['logician', 'skeptic']}
+        decided = Discussion.objects.create(
+            question='Купити чи орендувати?',
+            final_summary={'decision': '**Орендувати** ще   два роки.'},
+            **base,
+        )
+        running = Discussion.objects.create(question='Чи вчити Rust?', **base)
+        message = {
+            'phase': Discussion.Phase.OPENING,
+            'persona_slug': 'logician',
+            'persona_name': 'Логік',
+            'avatar': 'L',
+        }
+        Message.objects.create(
+            discussion=running, seq=1, role=Message.Role.AI, content='Перша думка', **message
+        )
+        Message.objects.create(
+            discussion=running, seq=2, role=Message.Role.AI, content='Остання думка', **message
+        )
+        Message.objects.create(
+            discussion=running, seq=3, role=Message.Role.USER, content='Питання від мене', **message
+        )
+        empty = Discussion.objects.create(question='Нова дискусія без реплік', **base)
+
+        response = self.client.get('/api/discussions/')
+        previews = {item['id']: item['preview'] for item in response.data['results']}
+        self.assertEqual(previews[str(decided.id)], 'Орендувати ще два роки.')
+        self.assertEqual(previews[str(running.id)], 'Остання думка')
+        self.assertEqual(previews[str(empty.id)], '')
+
     def test_question_keeps_line_breaks(self):
         self.auth()
         response = self.client.post(

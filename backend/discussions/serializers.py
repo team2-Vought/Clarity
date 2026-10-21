@@ -381,8 +381,22 @@ class DiscussionSerializer(serializers.ModelSerializer):
         ]
 
 
+PREVIEW_LIMIT = 240
+# розмітка markdown у прев'ю не потрібна — лишаємо чистий текст
+PREVIEW_MARKUP = re.compile(r'[*_`#>~]+|\[(?=[^\]]*\]\()|\]\([^)]*\)')
+
+
+def _preview(text):
+    text = PREVIEW_MARKUP.sub('', text or '')
+    text = ' '.join(text.split())
+    if len(text) <= PREVIEW_LIMIT:
+        return text
+    return text[:PREVIEW_LIMIT].rsplit(' ', 1)[0] + '…'
+
+
 class DiscussionListSerializer(serializers.ModelSerializer):
     message_count = serializers.IntegerField(read_only=True)
+    preview = serializers.SerializerMethodField()
 
     class Meta:
         model = Discussion
@@ -394,6 +408,19 @@ class DiscussionListSerializer(serializers.ModelSerializer):
             'status',
             'phase',
             'message_count',
+            'preview',
             'created_at',
             'finished_at',
         ]
+
+    def get_preview(self, obj):
+        """Фрагмент відповіді: фінальне рішення, інакше остання репліка або помилка."""
+        for source in (obj.final_summary, obj.best_solution):
+            if isinstance(source, dict) and source.get('decision'):
+                return _preview(source['decision'])
+        last_reply = getattr(obj, 'last_reply', None)
+        if last_reply:
+            return _preview(last_reply)
+        if obj.status == Discussion.Status.FAILED:
+            return _preview(obj.error_public)
+        return ''
