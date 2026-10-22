@@ -848,6 +848,28 @@ body:has(.app-shell) {
   color: var(--ink);
 }
 
+/* після старту дискусії режим лише видно: пункти сірі й не обираються */
+.debate__mode-picker--locked .debate__mode-item {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.debate__mode-picker--locked .debate__mode-item:hover {
+  background: transparent;
+}
+
+/* у чаті поле внизу екрана — меню відкривається вгору */
+.chat__composer-box .debate__mode-menu {
+  top: auto;
+  bottom: calc(100% + 10px);
+  transform: translateY(6px) scale(0.98);
+  transform-origin: bottom left;
+}
+
+.chat__composer-box .debate__mode-menu--open {
+  transform: none;
+}
+
 /* під полем лишаються тільки варіанти для режиму «Один із варіантів» */
 .debate__mode-bar {
   display: flex;
@@ -3441,6 +3463,15 @@ ol.chat__reveal {
   .chat__composer-box {
     padding: 8px 8px 8px 12px;
     border-radius: 10px;
+  }
+
+  .chat__composer-box .debate__mode-button {
+    margin-left: -4px;
+  }
+
+  .chat__composer-box .debate__mode-menu {
+    left: -4px;
+    width: min(300px, calc(100vw - 104px));
   }
 
   /* на вузькому екрані лічильник лише забирав би місце в рядку */

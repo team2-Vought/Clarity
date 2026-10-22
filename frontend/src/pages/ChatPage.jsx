@@ -35,6 +35,7 @@ import {
   CloseIcon,
   StopIcon,
 } from '../components/DebateIcons';
+import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
@@ -1633,6 +1634,8 @@ export default function ChatPage() {
               </p>
             )}
             <div className="debate__composer chat__composer-box">
+              {/* режим видно, але після старту дискусії його вже не змінити */}
+              <ModePicker value={discussion.mode} locked />
               <textarea
                 ref={noteRef}
                 className="debate__composer-input"

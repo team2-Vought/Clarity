@@ -5,12 +5,8 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   BookmarkAdd01Icon,
-  BubbleChatIcon,
-  CheckmarkCircle02Icon,
   Delete02Icon,
-  LeftToRightListBulletIcon,
   PencilEdit02Icon,
-  Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import {
   createDiscussion,
@@ -26,6 +22,7 @@ import {
   CloseIcon,
   PlusIcon,
 } from '../components/DebateIcons';
+import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import { uk } from '../copy/uk';
@@ -90,11 +87,6 @@ const customTraitsOf = (list) => [
 // інакше після перестановки учасників номер не збігався б з позицією
 const isDefaultName = (name) => /^Учасник \d+$/.test(name || '');
 
-const MODES = [
-  { value: 'yes_no', label: t.modeYesNo, icon: CheckmarkCircle02Icon },
-  { value: 'choose_one', label: t.modeChooseOne, icon: LeftToRightListBulletIcon },
-  { value: 'open', label: t.modeOpen, icon: BubbleChatIcon },
-];
 const MAX_OPTIONS = 8;
 const OPTION_LETTERS = 'ABCDEFGH';
 
@@ -146,7 +138,6 @@ export default function DebatePage() {
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
   const [maxRounds, setMaxRounds] = useState(3);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
@@ -167,7 +158,6 @@ export default function DebatePage() {
 
   const allTraits = [...TRAITS, ...customTraits];
   const advancedRef = useRef(null);
-  const modeMenuRef = useRef(null);
   const panelRef = useRef(null);
   const formRef = useRef(null);
   const questionRef = useRef(null);
@@ -323,17 +313,6 @@ export default function DebatePage() {
     };
   }, [isAdvancedOpen]);
 
-  useEffect(() => {
-    if (!isModeMenuOpen) return undefined;
-    // фокус на вибраний пункт, щоб стрілками й Enter можна було обрати одразу
-    modeMenuRef.current?.querySelector('[aria-checked="true"]')?.focus();
-    const handleMouseDown = (e) => {
-      if (!modeMenuRef.current?.contains(e.target)) setIsModeMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [isModeMenuOpen]);
-
   const updateActiveParticipant = (updater) => {
     setParticipants((prev) =>
       prev.map((p) =>
@@ -389,33 +368,6 @@ export default function DebatePage() {
   const toggleAdvanced = () => {
     setIsAdvancedOpen((open) => !open);
     panelRef.current?.scrollTo({ top: 0 });
-  };
-
-  const currentMode = MODES.find((item) => item.value === mode) || MODES[0];
-
-  // Формат відповіді — меню з кнопки ліворуч у полі питання
-  const closeModeMenu = (returnFocus = false) => {
-    setIsModeMenuOpen(false);
-    if (returnFocus) modeMenuRef.current?.querySelector('.debate__mode-button')?.focus();
-  };
-
-  const chooseMode = (value) => {
-    handleModeChange(value);
-    setIsModeMenuOpen(false);
-    questionRef.current?.focus();
-  };
-
-  const handleModeMenuKeyDown = (e) => {
-    const items = [...e.currentTarget.querySelectorAll('[role="menuitemradio"]')];
-    const index = items.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      items[(index + step + items.length) % items.length]?.focus();
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
-      if (e.key === 'Escape') e.preventDefault();
-      closeModeMenu(e.key === 'Escape');
-    }
   };
 
   const handleModeChange = (nextMode) => {
@@ -1035,58 +987,12 @@ export default function DebatePage() {
             if (e.target === e.currentTarget) questionRef.current?.focus();
           }}
         >
-          <div className="debate__mode-picker" ref={modeMenuRef}>
-            <button
-              type="button"
-              className={`debate__mode-button ${isModeMenuOpen ? 'debate__mode-button--open' : ''}`}
-              onClick={() => setIsModeMenuOpen((open) => !open)}
-              aria-haspopup="menu"
-              aria-expanded={isModeMenuOpen}
-              aria-label={t.modeButton(currentMode.label)}
-              title={currentMode.label}
-              disabled={isCreating}
-            >
-              <HugeiconsIcon icon={currentMode.icon} size={19} strokeWidth={1.8} aria-hidden="true" />
-            </button>
-            <div
-              className={`debate__mode-menu ${isModeMenuOpen ? 'debate__mode-menu--open' : ''}`}
-              role="menu"
-              aria-label={t.mode}
-              inert={!isModeMenuOpen}
-              onKeyDown={handleModeMenuKeyDown}
-            >
-              <p className="debate__mode-menu-title" aria-hidden="true">{t.mode}</p>
-              {MODES.map((item) => {
-                const active = mode === item.value;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    className={`debate__mode-item ${active ? 'debate__mode-item--active' : ''}`}
-                    onClick={() => chooseMode(item.value)}
-                  >
-                    <span className="debate__mode-item-icon" aria-hidden="true">
-                      <HugeiconsIcon icon={item.icon} size={17} strokeWidth={1.8} />
-                    </span>
-                    <span className="debate__mode-item-text">
-                      <span>{item.label}</span>
-                      <small>{t.modeHints[item.value]}</small>
-                    </span>
-                    {active && (
-                      <HugeiconsIcon
-                        icon={Tick02Icon}
-                        size={16}
-                        className="debate__mode-item-check"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <ModePicker
+            value={mode}
+            onChange={handleModeChange}
+            onChosen={() => questionRef.current?.focus()}
+            disabled={isCreating}
+          />
           <textarea
             ref={questionRef}
             className="debate__composer-input"
