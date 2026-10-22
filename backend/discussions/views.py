@@ -41,6 +41,34 @@ def _retry_after_seconds():
     return max(1, int((tomorrow - now).total_seconds()))
 
 
+HISTORY_PAGE_SIZE = 30
+HISTORY_PAGE_MAX = 100
+SEARCH_QUERY_MAX = 200
+
+
+def _int_param(request, name, default):
+    try:
+        return max(0, int(request.query_params.get(name, default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _matching_ids(queryset, query):
+    """Пошук у запитанні й рішенні без урахування регістру.
+
+    LIKE у SQLite ігнорує регістр лише для латиниці, тож «чи» не знайшло б
+    «Чи». Дискусій у користувача небагато (денний ліміт), тому порівнюємо
+    casefold у Python.
+    """
+    needle = query.casefold()
+    ids = []
+    for pk, question, summary in queryset.values_list('pk', 'question', 'final_summary'):
+        decision = summary.get('decision', '') if isinstance(summary, dict) else ''
+        if needle in (question or '').casefold() or needle in str(decision).casefold():
+            ids.append(pk)
+    return ids
+
+
 def _discussion_state(discussion):
     return {
         'id': discussion.id,
@@ -145,13 +173,26 @@ class DiscussionListCreateView(APIView):
             .order_by('-seq')
             .values('content')[:1]
         )
-        queryset = (
-            Discussion.objects.filter(user=request.user)
-            .annotate(message_count=Count('messages'), last_reply=Subquery(last_reply))
-            .order_by('-created_at')[:50]
+        queryset = Discussion.objects.filter(user=request.user)
+        status_filter = request.query_params.get('status', '')
+        if status_filter in Discussion.Status.values:
+            queryset = queryset.filter(status=status_filter)
+        query = ' '.join(request.query_params.get('q', '').split())[:SEARCH_QUERY_MAX]
+        if query:
+            queryset = queryset.filter(pk__in=_matching_ids(queryset, query))
+        offset = _int_param(request, 'offset', 0)
+        limit = min(_int_param(request, 'limit', HISTORY_PAGE_SIZE) or HISTORY_PAGE_SIZE, HISTORY_PAGE_MAX)
+        total = queryset.count()
+        page = (
+            queryset.annotate(message_count=Count('messages'), last_reply=Subquery(last_reply))
+            .order_by('-created_at')[offset:offset + limit]
         )
-        serializer = DiscussionListSerializer(queryset, many=True)
-        return Response({'results': serializer.data}, status=status.HTTP_200_OK)
+        serializer = DiscussionListSerializer(page, many=True)
+        next_offset = offset + limit if offset + limit < total else None
+        return Response(
+            {'results': serializer.data, 'total': total, 'next_offset': next_offset},
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request):
         if usage.over_discussion_limit(request.user):

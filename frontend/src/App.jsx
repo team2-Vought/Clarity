@@ -12,7 +12,7 @@ import './styles/history.css';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const HomePage = lazy(() => import('./pages/DebatePage'));
+const DebatePage = lazy(() => import('./pages/DebatePage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
@@ -38,7 +38,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route element={<Layout />}>
-              <Route path="/home" element={<HomePage />} />
+              <Route path="/home" element={<DebatePage />} />
               <Route path="/chat/:id" element={<ChatPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/history" element={<HistoryPage />} />

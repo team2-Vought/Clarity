@@ -193,6 +193,13 @@ body:has(.app-shell) {
   background: rgba(244, 244, 244, 0.08);
 }
 
+.sidebar__control[aria-disabled='true'],
+.sidebar__control[aria-disabled='true']:hover {
+  background: transparent;
+  opacity: 0.45;
+  cursor: default;
+}
+
 .sidebar__item--active,
 .sidebar__item--active:hover {
   background: var(--peach, #feedd5);
@@ -411,11 +418,23 @@ body:has(.app-shell) {
   }
 }
 
-.debate__participant-label {
+.debate__participant-label,
+.debate__participant-meta {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* роль і модель під ім'ям — видно склад команди, не відкриваючи кожну картку */
+.debate__participant-meta {
+  margin-top: -3px;
+  font-size: 0.6875rem;
+  opacity: 0.75;
+}
+
+.debate__participant-meta:empty {
+  display: none;
 }
 
 .debate__participant-input {
@@ -1220,6 +1239,45 @@ body:has(.app-shell) {
   width: min(760px, 100%);
 }
 
+/* Формат відповіді під полем питання: головний вибір, а не прихований параметр */
+.debate__mode-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(760px, 100%);
+}
+
+.debate__mode-list--main {
+  justify-content: center;
+}
+
+.debate__mode-list--main .debate__mode-chip {
+  padding: 8px 14px;
+  font-size: 0.8125rem;
+}
+
+.debate__mode-bar .debate__options {
+  align-items: center;
+  width: min(420px, 100%);
+}
+
+.debate__mode-bar .debate__option-list {
+  justify-content: center;
+}
+
+.debate__mode-bar .debate__option-input {
+  width: 100%;
+}
+
+.debate__estimate {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .debate__title {
   margin: 0;
   font-size: clamp(1.875rem, 4vw, 2.625rem);
@@ -1456,6 +1514,101 @@ body:has(.app-shell) {
 .chat__name {
   color: var(--ink);
   font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.chat__avatar-emoji {
+  font-size: 17px;
+  line-height: 1;
+}
+
+/* модель, яка написала репліку: дрібно, щоб не змагатися з ім'ям */
+.chat__model {
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+
+.chat__thesis {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.chat__thesis p {
+  margin: 0;
+}
+
+.chat__expand {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.chat__expand:hover {
+  color: var(--ink);
+}
+
+/* Карта позицій: хто що думав на кожному етапі */
+.chat__positions {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.chat__positions table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat__positions th,
+.chat__positions td {
+  padding: 5px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.chat__positions thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.chat__positions tbody th {
+  max-width: 96px;
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.chat__positions td {
+  max-width: 90px;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+}
+
+.chat__positions td[data-tone='agree'] {
+  color: #2f9e6b;
+}
+
+.chat__positions td[data-tone='disagree'] {
+  color: var(--error, #c93a62);
+}
+
+.chat__position--changed {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--peach, #feedd5) 80%, transparent);
+  color: #121212;
   font-weight: 600;
 }
 
@@ -2990,6 +3143,23 @@ ol.chat__reveal {
 .chat__composer-box {
   width: min(760px, 100%);
 }
+.chat__reveal-all {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--main-bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.chat__reveal-all:hover {
+  background: color-mix(in srgb, var(--ink) 6%, var(--main-bg));
+}
+
 /* власний фон: напис лежить поверх тексту повідомлень, що прокручуються */
 .chat__composer-hint {
   display: flex;

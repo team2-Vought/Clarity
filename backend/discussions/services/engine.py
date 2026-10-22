@@ -111,6 +111,8 @@ class StepPlan:
     json_kind: str | None = None
     fallback_models: list = field(default_factory=list)
     can_search: bool = False
+    # модель, яка справді відповіла (судді можуть перейти на запасну)
+    used_model: str = ''
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +416,7 @@ def _add_message(
     stance='',
     search_query='',
     source_ids=None,
+    model_id='',
 ):
     return Message.objects.create(
         discussion=discussion,
@@ -432,6 +435,7 @@ def _add_message(
         stance=stance,
         search_query=search_query[:300],
         source_ids=source_ids or [],
+        model_id=model_id[:120],
     )
 
 
@@ -838,7 +842,7 @@ def _run_json_plan(plan, provider_factory, discussion):
     last_error = None
     for model_id in models:
         try:
-            return model_id, _complete_json(provider_factory, plan, model_id, mode, options)
+            data = _complete_json(provider_factory, plan, model_id, mode, options)
         except EngineError as exc:
             if exc.code not in {'provider_error', 'provider_config', 'empty_response'}:
                 raise
@@ -847,6 +851,9 @@ def _run_json_plan(plan, provider_factory, discussion):
                 'Judge model failed, trying fallback',
                 extra={'model': model_id, 'kind': plan.json_kind},
             )
+            continue
+        plan.used_model = model_id
+        return model_id, data
     raise last_error
 
 
@@ -1542,6 +1549,7 @@ def _store(discussion, plan, payload, personas):
             stance=payload['stance'],
             search_query=payload.get('search_query', ''),
             source_ids=added,
+            model_id=plan.used_model or plan.model_id,
         )
     search_query = ''
     added = []
@@ -1571,6 +1579,7 @@ def _store(discussion, plan, payload, personas):
         content=content,
         search_query=search_query,
         source_ids=added,
+        model_id=plan.used_model or plan.model_id,
     )
 
 

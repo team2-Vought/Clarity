@@ -8,8 +8,15 @@ export function fetchModels() {
   return request('/api/models/', { auth: true });
 }
 
-export function fetchDiscussions() {
-  return request('/api/discussions/', { auth: true });
+/** Сторінка історії: `status` і `q` фільтрують на сервері, `offset` — для «Показати ще». */
+export function fetchDiscussions({ offset = 0, limit, status, q, signal } = {}) {
+  const params = new URLSearchParams();
+  if (offset) params.set('offset', String(offset));
+  if (limit) params.set('limit', String(limit));
+  if (status) params.set('status', status);
+  if (q) params.set('q', q);
+  const query = params.toString();
+  return request(`/api/discussions/${query ? `?${query}` : ''}`, { auth: true, signal });
 }
 
 export function createDiscussion({

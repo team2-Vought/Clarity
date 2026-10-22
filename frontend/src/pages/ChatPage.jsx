@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useOutletContext, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
@@ -7,7 +7,9 @@ import {
   ArrowTurnBackwardIcon,
   Copy01Icon,
   Download04Icon,
+  FileExportIcon,
   Loading03Icon,
+  RepeatIcon,
   Search01Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
@@ -36,6 +38,7 @@ import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
+import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exportMarkdown';
 
 const t = uk.chat;
 const d = uk.debate;
@@ -55,6 +58,7 @@ const POLL_MS = 2000;
 const MAX_KICKS = 3;
 const MAX_NOTE = 1000;
 const CITATION_RE = /(\[\d+\])/g;
+const COMPACT_KEY = 'clarity:chat-compact';
 
 // Закритий бейдж «Уточнень залишилось» пам'ятаємо для дискусії й кількості:
 // після нового уточнення число змінюється, і бейдж з'являється знову.
@@ -144,7 +148,46 @@ function SourceList({ sources, query = '', compact = false }) {
   );
 }
 
-const stanceText = (stance) => (stance ? t.stance[stance] || stance : '');
+const readCompact = () => {
+  try {
+    return localStorage.getItem(COMPACT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const modelNameOf = (models, id) => {
+  const model = models.find((item) => item.id === id);
+  return model ? model.label || model.model : '';
+};
+
+// «погоджується · Логік» замість голого «погоджується»: видно, з ким саме.
+// У режимах з вибором позиція — це сама відповідь, а не згода з кимось.
+const stanceLabel = (message, mode, replyName) => {
+  const { stance } = message;
+  if (!stance) return '';
+  if (mode && mode !== 'open') return t.stanceAnswer(stance);
+  if (message.phase === 'rebuttal') return t.stanceDecision[stance] || stance;
+  const verb = t.stance[stance] || stance;
+  return replyName ? `${verb} · ${replyName}` : verb;
+};
+
+// Колонка карти позицій: вступ, раунд або відповідь на Devil (після
+// уточнення синтез і Devil проходять ще раз, тож відповідей може бути кілька).
+const positionColumnOf = (message, devilCount) => {
+  if (message.phase === 'opening') return { key: 'opening', label: t.positionOpening };
+  if (message.phase === 'debate') {
+    return { key: `round-${message.round || 1}`, label: t.positionRound(message.round || 1) };
+  }
+  if (message.phase === 'rebuttal') {
+    return {
+      key: `rebuttal-${devilCount}`,
+      label: devilCount > 1 ? t.positionDevilN(devilCount) : t.positionDevil,
+    };
+  }
+  return null;
+};
+
 const stanceTone = (stance) =>
   stance === 'згода' ? 'agree' : stance === 'суперечка' ? 'disagree' : 'neutral';
 
@@ -266,6 +309,10 @@ export default function ChatPage() {
   const [dismissedHints, setDismissedHints] = useState(() => new Set());
   const advancedRef = useRef(null);
   const [composerHeight, setComposerHeight] = useState(0);
+  // «Лише тези»: AI-репліки стиснуті до головної думки, повний текст — за кліком
+  const [compact, setCompact] = useState(readCompact);
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const navigate = useNavigate();
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
@@ -379,6 +426,15 @@ export default function ChatPage() {
     };
   }, [discussionId, shouldPoll, pollTick, applyState, startRunner]);
 
+  useEffect(() => {
+    if (!discussion?.title) return undefined;
+    const previous = document.title;
+    document.title = `${discussion.title} · ${uk.appName}`;
+    return () => {
+      document.title = previous;
+    };
+  }, [discussion?.title]);
+
   const messages = discussion?.messages;
   const questionMessage = useMemo(
     () => (messages || []).find((message) => message.role === 'user'),
@@ -422,6 +478,21 @@ export default function ChatPage() {
       })),
     [discussion?.personas, defaultModel, personaInfo]
   );
+
+  const positionMap = useMemo(() => {
+    const columns = [];
+    const cells = new Map();
+    let devilCount = 0;
+    (messages || []).forEach((message) => {
+      if (message.role === 'devil') devilCount += 1;
+      if (message.role !== 'ai' || !message.stance) return;
+      const column = positionColumnOf(message, devilCount);
+      if (!column) return;
+      if (!columns.some((item) => item.key === column.key)) columns.push(column);
+      cells.set(`${message.persona_slug}:${column.key}`, message.stance);
+    });
+    return { columns, cells };
+  }, [messages]);
 
   const participantColors = useMemo(
     () => new Map(participantEntries.map((participant) => [participant.key, participant.color])),
@@ -505,6 +576,17 @@ export default function ChatPage() {
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
   const isRevealing = Boolean(typingMessage);
   const shownMessages = visibleMessages.slice(0, revealedCount + 1);
+  const queuedCount = visibleMessages.length - revealedCount;
+  const revealAll = () => {
+    setRevealedCount(visibleMessages.length);
+    setSkipTyping(false);
+  };
+  // остання повністю показана репліка — її коротко озвучує aria-live
+  const lastShown = visibleMessages[Math.min(revealedCount, visibleMessages.length) - 1];
+  const liveText =
+    lastShown && lastShown.role !== 'user'
+      ? `${lastShown.persona_name}: ${lastShown.thesis || snippetOf(lastShown.content)}`
+      : '';
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
   // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
   const showThoughtLine = stagePlan.length > 0 && !isRevealing && isRunning && !isFinished;
@@ -655,9 +737,8 @@ export default function ChatPage() {
     updateJump();
   }, [updateJump, messages, isFinished]);
 
-  useEffect(() => {
-    if (isRunning) setAnimateSummary(true);
-  }, [isRunning]);
+  // підсумок анімуємо, якщо дискусія хоч раз ішла на очах; рахуємо під час рендеру
+  if (isRunning && !animateSummary) setAnimateSummary(true);
 
   const handleCopyMessage = async (message) => {
     try {
@@ -790,8 +871,17 @@ export default function ChatPage() {
       // без сховища бейдж просто з'явиться знову після перезавантаження
     }
   };
+  // фінальний висновок уже пишеться: уточнення не потрапило б у нього й лишилося б без відповіді
+  const isFinalWriting = discussion?.phase === 'final' && !isFinished;
+  const notePlaceholder = isFinished
+    ? t.followupPlaceholder
+    : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
   const canSendNote =
-    Boolean(discussion) && !isSending && note.trim().length > 0 && (!isFinished || followupsLeft > 0);
+    Boolean(discussion)
+    && !isSending
+    && !isFinalWriting
+    && note.trim().length > 0
+    && (!isFinished || followupsLeft > 0);
   const showStop = isRunning && !isSending && note.trim().length === 0;
 
   const handleSendNote = async (e) => {
@@ -906,6 +996,45 @@ export default function ChatPage() {
       setPdfState('error');
       window.setTimeout(() => setPdfState(''), 2500);
     }
+  };
+
+  const authorOf = (message) =>
+    (message.role === 'ai' && customNames.get(message.persona_slug)) || message.persona_name;
+
+  const handleExportMarkdown = () => {
+    const text = discussionMarkdown(discussion, { labels: t, phaseLabel, authorOf });
+    downloadText(text, markdownFileName(discussion.title));
+  };
+
+  // нова дискусія з тим самим складом і параметрами: питання можна відредагувати
+  const handleRepeat = () => {
+    navigate('/home', {
+      state: {
+        template: {
+          question: discussion.question,
+          mode: discussion.mode,
+          options: discussion.options,
+          rounds: discussion.rounds,
+          webSearch: discussion.web_search,
+          moderatorModel: discussion.moderator_model,
+          devilModel: discussion.devil_model,
+          personas: discussion.personas,
+        },
+      },
+    });
+  };
+
+  const toggleCompact = (value) => {
+    setCompact(value);
+    try {
+      localStorage.setItem(COMPACT_KEY, value ? '1' : '0');
+    } catch {
+      // без сховища вибір діє до перезавантаження
+    }
+  };
+
+  const expandMessage = (messageId) => {
+    setExpandedIds((current) => new Set(current).add(messageId));
   };
 
   // Частини результату проявляються по черзі, як абзаци реплік
@@ -1028,6 +1157,85 @@ export default function ChatPage() {
               </div>
             </section>
 
+            <section className="debate__section">
+              <h2 className="debate__section-title">{t.view}</h2>
+              <div className="debate__mode-list" role="group" aria-label={t.view}>
+                {[
+                  [false, t.viewFull],
+                  [true, t.viewTheses],
+                ].map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`debate__mode-chip ${compact === value ? 'debate__mode-chip--active' : ''}`}
+                    aria-pressed={compact === value}
+                    onClick={() => toggleCompact(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {positionMap.columns.length > 0 && (
+              <section className="debate__section">
+                <h2 className="debate__section-title">{t.positions}</h2>
+                <div className="chat__positions">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">
+                          <span className="sr-only">{d.participants}</span>
+                        </th>
+                        {positionMap.columns.map((column) => (
+                          <th key={column.key} scope="col">
+                            {column.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {participantEntries.map((participant) => {
+                        let previous = '';
+                        return (
+                          <tr key={participant.key}>
+                            <th scope="row" title={participant.label}>
+                              {participant.label}
+                            </th>
+                            {positionMap.columns.map((column) => {
+                              const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
+                              const changed =
+                                discussion.mode !== 'open' && previous && value && value !== previous;
+                              if (value) previous = value;
+                              const text = discussion.mode === 'open'
+                                ? t.positionMark[value] || ''
+                                : value;
+                              const title = [
+                                discussion.mode === 'open' ? t.stance[value] : value,
+                                changed ? t.positionChanged : '',
+                              ].filter(Boolean).join(' · ');
+                              return (
+                                <td
+                                  key={column.key}
+                                  className={changed ? 'chat__position--changed' : undefined}
+                                  data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
+                                  title={title || undefined}
+                                >
+                                  {text || '—'}
+                                  {title && <span className="sr-only">{title}</span>}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="debate__hint">{t.positionsHint(discussion.mode)}</p>
+              </section>
+            )}
+
             <section className="debate__advanced" ref={advancedRef}>
               <button
                 type="button"
@@ -1127,10 +1335,9 @@ export default function ChatPage() {
             const speakerKey = speakerKeyOf(message);
             const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
             const typing = message === typingMessage;
-            const authorName =
-              (message.role === 'ai' && customNames.get(message.persona_slug))
-              || message.persona_name;
-            const stance = message.role === 'ai' ? stanceText(message.stance) : '';
+            const authorName = authorOf(message);
+            const messageModel =
+              message.role === 'user' ? '' : modelNameOf(models, message.model_id);
             const searched = message.search_query || '';
             const previous = shownMessages[index - 1];
             const divider = phaseLabel(message);
@@ -1147,6 +1354,14 @@ export default function ChatPage() {
             const replyName = message.reply_to
               ? customNames.get(message.reply_to_slug) || message.reply_to
               : '';
+            const stance =
+              message.role === 'ai' ? stanceLabel(message, discussion?.mode, replyName) : '';
+            const collapsed =
+              compact
+              && !typing
+              && message.role === 'ai'
+              && message.thesis
+              && !expandedIds.has(message.id);
             const replyColor = replyTarget
               ? speakers.get(speakerKeyOf(replyTarget))?.color
               : undefined;
@@ -1168,6 +1383,19 @@ export default function ChatPage() {
                   </MessageMarkdown>
                 )}
               </ParagraphReveal>
+            ) : collapsed ? (
+              <div className="chat__thesis">
+                <p>
+                  <InlineText text={message.thesis} sources={sourcesById} />
+                </p>
+                <button
+                  type="button"
+                  className="chat__expand"
+                  onClick={() => expandMessage(message.id)}
+                >
+                  {t.expandMessage}
+                </button>
+              </div>
             ) : (
               <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
             );
@@ -1211,12 +1439,18 @@ export default function ChatPage() {
                       style={{ '--avatar': color }}
                       aria-hidden="true"
                     >
-                      <AvatarIcon />
+                      {/* емодзі ролі (🧠, ⚖️, 😈…) розрізняє учасників не лише кольором */}
+                      {message.role !== 'user' && message.avatar ? (
+                        <span className="chat__avatar-emoji">{message.avatar}</span>
+                      ) : (
+                        <AvatarIcon />
+                      )}
                     </span>
                     <div className="chat__body">
                       {!grouped && (
                         <div className="chat__head">
                           <span className="chat__name">{authorName}</span>
+                          {messageModel && <span className="chat__model">{messageModel}</span>}
                           {stance && (
                             <span className="chat__stance" data-stance={stanceTone(message.stance)}>
                               {stance}
@@ -1385,6 +1619,24 @@ export default function ChatPage() {
                     className={pdfState === 'busy' ? 'chat__icon-spin' : undefined}
                   />
                 </button>
+                <button
+                  type="button"
+                  className="chat__icon-button"
+                  onClick={handleExportMarkdown}
+                  aria-label={t.exportMarkdown}
+                  title={t.exportMarkdown}
+                >
+                  <HugeiconsIcon icon={FileExportIcon} size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="chat__icon-button"
+                  onClick={handleRepeat}
+                  aria-label={t.repeat}
+                  title={t.repeat}
+                >
+                  <HugeiconsIcon icon={RepeatIcon} size={18} />
+                </button>
               </div>
               {(copyState === 'error' || pdfState === 'error') && (
                 <p className="chat__summary-note" role="alert">
@@ -1428,6 +1680,9 @@ export default function ChatPage() {
 
         {discussion && (
           <form className="chat__composer" ref={composerRef} onSubmit={handleSendNote}>
+            <p className="sr-only" aria-live="polite">
+              {liveText}
+            </p>
             {showJump && (
               <button
                 type="button"
@@ -1439,6 +1694,12 @@ export default function ChatPage() {
                 <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
               </button>
             )}
+            {queuedCount > 1 && (
+              <button type="button" className="chat__reveal-all" onClick={revealAll}>
+                {t.revealAll(queuedCount)}
+              </button>
+            )}
+            {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}
             {isFinished && isHintVisible && (
               <p className="chat__composer-hint">
                 <span>{followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}</span>
@@ -1462,9 +1723,9 @@ export default function ChatPage() {
                 onKeyDown={handleNoteKeyDown}
                 maxLength={MAX_NOTE}
                 rows={1}
-                placeholder={isFinished ? t.followupPlaceholder : t.notePlaceholder}
-                disabled={isSending || (isFinished && followupsLeft === 0)}
-                aria-label={isFinished ? t.followupPlaceholder : t.notePlaceholder}
+                placeholder={notePlaceholder}
+                disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
+                aria-label={notePlaceholder}
               />
               <div className="debate__composer-bar">
                 <span className="debate__composer-count">

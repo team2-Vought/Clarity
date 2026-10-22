@@ -127,7 +127,7 @@ export default function Sidebar({
         className="sidebar__brand"
         role="button"
         tabIndex={0}
-        aria-label="Меню"
+        aria-label={t.menu}
         onClick={onToggle}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -140,7 +140,7 @@ export default function Sidebar({
         <span className="sidebar__brand-label">{t.appName}</span>
       </div>
 
-      <nav className="sidebar__nav" aria-label="Основна навігація">
+      <nav className="sidebar__nav" aria-label={t.mainNav}>
         {NAV_ITEMS.map((item, index) => {
           const active = isItemActive(item, activePath);
           const Icon = ICONS[item.key];
@@ -184,15 +184,17 @@ export default function Sidebar({
           {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
           <span className="sidebar__label">{themeActionLabel}</span>
         </button>
+        {/* звуку ще немає: кнопка лишається на місці, але не вдає, що щось робить */}
         <button
           type="button"
           className="sidebar__control"
           style={{ '--i': NAV_ITEMS.length + 1 }}
-          aria-label="Звук"
-          title={collapsed ? 'Звук' : undefined}
+          aria-label={t.soundSoon}
+          aria-disabled="true"
+          title={t.soundSoon}
         >
           <VolumeIcon />
-          <span className="sidebar__label">Звук</span>
+          <span className="sidebar__label">{t.sound}</span>
         </button>
         <button
           type="button"

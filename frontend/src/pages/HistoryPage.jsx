@@ -26,6 +26,18 @@ const COLUMN_GAP_PHONE = 12;
 const PRESS_DELAY = 160;
 const DAY = 24 * 60 * 60 * 1000;
 const GROUP_ORDER = ['today', 'yesterday', 'week', 'older'];
+const STATUS_FILTERS = ['', 'in_progress', 'done', 'failed'];
+const SEARCH_DELAY = 300;
+// стільки секунд можна скасувати видалення
+const UNDO_MS = 5000;
+const REFRESH_MS = 5000;
+
+// «Раунд 2 з 3», «Перевірка AI Devil»… — що відбувається з дискусією зараз
+const progressOf = (item) => {
+  if (item.status !== 'in_progress') return '';
+  if (item.phase === 'debate') return t.progressRound(item.current_round || 1, item.rounds || 1);
+  return t.phases[item.phase] || '';
+};
 
 const readView = () => {
   try {
@@ -102,9 +114,15 @@ function useColumnCount(node) {
 export default function HistoryPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
+  const [nextOffset, setNextOffset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [deletingId, setDeletingId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  // видалена, але ще не стерта на сервері дискусія: її можна повернути
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const pendingRef = useRef(null);
   const [view, setView] = useState(readView);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -120,15 +138,90 @@ export default function HistoryPage() {
     setIsLoading(true);
     setError('');
     try {
-      const data = await fetchDiscussions();
+      const data = await fetchDiscussions({ status: statusFilter, q: searchTerm });
       setItems(data?.results || []);
+      setNextOffset(data?.next_offset ?? null);
       setNow(new Date());
     } catch (err) {
       setError(err.message || t.loadError);
     } finally {
       setIsLoading(false);
     }
+  }, [statusFilter, searchTerm]);
+
+  const loadMore = async () => {
+    if (nextOffset === null || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const data = await fetchDiscussions({ offset: nextOffset, status: statusFilter, q: searchTerm });
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...(data?.results || []).filter((item) => !known.has(item.id))];
+      });
+      setNextOffset(data?.next_offset ?? null);
+    } catch (err) {
+      setError(err.message || t.loadError);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // пошук іде на сервер, коли користувач на мить зупинився
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(query.trim()), SEARCH_DELAY);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // дискусії, що виконуються, оновлюють свій прогрес без перезавантаження сторінки
+  const hasRunning = items.some((item) => item.is_running);
+  const loadedCount = items.length;
+  useEffect(() => {
+    if (!hasRunning) return undefined;
+    const controller = new AbortController();
+    const timer = setInterval(async () => {
+      try {
+        const data = await fetchDiscussions({
+          limit: loadedCount,
+          status: statusFilter,
+          q: searchTerm,
+          signal: controller.signal,
+        });
+        const fresh = new Map((data?.results || []).map((item) => [item.id, item]));
+        setItems((current) => current.map((item) => fresh.get(item.id) || item));
+      } catch {
+        // наступне оновлення спробує ще раз
+      }
+    }, REFRESH_MS);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [hasRunning, loadedCount, statusFilter, searchTerm]);
+
+  const commitDelete = useCallback(async (pending) => {
+    clearTimeout(pending.timer);
+    if (pendingRef.current === pending) pendingRef.current = null;
+    setPendingDelete((current) => (current === pending ? null : current));
+    try {
+      await deleteDiscussion(pending.item.id);
+    } catch (err) {
+      // не вдалося — повертаємо картку на місце
+      setItems((current) => {
+        const next = [...current];
+        next.splice(Math.min(pending.index, next.length), 0, pending.item);
+        return next;
+      });
+      setError(err.message || t.deleteError);
+    }
   }, []);
+
+  // при виході зі сторінки відкладене видалення виконується одразу
+  useEffect(
+    () => () => {
+      if (pendingRef.current) commitDelete(pendingRef.current);
+    },
+    [commitDelete]
+  );
 
   useEffect(() => {
     if (!getToken()) {
@@ -177,11 +270,8 @@ export default function HistoryPage() {
     openTimer.current = setTimeout(() => navigate(`/chat/${id}`), PRESS_DELAY);
   };
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((item) => item.question?.toLowerCase().includes(needle));
-  }, [items, query]);
+  const visible = items;
+  const isFiltered = Boolean(statusFilter || searchTerm);
 
   const skeletons = useMemo(
     () => Array.from({ length: SKELETON_COUNT }, (_, index) => ({ skeleton: index })),
@@ -205,22 +295,34 @@ export default function HistoryPage() {
     return GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({ key, items: buckets.get(key) }));
   }, [visible, now]);
 
-  const handleDelete = async (id) => {
-    if (deletingId) return;
-    if (!window.confirm(t.deleteConfirm)) return;
-    setDeletingId(id);
+  // Видалення без діалогу: картка зникає одразу, а сервер стирає її через
+  // кілька секунд, якщо користувач не натиснув «Скасувати»
+  const handleDelete = (id) => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index < 0) return;
+    if (pendingRef.current) commitDelete(pendingRef.current);
     setError('');
-    try {
-      await deleteDiscussion(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch (err) {
-      setError(err.message || t.deleteError);
-    } finally {
-      setDeletingId(null);
-    }
+    const pending = { item: items[index], index };
+    pending.timer = setTimeout(() => commitDelete(pending), UNDO_MS);
+    pendingRef.current = pending;
+    setPendingDelete(pending);
+    setItems((current) => current.filter((item) => item.id !== id));
   };
 
-  const hasItems = !isLoading && items.length > 0;
+  const undoDelete = () => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingRef.current = null;
+    setPendingDelete(null);
+    setItems((current) => {
+      const next = [...current];
+      next.splice(Math.min(pending.index, next.length), 0, pending.item);
+      return next;
+    });
+  };
+
+  const hasItems = !isLoading && (items.length > 0 || isFiltered);
 
   const renderCard = (item, options) => {
     if ('skeleton' in item) {
@@ -233,11 +335,12 @@ export default function HistoryPage() {
       );
     }
     const status = t.statuses[item.status] || item.status;
+    const progress = progressOf(item);
     const when = formatWhen(item.created_at, now, options);
     return (
       <li
         key={item.id}
-        className={`history__card${deletingId === item.id ? ' history__card--deleting' : ''}`}
+        className="history__card"
       >
         <button
           type="button"
@@ -245,9 +348,10 @@ export default function HistoryPage() {
           onClick={() => openDiscussion(item.id)}
           title={item.question}
         >
-          <span className="history__question">{item.question}</span>
+          <span className="history__question">{item.title || item.question}</span>
         </button>
-        {options?.withPreview && item.preview && <p className="history__preview">{item.preview}</p>}
+        {item.preview && <p className="history__preview">{item.preview}</p>}
+        {progress && <p className="history__progress">{progress}</p>}
         <time className="history__when" dateTime={item.created_at}>
           {when.day}
           <span className="history__time">
@@ -264,8 +368,7 @@ export default function HistoryPage() {
           type="button"
           className="history__delete"
           onClick={() => handleDelete(item.id)}
-          disabled={deletingId === item.id}
-          aria-label={deletingId === item.id ? t.deleting : t.deleteNamed(item.question)}
+          aria-label={t.deleteNamed(item.title || item.question)}
           title={t.delete}
         >
           <HugeiconsIcon icon={Delete02Icon} size={18} aria-hidden="true" />
@@ -293,7 +396,23 @@ export default function HistoryPage() {
 
           {isLoading && <p className="history__sr-only" role="status">{t.loading}</p>}
 
-          {!isLoading && items.length === 0 && !error && (
+          {hasItems && (
+            <div className="history__filters" role="group" aria-label={t.filterLabel}>
+              {STATUS_FILTERS.map((value) => (
+                <button
+                  key={value || 'all'}
+                  type="button"
+                  className={`history__filter${statusFilter === value ? ' history__filter--active' : ''}`}
+                  aria-pressed={statusFilter === value}
+                  onClick={() => setStatusFilter(value)}
+                >
+                  {t.filters[value || 'all']}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && items.length === 0 && !error && !isFiltered && (
             <div className="history__empty">
               <p>{t.empty}</p>
               <button type="button" className="history__retry" onClick={() => navigate('/home')}>
@@ -302,7 +421,9 @@ export default function HistoryPage() {
             </div>
           )}
 
-          {hasItems && visible.length === 0 && <p className="history__empty">{t.noResults}</p>}
+          {!isLoading && isFiltered && visible.length === 0 && (
+            <p className="history__empty">{t.noResults}</p>
+          )}
 
           {(isLoading || visible.length > 0) &&
             (view === 'grid' ? (
@@ -322,13 +443,35 @@ export default function HistoryPage() {
                     {t.groups[group.key]}
                   </h2>
                   <ul className="history__list">
-                    {group.items.map((item) => renderCard(item, { timeOnlyRecent: true, withPreview: true }))}
+                    {group.items.map((item) => renderCard(item, { timeOnlyRecent: true }))}
                   </ul>
                 </section>
               ))
             ))}
+
+          {!isLoading && nextOffset !== null && (
+            <div className="history__more">
+              <button
+                type="button"
+                className="history__retry"
+                onClick={loadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? t.loadingMore : t.loadMore}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {pendingDelete && (
+        <div className="history__undo" role="status">
+          <span>{t.deleted}</span>
+          <button type="button" className="history__undo-button" onClick={undoDelete}>
+            {t.undo}
+          </button>
+        </div>
+      )}
 
       {/* вертикальна панель: пошук і вигляд угорі, нова дискусія внизу */}
       <aside className="history__rail" aria-label={t.toolbar}>

@@ -343,11 +343,6 @@
   outline-offset: 2px;
 }
 
-.history__card--deleting {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
 /* уся картка клікабельна через розтягнуту кнопку, видалення — над нею */
 .history__open {
   min-width: 0;
@@ -513,7 +508,8 @@
   grid-template-columns: minmax(0, 1fr) auto 40px;
   grid-template-areas:
     'question when delete'
-    'preview preview delete';
+    'preview preview delete'
+    'progress progress delete';
   align-items: center;
   column-gap: 12px;
   row-gap: 4px;
@@ -740,6 +736,131 @@
   }
 
   .history__skeleton {
+    animation: none;
+  }
+}
+
+/* у сітці рішення — головне, що хочеться побачити, тож три рядки замість двох */
+.history--grid .history__preview {
+  font-size: 0.9375rem;
+  -webkit-line-clamp: 3;
+}
+
+/* що відбувається з дискусією, яка ще триває */
+.history__progress {
+  grid-area: progress;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.history__progress::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: 0.1em;
+  border-radius: 50%;
+  background: var(--h-progress);
+  animation: history-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes history-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.history__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.history__filter {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--h-hover);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.history__filter:hover {
+  color: var(--ink);
+}
+
+.history__filter--active,
+.history__filter--active:hover {
+  background: var(--ink);
+  color: var(--main-bg);
+}
+
+.history__filter:focus-visible,
+.history__undo-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.history__more {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.history__more .history__retry:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* «Дискусію видалено · Скасувати» — замість діалогу підтвердження */
+.history__undo {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 10px 10px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--main-bg);
+  font-size: 0.9375rem;
+  box-shadow: 0 10px 30px rgba(18, 18, 18, 0.25);
+  transform: translateX(-50%);
+  animation: history-undo-in 0.2s ease-out;
+}
+
+.history__undo-button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--main-bg) 18%, transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@keyframes history-undo-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history__progress::before,
+  .history__undo {
     animation: none;
   }
 }

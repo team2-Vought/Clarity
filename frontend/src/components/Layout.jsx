@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { UNAUTHORIZED_EVENT } from '../api/client';
+import { useToasts } from '../hooks/useToasts';
+import { uk } from '../copy/uk';
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(true);
@@ -8,11 +11,25 @@ export default function Layout() {
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
   );
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { pushToast } = useToasts();
+
+  // прострочена сесія з будь-якого запиту веде на вхід, а не лишає сторінку з помилкою
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      pushToast(uk.common.sessionExpired);
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, [navigate, pushToast]);
 
   // Сайдбар після переходу на іншу сторінку меню завжди згортається
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setCollapsed(true);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

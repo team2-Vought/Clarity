@@ -57,6 +57,8 @@ NON_RETRYABLE_CODES = {
 }
 
 MODES = {m.value for m in Discussion.Mode}
+TITLE_LIMIT = 90
+_SENTENCE_END = re.compile(r'(?<=[.!?…])\s')
 OPTION_MAX = 8
 TRAITS_MAX = 20
 TRAIT_LENGTH_MAX = 40
@@ -258,6 +260,7 @@ class MessageSerializer(serializers.ModelSerializer):
             'stance',
             'search_query',
             'source_ids',
+            'model_id',
             'created_at',
         ]
 
@@ -316,10 +319,20 @@ class UpdateDiscussionSerializer(serializers.Serializer):
         return instance
 
 
+def discussion_title(question):
+    """Коротка назва: перше речення першого рядка запитання (до 90 символів)."""
+    first = (question or '').strip().split('\n', 1)[0]
+    sentence = _SENTENCE_END.split(first, maxsplit=1)[0].strip()
+    if len(sentence) <= TITLE_LIMIT:
+        return sentence
+    return sentence[:TITLE_LIMIT].rsplit(' ', 1)[0].rstrip(' ,;:—-') + '…'
+
+
 class DiscussionSerializer(serializers.ModelSerializer):
     """Повний стан дискусії. З context['after'] повертає лише нові повідомлення."""
 
     messages = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
     is_finished = serializers.BooleanField(read_only=True)
     is_running = serializers.SerializerMethodField()
     retryable = serializers.SerializerMethodField()
@@ -336,6 +349,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
     def get_is_running(self, obj):
         return engine.is_running(obj) or runner.is_active(obj.pk)
 
+    def get_title(self, obj):
+        return discussion_title(obj.question)
+
     def get_retryable(self, obj):
         return obj.error_code not in NON_RETRYABLE_CODES
 
@@ -349,6 +365,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
         model = Discussion
         fields = [
             'id',
+            'title',
             'question',
             'mode',
             'options',
@@ -397,21 +414,32 @@ def _preview(text):
 class DiscussionListSerializer(serializers.ModelSerializer):
     message_count = serializers.IntegerField(read_only=True)
     preview = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    is_running = serializers.SerializerMethodField()
 
     class Meta:
         model = Discussion
         fields = [
             'id',
+            'title',
             'question',
             'mode',
             'rounds',
+            'current_round',
             'status',
             'phase',
+            'is_running',
             'message_count',
             'preview',
             'created_at',
             'finished_at',
         ]
+
+    def get_title(self, obj):
+        return discussion_title(obj.question)
+
+    def get_is_running(self, obj):
+        return engine.is_running(obj) or runner.is_active(obj.pk)
 
     def get_preview(self, obj):
         """Фрагмент відповіді: фінальне рішення, інакше остання репліка або помилка."""

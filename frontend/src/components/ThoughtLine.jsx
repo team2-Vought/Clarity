@@ -47,8 +47,14 @@ export default function ThoughtLine({
 }) {
   const reduce = useReducedMotion();
   const [autoSettled, setAutoSettled] = useState(false);
-  const [open, setOpen] = useState(true);
+  const [prevWorkingProp, setPrevWorkingProp] = useState(working);
+  // новий запуск знімає автозавершення попереднього
+  if (prevWorkingProp !== working) {
+    setPrevWorkingProp(working);
+    if (working) setAutoSettled(false);
+  }
   const isWorking = working && !autoSettled;
+  const [open, setOpen] = useState(() => isWorking || !collapseOnSettle);
   const doneText = doneLabel || (showTimer ? 'Thought for' : 'Done thinking');
   const hasTrace = steps.length > 0;
   const depth = reduce ? Math.min(breathDepth, 0.2) : breathDepth;
@@ -65,21 +71,24 @@ export default function ThoughtLine({
   const dsRef = useRef(0);
   const prevWorking = useRef(isWorking);
   const latest = useRef({ onSettle });
-  const [announce, setAnnounce] = useState(label);
   const [elapsedDs, setElapsedDs] = useState(0);
+  const [wasWorking, setWasWorking] = useState(isWorking);
+  // зміна стану скидає таймер і розгортання під час рендеру, а не в ефекті
+  if (wasWorking !== isWorking) {
+    setWasWorking(isWorking);
+    if (isWorking) {
+      setElapsedDs(0);
+      setOpen(true);
+    } else if (collapseOnSettle) {
+      setOpen(false);
+    }
+  }
+  // явний `elapsed` має пріоритет над власним таймером
+  const shownDs = elapsed != null ? Math.round(elapsed * 10) : elapsedDs;
 
   useEffect(() => {
     latest.current = { onSettle };
   }, [onSettle]);
-
-  useEffect(() => {
-    if (working) setAutoSettled(false);
-  }, [working]);
-
-  useEffect(() => {
-    if (isWorking) setOpen(true);
-    else if (collapseOnSettle) setOpen(false);
-  }, [isWorking, collapseOnSettle]);
 
   useEffect(() => {
     const glyphEl = glyphRef.current;
@@ -131,12 +140,12 @@ export default function ThoughtLine({
 
   useLayoutEffect(() => {
     if (elapsed != null) {
-      paint(Math.round(elapsed * 10));
+      dsRef.current = Math.round(elapsed * 10);
       return undefined;
     }
     if (!isWorking) return undefined;
     const startedAt = performance.now();
-    paint(0);
+    dsRef.current = 0;
     const id = setInterval(() => {
       const ds = Math.floor((performance.now() - startedAt) / 100);
       paint(ds);
@@ -168,18 +177,14 @@ export default function ThoughtLine({
     return () => observer.disconnect();
   }, [isWorking, label, doneText, fontSize, showTimer]);
 
+  const activeStep = hasTrace ? steps[steps.length - 1] : '';
+  const timerText = showTimer ? `${timerLabel ? `${timerLabel} ` : ''}${spoken(shownDs)}` : '';
+  let announce = timerText ? `${doneText} ${timerText}` : doneText;
+  if (isWorking) announce = activeStep ? `${label} ${activeStep}` : label;
+
   useEffect(() => {
-    if (isWorking) {
-      const activeStep = hasTrace ? steps[steps.length - 1] : '';
-      setAnnounce(activeStep ? `${label} ${activeStep}` : label);
-      return;
-    }
-    const timerText = showTimer
-      ? `${timerLabel ? `${timerLabel} ` : ''}${spoken(dsRef.current)}`
-      : '';
-    setAnnounce(timerText ? `${doneText} ${timerText}` : doneText);
-    latest.current.onSettle?.(dsRef.current / 10);
-  }, [isWorking, doneText, label, showTimer, timerLabel, hasTrace, steps]);
+    if (!isWorking) latest.current.onSettle?.(dsRef.current / 10);
+  }, [isWorking]);
 
   const toggle = hasTrace && collapsible;
   const head = (
@@ -217,7 +222,7 @@ export default function ThoughtLine({
           aria-hidden="true"
         >
           {timerLabel ? <span className="thought-line__timer-label">{timerLabel}</span> : null}
-          <span className="thought-line__timer-value">{fmt(elapsedDs)}</span>
+          <span className="thought-line__timer-value">{fmt(shownDs)}</span>
         </span>
       ) : null}
       {collapsible ? (

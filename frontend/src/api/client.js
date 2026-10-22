@@ -1,5 +1,7 @@
 const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 const TOKEN_KEY = 'clarity_token';
+// Подія для Layout: токен прострочено або відкликано — треба знову увійти
+export const UNAUTHORIZED_EVENT = 'clarity:unauthorized';
 
 export class ApiError extends Error {
   constructor(status, data) {
@@ -59,6 +61,10 @@ export async function request(path, { method = 'GET', body, auth = false, signal
   }
 
   const data = await res.json().catch(() => null);
+  if (res.status === 401 && auth) {
+    setToken(null);
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
 }

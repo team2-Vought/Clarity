@@ -131,6 +131,7 @@ class Message(models.Model):
     stance = models.CharField('позиція', max_length=100, blank=True, default='')
     search_query = models.CharField('пошуковий запит', max_length=300, blank=True, default='')
     source_ids = models.JSONField('додані джерела', default=list, blank=True)
+    model_id = models.CharField('модель', max_length=120, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

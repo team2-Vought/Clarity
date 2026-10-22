@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework.throttling import SimpleRateThrottle
 
+from discussions import serializers
 from discussions.models import Discussion, Message
 from discussions.services import engine, usage
 
@@ -618,6 +619,75 @@ class DiscussionApiTests(TestCase):
         response = self.client.delete(f'/api/discussions/{created.data["id"]}/')
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Discussion.objects.filter(pk=created.data['id']).exists())
+
+
+    def _make(self, question, **extra):
+        return Discussion.objects.create(
+            user=self.user, question=question, personas=[{'slug': 'logician'}], **extra
+        )
+
+    def test_history_is_paginated(self):
+        self.auth()
+        for index in range(5):
+            self._make(f'Питання номер {index} про переїзд')
+        first = self.client.get('/api/discussions/?limit=2')
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.data['total'], 5)
+        self.assertEqual(len(first.data['results']), 2)
+        self.assertEqual(first.data['next_offset'], 2)
+        last = self.client.get('/api/discussions/?limit=2&offset=4')
+        self.assertEqual(len(last.data['results']), 1)
+        self.assertIsNone(last.data['next_offset'])
+
+    def test_history_filters_by_status(self):
+        self.auth()
+        self._make('Завершене питання про роботу', status=Discussion.Status.DONE)
+        self._make('Питання з помилкою про роботу', status=Discussion.Status.FAILED)
+        response = self.client.get('/api/discussions/?status=failed')
+        self.assertEqual([item['status'] for item in response.data['results']], ['failed'])
+        ignored = self.client.get('/api/discussions/?status=bogus')
+        self.assertEqual(ignored.data['total'], 2)
+
+    def test_history_search_ignores_cyrillic_case(self):
+        self.auth()
+        self._make('Чи варто переїжджати до Львова?')
+        self._make(
+            'Яку мову програмування вчити?',
+            final_summary={'decision': 'Почати з Python'},
+        )
+        self._make('Що подарувати мамі?')
+        by_question = self.client.get('/api/discussions/', {'q': 'ЛЬВОВА'})
+        self.assertEqual(
+            [item['title'] for item in by_question.data['results']],
+            ['Чи варто переїжджати до Львова?'],
+        )
+        by_decision = self.client.get('/api/discussions/', {'q': 'python'})
+        self.assertEqual(by_decision.data['total'], 1)
+
+    def test_title_is_first_sentence_of_question(self):
+        self.auth()
+        discussion = self._make('Чи брати іпотеку? Мені 30, зарплата стабільна.\nДеталі нижче')
+        listed = self.client.get('/api/discussions/')
+        self.assertEqual(listed.data['results'][0]['title'], 'Чи брати іпотеку?')
+        detail = self.client.get(f'/api/discussions/{discussion.id}/')
+        self.assertEqual(detail.data['title'], 'Чи брати іпотеку?')
+        long = serializers.discussion_title('слово ' * 40)
+        self.assertLessEqual(len(long), 91)
+        self.assertTrue(long.endswith('…'))
+
+    def test_replies_record_the_model(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        step = self.client.post(f'/api/discussions/{created.data["id"]}/advance/')
+        self.assertEqual(step.status_code, 200)
+        self.assertTrue(all(message['model_id'] for message in step.data['messages']))
 
 
 class DiscussionThrottleTests(TestCase):
