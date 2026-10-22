@@ -21,7 +21,8 @@ export default function Layout() {
     } catch {}
   }, [theme]);
 
-  // Панель налаштувань дебату ховається повторним кліком на «Новий чат».
+  // Панель налаштувань дебату ховається кнопкою в куті області чату
+  // (і повторним кліком на «Новий чат» на головній).
   // Стан живе тут, тож не губиться при переході між головною й чатом.
   // На телефоні панель висувна — її відкриває сама сторінка.
   const [panelCollapsed, setPanelCollapsed] = useState(false);
@@ -34,7 +35,7 @@ export default function Layout() {
     };
   }, []);
 
-  const togglePanel = () => {
+  const togglePanel = useCallback(() => {
     const isPhone = window.matchMedia?.('(max-width: 639px)').matches;
     if (isPhone) {
       if (!phonePanelToggleRef.current) return false;
@@ -44,11 +45,11 @@ export default function Layout() {
     }
     setCollapsed(true);
     return true;
-  };
+  }, []);
 
   const outletContext = useMemo(
-    () => ({ panelCollapsed, registerPanelToggle }),
-    [panelCollapsed, registerPanelToggle]
+    () => ({ panelCollapsed, registerPanelToggle, togglePanel }),
+    [panelCollapsed, registerPanelToggle, togglePanel]
   );
 
   const toggle = () => setCollapsed((c) => !c);

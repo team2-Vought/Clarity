@@ -6,11 +6,11 @@ import {
   ArrowUpIcon,
   ChevronIcon,
   CloseIcon,
-  PanelIcon,
   PlusIcon,
   UserPlusIcon,
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
+import PanelToggle from '../components/PanelToggle';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 
@@ -81,7 +81,7 @@ export default function DebatePage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
 
-  // на телефоні іконка «Новий чат» в смузі відкриває / закриває висувну панель
+  // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
   useEffect(
     () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
     [registerPanelToggle]
@@ -503,16 +503,7 @@ export default function DebatePage() {
       onSubmit={handleStart}
       noValidate
     >
-      <button
-        type="button"
-        className="debate__panel-toggle"
-        onClick={() => setIsPanelOpen(true)}
-        aria-label={t.openSettings}
-        aria-expanded={isPanelOpen}
-        aria-controls="debate-settings"
-      >
-        <PanelIcon />
-      </button>
+      <PanelToggle controls="debate-settings" phoneOpen={isPanelOpen} />
       {isPanelOpen && (
         <div
           className="debate__panel-backdrop"

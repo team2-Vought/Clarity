@@ -1631,26 +1631,28 @@ body:has(.app-shell) {
 
 .chat__text h3 {
   color: var(--ink);
-  font-size: 1.125em;
+  font-size: 1.25em;
   font-weight: 650;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
 }
 
 .chat__text > * + h3 {
-  margin-top: 1.1em;
+  margin-top: 1.2em;
 }
 
 .chat__text > h3 + * {
-  margin-top: 0.35em;
+  margin-top: 0.4em;
 }
 
+/* «###» — заголовок розділу репліки («Ризики», «Контраргументи»):
+   сірий і великими літерами, але розміром майже як текст */
 .chat__text h4 {
   color: color-mix(in srgb, var(--ink) 55%, transparent);
-  font-size: 0.75rem;
+  font-size: 0.9375em;
   font-weight: 650;
-  letter-spacing: 0.07em;
-  line-height: 1.4;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
@@ -2151,12 +2153,55 @@ ol.chat__reveal {
   }
 }
 
-/* Панель налаштувань ховається повторним кліком на «Новий чат» (десктоп,
+/* Панель налаштувань ховається кнопкою в куті області чату (десктоп,
    планшет). Колонка плавно звужується до нуля, а панель тримає власну
    ширину (текст у ній не перескладається), зсувається вліво й згасає. */
 @media (min-width: 640px) {
   .debate-page {
+    position: relative;
     transition: grid-template-columns 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* перемикач у лівому верхньому куті основної області: їде разом із
+     краєм панелі, тож і після згортання лишається на тому ж місці відносно вмісту */
+  .debate__panel-toggle {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 14px;
+    left: calc(var(--panel-w) + 12px);
+    z-index: 3;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: var(--main-bg);
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+      left 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
+      background 0.18s,
+      color 0.18s;
+  }
+
+  .debate-page--panel-collapsed .debate__panel-toggle {
+    left: 12px;
+  }
+
+  .debate__panel-toggle:hover {
+    background: color-mix(in srgb, var(--ink) 7%, var(--main-bg));
+    color: var(--ink);
+  }
+
+  .debate__panel-toggle:focus-visible {
+    outline: 2px solid var(--focus, #7f80ac);
+    outline-offset: 2px;
+  }
+
+  .debate__panel-toggle svg {
+    width: 22px;
+    height: 22px;
   }
 
   .debate-page.debate-page--panel-collapsed {
@@ -2195,14 +2240,14 @@ ol.chat__reveal {
 
 @media (min-width: 640px) and (prefers-reduced-motion: reduce) {
   .debate-page,
+  .debate__panel-toggle,
   .debate__form-panel,
   .debate-page--panel-collapsed .debate__form-panel {
     transition: none;
   }
 }
 
-/* Кнопка «≡» і затемнення висувної панелі існують лише на телефоні */
-.debate__panel-toggle,
+/* Затемнення висувної панелі існує лише на телефоні */
 .debate__panel-backdrop {
   display: none;
 }

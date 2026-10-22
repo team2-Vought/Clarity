@@ -24,11 +24,11 @@ import {
   ArrowUpIcon,
   ChevronIcon,
   CloseIcon,
-  PanelIcon,
   StopIcon,
   UserPlusIcon,
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
+import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ParagraphReveal from '../components/ParagraphReveal';
@@ -235,9 +235,13 @@ export default function ChatPage() {
   const [pollTick, setPollTick] = useState(0);
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  // «Новий чат» у смузі веде з дискусії на стартову сторінку, тож панель
-  // тут відкривається власною кнопкою «≡»; згорнутість на десктопі спільна
-  const { panelCollapsed = false } = useOutletContext() ?? {};
+  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+
+  // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
+  useEffect(
+    () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
+    [registerPanelToggle]
+  );
   // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
   // навіть якщо паралельний крок приніс кілька одразу.
   const [revealedCount, setRevealedCount] = useState(0);
@@ -930,16 +934,7 @@ export default function ChatPage() {
     <div
       className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
     >
-      <button
-        type="button"
-        className="debate__panel-toggle"
-        onClick={() => setIsPanelOpen(true)}
-        aria-label={d.openSettings}
-        aria-expanded={isPanelOpen}
-        aria-controls="chat-settings"
-      >
-        <PanelIcon />
-      </button>
+      <PanelToggle controls="chat-settings" phoneOpen={isPanelOpen} />
       {isPanelOpen && (
         <div
           className="debate__panel-backdrop"

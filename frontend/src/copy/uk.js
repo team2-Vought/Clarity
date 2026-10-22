@@ -178,6 +178,8 @@ export const uk = {
     tooLong: 'Опис задовгий (максимум 6000 символів)',
     role: 'Роль',
     openSettings: 'Налаштування дебату',
+    showSettings: 'Показати налаштування дебату',
+    hideSettings: 'Сховати налаштування дебату',
     roleTaken: 'Цю роль уже має інший учасник',
     webSearch: 'Пошук в інтернеті',
     webSearchLabel: (provider) => `Моделі можуть шукати факти (${provider})`,
