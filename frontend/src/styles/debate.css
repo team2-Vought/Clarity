@@ -2435,6 +2435,104 @@ body:has(.app-shell) {
   }
 }
 
+/* ---------- Панель під час дискусії ----------
+   Ті самі частини, що й на сторінці нової дискусії; що вже не змінити — лише показуємо */
+
+.debate__sheet-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.debate__sheet-title span,
+.debate__sheet-title small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate__sheet-title span {
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.debate__sheet-title small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* риси учасника тільки для перегляду */
+span.debate__tag {
+  display: inline-flex;
+  align-items: center;
+  cursor: default;
+}
+
+.debate__share {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 4px 0 12px;
+  border-radius: 16px;
+  background: var(--well);
+}
+
+.debate__share input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+}
+
+.debate__share-copy {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.debate__share-copy:hover {
+  background: var(--card);
+  color: var(--ink);
+}
+
+.debate__share-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.debate__share-create {
+  align-self: flex-start;
+  height: auto;
+  min-height: 32px;
+  padding-block: 6px;
+  white-space: normal;
+  text-align: left;
+}
+
+/* загальна картка без кольору учасника — нейтральна риска біля пояснень */
+.debate__sheet--plain .debate__role-note {
+  border-left-color: color-mix(in srgb, var(--ink) 15%, transparent);
+}
+
 /* текстова дія в панелі чату («Створити посилання», «Закрити доступ») */
 .debate__link-button {
   align-self: flex-start;

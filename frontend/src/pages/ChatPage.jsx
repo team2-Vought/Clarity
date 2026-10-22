@@ -4,10 +4,13 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
   ArrowDown02Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   ArrowTurnBackwardIcon,
   Copy01Icon,
   Download04Icon,
   FileExportIcon,
+  Link01Icon,
   Loading03Icon,
   RepeatIcon,
   Share08Icon,
@@ -29,10 +32,8 @@ import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
   AvatarIcon,
-  ChevronIcon,
   CloseIcon,
   StopIcon,
-  UserPlusIcon,
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
@@ -41,7 +42,7 @@ import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ParagraphReveal from '../components/ParagraphReveal';
 import SummaryDetails from '../components/SummaryDetails';
 import { uk } from '../copy/uk';
-import { TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
+import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 import { describeSummary, summaryDetailSteps } from '../utils/summary';
@@ -213,7 +214,6 @@ export default function ChatPage() {
   const [models, setModels] = useState([]);
   const [defaultModel, setDefaultModel] = useState('');
   const [activeSlug, setActiveSlug] = useState('');
-  const [scrollState, setScrollState] = useState({ overflow: false, left: false, right: false });
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [copyState, setCopyState] = useState('');
@@ -242,7 +242,7 @@ export default function ChatPage() {
   const stickToBottomRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const touchYRef = useRef(0);
-  const participantListRef = useRef(null);
+  const panelRef = useRef(null);
   const noteRef = useRef(null);
   const composerRef = useRef(null);
   const summaryRef = useRef(null);
@@ -451,18 +451,6 @@ export default function ChatPage() {
     participantEntries.find((participant) => participant.key === activeSlug)
     || participantEntries[0];
   const activeTraits = activeParticipant?.traits || [];
-
-  const allTraits = useMemo(() => {
-    const customTraits = [];
-    participantEntries.forEach((participant) => {
-      participant.traits.forEach((trait) => {
-        if (!TRAITS.includes(trait) && !customTraits.includes(trait)) {
-          customTraits.push(trait);
-        }
-      });
-    });
-    return [...TRAITS, ...customTraits];
-  }, [participantEntries]);
 
   const participantNames = useMemo(
     () => participantEntries.map((participant) => participant.label),
@@ -731,50 +719,6 @@ export default function ChatPage() {
     el.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
   };
 
-  const updateScrollState = useCallback(() => {
-    const el = participantListRef.current;
-    if (!el) return;
-    const max = el.scrollWidth - el.clientWidth;
-    setScrollState({
-      overflow: max > 1,
-      left: el.scrollLeft > 1,
-      right: el.scrollLeft < max - 1,
-    });
-  }, []);
-
-  useEffect(() => {
-    updateScrollState();
-    const el = participantListRef.current;
-    if (!el) return undefined;
-    const observer = new ResizeObserver(updateScrollState);
-    observer.observe(el);
-    window.addEventListener('resize', updateScrollState);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateScrollState);
-    };
-  }, [participantEntries.length, updateScrollState]);
-
-  useEffect(() => {
-    const el = participantListRef.current;
-    if (!el) return;
-    const active = el.querySelector('[data-active="true"]');
-    if (!active) return;
-    const listRect = el.getBoundingClientRect();
-    const activeRect = active.getBoundingClientRect();
-    if (activeRect.left < listRect.left) {
-      el.scrollBy({ left: activeRect.left - listRect.left - 4, behavior: 'smooth' });
-    } else if (activeRect.right > listRect.right) {
-      el.scrollBy({ left: activeRect.right - listRect.right + 4, behavior: 'smooth' });
-    }
-  }, [activeSlug, participantEntries.length, scrollState.overflow]);
-
-  const scrollParticipants = (direction) => {
-    const el = participantListRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction * 108, behavior: 'smooth' });
-  };
-
   const handleStop = async () => {
     if (!discussion) return;
     try {
@@ -1024,6 +968,12 @@ export default function ChatPage() {
   const canResume = !isFinished && !isRunning && (isFailed || isStopped || Boolean(actionError));
   const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
+  // Додаткові налаштування — окремий екран панелі, як на сторінці нової дискусії
+  const toggleAdvanced = () => {
+    setIsAdvancedOpen((open) => !open);
+    panelRef.current?.scrollTo({ top: 0 });
+  };
+
   return (
     <div
       className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
@@ -1036,269 +986,275 @@ export default function ChatPage() {
           aria-hidden="true"
         />
       )}
-      <aside className="debate__form-panel chat__sidebar" id="chat-settings">
-        {discussion && (
-          <>
-            <section className="debate__section">
-              <h2 className="debate__section-title">{d.participants}</h2>
-              <div className="debate__participant-row">
-                {scrollState.left && (
-                  <button
-                    type="button"
-                    className="debate__participant-arrow debate__participant-arrow--left"
-                    onClick={() => scrollParticipants(-1)}
-                    aria-label={d.scrollLeft}
-                  >
-                    <ChevronIcon />
-                  </button>
-                )}
-                <div
-                  className="debate__participant-list"
-                  ref={participantListRef}
-                  onScroll={updateScrollState}
-                >
-                  {participantEntries.map((participant, index) => {
-                    const active = participant.key === activeParticipant?.key;
-                    return (
-                      <button
-                        key={participant.key}
-                        type="button"
-                        className={`debate__card debate__participant ${active ? 'debate__participant--active' : ''}`}
-                        style={{ '--chip': participant.color }}
-                        data-active={active ? 'true' : undefined}
-                        aria-label={`${d.participant} ${index + 1}`}
-                        aria-pressed={active}
-                        onClick={() => setActiveSlug(participant.key)}
-                      >
-                        <UserPlusIcon />
-                        <span className="debate__participant-label">{participant.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {scrollState.right && (
-                  <button
-                    type="button"
-                    className="debate__participant-arrow debate__participant-arrow--right"
-                    onClick={() => scrollParticipants(1)}
-                    aria-label={d.scrollRight}
-                  >
-                    <ChevronIcon />
-                  </button>
-                )}
+      <aside className="debate__form-panel chat__sidebar" id="chat-settings" ref={panelRef}>
+        {discussion && (isAdvancedOpen ? (
+          <section
+            className="debate__more"
+            id="chat-advanced"
+            ref={advancedRef}
+            aria-labelledby="chat-more-title"
+          >
+            <div className="debate__cast-head">
+              <button
+                type="button"
+                className="debate__more-back"
+                onClick={toggleAdvanced}
+                aria-label={d.backToCast}
+                title={d.backToCast}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={18} aria-hidden="true" />
+                <h2 id="chat-more-title" className="debate__cast-title">{d.advancedShort}</h2>
+              </button>
+            </div>
+
+            <div className="debate__sheet">
+              <div className="debate__field debate__field--first">
+                <h3 className="debate__field-title">{d.judges}</h3>
               </div>
-              {activeParticipant?.role && (
-                <p className="debate__hint">{t.role(activeParticipant.role)}</p>
-              )}
-            </section>
-
-            <section className="debate__section">
-              <h2 className="debate__section-title">{d.aiModel}</h2>
-              <ModelPicker
-                models={models}
-                value={activeParticipant?.model || ''}
-                onChange={(modelId) =>
-                  saveModels({ personas: [{ slug: activeParticipant.key, model: modelId }] })
-                }
-                disabled={!canEditModels || !activeParticipant}
-              />
-            </section>
-
-            <section className="debate__section">
-              <h2 className="debate__section-title">{d.character}</h2>
-              <div className="debate__trait-list">
-                {allTraits.map((trait, index) => {
-                  const active = activeTraits.includes(trait);
-                  return (
-                    <span
-                      key={trait}
-                      className={`debate__trait-chip ${active ? 'debate__trait-chip--active' : ''}`}
-                      style={{ '--chip': TRAIT_COLORS[index % TRAIT_COLORS.length] }}
-                    >
-                      {trait}
+              {[
+                { key: 'moderator', name: d.moderator, sub: d.moderatorSub, value: discussion.moderator_model, save: 'moderatorModel', label: d.moderatorModel },
+                { key: 'devil', name: d.devil, sub: d.devilSub, value: discussion.devil_model, save: 'devilModel', label: d.devilModel },
+              ].map((judge) => (
+                <div key={judge.key} className="debate__field">
+                  <h3 className="debate__field-title">
+                    <span className="debate__judge-name">
+                      <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                      {judge.name}
                     </span>
+                    <span className="debate__field-aside">{judge.sub}</span>
+                  </h3>
+                  <ModelPicker
+                    models={models}
+                    value={judge.value || ''}
+                    onChange={(modelId) => saveModels({ [judge.save]: modelId })}
+                    disabled={!canEditModels}
+                    label={judge.label}
+                    autoLabel={d.autoModel}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <div className="debate__panel-view">
+            <section className="debate__cast" aria-labelledby="chat-cast-title">
+              <div className="debate__cast-head">
+                <h2 id="chat-cast-title" className="debate__cast-title">
+                  {d.participants}
+                  <span className="debate__cast-count">{participantEntries.length}</span>
+                </h2>
+              </div>
+              <div className="debate__lineup">
+                {participantEntries.map((participant, index) => {
+                  const active = participant.key === activeParticipant?.key;
+                  return (
+                    <button
+                      key={participant.key}
+                      type="button"
+                      className={`debate__token ${active ? 'debate__token--active' : ''}`}
+                      style={{ '--chip': participant.color }}
+                      aria-pressed={active}
+                      aria-label={d.selectParticipant(participant.label)}
+                      title={[participant.label, participant.role].filter(Boolean).join(' · ')}
+                      onClick={() => setActiveSlug(participant.key)}
+                    >
+                      <HugeiconsIcon icon={roleIcon(participant.key)} size={20} strokeWidth={1.8} aria-hidden="true" />
+                      <span className="debate__token-num" aria-hidden="true">{index + 1}</span>
+                    </button>
                   );
                 })}
               </div>
             </section>
 
-            <section className="debate__section">
-              <h2 className="debate__section-title">{t.view}</h2>
-              <div className="debate__mode-list" role="group" aria-label={t.view}>
-                {[
-                  [false, t.viewFull],
-                  [true, t.viewTheses],
-                ].map(([value, label]) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`debate__mode-chip ${compact === value ? 'debate__mode-chip--active' : ''}`}
-                    aria-pressed={compact === value}
-                    onClick={() => toggleCompact(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {positionMap.columns.length > 0 && (
-              <section className="debate__section">
-                <h2 className="debate__section-title">{t.positions}</h2>
-                <div className="chat__positions">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th scope="col">
-                          <span className="sr-only">{d.participants}</span>
-                        </th>
-                        {positionMap.columns.map((column) => (
-                          <th key={column.key} scope="col">
-                            {column.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {participantEntries.map((participant) => {
-                        let previous = '';
-                        return (
-                          <tr key={participant.key}>
-                            <th scope="row" title={participant.label}>
-                              {participant.label}
-                            </th>
-                            {positionMap.columns.map((column) => {
-                              const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
-                              const changed =
-                                discussion.mode !== 'open' && previous && value && value !== previous;
-                              if (value) previous = value;
-                              const text = discussion.mode === 'open'
-                                ? t.positionMark[value] || ''
-                                : value;
-                              const title = [
-                                discussion.mode === 'open' ? t.stance[value] : value,
-                                changed ? t.positionChanged : '',
-                              ].filter(Boolean).join(' · ');
-                              return (
-                                <td
-                                  key={column.key}
-                                  className={changed ? 'chat__position--changed' : undefined}
-                                  data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
-                                  title={title || undefined}
-                                >
-                                  {text || '—'}
-                                  {title && <span className="sr-only">{title}</span>}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            {activeParticipant && (
+              <section
+                key={activeParticipant.key}
+                className="debate__sheet"
+                style={{ '--chip': activeParticipant.color }}
+                aria-label={d.participantSheet(activeParticipant.label)}
+              >
+                <div className="debate__sheet-head">
+                  <span className="debate__sheet-avatar" aria-hidden="true">
+                    <HugeiconsIcon icon={roleIcon(activeParticipant.key)} size={22} strokeWidth={1.8} />
+                  </span>
+                  <div className="debate__sheet-title">
+                    <span>{activeParticipant.label}</span>
+                    {activeParticipant.role && activeParticipant.role !== activeParticipant.label && (
+                      <small>{activeParticipant.role}</small>
+                    )}
+                  </div>
                 </div>
-                <p className="debate__hint">{t.positionsHint(discussion.mode)}</p>
+
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{d.aiModel}</h3>
+                  <ModelPicker
+                    models={models}
+                    value={activeParticipant.model || ''}
+                    onChange={(modelId) =>
+                      saveModels({ personas: [{ slug: activeParticipant.key, model: modelId }] })
+                    }
+                    disabled={!canEditModels}
+                  />
+                </div>
+
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{d.character}</h3>
+                  {activeTraits.length > 0 ? (
+                    <div className="debate__tags">
+                      {activeTraits.map((trait) => (
+                        <span key={trait} className="debate__tag debate__tag--active">{trait}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="debate__hint">{t.noTraits}</p>
+                  )}
+                </div>
               </section>
             )}
 
-            <section className="debate__section">
-              <h2 className="debate__section-title">{t.share}</h2>
-              {shareUrl ? (
-                <>
-                  <div className="debate__card debate__option-input">
-                    <input
-                      className="debate__card-input"
-                      type="text"
-                      value={shareUrl}
-                      readOnly
-                      onFocus={(e) => e.target.select()}
-                      aria-label={t.shareLink}
-                    />
+            <section className="debate__sheet debate__sheet--plain" aria-label={t.view}>
+              <div className="debate__field debate__field--first">
+                <h3 className="debate__field-title">{t.view}</h3>
+                <div className="debate__roles" role="group" aria-label={t.view}>
+                  {[
+                    [false, t.viewFull],
+                    [true, t.viewTheses],
+                  ].map(([value, label]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`debate__role ${compact === value ? 'debate__role--active' : ''}`}
+                      aria-pressed={compact === value}
+                      onClick={() => toggleCompact(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {positionMap.columns.length > 0 && (
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{t.positions}</h3>
+                  <div className="chat__positions">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">
+                            <span className="sr-only">{d.participants}</span>
+                          </th>
+                          {positionMap.columns.map((column) => (
+                            <th key={column.key} scope="col">
+                              {column.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {participantEntries.map((participant) => {
+                          let previous = '';
+                          return (
+                            <tr key={participant.key}>
+                              <th scope="row" title={participant.label}>
+                                {participant.label}
+                              </th>
+                              {positionMap.columns.map((column) => {
+                                const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
+                                const changed =
+                                  discussion.mode !== 'open' && previous && value && value !== previous;
+                                if (value) previous = value;
+                                const text = discussion.mode === 'open'
+                                  ? t.positionMark[value] || ''
+                                  : value;
+                                const title = [
+                                  discussion.mode === 'open' ? t.stance[value] : value,
+                                  changed ? t.positionChanged : '',
+                                ].filter(Boolean).join(' · ');
+                                return (
+                                  <td
+                                    key={column.key}
+                                    className={changed ? 'chat__position--changed' : undefined}
+                                    data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
+                                    title={title || undefined}
+                                  >
+                                    {text || '—'}
+                                    {title && <span className="sr-only">{title}</span>}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="debate__role-note">{t.positionsHint(discussion.mode)}</p>
+                </div>
+              )}
+
+              <div className="debate__field">
+                <h3 className="debate__field-title">{t.share}</h3>
+                {shareUrl ? (
+                  <>
+                    <div className="debate__share">
+                      <input
+                        type="text"
+                        value={shareUrl}
+                        readOnly
+                        onFocus={(e) => e.target.select()}
+                        aria-label={t.shareLink}
+                      />
+                      <button
+                        type="button"
+                        className="debate__share-copy"
+                        onClick={() => copyLink(shareUrl)}
+                        aria-label={t.copyLink}
+                        title={t.copyLink}
+                      >
+                        <HugeiconsIcon icon={Copy01Icon} size={15} aria-hidden="true" />
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      className="debate__mini-add"
-                      onClick={() => copyLink(shareUrl)}
-                      aria-label={t.copyLink}
-                      title={t.copyLink}
+                      className="debate__link-button"
+                      onClick={handleUnshare}
+                      disabled={isSharing}
                     >
-                      <HugeiconsIcon icon={Copy01Icon} size={14} />
+                      {t.unshare}
                     </button>
-                  </div>
+                  </>
+                ) : (
                   <button
                     type="button"
-                    className="debate__link-button"
-                    onClick={handleUnshare}
+                    className="debate__role debate__share-create"
+                    onClick={handleShare}
                     disabled={isSharing}
                   >
-                    {t.unshare}
+                    <HugeiconsIcon icon={Link01Icon} size={15} strokeWidth={1.8} aria-hidden="true" />
+                    {t.createShareLink}
                   </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="debate__link-button"
-                  onClick={handleShare}
-                  disabled={isSharing}
-                >
-                  {t.createShareLink}
-                </button>
-              )}
-              <p className="debate__hint">{t.shareHint}</p>
-            </section>
-
-            <section className="debate__advanced" ref={advancedRef}>
-              <button
-                type="button"
-                className={`debate__advanced-toggle ${isAdvancedOpen ? 'debate__advanced-toggle--open' : ''}`}
-                onClick={() => setIsAdvancedOpen((open) => !open)}
-                aria-expanded={isAdvancedOpen}
-                aria-haspopup="dialog"
-                aria-controls="chat-advanced"
-              >
-                <span className="debate__advanced-heading">
-                  <span className="debate__section-title">{d.advanced}</span>
-                  {(discussion.moderator_model || discussion.devil_model) && (
-                    <span className="debate__advanced-summary">{d.judgesCustomized}</span>
-                  )}
-                </span>
-                <span className="debate__model-chevron">
-                  <ChevronIcon />
-                </span>
-              </button>
-              <div
-                id="chat-advanced"
-                className={`debate__advanced-body ${isAdvancedOpen ? 'debate__advanced-body--open' : ''}`}
-                inert={!isAdvancedOpen}
-                aria-hidden={!isAdvancedOpen}
-                role="dialog"
-                aria-label={d.advanced}
-              >
-                <h3 className="debate__advanced-group">{d.advancedGeneral}</h3>
-                <span className="debate__field-label">{d.moderatorModel}</span>
-                <ModelPicker
-                  models={models}
-                  value={discussion.moderator_model || ''}
-                  onChange={(modelId) => saveModels({ moderatorModel: modelId })}
-                  disabled={!canEditModels}
-                  label={d.moderatorModel}
-                  autoLabel={d.autoModel}
-                  compact
-                />
-                <span className="debate__field-label">{d.devilModel}</span>
-                <ModelPicker
-                  models={models}
-                  value={discussion.devil_model || ''}
-                  onChange={(modelId) => saveModels({ devilModel: modelId })}
-                  disabled={!canEditModels}
-                  label={d.devilModel}
-                  autoLabel={d.autoModel}
-                  compact
-                />
-                <p className="debate__hint">{d.judgesHint}</p>
+                )}
+                <p className="debate__role-note">{t.shareHint}</p>
               </div>
             </section>
-          </>
-        )}
+
+            <button
+              type="button"
+              className="debate__more-toggle"
+              onClick={toggleAdvanced}
+              aria-expanded={isAdvancedOpen}
+              aria-controls="chat-advanced"
+            >
+              <span className="debate__more-toggle-text">
+                {d.advancedShort}
+                {(discussion.moderator_model || discussion.devil_model) && (
+                  <small>{d.judgesCustomized}</small>
+                )}
+              </span>
+              <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
       </aside>
 
       <div className="chat__column" style={{ '--composer-h': `${composerHeight}px` }}>

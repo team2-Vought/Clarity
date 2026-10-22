@@ -328,6 +328,7 @@ export const uk = {
       'суперечка': 'заперечує рішення',
     },
     view: 'Вигляд',
+    noTraits: 'Без особливих рис',
     viewFull: 'Повністю',
     viewTheses: 'Лише тези',
     expandMessage: 'Показати повністю',
