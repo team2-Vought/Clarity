@@ -668,6 +668,8 @@ def _resolved_personas(discussion):
         if isinstance(item, dict):
             if item.get('name'):
                 persona['name'] = _text(item['name'], limit=64)
+            # стиль і температуру API більше не приймає, але старі дискусії
+            # їх зберігають — читаємо, щоб уточнення звучали як раніше
             if item.get('style'):
                 persona['custom_style'] = _text(item['style'], limit=300)
             if item.get('traits'):

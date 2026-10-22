@@ -31,9 +31,7 @@ OPTION_TOO_LONG = 'Варіант задовгий (максимум 100 сим�
 OPTION_EMPTY = 'Варіант не може бути порожнім'
 OPTION_DUPLICATE = 'Варіанти мають бути різними'
 OPTION_NOT_ALLOWED = 'Варіанти потрібні лише для режиму «Один із варіантів»'
-STYLE_TOO_LONG = 'Опис характеру задовгий (максимум 300 символів)'
 NAME_TOO_LONG = 'Ім’я учасника задовге (максимум 64 символи)'
-TEMPERATURE_RANGE = 'Температура має бути від 0 до 1'
 MODEL_TOO_LONG = 'Ідентифікатор моделі задовгий (максимум 120 символів)'
 MODEL_UNKNOWN = 'Невідома модель: {model}'
 MODEL_UNAVAILABLE = 'Модель «{model}» недоступна: додайте ключ у backend/.env або виберіть іншу'
@@ -180,12 +178,9 @@ class CreateDiscussionSerializer(serializers.Serializer):
                         persona['name'] = name
                 else:
                     name = ''
-                style = item.get('style')
-                if style:
-                    style = str(style).strip()
-                    if len(style) > 300:
-                        raise serializers.ValidationError(STYLE_TOO_LONG)
-                    persona['style'] = style
+                # Власний стиль і температуру з інтерфейсу прибрано: нові значення
+                # мовчки ігноруємо (старі клієнти не отримують помилку), а вже
+                # збережені в старих дискусіях рушій і далі враховує.
                 traits = item.get('traits')
                 if traits is not None:
                     if not isinstance(traits, list):
@@ -206,15 +201,6 @@ class CreateDiscussionSerializer(serializers.Serializer):
                 model = validate_model_id(item.get('model'))
                 if model:
                     persona['model'] = model
-                temperature = item.get('temperature')
-                if temperature is not None:
-                    try:
-                        temperature = float(temperature)
-                    except (TypeError, ValueError):
-                        raise serializers.ValidationError(TEMPERATURE_RANGE)
-                    if not (0 <= temperature <= 1):
-                        raise serializers.ValidationError(TEMPERATURE_RANGE)
-                    persona['temperature'] = temperature
             # Користувач не бачить архетипів персон («Логік», «Скептик»), лише
             # своїх учасників, тож безіменному даємо те саме ім'я, що й в UI.
             effective_name = name or DEFAULT_NAME.format(index=index + 1)

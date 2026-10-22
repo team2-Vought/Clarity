@@ -247,7 +247,7 @@ class DiscussionApiTests(TestCase):
         self.assertEqual(detail.data['final_summary'].get('answer'), 'так')
         self.assertIn('confirmed', detail.data['final_summary'])
 
-    def test_persona_style_override_accepted(self):
+    def test_persona_style_and_temperature_ignored(self):
         self.auth()
         response = self.client.post(
             '/api/discussions/',
@@ -261,8 +261,8 @@ class DiscussionApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['personas'][0]['style'], 'Ти — воєнний стратег.')
-        self.assertEqual(response.data['personas'][0]['temperature'], 0.3)
+        self.assertNotIn('style', response.data['personas'][0])
+        self.assertNotIn('temperature', response.data['personas'][0])
 
     def test_persona_name_override_accepted(self):
         self.auth()
@@ -332,7 +332,7 @@ class DiscussionApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_persona_temperature_range(self):
+    def test_persona_out_of_range_temperature_ignored(self):
         self.auth()
         response = self.client.post(
             '/api/discussions/',
@@ -345,7 +345,8 @@ class DiscussionApiTests(TestCase):
             },
             format='json',
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('temperature', response.data['personas'][0])
 
     def test_advance_foreign_discussion_forbidden(self):
         self.auth()
@@ -695,11 +696,15 @@ class DiscussionApiTests(TestCase):
             '/api/discussions/',
             {
                 'question': 'Чи варто запускати власний продукт?',
-                'personas': [{'slug': 'logician', 'style': 'таємний стиль'}, 'skeptic'],
+                'personas': ['logician', 'skeptic'],
             },
             format='json',
         )
         self.assertEqual(response.status_code, 201)
+        # стиль із часів, коли його ще можна було задати, — публічно не видно
+        discussion = Discussion.objects.get(pk=response.data['id'])
+        discussion.personas[0]['style'] = 'таємний стиль'
+        discussion.save(update_fields=['personas'])
         return response.data['id']
 
     def test_share_link_gives_read_only_access_without_login(self):
