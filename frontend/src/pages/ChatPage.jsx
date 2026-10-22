@@ -1096,8 +1096,19 @@ export default function ChatPage() {
           aria-busy={isRunning}
         >
           {discussion && (
-            <header className="chat__prompt">
-              <p className="chat__prompt-text">{discussion.question}</p>
+            // запитання — перше повідомлення користувача, а не заголовок сторінки
+            <header className="chat__row chat__row--right chat__row--user">
+              <span className="chat__avatar" style={{ '--avatar': USER_COLOR }} aria-hidden="true">
+                <AvatarIcon />
+              </span>
+              <div className="chat__body">
+                <div className="chat__head">
+                  <span className="chat__name">{questionMessage?.persona_name || t.you}</span>
+                </div>
+                <div className="chat__bubble" style={{ '--bubble': USER_COLOR }}>
+                  <MessageMarkdown blocks={parseBlocks(discussion.question)} sources={sourcesById} />
+                </div>
+              </div>
             </header>
           )}
 

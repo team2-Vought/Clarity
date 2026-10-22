@@ -224,6 +224,7 @@ export const uk = {
     searchedFor: (query) => `Шукав: ${query}`,
     sources: 'Джерела',
     resume: 'Продовжити',
+    you: 'Ви',
     summary: 'Підсумок',
     summaryDecision: 'Рішення',
     summaryAnswer: 'Відповідь',
