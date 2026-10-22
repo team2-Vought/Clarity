@@ -132,7 +132,16 @@
 }
 
 .thought-line__timer-value {
+  /* ширина «00.0s»: стрілка не зсувається, поки секунди двозначні */
+  min-width: 2.75em;
   font-variant-numeric: tabular-nums;
+}
+
+/* комірка під найширшу цифру «0» (≈0.67em у DM Sans) */
+.thought-line__digit {
+  display: inline-block;
+  width: 0.67em;
+  text-align: center;
 }
 
 .thought-line__timer[data-done] {

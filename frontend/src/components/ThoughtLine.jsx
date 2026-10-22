@@ -14,6 +14,17 @@ const fmt = (ds) =>
     ? `${(ds / 10).toFixed(1)}s`
     : `${Math.floor(ds / 600)}m ${((ds % 600) / 10).toFixed(1)}s`;
 
+// У DM Sans немає табличних цифр («1» удвічі вужча за «0»), тож кожна цифра
+// стоїть у комірці однакової ширини — інакше таймер і стрілка поруч тремтять
+const fixedDigits = (text) =>
+  [...text].map((char, index) =>
+    /\d/.test(char) ? (
+      <span key={index} className="thought-line__digit">{char}</span>
+    ) : (
+      char
+    )
+  );
+
 const spoken = (ds) =>
   ds < 600
     ? `${(ds / 10).toFixed(1)} seconds`
@@ -222,7 +233,7 @@ export default function ThoughtLine({
           aria-hidden="true"
         >
           {timerLabel ? <span className="thought-line__timer-label">{timerLabel}</span> : null}
-          <span className="thought-line__timer-value">{fmt(shownDs)}</span>
+          <span className="thought-line__timer-value">{fixedDigits(fmt(shownDs))}</span>
         </span>
       ) : null}
       {collapsible ? (
