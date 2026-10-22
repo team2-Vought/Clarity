@@ -1,17 +1,18 @@
 import logging
+import uuid
 from datetime import datetime, time, timedelta
 
 from django.conf import settings
 from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Discussion, Message
+from .models import Discussion, Message, Team
 from .personas import (
     DEVIL,
     MAX_AI,
@@ -26,6 +27,8 @@ from .serializers import (
     DiscussionListSerializer,
     DiscussionSerializer,
     MessageSerializer,
+    SharedDiscussionSerializer,
+    TeamSerializer,
     UpdateDiscussionSerializer,
 )
 from .services import engine, runner, search, usage
@@ -41,6 +44,9 @@ def _retry_after_seconds():
     return max(1, int((tomorrow - now).total_seconds()))
 
 
+TEAMS_MAX = 20
+# зміна моделей під час кроку зламала б його; закріплення й архів — ні
+MODEL_FIELDS = {'personas', 'moderator_model', 'devil_model'}
 HISTORY_PAGE_SIZE = 30
 HISTORY_PAGE_MAX = 100
 SEARCH_QUERY_MAX = 200
@@ -173,7 +179,8 @@ class DiscussionListCreateView(APIView):
             .order_by('-seq')
             .values('content')[:1]
         )
-        queryset = Discussion.objects.filter(user=request.user)
+        archived = request.query_params.get('archived', '') in {'1', 'true'}
+        queryset = Discussion.objects.filter(user=request.user, archived=archived)
         status_filter = request.query_params.get('status', '')
         if status_filter in Discussion.Status.values:
             queryset = queryset.filter(status=status_filter)
@@ -185,7 +192,7 @@ class DiscussionListCreateView(APIView):
         total = queryset.count()
         page = (
             queryset.annotate(message_count=Count('messages'), last_reply=Subquery(last_reply))
-            .order_by('-created_at')[offset:offset + limit]
+            .order_by('-pinned', '-created_at')[offset:offset + limit]
         )
         serializer = DiscussionListSerializer(page, many=True)
         next_offset = offset + limit if offset + limit < total else None
@@ -270,7 +277,8 @@ class DiscussionDetailView(OwnedDiscussionView):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
-        if engine.is_running(discussion) or runner.is_active(discussion.pk):
+        changes_models = bool(MODEL_FIELDS & set(request.data))
+        if changes_models and (engine.is_running(discussion) or runner.is_active(discussion.pk)):
             return Response(
                 {'detail': 'Зачекайте, поки завершиться поточний крок, або зупиніть дискусію.'},
                 status=status.HTTP_409_CONFLICT,
@@ -402,3 +410,78 @@ class DiscussionMessageView(OwnedDiscussionView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class DiscussionShareView(OwnedDiscussionView):
+    """Публічне посилання лише для читання: POST вмикає, DELETE відкликає."""
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        if discussion.share_token is None:
+            discussion.share_token = uuid.uuid4()
+            discussion.save(update_fields=['share_token', 'updated_at'])
+        return Response({'share_token': discussion.share_token}, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        # новий токен при наступному вмиканні: старе посилання більше не відкриється
+        Discussion.objects.filter(pk=discussion.pk).update(share_token=None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SharedDiscussionView(APIView):
+    """Перегляд дискусії за публічним посиланням без входу."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, token):
+        discussion = Discussion.objects.filter(share_token=token).first()
+        if discussion is None:
+            return Response(
+                {'detail': 'Посилання недійсне або доступ до дискусії закрито'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(SharedDiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
+
+
+class TeamListCreateView(APIView):
+    """Збережені команди. POST з наявною назвою оновлює команду, а не дублює її."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        teams = Team.objects.filter(user=request.user)
+        return Response({'results': TeamSerializer(teams, many=True).data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = TeamSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        name = serializer.validated_data['name']
+        existing = Team.objects.filter(user=request.user, name=name).first()
+        if existing is None and Team.objects.filter(user=request.user).count() >= TEAMS_MAX:
+            return Response(
+                {'detail': f'Можна зберегти не більше {TEAMS_MAX} команд. Видаліть непотрібні.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if existing is None:
+            team = serializer.save(user=request.user)
+            code = status.HTTP_201_CREATED
+        else:
+            team = serializer.update(existing, serializer.validated_data)
+            code = status.HTTP_200_OK
+        return Response(TeamSerializer(team).data, status=code)
+
+
+class TeamDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        deleted, _ = Team.objects.filter(user=request.user, pk=pk).delete()
+        if not deleted:
+            return Response({'detail': 'Команду не знайдено'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)

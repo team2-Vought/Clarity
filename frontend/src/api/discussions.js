@@ -8,9 +8,10 @@ export function fetchModels() {
   return request('/api/models/', { auth: true });
 }
 
-/** Сторінка історії: `status` і `q` фільтрують на сервері, `offset` — для «Показати ще». */
-export function fetchDiscussions({ offset = 0, limit, status, q, signal } = {}) {
+/** Сторінка історії: `status`, `q` і `archived` фільтрують на сервері, `offset` — для «Показати ще». */
+export function fetchDiscussions({ offset = 0, limit, status, q, archived = false, signal } = {}) {
   const params = new URLSearchParams();
+  if (archived) params.set('archived', '1');
   if (offset) params.set('offset', String(offset));
   if (limit) params.set('limit', String(limit));
   if (status) params.set('status', status);
@@ -71,11 +72,13 @@ export function postNote(id, content) {
 }
 
 /** Зміна моделей учасників і суддів, поки дискусія не виконується. */
-export function updateDiscussion(id, { personas, moderatorModel, devilModel }) {
+export function updateDiscussion(id, { personas, moderatorModel, devilModel, pinned, archived }) {
   const body = {};
   if (personas) body.personas = personas;
   if (moderatorModel !== undefined) body.moderator_model = moderatorModel;
   if (devilModel !== undefined) body.devil_model = devilModel;
+  if (pinned !== undefined) body.pinned = pinned;
+  if (archived !== undefined) body.archived = archived;
   return request(`/api/discussions/${id}/`, { method: 'PATCH', auth: true, body });
 }
 
@@ -92,4 +95,36 @@ export function deleteDiscussion(id) {
     method: 'DELETE',
     auth: true,
   });
+}
+
+/** Публічне посилання лише для читання: вмикає (або повертає наявне). */
+export function shareDiscussion(id) {
+  return request(`/api/discussions/${id}/share/`, { method: 'POST', auth: true });
+}
+
+/** Закриває доступ: старе посилання перестає відкриватися. */
+export function unshareDiscussion(id) {
+  return request(`/api/discussions/${id}/share/`, { method: 'DELETE', auth: true });
+}
+
+/** Дискусія за публічним посиланням — без входу. */
+export function fetchSharedDiscussion(token) {
+  return request(`/api/shared/${token}/`);
+}
+
+export function fetchTeams() {
+  return request('/api/teams/', { auth: true });
+}
+
+/** Зберігає команду; з наявною назвою — оновлює її. */
+export function saveTeam({ name, personas, moderatorModel, devilModel }) {
+  return request('/api/teams/', {
+    method: 'POST',
+    auth: true,
+    body: { name, personas, moderator_model: moderatorModel, devil_model: devilModel },
+  });
+}
+
+export function deleteTeam(id) {
+  return request(`/api/teams/${id}/`, { method: 'DELETE', auth: true });
 }

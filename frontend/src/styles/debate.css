@@ -2,7 +2,9 @@
 
 /* ---------- App shell ---------- */
 
-.app-shell {
+/* .shared — публічна сторінка дискусії: ті самі кольори, але без оболонки */
+.app-shell,
+.shared {
   --rail-w: clamp(58px, 4.6vw, 72px);
   --panel: #e0e0e0;
   --card: #ffffff;
@@ -10,7 +12,9 @@
   --ink: #121212;
   --muted: rgba(18, 18, 18, 0.6);
   --divider: rgba(18, 18, 18, 0.55);
+}
 
+.app-shell {
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
   height: 100dvh;
@@ -19,7 +23,8 @@
   color: var(--ink);
 }
 
-:root[data-theme='dark'] .app-shell {
+:root[data-theme='dark'] .app-shell,
+:root[data-theme='dark'] .shared {
   --panel: #1f1f23;
   --card: #2b2b31;
   --main-bg: #121212;
@@ -1237,6 +1242,82 @@ body:has(.app-shell) {
 .debate__main .debate__error-block {
   align-items: center;
   width: min(760px, 100%);
+}
+
+/* Шаблони: швидкий старт, поки поле питання порожнє */
+.debate__templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(760px, 100%);
+}
+
+.debate__templates-label {
+  margin-right: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.debate__template-chip {
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+
+.debate__template-chip:hover {
+  border-color: transparent;
+  background: var(--card);
+}
+
+.debate__template-chip:focus-visible,
+.debate__team-apply:focus-visible,
+.debate__link-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* збережена команда: назва застосовує склад, хрестик видаляє */
+.debate__team-apply {
+  max-width: 180px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.debate__link-button {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.debate__link-button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.debate__link-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Формат відповіді під полем питання: головний вибір, а не прихований параметр */
@@ -3201,4 +3282,110 @@ ol.chat__reveal {
 .chat__composer-hint-close svg {
   width: 10px;
   height: 10px;
+}
+
+/* ---------- Публічне посилання на дискусію ---------- */
+
+.shared {
+  min-height: 100dvh;
+  background: var(--main-bg);
+  color: var(--ink);
+}
+
+.shared__bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px clamp(16px, 4vw, 40px);
+  background: color-mix(in srgb, var(--main-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.shared__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shared__cta {
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--btn-bg, #121212);
+  color: var(--btn-text, #ffffff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shared__brand:focus-visible,
+.shared__cta:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.shared__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 16px 80px;
+}
+
+.shared__intro {
+  width: 100%;
+  max-width: 880px;
+}
+
+.shared__label {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shared__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* глобальний градієнт під h1 з base.css тут зайвий */
+.shared__title::after {
+  display: none;
+}
+
+.shared__meta,
+.shared__status {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.shared__status {
+  max-width: 880px;
+  text-align: center;
+}
+
+.shared__sources ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: 0.9375rem;
+}
+
+.shared__sources a {
+  color: inherit;
+  overflow-wrap: anywhere;
 }

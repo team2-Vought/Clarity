@@ -410,9 +410,16 @@
   background: var(--error);
 }
 
-.history__delete {
-  position: absolute;
+/* дії картки: закріпити, архів, видалити — над розтягнутою кнопкою відкриття */
+.history__actions {
+  position: relative;
   z-index: 2;
+  display: flex;
+  gap: 2px;
+}
+
+.history__action {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -427,31 +434,45 @@
 }
 
 /* зона дотику 44px */
-.history__delete::after {
+.history__action::after {
   content: '';
   position: absolute;
   inset: -2px;
 }
 
-.history__delete:hover:not(:disabled) {
+.history__action:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+.history__action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.history__delete:hover {
   background: color-mix(in srgb, var(--error) 12%, transparent);
   color: var(--error);
 }
 
-.history__delete:disabled {
-  cursor: progress;
-}
-
-/* з мишею кнопка видалення проявляється при наведенні, на дотикових — завжди */
+/* з мишею дії проявляються при наведенні, на дотикових — завжди */
 @media (hover: hover) {
-  .history__delete {
+  .history__actions {
     opacity: 0;
+    transition: opacity 0.18s;
   }
 
-  .history__card:hover .history__delete,
-  .history__card:focus-within .history__delete {
+  .history__card:hover .history__actions,
+  .history__card:focus-within .history__actions {
     opacity: 1;
   }
+}
+
+/* шпилька біля дати — видно, що дискусію закріплено, і без наведення */
+.history__pin-mark {
+  margin-right: 6px;
+  vertical-align: -0.15em;
+  color: var(--ink);
 }
 
 /* ---- сітка ---- */
@@ -471,7 +492,6 @@
 /* дата над назвою, як у Siri; у DOM назва перша — так її першою чує скрінрідер */
 .history--grid .history__when {
   order: -1;
-  padding-right: 32px;
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -483,9 +503,10 @@
   -webkit-line-clamp: 6;
 }
 
-.history--grid .history__delete {
-  top: 16px;
-  right: 16px;
+/* у сітці дії — окремим рядком унизу картки, щоб не наїжджати на дату */
+.history--grid .history__actions {
+  justify-content: flex-end;
+  margin: -6px -12px -14px 0;
 }
 
 /* ---- список, як у Siri: без карток, рядки під тонкими лініями ---- */
@@ -505,7 +526,7 @@
 /* перший рядок — запит і час, нижче — фрагмент відповіді */
 .history--list .history__card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 40px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
     'question when delete'
     'preview preview delete'
@@ -568,8 +589,7 @@
   white-space: nowrap;
 }
 
-.history--list .history__delete {
-  position: relative;
+.history--list .history__actions {
   grid-area: delete;
 }
 
@@ -676,13 +696,11 @@
   }
 
   .history--grid .history__when {
-    padding-right: 36px;
     font-size: 0.8125rem;
   }
 
-  .history--grid .history__delete {
-    top: 10px;
-    right: 8px;
+  .history--grid .history__actions {
+    margin-right: -14px;
   }
 
   .history--grid .history__dot {

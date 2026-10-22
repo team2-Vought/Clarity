@@ -6,9 +6,13 @@ from .views import (
     DiscussionListCreateView,
     DiscussionMessageView,
     DiscussionRunView,
+    DiscussionShareView,
     DiscussionStopView,
     FreeModelListView,
     PersonaListView,
+    SharedDiscussionView,
+    TeamDetailView,
+    TeamListCreateView,
 )
 
 app_name = 'discussions'
@@ -34,4 +38,8 @@ urlpatterns = [
         DiscussionMessageView.as_view(),
         name='discussion-messages',
     ),
+    path('discussions/<uuid:pk>/share/', DiscussionShareView.as_view(), name='discussion-share'),
+    path('shared/<uuid:token>/', SharedDiscussionView.as_view(), name='shared-discussion'),
+    path('teams/', TeamListCreateView.as_view(), name='team-list'),
+    path('teams/<uuid:pk>/', TeamDetailView.as_view(), name='team-detail'),
 ]

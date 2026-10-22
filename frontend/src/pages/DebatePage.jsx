@@ -2,7 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { PencilEdit02Icon } from '@hugeicons/core-free-icons';
-import { fetchPersonas, fetchModels, createDiscussion } from '../api/discussions';
+import {
+  createDiscussion,
+  deleteTeam,
+  fetchModels,
+  fetchPersonas,
+  fetchTeams,
+  saveTeam,
+} from '../api/discussions';
 import { getToken } from '../api/client';
 import {
   ArrowUpIcon,
@@ -15,6 +22,8 @@ import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { DEBATE_TEMPLATES } from '../utils/debateTemplates';
+import { useToasts } from '../hooks/useToasts';
 
 const t = uk.debate;
 
@@ -53,6 +62,30 @@ const saveDraft = (value) => {
 };
 
 const shortModel = (model) => (model ? model.label || model.model : '');
+
+// Склад учасників зі збережених даних (команда, шаблон, попередня дискусія).
+// Невідомі ролі пропускаємо, недоступну модель замінюємо наступною з пулу.
+const toParticipants = (list, { known, availableIds, fallbackModel }) =>
+  (list || [])
+    .map((item) => (typeof item === 'string' ? { slug: item } : item))
+    .filter((item) => known.has(item.slug))
+    .map((item, i) => ({
+      slug: item.slug,
+      name: item.name || '',
+      color: TRAIT_COLORS[i % TRAIT_COLORS.length],
+      model: availableIds.has(item.model) ? item.model : fallbackModel(i),
+      traits: Array.isArray(item.traits) ? item.traits : [],
+      style: item.style || '',
+      temperature: item.temperature ?? DEFAULT_TEMPERATURE,
+    }));
+
+const customTraitsOf = (list) => [
+  ...new Set(list.flatMap((p) => p.traits).filter((trait) => !TRAITS.includes(trait))),
+];
+
+// Ім'я «Учасник N» сервер дає сам, тож у збереженому складі воно зайве:
+// інакше після перестановки учасників номер не збігався б з позицією
+const isDefaultName = (name) => /^Учасник \d+$/.test(name || '');
 
 const MODES = [
   { value: 'yes_no', label: t.modeYesNo },
@@ -118,6 +151,11 @@ export default function DebatePage() {
     [registerPanelToggle]
   );
   const [isCreating, setIsCreating] = useState(false);
+  const [teams, setTeams] = useState([]);
+  const [teamName, setTeamName] = useState('');
+  const [isTeamFormOpen, setIsTeamFormOpen] = useState(false);
+  const [isSavingTeam, setIsSavingTeam] = useState(false);
+  const { pushToast } = useToasts();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -173,7 +211,13 @@ export default function DebatePage() {
     setIsLoading(true);
     setError('');
     try {
-      const [pData, mData] = await Promise.all([fetchPersonas(), fetchModels()]);
+      const [pData, mData, teamData] = await Promise.all([
+        fetchPersonas(),
+        fetchModels(),
+        // без збережених команд сторінка все одно працює
+        fetchTeams().catch(() => null),
+      ]);
+      setTeams(teamData?.results || []);
       const personaList = orderRoles(pData.personas || []);
       const modelList = mData.models || [];
       const availableModels = modelList.filter((m) => m.available);
@@ -185,17 +229,11 @@ export default function DebatePage() {
       const fallbackModel = (i) => (pool.length ? pool[i % pool.length] : selectedDefault);
       const template = templateRef.current;
       const known = new Set(personaList.map((persona) => persona.slug));
-      const fromTemplate = (template?.personas || [])
-        .filter((p) => known.has(p.slug))
-        .map((p, i) => ({
-          slug: p.slug,
-          name: p.name || '',
-          color: TRAIT_COLORS[i % TRAIT_COLORS.length],
-          model: availableModels.some((m) => m.id === p.model) ? p.model : fallbackModel(i),
-          traits: Array.isArray(p.traits) ? p.traits : [],
-          style: p.style || '',
-          temperature: p.temperature ?? DEFAULT_TEMPERATURE,
-        }));
+      const fromTemplate = toParticipants(template?.personas, {
+        known,
+        availableIds: new Set(availableModels.map((m) => m.id)),
+        fallbackModel,
+      }).map((p) => ({ ...p, name: isDefaultName(p.name) ? '' : p.name }));
       const initial = fromTemplate.length >= MIN_PARTICIPANTS
         ? fromTemplate
         : personaList.slice(0, MIN_PARTICIPANTS).map((persona, i) => ({
@@ -208,9 +246,7 @@ export default function DebatePage() {
           temperature: DEFAULT_TEMPERATURE,
         }));
       if (template) {
-        setCustomTraits([
-          ...new Set(initial.flatMap((p) => p.traits).filter((trait) => !TRAITS.includes(trait))),
-        ]);
+        setCustomTraits(customTraitsOf(initial));
         if (template.mode) setMode(template.mode);
         if (template.mode === 'choose_one') setOptions(template.options || []);
         if (template.rounds) setRounds(template.rounds);
@@ -505,6 +541,107 @@ export default function DebatePage() {
     addOption();
   };
 
+  const participantContext = () => ({
+    known: new Set(personas.map((persona) => persona.slug)),
+    availableIds: new Set(models.filter((m) => m.available).map((m) => m.id)),
+    fallbackModel: (i) => (modelOrder.length ? modelOrder[i % modelOrder.length] : defaultModel),
+  });
+
+  const replaceParticipants = (next) => {
+    setParticipants(next);
+    setActiveSlug(next[0]?.slug || '');
+    setRenamingSlug(null);
+    setCustomTraits((current) => [...new Set([...current, ...customTraitsOf(next)])]);
+  };
+
+  // Шаблон: заготовка питання з [полями], формат, ролі й параметри.
+  // Перше [поле] одразу виділяється, щоб його можна було просто перепечатати.
+  const applyTemplate = (template) => {
+    const question = t.templates[template.id].question;
+    setDescription(question);
+    saveDraft(question);
+    handleModeChange(template.mode);
+    setRounds(Math.min(template.rounds, maxRounds));
+    setWebSearch(Boolean(searchStatus.available && template.webSearch));
+    const next = toParticipants(template.roles, participantContext());
+    if (next.length >= MIN_PARTICIPANTS) replaceParticipants(next);
+    setError('');
+    setTimeout(() => {
+      const el = questionRef.current;
+      if (!el) return;
+      el.focus();
+      const start = question.indexOf('[');
+      if (start >= 0) el.setSelectionRange(start, question.indexOf(']', start) + 1);
+    }, 0);
+  };
+
+  const applyTeam = (team) => {
+    const next = toParticipants(team.personas, participantContext()).map((p) => ({
+      ...p,
+      name: isDefaultName(p.name) ? '' : p.name,
+    }));
+    if (next.length < MIN_PARTICIPANTS) {
+      setError(t.teamApplyError);
+      return;
+    }
+    replaceParticipants(next);
+    setModeratorModel(team.moderator_model || '');
+    setDevilModel(team.devil_model || '');
+    setError('');
+  };
+
+  const personasPayload = () =>
+    participants.map((p) => ({
+      slug: p.slug,
+      name: p.name || undefined,
+      model: p.model,
+      style: p.style || undefined,
+      temperature: p.temperature,
+      traits: p.traits.length > 0 ? p.traits : undefined,
+    }));
+
+  const saveCurrentTeam = async () => {
+    const name = teamName.trim();
+    if (!name || isSavingTeam) return;
+    setIsSavingTeam(true);
+    try {
+      const team = await saveTeam({
+        name,
+        personas: personasPayload(),
+        moderatorModel,
+        devilModel,
+      });
+      setTeams((current) => [team, ...current.filter((item) => item.id !== team.id)]);
+      setTeamName('');
+      setIsTeamFormOpen(false);
+      pushToast(t.teamSaved(team.name));
+    } catch (err) {
+      setError(err.message || t.teamSaveError);
+    } finally {
+      setIsSavingTeam(false);
+    }
+  };
+
+  const removeTeam = async (team) => {
+    setTeams((current) => current.filter((item) => item.id !== team.id));
+    try {
+      await deleteTeam(team.id);
+    } catch (err) {
+      setTeams((current) => [team, ...current]);
+      setError(err.message);
+    }
+  };
+
+  const handleTeamKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveCurrentTeam();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsTeamFormOpen(false);
+    }
+  };
+
   const handleStart = async (e) => {
     e.preventDefault();
     const question = description.trim();
@@ -541,14 +678,7 @@ export default function DebatePage() {
     setIsCreating(true);
     setError('');
     try {
-      const selectedPersonas = participants.map((p) => ({
-        slug: p.slug,
-        name: p.name || undefined,
-        model: p.model,
-        style: p.style || undefined,
-        temperature: p.temperature,
-        traits: p.traits.length > 0 ? p.traits : undefined,
-      }));
+      const selectedPersonas = personasPayload();
 
       const data = await createDiscussion({
         question,
@@ -585,6 +715,71 @@ export default function DebatePage() {
         />
       )}
       <div className="debate__form-panel" id="debate-settings">
+        <section className="debate__section">
+          <h2 className="debate__section-title">{t.teams}</h2>
+          {teams.length > 0 && (
+            <div className="debate__option-list">
+              {teams.map((team) => (
+                <span key={team.id} className="debate__option-chip">
+                  <button
+                    type="button"
+                    className="debate__team-apply"
+                    onClick={() => applyTeam(team)}
+                    disabled={isCreating}
+                    title={t.applyTeam(team.name)}
+                  >
+                    {team.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="debate__option-remove"
+                    onClick={() => removeTeam(team)}
+                    aria-label={t.deleteTeam(team.name)}
+                    title={t.deleteTeam(team.name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {isTeamFormOpen ? (
+            <div className="debate__card debate__option-input">
+              <input
+                className="debate__card-input"
+                type="text"
+                value={teamName}
+                maxLength={MAX_NAME}
+                onChange={(e) => setTeamName(e.target.value)}
+                onKeyDown={handleTeamKeyDown}
+                placeholder={t.teamNamePlaceholder}
+                aria-label={t.teamName}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="debate__mini-add"
+                onClick={saveCurrentTeam}
+                disabled={!teamName.trim() || isSavingTeam}
+                aria-label={t.saveTeam}
+                title={t.saveTeam}
+              >
+                ✓
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="debate__link-button"
+              onClick={() => setIsTeamFormOpen(true)}
+              disabled={isCreating || participants.length < MIN_PARTICIPANTS}
+            >
+              {t.saveCurrentTeam}
+            </button>
+          )}
+          {teams.length === 0 && !isTeamFormOpen && <p className="debate__hint">{t.teamsHint}</p>}
+        </section>
+
         <section className="debate__section">
           <h2 className="debate__section-title">{t.participants}</h2>
           <div className="debate__participant-row">
@@ -942,6 +1137,23 @@ export default function DebatePage() {
             </button>
           </div>
         </div>
+
+        {!description.trim() && !isLoading && personas.length > 0 && (
+          <div className="debate__templates" role="group" aria-label={t.templatesLabel}>
+            <span className="debate__templates-label">{t.templatesLabel}</span>
+            {DEBATE_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                className="debate__template-chip"
+                onClick={() => applyTemplate(template)}
+                disabled={isCreating}
+              >
+                {t.templates[template.id].label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="debate__mode-bar">
           <div className="debate__mode-list debate__mode-list--main" role="group" aria-label={t.mode}>

@@ -690,6 +690,114 @@ class DiscussionApiTests(TestCase):
         self.assertTrue(all(message['model_id'] for message in step.data['messages']))
 
 
+    def _created(self):
+        response = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': [{'slug': 'logician', 'style': 'таємний стиль'}, 'skeptic'],
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        return response.data['id']
+
+    def test_share_link_gives_read_only_access_without_login(self):
+        self.auth()
+        discussion_id = self._created()
+        shared = self.client.post(f'/api/discussions/{discussion_id}/share/')
+        self.assertEqual(shared.status_code, 200)
+        token = shared.data['share_token']
+        # повторне вмикання не змінює посилання
+        again = self.client.post(f'/api/discussions/{discussion_id}/share/')
+        self.assertEqual(again.data['share_token'], token)
+
+        anonymous = APIClient()
+        public = anonymous.get(f'/api/shared/{token}/')
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(public.data['title'], 'Чи варто запускати власний продукт?')
+        self.assertEqual(public.data['messages'][0]['persona_name'], serializers.SHARED_AUTHOR)
+        self.assertNotIn('Тест', str(public.data))
+        self.assertNotIn('таємний стиль', str(public.data))
+        self.assertNotIn('share_token', public.data)
+
+    def test_revoked_share_link_stops_working(self):
+        self.auth()
+        discussion_id = self._created()
+        token = self.client.post(f'/api/discussions/{discussion_id}/share/').data['share_token']
+        revoked = self.client.delete(f'/api/discussions/{discussion_id}/share/')
+        self.assertEqual(revoked.status_code, 204)
+        self.assertEqual(APIClient().get(f'/api/shared/{token}/').status_code, 404)
+        fresh = self.client.post(f'/api/discussions/{discussion_id}/share/').data['share_token']
+        self.assertNotEqual(fresh, token)
+
+    def test_cannot_share_someone_elses_discussion(self):
+        self.auth()
+        discussion_id = self._created()
+        other = User.objects.create_user(email='other-share@test.com', name='Інший', password='pass123!A')
+        Discussion.objects.filter(pk=discussion_id).update(user=other)
+        self.assertEqual(self.client.post(f'/api/discussions/{discussion_id}/share/').status_code, 404)
+
+    def test_pin_and_archive(self):
+        self.auth()
+        older = self._make('Старіше питання про переїзд')
+        newer = self._make('Новіше питання про переїзд')
+        self.client.patch(f'/api/discussions/{older.id}/', {'pinned': True}, format='json')
+        listed = self.client.get('/api/discussions/')
+        self.assertEqual([item['id'] for item in listed.data['results']], [str(older.id), str(newer.id)])
+        self.assertTrue(listed.data['results'][0]['pinned'])
+
+        self.client.patch(f'/api/discussions/{newer.id}/', {'archived': True}, format='json')
+        active = self.client.get('/api/discussions/')
+        self.assertEqual([item['id'] for item in active.data['results']], [str(older.id)])
+        archive = self.client.get('/api/discussions/?archived=1')
+        self.assertEqual([item['id'] for item in archive.data['results']], [str(newer.id)])
+
+    def test_pin_is_allowed_while_running(self):
+        self.auth()
+        discussion = self._make('Питання, яке зараз обговорюють')
+        with mock.patch('discussions.views.runner.is_active', return_value=True):
+            pinned = self.client.patch(f'/api/discussions/{discussion.id}/', {'pinned': True}, format='json')
+            self.assertEqual(pinned.status_code, 200)
+            blocked = self.client.patch(
+                f'/api/discussions/{discussion.id}/', {'moderator_model': ''}, format='json'
+            )
+            self.assertEqual(blocked.status_code, 409)
+
+    def test_teams_are_saved_updated_and_deleted(self):
+        self.auth()
+        payload = {'name': '  Моя   команда ', 'personas': [{'slug': 'logician', 'name': 'Аналітик'}, 'skeptic']}
+        created = self.client.post('/api/teams/', payload, format='json')
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data['name'], 'Моя команда')
+        self.assertEqual([p['name'] for p in created.data['personas']], ['Аналітик', 'Учасник 2'])
+
+        payload['personas'] = ['creative', 'pragmatist', 'emotional']
+        updated = self.client.post('/api/teams/', payload, format='json')
+        self.assertEqual(updated.status_code, 200)
+        listed = self.client.get('/api/teams/')
+        self.assertEqual(len(listed.data['results']), 1)
+        self.assertEqual(len(listed.data['results'][0]['personas']), 3)
+
+        invalid = self.client.post('/api/teams/', {'name': 'Одна', 'personas': ['logician']}, format='json')
+        self.assertEqual(invalid.status_code, 400)
+
+        deleted = self.client.delete(f'/api/teams/{created.data["id"]}/')
+        self.assertEqual(deleted.status_code, 204)
+        self.assertEqual(self.client.get('/api/teams/').data['results'], [])
+
+    def test_teams_are_private(self):
+        self.auth()
+        created = self.client.post(
+            '/api/teams/', {'name': 'Секретна', 'personas': ['logician', 'skeptic']}, format='json'
+        )
+        other = User.objects.create_user(email='other-team@test.com', name='Інший', password='pass123!A')
+        client = APIClient()
+        client.force_authenticate(other)
+        self.assertEqual(client.get('/api/teams/').data['results'], [])
+        self.assertEqual(client.delete(f'/api/teams/{created.data["id"]}/').status_code, 404)
+
+
 class DiscussionThrottleTests(TestCase):
     """Справжній throttle (без патчу allow_request з DiscussionApiTests)."""
 

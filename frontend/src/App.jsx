@@ -17,6 +17,7 @@ const AccountPage = lazy(() => import('./pages/AccountPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const SharedPage = lazy(() => import('./pages/SharedPage'));
 
 function RouteFallback() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/shared/:token" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />
               <Route path="/chat/:id" element={<ChatPage />} />

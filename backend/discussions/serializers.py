@@ -3,7 +3,7 @@ import re
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Discussion, Message
+from .models import Discussion, Message, Team
 from .personas import (
     DEFAULT_ROUNDS,
     MAX_AI,
@@ -45,6 +45,9 @@ TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
 TRAIT_TOO_LONG = 'Риса характеру задовга (максимум 40 символів)'
 SEARCH_UNAVAILABLE = 'Пошук в інтернеті вимкнено на сервері'
 PERSONA_NOT_IN_DISCUSSION = 'Учасника «{slug}» немає в цій дискусії'
+TEAM_NAME_EMPTY = 'Назвіть команду'
+TEAM_NAME_TOO_LONG = 'Назва команди задовга (максимум 64 символи)'
+SHARED_AUTHOR = 'Автор питання'
 
 # Помилки, які не минуть від повтору: потрібно змінити модель чи налаштування.
 NON_RETRYABLE_CODES = {
@@ -271,6 +274,8 @@ class UpdateDiscussionSerializer(serializers.Serializer):
     personas = serializers.ListField(child=serializers.DictField(), required=False)
     moderator_model = serializers.CharField(required=False, allow_blank=True)
     devil_model = serializers.CharField(required=False, allow_blank=True)
+    pinned = serializers.BooleanField(required=False)
+    archived = serializers.BooleanField(required=False)
 
     def validate_personas(self, value):
         result = {}
@@ -308,10 +313,11 @@ class UpdateDiscussionSerializer(serializers.Serializer):
                     persona.pop('model', None)
             personas.append(persona)
         instance.personas = personas
-        for field in ('moderator_model', 'devil_model'):
+        for field in ('moderator_model', 'devil_model', 'pinned', 'archived'):
             if field in validated_data:
                 setattr(instance, field, validated_data[field])
-        if instance.status == Discussion.Status.FAILED:
+        changed_models = bool(models) or {'moderator_model', 'devil_model'} & set(validated_data)
+        if changed_models and instance.status == Discussion.Status.FAILED:
             # нова модель — нова спроба: прибираємо стару помилку
             instance.error_code = ''
             instance.error_public = ''
@@ -378,6 +384,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'followups',
             'max_followups',
             'stop_requested',
+            'pinned',
+            'archived',
+            'share_token',
             'status',
             'phase',
             'current_round',
@@ -429,6 +438,8 @@ class DiscussionListSerializer(serializers.ModelSerializer):
             'status',
             'phase',
             'is_running',
+            'pinned',
+            'archived',
             'message_count',
             'preview',
             'created_at',
@@ -452,3 +463,94 @@ class DiscussionListSerializer(serializers.ModelSerializer):
         if obj.status == Discussion.Status.FAILED:
             return _preview(obj.error_public)
         return ''
+
+
+class SharedMessageSerializer(MessageSerializer):
+    """Репліка для публічного посилання: ім'я автора питання не розкриваємо."""
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.role == Message.Role.USER:
+            data['persona_name'] = SHARED_AUTHOR
+        if instance.reply_to_slug == engine.USER_SLUG:
+            data['reply_to'] = SHARED_AUTHOR
+        return data
+
+
+class SharedDiscussionSerializer(serializers.ModelSerializer):
+    """Дискусія за публічним посиланням: лише читання, без службових полів."""
+
+    title = serializers.SerializerMethodField()
+    personas = serializers.SerializerMethodField()
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Discussion
+        fields = [
+            'title',
+            'question',
+            'mode',
+            'options',
+            'personas',
+            'rounds',
+            'status',
+            'phase',
+            'early_stop',
+            'current_round',
+            'sources',
+            'final_summary',
+            'messages',
+            'created_at',
+            'finished_at',
+        ]
+
+    def get_title(self, obj):
+        return discussion_title(obj.question)
+
+    def get_personas(self, obj):
+        # власний стиль — це інструкції користувача для моделі, їх не показуємо
+        return [
+            {
+                'slug': item.get('slug', ''),
+                'name': item.get('name', ''),
+                'model': item.get('model', ''),
+                'traits': item.get('traits', []),
+            }
+            for item in obj.personas
+            if isinstance(item, dict)
+        ]
+
+    def get_messages(self, obj):
+        return SharedMessageSerializer(obj.messages.order_by('seq'), many=True).data
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    """Збережена команда: склад учасників перевіряється так само, як при створенні дискусії."""
+
+    personas = serializers.ListField(required=True, error_messages={'required': REQUIRED})
+    moderator_model = serializers.CharField(required=False, allow_blank=True, default='')
+    devil_model = serializers.CharField(required=False, allow_blank=True, default='')
+
+    class Meta:
+        model = Team
+        fields = ['id', 'name', 'personas', 'moderator_model', 'devil_model', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
+
+    def validate_name(self, value):
+        name = ' '.join(str(value or '').split())
+        if not name:
+            raise serializers.ValidationError(TEAM_NAME_EMPTY)
+        if len(name) > 64:
+            raise serializers.ValidationError(TEAM_NAME_TOO_LONG)
+        if re.search(r'[\x00-\x1f\x7f]', name):
+            raise serializers.ValidationError(NAME_INVALID)
+        return name
+
+    def validate_personas(self, value):
+        return CreateDiscussionSerializer().validate_personas(value)
+
+    def validate_moderator_model(self, value):
+        return validate_model_id(value)
+
+    def validate_devil_model(self, value):
+        return validate_model_id(value)

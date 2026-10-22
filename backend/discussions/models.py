@@ -50,6 +50,12 @@ class Discussion(models.Model):
     devil_model = models.CharField('модель AI Devil', max_length=120, blank=True, default='')
     followups = models.PositiveSmallIntegerField('уточнень після фіналу', default=0)
     stop_requested = models.BooleanField('зупинку запитано', default=False)
+    pinned = models.BooleanField('закріплено', default=False)
+    archived = models.BooleanField('в архіві', default=False)
+    # Публічне посилання лише для читання: None — доступу немає
+    share_token = models.UUIDField(
+        'токен публічного посилання', null=True, blank=True, unique=True, editable=False
+    )
 
     status = models.CharField(
         max_length=16,
@@ -178,3 +184,32 @@ class DailyUsage(models.Model):
 
     def __str__(self):
         return f'{self.user} {self.date}: {self.discussions} / {self.replies}'
+
+
+class Team(models.Model):
+    """Збережений склад учасників і суддів для повторного використання."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='teams',
+        verbose_name='користувач',
+    )
+    name = models.CharField('назва', max_length=64)
+    personas = models.JSONField('учасники', default=list)
+    moderator_model = models.CharField('модель модератора', max_length=120, blank=True, default='')
+    devil_model = models.CharField('модель AI Devil', max_length=120, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'команда'
+        verbose_name_plural = 'команди'
+        ordering = ['-updated_at']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_team_name_per_user'),
+        ]
+
+    def __str__(self):
+        return self.name

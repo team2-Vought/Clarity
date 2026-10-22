@@ -2,14 +2,19 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  Archive02Icon,
   Cancel01Icon,
   Delete02Icon,
   GridViewIcon,
   ListViewIcon,
   PencilEdit02Icon,
+  PinIcon,
+  PinOffIcon,
   Search01Icon,
+  Unarchive03Icon,
 } from '@hugeicons/core-free-icons';
-import { deleteDiscussion, fetchDiscussions } from '../api/discussions';
+import { deleteDiscussion, fetchDiscussions, updateDiscussion } from '../api/discussions';
+import { useToasts } from '../hooks/useToasts';
 import { getToken } from '../api/client';
 import { uk } from '../copy/uk';
 
@@ -25,8 +30,13 @@ const COLUMN_GAP_PHONE = 12;
 // скільки чекаємо перед переходом, щоб «желейний» відскок картки встиг проявитися
 const PRESS_DELAY = 160;
 const DAY = 24 * 60 * 60 * 1000;
-const GROUP_ORDER = ['today', 'yesterday', 'week', 'older'];
-const STATUS_FILTERS = ['', 'in_progress', 'done', 'failed'];
+const GROUP_ORDER = ['pinned', 'today', 'yesterday', 'week', 'older'];
+
+// закріплені — першими, далі від нових до старих (як сортує сервер)
+const byPinThenDate = (a, b) =>
+  Number(b.pinned) - Number(a.pinned) || new Date(b.created_at) - new Date(a.created_at);
+// «archived» — не статус, а окремий розділ: архівні дискусії не змішуються з рештою
+const STATUS_FILTERS = ['', 'in_progress', 'done', 'failed', 'archived'];
 const SEARCH_DELAY = 300;
 // стільки секунд можна скасувати видалення
 const UNDO_MS = 5000;
@@ -123,6 +133,9 @@ export default function HistoryPage() {
   // видалена, але ще не стерта на сервері дискусія: її можна повернути
   const [pendingDelete, setPendingDelete] = useState(null);
   const pendingRef = useRef(null);
+  const { pushToast } = useToasts();
+  const isArchive = statusFilter === 'archived';
+  const listParams = { status: isArchive ? '' : statusFilter, archived: isArchive, q: searchTerm };
   const [view, setView] = useState(readView);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -138,7 +151,11 @@ export default function HistoryPage() {
     setIsLoading(true);
     setError('');
     try {
-      const data = await fetchDiscussions({ status: statusFilter, q: searchTerm });
+      const data = await fetchDiscussions({
+        status: statusFilter === 'archived' ? '' : statusFilter,
+        archived: statusFilter === 'archived',
+        q: searchTerm,
+      });
       setItems(data?.results || []);
       setNextOffset(data?.next_offset ?? null);
       setNow(new Date());
@@ -153,7 +170,7 @@ export default function HistoryPage() {
     if (nextOffset === null || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
-      const data = await fetchDiscussions({ offset: nextOffset, status: statusFilter, q: searchTerm });
+      const data = await fetchDiscussions({ ...listParams, offset: nextOffset });
       setItems((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...(data?.results || []).filter((item) => !known.has(item.id))];
@@ -182,7 +199,8 @@ export default function HistoryPage() {
       try {
         const data = await fetchDiscussions({
           limit: loadedCount,
-          status: statusFilter,
+          status: statusFilter === 'archived' ? '' : statusFilter,
+          archived: statusFilter === 'archived',
           q: searchTerm,
           signal: controller.signal,
         });
@@ -288,7 +306,7 @@ export default function HistoryPage() {
   const groups = useMemo(() => {
     const buckets = new Map();
     visible.forEach((item) => {
-      const key = groupOf(item.created_at, now);
+      const key = item.pinned ? 'pinned' : groupOf(item.created_at, now);
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key).push(item);
     });
@@ -322,6 +340,39 @@ export default function HistoryPage() {
     });
   };
 
+  const togglePin = async (item) => {
+    const pinned = !item.pinned;
+    const apply = (value) =>
+      setItems((current) =>
+        current.map((entry) => (entry.id === item.id ? { ...entry, pinned: value } : entry)).sort(byPinThenDate)
+      );
+    apply(pinned);
+    try {
+      await updateDiscussion(item.id, { pinned });
+    } catch (err) {
+      apply(!pinned);
+      setError(err.message || t.updateError);
+    }
+  };
+
+  // з архіву й до архіву дискусія переходить в інший розділ, тож зникає з поточного
+  const toggleArchive = async (item) => {
+    const archived = !item.archived;
+    const index = items.findIndex((entry) => entry.id === item.id);
+    setItems((current) => current.filter((entry) => entry.id !== item.id));
+    try {
+      await updateDiscussion(item.id, { archived, ...(archived ? { pinned: false } : {}) });
+      pushToast(archived ? t.archivedToast : t.unarchivedToast);
+    } catch (err) {
+      setItems((current) => {
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, item);
+        return next;
+      });
+      setError(err.message || t.updateError);
+    }
+  };
+
   const hasItems = !isLoading && (items.length > 0 || isFiltered);
 
   const renderCard = (item, options) => {
@@ -337,6 +388,7 @@ export default function HistoryPage() {
     const status = t.statuses[item.status] || item.status;
     const progress = progressOf(item);
     const when = formatWhen(item.created_at, now, options);
+    const name = item.title || item.question;
     return (
       <li
         key={item.id}
@@ -353,6 +405,14 @@ export default function HistoryPage() {
         {item.preview && <p className="history__preview">{item.preview}</p>}
         {progress && <p className="history__progress">{progress}</p>}
         <time className="history__when" dateTime={item.created_at}>
+          {item.pinned && (
+            <HugeiconsIcon
+              icon={PinIcon}
+              size={14}
+              className="history__pin-mark"
+              aria-label={t.pinnedMark}
+            />
+          )}
           {when.day}
           <span className="history__time">
             {when.time}
@@ -364,15 +424,38 @@ export default function HistoryPage() {
             />
           </span>
         </time>
-        <button
-          type="button"
-          className="history__delete"
-          onClick={() => handleDelete(item.id)}
-          aria-label={t.deleteNamed(item.title || item.question)}
-          title={t.delete}
-        >
-          <HugeiconsIcon icon={Delete02Icon} size={18} aria-hidden="true" />
-        </button>
+        <div className="history__actions">
+          {!item.archived && (
+            <button
+              type="button"
+              className="history__action"
+              onClick={() => togglePin(item)}
+              aria-pressed={Boolean(item.pinned)}
+              aria-label={item.pinned ? t.unpinNamed(name) : t.pinNamed(name)}
+              title={item.pinned ? t.unpin : t.pin}
+            >
+              <HugeiconsIcon icon={item.pinned ? PinOffIcon : PinIcon} size={18} aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            className="history__action"
+            onClick={() => toggleArchive(item)}
+            aria-label={item.archived ? t.unarchiveNamed(name) : t.archiveNamed(name)}
+            title={item.archived ? t.unarchive : t.archive}
+          >
+            <HugeiconsIcon icon={item.archived ? Unarchive03Icon : Archive02Icon} size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="history__action history__delete"
+            onClick={() => handleDelete(item.id)}
+            aria-label={t.deleteNamed(name)}
+            title={t.delete}
+          >
+            <HugeiconsIcon icon={Delete02Icon} size={18} aria-hidden="true" />
+          </button>
+        </div>
       </li>
     );
   };
@@ -422,7 +505,7 @@ export default function HistoryPage() {
           )}
 
           {!isLoading && isFiltered && visible.length === 0 && (
-            <p className="history__empty">{t.noResults}</p>
+            <p className="history__empty">{isArchive && !searchTerm ? t.archiveEmpty : t.noResults}</p>
           )}
 
           {(isLoading || visible.length > 0) &&

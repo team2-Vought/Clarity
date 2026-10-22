@@ -10,6 +10,7 @@ import {
   FileExportIcon,
   Loading03Icon,
   RepeatIcon,
+  Share08Icon,
   Search01Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
@@ -19,9 +20,12 @@ import {
   fetchPersonas,
   postNote,
   runDiscussion,
+  shareDiscussion,
   stopDiscussion,
+  unshareDiscussion,
   updateDiscussion,
 } from '../api/discussions';
+import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
   ChevronIcon,
@@ -34,19 +38,26 @@ import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ParagraphReveal from '../components/ParagraphReveal';
+import SummaryDetails from '../components/SummaryDetails';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
 import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
+import { describeSummary, summaryDetailSteps } from '../utils/summary';
+import {
+  USER_COLOR,
+  buildSpeakers,
+  findReplyTarget,
+  phaseLabel,
+  speakerKeyOf,
+  stanceLabel,
+  stanceTone,
+} from '../utils/chatView';
 import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exportMarkdown';
 
 const t = uk.chat;
 const d = uk.debate;
 
-const DEVIL_COLOR = '#e5484d';
-const MODERATOR_COLOR = '#fde3c6';
-const USER_COLOR = '#f0f0f0';
-const RESEARCH_COLOR = '#d6eefb';
 const STICK_THRESHOLD = 96;
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;
@@ -78,11 +89,6 @@ const AvatarIcon = () => (
     <path d="M7 36c1.2-7.6 6-11.5 13-11.5s11.8 3.9 13 11.5H7Z" fill="#ffffff" />
   </svg>
 );
-
-const listOf = (value) =>
-  (Array.isArray(value) ? value : [])
-    .map((item) => String(item ?? '').trim())
-    .filter(Boolean);
 
 const domainOf = (url) => {
   try {
@@ -161,17 +167,6 @@ const modelNameOf = (models, id) => {
   return model ? model.label || model.model : '';
 };
 
-// «погоджується · Логік» замість голого «погоджується»: видно, з ким саме.
-// У режимах з вибором позиція — це сама відповідь, а не згода з кимось.
-const stanceLabel = (message, mode, replyName) => {
-  const { stance } = message;
-  if (!stance) return '';
-  if (mode && mode !== 'open') return t.stanceAnswer(stance);
-  if (message.phase === 'rebuttal') return t.stanceDecision[stance] || stance;
-  const verb = t.stance[stance] || stance;
-  return replyName ? `${verb} · ${replyName}` : verb;
-};
-
 // Колонка карти позицій: вступ, раунд або відповідь на Devil (після
 // уточнення синтез і Devil проходять ще раз, тож відповідей може бути кілька).
 const positionColumnOf = (message, devilCount) => {
@@ -188,28 +183,6 @@ const positionColumnOf = (message, devilCount) => {
   return null;
 };
 
-const stanceTone = (stance) =>
-  stance === 'згода' ? 'agree' : stance === 'суперечка' ? 'disagree' : 'neutral';
-
-const speakerKeyOf = (message) =>
-  message.role === 'user' ? 'user' : message.persona_name || message.role;
-
-const slugOf = (message) => (message.role === 'user' ? 'user' : message.persona_slug);
-
-// Остання репліка того, кому відповідають, — для цитати над текстом
-const findReplyTarget = (messages, index) => {
-  const message = messages[index];
-  if (!message.reply_to && !message.reply_to_slug) return null;
-  for (let i = index - 1; i >= 0; i -= 1) {
-    const candidate = messages[i];
-    if (message.reply_to_slug ? slugOf(candidate) === message.reply_to_slug
-      : candidate.persona_name === message.reply_to) {
-      return candidate;
-    }
-  }
-  return null;
-};
-
 const snippetOf = (content) =>
   plainText(content).replace(CITATION_RE, '').replace(/\s+/g, ' ').trim().slice(0, 220);
 
@@ -217,27 +190,6 @@ const snippetOf = (content) =>
 const messageSources = (message, sourcesById) => {
   const ids = [...(message.source_ids || []), ...citedIds(message.content)];
   return [...new Set(ids)].map((sourceId) => sourcesById.get(sourceId)).filter(Boolean);
-};
-
-const phaseLabel = (message) => {
-  switch (message.phase) {
-    case 'research':
-      return t.phaseResearch;
-    case 'opening':
-      return t.phaseOpening;
-    case 'debate':
-      return t.phaseRound(message.round || 1);
-    case 'synthesis':
-      return t.phaseSynthesis;
-    case 'devil':
-      return t.phaseDevil;
-    case 'rebuttal':
-      return t.phaseRebuttal;
-    case 'final':
-      return t.phaseFinal;
-    default:
-      return '';
-  }
 };
 
 const mergeMessages = (current, incoming) => {
@@ -313,6 +265,8 @@ export default function ChatPage() {
   const [compact, setCompact] = useState(readCompact);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const navigate = useNavigate();
+  const { pushToast } = useToasts();
+  const [isSharing, setIsSharing] = useState(false);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
@@ -908,47 +862,21 @@ export default function ChatPage() {
     e.currentTarget.form?.requestSubmit();
   };
 
-  const speakers = useMemo(() => {
-    const map = new Map();
-    let index = 0;
-    (messages || []).forEach((message) => {
-      const key = speakerKeyOf(message);
-      if (map.has(key)) return;
-      if (message.role === 'devil') {
-        map.set(key, { color: DEVIL_COLOR, side: 'right' });
-      } else if (message.role === 'moderator') {
-        map.set(key, { color: MODERATOR_COLOR, side: 'left' });
-      } else if (message.role === 'research') {
-        map.set(key, { color: RESEARCH_COLOR, side: 'left' });
-      } else if (message.role === 'user') {
-        map.set(key, { color: USER_COLOR, side: 'right' });
-      } else {
-        map.set(key, {
-          color:
-            participantColors.get(message.persona_slug) ||
-            TRAIT_COLORS[index % TRAIT_COLORS.length],
-          side: index % 2 === 0 ? 'left' : 'right',
-        });
-        index += 1;
-      }
-    });
-    return map;
-  }, [messages, participantColors]);
+
+  const speakers = useMemo(
+    () => buildSpeakers(messages, participantColors),
+    [messages, participantColors]
+  );
 
   const summary = discussion?.final_summary || null;
-  const summaryDecision = summary?.decision ? String(summary.decision) : '';
-  const summaryConfirmed = typeof summary?.confirmed === 'boolean' ? summary.confirmed : null;
-  const summaryConfidence = Number.isFinite(Number(summary?.confidence))
-    && summary?.confidence !== null
-    ? Math.max(0, Math.min(100, Math.round(Number(summary.confidence))))
-    : null;
-  const agreement = summary?.agreement?.total ? summary.agreement : null;
-  const summaryLists = [
-    { key: 'pros', title: t.summaryPros, items: listOf(summary?.pros) },
-    { key: 'cons', title: t.summaryCons, items: listOf(summary?.cons) },
-    { key: 'risks', title: t.summaryRisks, items: listOf(summary?.risks) },
-    { key: 'dissent', title: t.summaryDissent, items: listOf(summary?.dissenting_points) },
-  ].filter((list) => list.items.length > 0);
+  const summaryView = describeSummary(summary);
+  const {
+    decision: summaryDecision,
+    confirmed: summaryConfirmed,
+    confidence: summaryConfidence,
+    agreement,
+    lists: summaryLists,
+  } = summaryView;
 
   const handleCopySummary = async () => {
     const lines = [discussion.question, ''];
@@ -1024,6 +952,48 @@ export default function ChatPage() {
     });
   };
 
+  const shareUrl = discussion?.share_token
+    ? `${window.location.origin}/shared/${discussion.share_token}`
+    : '';
+
+  const copyLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      pushToast(t.linkCopied);
+    } catch {
+      // без доступу до буфера посилання лишається в полі — його можна скопіювати вручну
+    }
+  };
+
+  // Вмикає посилання (або бере наявне) і одразу копіює його
+  const handleShare = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      const data = await shareDiscussion(discussion.id);
+      setDiscussion((current) => (current ? { ...current, share_token: data.share_token } : current));
+      await copyLink(`${window.location.origin}/shared/${data.share_token}`);
+    } catch (err) {
+      setActionError(err.message || t.shareError);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleUnshare = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      await unshareDiscussion(discussion.id);
+      setDiscussion((current) => (current ? { ...current, share_token: null } : current));
+      pushToast(t.shareClosed);
+    } catch (err) {
+      setActionError(err.message || t.shareError);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const toggleCompact = (value) => {
     setCompact(value);
     try {
@@ -1038,7 +1008,8 @@ export default function ChatPage() {
   };
 
   // Частини результату проявляються по черзі, як абзаци реплік
-  let summaryIndex = 0;
+  // дії й джерела проявляються після частин SummaryDetails
+  let summaryIndex = summaryDetailSteps(summary, summaryView);
   const summaryStep = () => (animateSummary ? { '--i': summaryIndex++ } : undefined);
 
   const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
@@ -1235,6 +1206,51 @@ export default function ChatPage() {
                 <p className="debate__hint">{t.positionsHint(discussion.mode)}</p>
               </section>
             )}
+
+            <section className="debate__section">
+              <h2 className="debate__section-title">{t.share}</h2>
+              {shareUrl ? (
+                <>
+                  <div className="debate__card debate__option-input">
+                    <input
+                      className="debate__card-input"
+                      type="text"
+                      value={shareUrl}
+                      readOnly
+                      onFocus={(e) => e.target.select()}
+                      aria-label={t.shareLink}
+                    />
+                    <button
+                      type="button"
+                      className="debate__mini-add"
+                      onClick={() => copyLink(shareUrl)}
+                      aria-label={t.copyLink}
+                      title={t.copyLink}
+                    >
+                      <HugeiconsIcon icon={Copy01Icon} size={14} />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="debate__link-button"
+                    onClick={handleUnshare}
+                    disabled={isSharing}
+                  >
+                    {t.unshare}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="debate__link-button"
+                  onClick={handleShare}
+                  disabled={isSharing}
+                >
+                  {t.createShareLink}
+                </button>
+              )}
+              <p className="debate__hint">{t.shareHint}</p>
+            </section>
 
             <section className="debate__advanced" ref={advancedRef}>
               <button
@@ -1527,74 +1543,12 @@ export default function ChatPage() {
               ref={summaryRef}
               aria-label={t.summary}
             >
-              {summary?.answer && (
-                <div className="chat__summary-item" style={summaryStep()}>
-                  <span className="chat__summary-label">{t.summaryAnswer}</span>
-                  <p>
-                    <InlineText text={String(summary.answer)} sources={sourcesById} />
-                  </p>
-                </div>
-              )}
-              <div className="chat__summary-item" style={summaryStep()}>
-                <span className="chat__summary-label">{t.summaryDecision}</span>
-                <p>
-                  <InlineText text={summaryDecision} sources={sourcesById} />
-                </p>
-              </div>
-              {summaryConfirmed === false && summary?.revision && (
-                <div className="chat__summary-item" style={summaryStep()}>
-                  <span className="chat__summary-label">{t.summaryRevision}</span>
-                  <p>
-                    <InlineText text={String(summary.revision)} sources={sourcesById} />
-                  </p>
-                </div>
-              )}
-              {(agreement || summaryConfidence !== null) && (
-                <div className="chat__summary-meta" style={summaryStep()}>
-                  {agreement && (
-                    <div className="chat__summary-item">
-                      <span className="chat__summary-label">{t.summaryAgreement}</span>
-                      <p>{t.summaryAgreementValue(agreement.agree, agreement.total)}</p>
-                    </div>
-                  )}
-                  {summaryConfidence !== null && (
-                    <div className="chat__summary-item" title={t.summaryConfidenceHint}>
-                      <span className="chat__summary-label">{t.summaryConfidence}</span>
-                      <p>{summaryConfidence}%</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {summaryLists.length > 0 && (
-                <table className="chat__summary-table">
-                  <tbody>
-                    {summaryLists.map(({ key, title, items }) => (
-                      <tr key={key} style={summaryStep()}>
-                        <th scope="row">
-                          <span className="chat__summary-label">{title}</span>
-                        </th>
-                        <td>
-                          <ul>
-                            {items.map((item, itemIndex) => (
-                              <li key={`${key}-${itemIndex}`}>
-                                <InlineText text={item} sources={sourcesById} />
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              {summary?.recommendation && (
-                <div className="chat__summary-item" style={summaryStep()}>
-                  <span className="chat__summary-label">{t.summaryNextStep}</span>
-                  <p>
-                    <InlineText text={String(summary.recommendation)} sources={sourcesById} />
-                  </p>
-                </div>
-              )}
+              <SummaryDetails
+                summary={summary}
+                view={summaryView}
+                sources={sourcesById}
+                animate={animateSummary}
+              />
               <div className="chat__summary-actions" style={summaryStep()}>
                 <button
                   type="button"
@@ -1627,6 +1581,16 @@ export default function ChatPage() {
                   title={t.exportMarkdown}
                 >
                   <HugeiconsIcon icon={FileExportIcon} size={18} />
+                </button>
+                <button
+                  type="button"
+                  className="chat__icon-button"
+                  onClick={shareUrl ? () => copyLink(shareUrl) : handleShare}
+                  disabled={isSharing}
+                  aria-label={t.shareAction}
+                  title={t.shareAction}
+                >
+                  <HugeiconsIcon icon={Share08Icon} size={18} />
                 </button>
                 <button
                   type="button"
