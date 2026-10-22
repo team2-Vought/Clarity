@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { PencilEdit02Icon } from '@hugeicons/core-free-icons';
+import { BookmarkAdd01Icon, PencilEdit02Icon } from '@hugeicons/core-free-icons';
 import {
   createDiscussion,
   deleteTeam,
@@ -716,72 +716,22 @@ export default function DebatePage() {
       )}
       <div className="debate__form-panel" id="debate-settings">
         <section className="debate__section">
-          <h2 className="debate__section-title">{t.teams}</h2>
-          {teams.length > 0 && (
-            <div className="debate__option-list">
-              {teams.map((team) => (
-                <span key={team.id} className="debate__option-chip">
-                  <button
-                    type="button"
-                    className="debate__team-apply"
-                    onClick={() => applyTeam(team)}
-                    disabled={isCreating}
-                    title={t.applyTeam(team.name)}
-                  >
-                    {team.name}
-                  </button>
-                  <button
-                    type="button"
-                    className="debate__option-remove"
-                    onClick={() => removeTeam(team)}
-                    aria-label={t.deleteTeam(team.name)}
-                    title={t.deleteTeam(team.name)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          {isTeamFormOpen ? (
-            <div className="debate__card debate__option-input">
-              <input
-                className="debate__card-input"
-                type="text"
-                value={teamName}
-                maxLength={MAX_NAME}
-                onChange={(e) => setTeamName(e.target.value)}
-                onKeyDown={handleTeamKeyDown}
-                placeholder={t.teamNamePlaceholder}
-                aria-label={t.teamName}
-                autoFocus
-              />
+          <div className="debate__section-head">
+            <h2 className="debate__section-title">{t.participants}</h2>
+            {!isTeamFormOpen && (
               <button
                 type="button"
-                className="debate__mini-add"
-                onClick={saveCurrentTeam}
-                disabled={!teamName.trim() || isSavingTeam}
+                className="debate__head-action"
+                onClick={() => setIsTeamFormOpen(true)}
+                disabled={isCreating || participants.length < MIN_PARTICIPANTS}
                 aria-label={t.saveTeam}
-                title={t.saveTeam}
+                title={t.teamsHint}
               >
-                ✓
+                <HugeiconsIcon icon={BookmarkAdd01Icon} size={16} aria-hidden="true" />
+                {t.saveTeamShort}
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="debate__link-button"
-              onClick={() => setIsTeamFormOpen(true)}
-              disabled={isCreating || participants.length < MIN_PARTICIPANTS}
-            >
-              {t.saveCurrentTeam}
-            </button>
-          )}
-          {teams.length === 0 && !isTeamFormOpen && <p className="debate__hint">{t.teamsHint}</p>}
-        </section>
-
-        <section className="debate__section">
-          <h2 className="debate__section-title">{t.participants}</h2>
+            )}
+          </div>
           <div className="debate__participant-row">
             {scrollState.left && (
               <button
@@ -836,7 +786,7 @@ export default function DebatePage() {
                       style={{ '--chip': p.color }}
                       data-active={active ? 'true' : undefined}
                       aria-label={active ? t.renameParticipantNamed(label) : t.selectParticipant(label)}
-                      title={active ? t.renameHint : undefined}
+                      title={[active ? t.renameHint : '', modelName].filter(Boolean).join(' · ') || undefined}
                       aria-pressed={active}
                       onClick={() => handleParticipantClick(p)}
                     >
@@ -846,9 +796,7 @@ export default function DebatePage() {
                         <UserPlusIcon />
                       )}
                       <span className="debate__participant-label">{label}</span>
-                      <span className="debate__participant-meta">
-                        {[roleName, modelName].filter(Boolean).join(' · ')}
-                      </span>
+                      <span className="debate__participant-meta">{roleName}</span>
                     </button>
                     {canRemove && (
                       <button
@@ -885,6 +833,62 @@ export default function DebatePage() {
               </button>
             )}
           </div>
+          {isTeamFormOpen && (
+            <div className="debate__card debate__option-input debate__team-form">
+              <input
+                className="debate__card-input"
+                type="text"
+                value={teamName}
+                maxLength={MAX_NAME}
+                onChange={(e) => setTeamName(e.target.value)}
+                onKeyDown={handleTeamKeyDown}
+                onBlur={() => {
+                  if (!teamName.trim()) setIsTeamFormOpen(false);
+                }}
+                placeholder={t.teamNamePlaceholder}
+                aria-label={t.teamName}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="debate__mini-add"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={saveCurrentTeam}
+                disabled={!teamName.trim() || isSavingTeam}
+                aria-label={t.saveTeam}
+                title={t.saveTeam}
+              >
+                ✓
+              </button>
+            </div>
+          )}
+          {teams.length > 0 && (
+            <div className="debate__teams" role="group" aria-label={t.teams}>
+              <span className="debate__teams-label">{t.teams}</span>
+              {teams.map((team) => (
+                <span key={team.id} className="debate__team-chip">
+                  <button
+                    type="button"
+                    className="debate__team-apply"
+                    onClick={() => applyTeam(team)}
+                    disabled={isCreating}
+                    title={t.applyTeam(team.name)}
+                  >
+                    {team.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="debate__team-remove"
+                    onClick={() => removeTeam(team)}
+                    aria-label={t.deleteTeam(team.name)}
+                    title={t.deleteTeam(team.name)}
+                  >
+                    <CloseIcon />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="debate__section">
@@ -1138,30 +1142,13 @@ export default function DebatePage() {
           </div>
         </div>
 
-        {!description.trim() && !isLoading && personas.length > 0 && (
-          <div className="debate__templates" role="group" aria-label={t.templatesLabel}>
-            <span className="debate__templates-label">{t.templatesLabel}</span>
-            {DEBATE_TEMPLATES.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                className="debate__template-chip"
-                onClick={() => applyTemplate(template)}
-                disabled={isCreating}
-              >
-                {t.templates[template.id].label}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div className="debate__mode-bar">
-          <div className="debate__mode-list debate__mode-list--main" role="group" aria-label={t.mode}>
+          <div className="debate__segmented" role="group" aria-label={t.mode}>
             {MODES.map((item) => (
               <button
                 key={item.value}
                 type="button"
-                className={`debate__mode-chip ${mode === item.value ? 'debate__mode-chip--active' : ''}`}
+                className={`debate__segment ${mode === item.value ? 'debate__segment--active' : ''}`}
                 aria-pressed={mode === item.value}
                 onClick={() => handleModeChange(item.value)}
                 disabled={isCreating}
@@ -1215,6 +1202,28 @@ export default function DebatePage() {
           )}
           {estimate && <p className="debate__estimate">{estimate}</p>}
         </div>
+
+        {!description.trim() && !isLoading && personas.length > 0 && (
+          <section className="debate__templates" aria-labelledby="debate-templates-title">
+            <h2 id="debate-templates-title" className="debate__templates-label">
+              {t.templatesLabel}
+            </h2>
+            <div className="debate__template-list">
+              {DEBATE_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className="debate__template-chip"
+                  onClick={() => applyTemplate(template)}
+                  disabled={isCreating}
+                >
+                  <HugeiconsIcon icon={template.icon} size={18} aria-hidden="true" />
+                  {t.templates[template.id].label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {error && (
           <div className="debate__error-block">
