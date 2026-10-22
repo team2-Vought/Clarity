@@ -284,6 +284,15 @@
   margin: 0;
 }
 
+/* дискусій ще немає — напис посередині сторінки */
+.history__empty--blank {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  padding: 24px;
+  pointer-events: none;
+}
+
 /* ---- спільне для картки й рядка ---- */
 
 .history__grid {

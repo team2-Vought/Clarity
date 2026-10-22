@@ -496,12 +496,7 @@ export default function HistoryPage() {
           )}
 
           {!isLoading && items.length === 0 && !error && !isFiltered && (
-            <div className="history__empty">
-              <p>{t.empty}</p>
-              <button type="button" className="history__retry" onClick={() => navigate('/home')}>
-                {t.newDiscussion}
-              </button>
-            </div>
+            <p className="history__empty history__empty--blank">{t.empty}</p>
           )}
 
           {!isLoading && isFiltered && visible.length === 0 && (
