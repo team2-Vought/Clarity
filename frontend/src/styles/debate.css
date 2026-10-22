@@ -1247,8 +1247,8 @@ body:has(.app-shell) {
   width: min(760px, 100%);
 }
 
-/* Формат відповіді: сегментований перемикач одразу під полем питання —
-   вибір одного з трьох, тож вигляд відрізняється від чипів-підказок */
+/* Формат відповіді: сегментований перемикач одразу під полем питання.
+   Сегменти рівної ширини, тож «бігунок» просто зсувається на --active ширин. */
 .debate__mode-bar {
   display: flex;
   flex-direction: column;
@@ -1258,28 +1258,57 @@ body:has(.app-shell) {
 }
 
 .debate__segmented {
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   max-width: 100%;
-  padding: 4px;
-  gap: 2px;
+  padding: 3px;
   border-radius: 999px;
   background: var(--soft);
 }
 
+.debate__segment-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(18, 18, 18, 0.1), 0 0 0 1px rgba(18, 18, 18, 0.04);
+  transform: translateX(calc(var(--active, 0) * 100%));
+  transition: transform 0.32s cubic-bezier(0.3, 1.25, 0.5, 1);
+}
+
+:root[data-theme='dark'] .debate__segment-thumb {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
 .debate__segment {
-  flex: 1 1 auto;
-  min-height: 36px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: color 0.2s;
+}
+
+.debate__segment svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
 }
 
 .debate__segment:hover:not(:disabled) {
@@ -1288,14 +1317,13 @@ body:has(.app-shell) {
 
 .debate__segment--active,
 .debate__segment--active:hover {
-  background: var(--card);
   color: var(--ink);
-  box-shadow: 0 1px 4px rgba(18, 18, 18, 0.12);
 }
 
-:root[data-theme='dark'] .debate__segment--active {
-  background: var(--card);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+/* активна іконка — у пастельному кольорі акценту рамки поля */
+.debate__segment--active svg {
+  opacity: 1;
+  color: var(--focus);
 }
 
 .debate__segment:focus-visible {
@@ -1303,132 +1331,173 @@ body:has(.app-shell) {
   outline-offset: 1px;
 }
 
-.debate__mode-bar .debate__options {
-  align-items: center;
-  width: min(420px, 100%);
-}
-
-.debate__mode-bar .debate__option-list {
+/* Пояснення формату й оцінка — один тихий рядок */
+.debate__mode-meta {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-}
-
-.debate__mode-bar .debate__option-input {
-  width: 100%;
-  background: var(--soft);
-}
-
-.debate__estimate {
+  gap: 2px 8px;
   margin: 0;
   color: var(--muted);
   font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
   text-align: center;
 }
 
-/* Шаблони: картки-підказки з пастельною іконкою, поки поле питання порожнє */
-.debate__templates {
+.debate__estimate {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.debate__estimate::before {
+  content: '·';
+  margin-right: 8px;
+}
+
+/* Варіанти: одне поле-теги, кожен варіант позначено літерою */
+.debate__option-field {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  width: min(760px, 100%);
-  margin-top: clamp(8px, 3vh, 28px);
+  gap: 6px;
+  width: min(560px, 100%);
+  min-height: 44px;
+  padding: 6px 12px 6px 6px;
+  border: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 22px;
+  cursor: text;
+  animation: debate-reveal 0.25s ease-out;
+  transition: border-color 0.2s, background 0.2s;
 }
 
-.debate__templates-label {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.debate__template-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  width: 100%;
-}
-
-.debate__template-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 6px 14px 6px 8px;
-  border: 0;
-  border-radius: 16px;
+.debate__option-field:focus-within {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--muted) 55%, transparent);
   background: var(--soft);
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.18s, transform 0.15s;
 }
 
-/* пастельна «плашка» під іконкою — ті самі кольори, що в учасників і рис */
-.debate__template-chip svg {
-  flex-shrink: 0;
-  box-sizing: content-box;
-  padding: 7px;
-  border-radius: 10px;
+.debate__option-field .debate__option-chip {
+  gap: 6px;
+  padding: 3px 4px 3px 3px;
+  background: var(--soft);
+  font-size: 0.8125rem;
+  animation: debate-pop 0.2s ease-out;
+}
+
+.debate__option-field:focus-within .debate__option-chip {
+  background: var(--card);
+}
+
+.debate__option-letter {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   background: var(--tone, var(--peach, #feedd5));
   color: #121212;
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
-.debate__template-chip:nth-child(6n + 1) { --tone: var(--peach, #feedd5); }
-.debate__template-chip:nth-child(6n + 2) { --tone: var(--sky, #c2effd); }
-.debate__template-chip:nth-child(6n + 3) { --tone: #d3f0dc; }
-.debate__template-chip:nth-child(6n + 4) { --tone: #fff1b8; }
-.debate__template-chip:nth-child(6n + 5) { --tone: var(--pink, #f4c1cf); }
-.debate__template-chip:nth-child(6n + 6) { --tone: #e4d4f4; }
+.debate__option-chip:nth-child(6n + 1) { --tone: var(--peach, #feedd5); }
+.debate__option-chip:nth-child(6n + 2) { --tone: var(--sky, #c2effd); }
+.debate__option-chip:nth-child(6n + 3) { --tone: #d3f0dc; }
+.debate__option-chip:nth-child(6n + 4) { --tone: #fff1b8; }
+.debate__option-chip:nth-child(6n + 5) { --tone: var(--pink, #f4c1cf); }
+.debate__option-chip:nth-child(6n + 6) { --tone: #e4d4f4; }
 
-.debate__template-chip:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tone) 35%, var(--soft));
+.debate__option-draft {
+  flex: 1 1 140px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  outline: none;
 }
 
-.debate__template-chip:active:not(:disabled) {
-  transform: scale(0.98);
+.debate__option-draft::placeholder {
+  color: var(--muted);
 }
 
-.debate__template-chip:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+.debate__option-field .debate__mini-add {
+  width: 24px;
+  height: 24px;
+  animation: debate-pop 0.2s ease-out;
+}
+
+.debate__option-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.debate__option-count--ok {
+  opacity: 1;
+}
+
+@keyframes debate-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes debate-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
 }
 
 @media (max-width: 639px) {
-  .debate__template-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /* вузька область: три рівні сегменти на всю ширину, довгий підпис переноситься */
+  /* вузька область: три рівні сегменти на всю ширину, іконка над підписом */
   .debate__segmented {
-    display: flex;
+    display: grid;
     width: 100%;
     border-radius: 18px;
   }
 
+  .debate__segment-thumb {
+    border-radius: 15px;
+  }
+
   .debate__segment {
-    flex: 1 1 0;
-    border-radius: 14px;
+    flex-direction: column;
+    gap: 3px;
     min-width: 0;
-    padding: 6px 8px;
-    font-size: 0.8125rem;
+    padding: 7px 6px;
+    border-radius: 15px;
+    font-size: 0.75rem;
     line-height: 1.2;
     white-space: normal;
+  }
+
+  /* пояснення й оцінка — двома рядками, без розділювача на початку другого */
+  .debate__mode-meta {
+    flex-direction: column;
+  }
+
+  .debate__estimate::before {
+    content: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .debate__template-chip {
-    transition: background 0.18s;
+  .debate__segment-thumb {
+    transition: none;
   }
 
-  .debate__template-chip:active:not(:disabled) {
-    transform: none;
+  .debate__option-field,
+  .debate__option-field .debate__option-chip,
+  .debate__option-field .debate__mini-add {
+    animation: none;
   }
 }
 

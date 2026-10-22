@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BookmarkAdd01Icon, PencilEdit02Icon } from '@hugeicons/core-free-icons';
+import {
+  BookmarkAdd01Icon,
+  BubbleChatIcon,
+  CheckmarkCircle02Icon,
+  LeftToRightListBulletIcon,
+  PencilEdit02Icon,
+} from '@hugeicons/core-free-icons';
 import {
   createDiscussion,
   deleteTeam,
@@ -22,7 +28,6 @@ import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
-import { DEBATE_TEMPLATES } from '../utils/debateTemplates';
 import { useToasts } from '../hooks/useToasts';
 
 const t = uk.debate;
@@ -88,10 +93,12 @@ const customTraitsOf = (list) => [
 const isDefaultName = (name) => /^Учасник \d+$/.test(name || '');
 
 const MODES = [
-  { value: 'yes_no', label: t.modeYesNo },
-  { value: 'choose_one', label: t.modeChooseOne },
-  { value: 'open', label: t.modeOpen },
+  { value: 'yes_no', label: t.modeYesNo, icon: CheckmarkCircle02Icon },
+  { value: 'choose_one', label: t.modeChooseOne, icon: LeftToRightListBulletIcon },
+  { value: 'open', label: t.modeOpen, icon: BubbleChatIcon },
 ];
+const MAX_OPTIONS = 8;
+const OPTION_LETTERS = 'ABCDEFGH';
 
 // Ролі за замовчуванням ідуть у порядку, що дає різні погляди вже з двох учасників.
 const orderRoles = (list) =>
@@ -552,27 +559,6 @@ export default function DebatePage() {
     setActiveSlug(next[0]?.slug || '');
     setRenamingSlug(null);
     setCustomTraits((current) => [...new Set([...current, ...customTraitsOf(next)])]);
-  };
-
-  // Шаблон: заготовка питання з [полями], формат, ролі й параметри.
-  // Перше [поле] одразу виділяється, щоб його можна було просто перепечатати.
-  const applyTemplate = (template) => {
-    const question = t.templates[template.id].question;
-    setDescription(question);
-    saveDraft(question);
-    handleModeChange(template.mode);
-    setRounds(Math.min(template.rounds, maxRounds));
-    setWebSearch(Boolean(searchStatus.available && template.webSearch));
-    const next = toParticipants(template.roles, participantContext());
-    if (next.length >= MIN_PARTICIPANTS) replaceParticipants(next);
-    setError('');
-    setTimeout(() => {
-      const el = questionRef.current;
-      if (!el) return;
-      el.focus();
-      const start = question.indexOf('[');
-      if (start >= 0) el.setSelectionRange(start, question.indexOf(']', start) + 1);
-    }, 0);
   };
 
   const applyTeam = (team) => {
@@ -1143,7 +1129,13 @@ export default function DebatePage() {
         </div>
 
         <div className="debate__mode-bar">
-          <div className="debate__segmented" role="group" aria-label={t.mode}>
+          <div
+            className="debate__segmented"
+            role="group"
+            aria-label={t.mode}
+            style={{ '--active': Math.max(0, MODES.findIndex((item) => item.value === mode)) }}
+          >
+            <span className="debate__segment-thumb" aria-hidden="true" />
             {MODES.map((item) => (
               <button
                 key={item.value}
@@ -1153,77 +1145,74 @@ export default function DebatePage() {
                 onClick={() => handleModeChange(item.value)}
                 disabled={isCreating}
               >
-                {item.label}
+                <HugeiconsIcon icon={item.icon} size={16} strokeWidth={1.8} aria-hidden="true" />
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
+
+          <p className="debate__mode-meta" aria-live="polite">
+            <span className="debate__mode-hint">{t.modeHints[mode]}</span>
+            {estimate && <span className="debate__estimate">{estimate}</span>}
+          </p>
+
           {mode === 'choose_one' && (
-            <div className="debate__options">
-              <div className="debate__option-list">
-                {options.map((option) => (
-                  <span key={option} className="debate__option-chip">
-                    {option}
-                    <button
-                      type="button"
-                      className="debate__option-remove"
-                      onClick={() => removeOption(option)}
-                      aria-label={t.removeOption(option)}
-                    >
-                      ×
-                    </button>
+            <div
+              className="debate__option-field"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) e.currentTarget.querySelector('input')?.focus();
+              }}
+            >
+              {options.map((option, index) => (
+                <span key={option} className="debate__option-chip">
+                  <span className="debate__option-letter" aria-hidden="true">
+                    {OPTION_LETTERS[index]}
                   </span>
-                ))}
-              </div>
-              <div className="debate__card debate__option-input">
+                  {option}
+                  <button
+                    type="button"
+                    className="debate__option-remove"
+                    onClick={() => removeOption(option)}
+                    aria-label={t.removeOption(option)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {options.length < MAX_OPTIONS && (
                 <input
-                  className="debate__card-input"
+                  className="debate__option-draft"
                   type="text"
                   value={optionDraft}
                   maxLength={100}
                   onChange={(e) => setOptionDraft(e.target.value)}
                   onKeyDown={handleOptionKeyDown}
-                  placeholder={t.optionPlaceholder}
+                  placeholder={options.length < 2 ? t.optionPlaceholder : t.optionPlaceholderMore}
                   aria-label={t.options}
-                  disabled={isCreating || options.length >= 8}
+                  disabled={isCreating}
                 />
+              )}
+              {optionDraft.trim() && options.length < MAX_OPTIONS && (
                 <button
                   type="button"
                   className="debate__mini-add"
                   onClick={addOption}
-                  disabled={isCreating || !optionDraft.trim() || options.length >= 8}
+                  disabled={isCreating}
                   aria-label={t.addOption}
                   title={t.addOption}
                 >
                   +
                 </button>
-              </div>
-              <p className="debate__hint">{t.optionsHint}</p>
+              )}
+              <span
+                className={`debate__option-count ${options.length >= 2 ? 'debate__option-count--ok' : ''}`}
+                title={t.optionsHint}
+              >
+                {options.length}/{MAX_OPTIONS}
+              </span>
             </div>
           )}
-          {estimate && <p className="debate__estimate">{estimate}</p>}
         </div>
-
-        {!description.trim() && !isLoading && personas.length > 0 && (
-          <section className="debate__templates" aria-labelledby="debate-templates-title">
-            <h2 id="debate-templates-title" className="debate__templates-label">
-              {t.templatesLabel}
-            </h2>
-            <div className="debate__template-list">
-              {DEBATE_TEMPLATES.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  className="debate__template-chip"
-                  onClick={() => applyTemplate(template)}
-                  disabled={isCreating}
-                >
-                  <HugeiconsIcon icon={template.icon} size={18} aria-hidden="true" />
-                  {t.templates[template.id].label}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
 
         {error && (
           <div className="debate__error-block">
