@@ -81,7 +81,7 @@ export default function DebatePage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
 
-  // на телефоні іконка «Дебати» в смузі відкриває / закриває висувну панель
+  // на телефоні іконка «Новий чат» в смузі відкриває / закриває висувну панель
   useEffect(
     () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
     [registerPanelToggle]

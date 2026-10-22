@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
@@ -12,7 +12,6 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import {
-  deleteDiscussion,
   fetchDiscussion,
   fetchModels,
   fetchPersonas,
@@ -26,6 +25,7 @@ import {
   ChevronIcon,
   CloseIcon,
   PanelIcon,
+  StopIcon,
   UserPlusIcon,
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
@@ -34,13 +34,14 @@ import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ParagraphReveal from '../components/ParagraphReveal';
 import { uk } from '../copy/uk';
 import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
-import { citedIds, parseBlocks, plainText } from '../utils/markdown';
+import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 
 const t = uk.chat;
 const d = uk.debate;
 
-const DEVIL_COLOR = '#fde3c6';
+const DEVIL_COLOR = '#e5484d';
+const MODERATOR_COLOR = '#fde3c6';
 const USER_COLOR = '#f0f0f0';
 const RESEARCH_COLOR = '#d6eefb';
 const STICK_THRESHOLD = 96;
@@ -218,14 +219,12 @@ const rotate = (list, round) => {
 
 export default function ChatPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [discussion, setDiscussion] = useState(null);
   const [personas, setPersonas] = useState([]);
   const [models, setModels] = useState([]);
   const [defaultModel, setDefaultModel] = useState('');
   const [activeSlug, setActiveSlug] = useState('');
   const [scrollState, setScrollState] = useState({ overflow: false, left: false, right: false });
-  const [isDeleting, setIsDeleting] = useState(false);
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [copyState, setCopyState] = useState('');
@@ -236,13 +235,9 @@ export default function ChatPage() {
   const [pollTick, setPollTick] = useState(0);
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
-
-  // на телефоні іконка «Дебати» в смузі відкриває / закриває висувну панель
-  useEffect(
-    () => registerPanelToggle?.(() => setIsPanelOpen((open) => !open)),
-    [registerPanelToggle]
-  );
+  // «Новий чат» у смузі веде з дискусії на стартову сторінку, тож панель
+  // тут відкривається власною кнопкою «≡»; згорнутість на десктопі спільна
+  const { panelCollapsed = false } = useOutletContext() ?? {};
   // Скільки реплік уже повністю показано. Нові репліки «друкуються» по одній,
   // навіть якщо паралельний крок приніс кілька одразу.
   const [revealedCount, setRevealedCount] = useState(0);
@@ -762,20 +757,6 @@ export default function ChatPage() {
     startRunner(discussion.id);
   };
 
-  const handleDelete = async () => {
-    if (isDeleting) return;
-    if (!window.confirm(t.deleteConfirm)) return;
-    setIsDeleting(true);
-    setLoadError('');
-    try {
-      await deleteDiscussion(id);
-      navigate('/home', { replace: true });
-    } catch (err) {
-      setActionError(err.message || t.deleteError);
-      setIsDeleting(false);
-    }
-  };
-
   const saveModels = async (changes) => {
     if (!discussion || isSaving) return;
     setIsSaving(true);
@@ -807,6 +788,7 @@ export default function ChatPage() {
   };
   const canSendNote =
     Boolean(discussion) && !isSending && note.trim().length > 0 && (!isFinished || followupsLeft > 0);
+  const showStop = isRunning && !isSending && note.trim().length === 0;
 
   const handleSendNote = async (e) => {
     e.preventDefault();
@@ -841,7 +823,7 @@ export default function ChatPage() {
       if (message.role === 'devil') {
         map.set(key, { color: DEVIL_COLOR, side: 'right' });
       } else if (message.role === 'moderator') {
-        map.set(key, { color: DEVIL_COLOR, side: 'left' });
+        map.set(key, { color: MODERATOR_COLOR, side: 'left' });
       } else if (message.role === 'research') {
         map.set(key, { color: RESEARCH_COLOR, side: 'left' });
       } else if (message.role === 'user') {
@@ -876,20 +858,20 @@ export default function ChatPage() {
 
   const handleCopySummary = async () => {
     const lines = [discussion.question, ''];
-    if (summary?.answer) lines.push(`${t.summaryAnswer}: ${summary.answer}`);
-    lines.push(`${t.summaryDecision}: ${summaryDecision}`);
+    if (summary?.answer) lines.push(`${t.summaryAnswer}: ${inlinePlain(summary.answer)}`);
+    lines.push(`${t.summaryDecision}: ${inlinePlain(summaryDecision)}`);
     if (summaryConfirmed === false && summary?.revision) {
-      lines.push(`${t.summaryRevision}: ${summary.revision}`);
+      lines.push(`${t.summaryRevision}: ${inlinePlain(summary.revision)}`);
     }
     if (agreement) {
       lines.push(`${t.summaryAgreement}: ${t.summaryAgreementValue(agreement.agree, agreement.total)}`);
     }
     if (summaryConfidence !== null) lines.push(`${t.summaryConfidence}: ${summaryConfidence}%`);
     summaryLists.forEach(({ title, items }) => {
-      lines.push('', `${title}:`, ...items.map((item) => `• ${item}`));
+      lines.push('', `${title}:`, ...items.map((item) => `• ${inlinePlain(item)}`));
     });
     if (summary?.recommendation) {
-      lines.push('', `${t.summaryNextStep}: ${summary.recommendation}`);
+      lines.push('', `${t.summaryNextStep}: ${inlinePlain(summary.recommendation)}`);
     }
     if (discussion.sources?.length) {
       lines.push('', `${t.sources}:`);
@@ -1120,26 +1102,6 @@ export default function ChatPage() {
         >
           {discussion && (
             <header className="chat__prompt">
-              <div className="chat__toolbar">
-                {isRunning && !isStopped && (
-                  <button type="button" className="chat__tool" onClick={handleStop}>
-                    {t.stop}
-                  </button>
-                )}
-                {canResume && (
-                  <button type="button" className="chat__tool" onClick={handleResume}>
-                    {t.resume}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="chat__tool chat__tool--danger"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t.deleting : t.delete}
-                </button>
-              </div>
               <p className="chat__prompt-text">{discussion.question}</p>
             </header>
           )}
@@ -1232,6 +1194,7 @@ export default function ChatPage() {
                     className={[
                       'chat__row',
                       `chat__row--${side}`,
+                      `chat__row--${message.role}`,
                       grouped && 'chat__row--grouped',
                       typing && 'chat__row--enter',
                       flashId && flashId === message.id && 'chat__row--flash',
@@ -1327,7 +1290,9 @@ export default function ChatPage() {
               {summary?.answer && (
                 <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryAnswer}</span>
-                  <p>{String(summary.answer)}</p>
+                  <p>
+                    <InlineText text={String(summary.answer)} sources={sourcesById} />
+                  </p>
                 </div>
               )}
               <div className="chat__summary-item" style={summaryStep()}>
@@ -1339,7 +1304,9 @@ export default function ChatPage() {
               {summaryConfirmed === false && summary?.revision && (
                 <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryRevision}</span>
-                  <p>{String(summary.revision)}</p>
+                  <p>
+                    <InlineText text={String(summary.revision)} sources={sourcesById} />
+                  </p>
                 </div>
               )}
               {(agreement || summaryConfidence !== null) && (
@@ -1383,7 +1350,9 @@ export default function ChatPage() {
               {summary?.recommendation && (
                 <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryNextStep}</span>
-                  <p>{String(summary.recommendation)}</p>
+                  <p>
+                    <InlineText text={String(summary.recommendation)} sources={sourcesById} />
+                  </p>
                 </div>
               )}
               <div className="chat__summary-actions" style={summaryStep()}>
@@ -1495,15 +1464,30 @@ export default function ChatPage() {
                 <span className="debate__composer-count">
                   {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
                 </span>
-                <button
-                  type="submit"
-                  className="debate__send"
-                  disabled={!canSendNote}
-                  aria-label={isSending ? t.noteSending : t.noteSend}
-                  title={isSending ? t.noteSending : t.noteSend}
-                >
-                  {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
-                </button>
+                {showStop ? (
+                  // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
+                  // щойно користувач почне писати — знову можна надіслати уточнення
+                  <button
+                    type="button"
+                    className="debate__send debate__send--stop"
+                    onClick={handleStop}
+                    disabled={isStopped}
+                    aria-label={isStopped ? t.stopping : t.stop}
+                    title={isStopped ? t.stopping : t.stop}
+                  >
+                    {isStopped ? <span className="debate__send-spinner" /> : <StopIcon />}
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="debate__send"
+                    disabled={!canSendNote}
+                    aria-label={isSending ? t.noteSending : t.noteSend}
+                    title={isSending ? t.noteSending : t.noteSend}
+                  >
+                    {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+                  </button>
+                )}
               </div>
             </div>
           </form>

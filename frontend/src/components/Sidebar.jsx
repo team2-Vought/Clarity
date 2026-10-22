@@ -6,15 +6,6 @@ import { uk } from '../copy/uk';
 
 const t = uk.nav;
 
-const HomeIcon = () => (
-  <svg width="35" height="35" viewBox="0 0 35 35" fill="none" aria-hidden="true">
-    <path d="M26.7195 23.2479C26.7195 25.1652 25.1652 26.7195 23.2479 26.7195C21.3306 26.7195 19.7764 25.1652 19.7764 23.2479C19.7764 21.3306 21.3306 19.7764 23.2479 19.7764C25.1652 19.7764 26.7195 21.3306 26.7195 23.2479Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-    <path d="M15.4797 23.2479C15.4797 25.1652 13.9254 26.7195 12.0082 26.7195C10.0909 26.7195 8.53662 25.1652 8.53662 23.2479C8.53662 21.3306 10.0909 19.7764 12.0082 19.7764C13.9254 19.7764 15.4797 21.3306 15.4797 23.2479Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-    <path d="M26.7195 12.0082C26.7195 13.9254 25.1652 15.4797 23.2479 15.4797C21.3306 15.4797 19.7764 13.9254 19.7764 12.0082C19.7764 10.0909 21.3306 8.53662 23.2479 8.53662C25.1652 8.53662 26.7195 10.0909 26.7195 12.0082Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-    <path d="M15.4797 12.0082C15.4797 13.9254 13.9254 15.4797 12.0082 15.4797C10.0909 15.4797 8.53662 13.9254 8.53662 12.0082C8.53662 10.0909 10.0909 8.53662 12.0082 8.53662C13.9254 8.53662 15.4797 10.0909 15.4797 12.0082Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-  </svg>
-);
-
 const DebateIcon = () => (
   <svg width="35" height="35" viewBox="0 0 35 35" fill="none" aria-hidden="true">
     <path d="M25.6172 10.1978C27.4424 12.0231 25.456 16.9687 21.1805 21.2442C16.905 25.5197 11.9594 27.506 10.1342 25.6808C8.30898 23.8556 10.2953 18.91 14.5708 14.6345C18.8463 10.359 23.792 8.37262 25.6172 10.1978Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
@@ -91,7 +82,6 @@ const LogoutIcon = () => (
 );
 
 const ICONS = {
-  home: HomeIcon,
   debates: DebateIcon,
   history: HistoryIcon,
   profile: ProfileIcon,
@@ -99,13 +89,10 @@ const ICONS = {
   help: HelpIcon,
 };
 
-// Куди веде «Головна». Лендінг ('/') не підходить, тому ведемо на головну сторінку застосунку.
-// Якщо буде окремий маршрут для «Головної» — змінити лише цю константу.
-const HOME_PATH = '/home';
-
+// «Новий чат» підсвічений лише на стартовій сторінці: з відкритої дискусії
+// клік веде до нового чату, а не ховає панель налаштувань.
 const NAV_ITEMS = [
-  { key: 'home', label: t.home, path: HOME_PATH },
-  { key: 'debates', label: t.debates, path: '/home', match: ['/home', '/chat'] },
+  { key: 'debates', label: t.debates, path: '/home', match: ['/home'] },
   { key: 'history', label: t.history, path: '/history', match: ['/history'] },
   { key: 'profile', label: t.profile, path: '/account', match: ['/account'] },
   { key: 'settings', label: t.settings, path: '/settings', match: ['/settings'] },
@@ -173,7 +160,7 @@ export default function Sidebar({
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
               onClick={() => {
-                // повторний клік на активні «Дебати» ховає / показує панель налаштувань
+                // повторний клік на активний «Новий чат» ховає / показує панель налаштувань
                 if (item.key === 'debates' && active && onTogglePanel?.()) return;
                 navigate(item.path);
               }}

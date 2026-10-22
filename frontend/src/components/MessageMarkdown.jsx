@@ -17,6 +17,12 @@ export function InlineText({ text, sources }) {
             <InlineText text={token.text} sources={sources} />
           </em>
         );
+      case 'del':
+        return (
+          <del key={index}>
+            <InlineText text={token.text} sources={sources} />
+          </del>
+        );
       case 'code':
         return <code key={index}>{token.text}</code>;
       case 'link':
@@ -49,12 +55,15 @@ export function InlineText({ text, sources }) {
 
 function Block({ block, sources, className }) {
   switch (block.type) {
-    case 'heading':
+    case 'heading': {
+      // «#» і «##» — заголовок частини, «###» і дрібніші — підпис розділу
+      const Heading = block.level <= 2 ? 'h3' : 'h4';
       return (
-        <h4 className={className}>
+        <Heading className={className}>
           <InlineText text={block.text} sources={sources} />
-        </h4>
+        </Heading>
       );
+    }
     case 'hr':
       return <hr className={className} />;
     case 'ul':

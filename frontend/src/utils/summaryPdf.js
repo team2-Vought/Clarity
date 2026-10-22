@@ -2,6 +2,8 @@
 // натисканні, щоб не роздувати основний бандл. Вбудований Roboto має
 // кирилицю, а текст у PDF лишається виділеним і доступним для пошуку.
 
+import { parseInline } from './markdown';
+
 const INK = '#121212';
 const MUTED = '#6b6b75';
 const RULE = '#e2e2e8';
@@ -25,8 +27,25 @@ const loadPdfMake = () => {
   return pdfMakePromise;
 };
 
+// Інлайн-markdown моделей → фрагменти pdfmake: **жирний** і *курсив* лишаються виділеними
+const richText = (value, style = {}) =>
+  parseInline(value).flatMap((token) => {
+    switch (token.type) {
+      case 'strong':
+        return richText(token.text, { ...style, bold: true });
+      case 'em':
+        return richText(token.text, { ...style, italics: true });
+      case 'del':
+        return richText(token.text, { ...style, decoration: 'lineThrough' });
+      case 'link':
+        return [{ ...style, text: token.text, link: token.url }];
+      default:
+        return [{ ...style, text: token.text }];
+    }
+  });
+
 const labelled = (label, value) => ({
-  text: [{ text: `${label}  `, bold: true }, String(value)],
+  text: [{ text: `${label}  `, bold: true }, ...richText(String(value))],
   margin: [0, 0, 0, 10],
 });
 
@@ -71,7 +90,7 @@ export async function downloadSummaryPdf({ question, summary, lists, sources, t 
         widths: [110, '*'],
         body: lists.map(({ title, items }) => [
           { text: title, bold: true },
-          { ul: items, markerColor: MUTED },
+          { ul: items.map((item) => ({ text: richText(item) })), markerColor: MUTED },
         ]),
       },
       layout: {

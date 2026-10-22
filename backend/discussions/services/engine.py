@@ -198,14 +198,15 @@ def _answer(value, mode, options):
     if not text:
         return None
     if mode == Discussion.Mode.YES_NO:
-        normalized = text.casefold().strip(' .,!?:;«»"\'')
+        # модель може виділити відповідь **жирним**, хоча її просили без розмітки
+        normalized = text.casefold().strip(' .,!?:;«»"\'*_')
         if normalized in {'так', 'yes', 'true', 'позитивно', 'згоден', 'згодна'}:
             return 'так'
         if normalized in {'ні', 'no', 'false', 'негативно', 'не згоден', 'не згодна'}:
             return 'ні'
         return None
     if mode == Discussion.Mode.CHOOSE_ONE:
-        folded = text.casefold().strip(' .,!?:;«»"\'')
+        folded = text.casefold().strip(' .,!?:;«»"\'*_')
         for option in options or []:
             if folded == str(option).casefold():
                 return str(option)
@@ -1205,6 +1206,11 @@ def _section(title, body):
     return f'### {title}\n\n{body}' if body else ''
 
 
+def _unbold(text):
+    """Знімає **жирний** моделі з тексту, який ми й так обгортаємо в **…**."""
+    return text.replace('**', '')
+
+
 def _moderator_text(best_solution):
     best_solution = best_solution if isinstance(best_solution, dict) else {}
     decision = _text(best_solution.get('decision'), 'рішення не визначено', limit=2000)
@@ -1212,7 +1218,7 @@ def _moderator_text(best_solution):
     args = _bullets(_text_list(best_solution.get('supporting_arguments'), limit=4))
     dissent = _bullets(_text_list(best_solution.get('dissenting_points'), limit=4))
     parts = []
-    answer = _text(best_solution.get('answer'), limit=200)
+    answer = _unbold(_text(best_solution.get('answer'), limit=200))
     if answer:
         parts.append(f'**Відповідь: {answer}**')
     parts.append(_section('Пропоноване рішення', decision))
@@ -1226,7 +1232,7 @@ def _moderator_text(best_solution):
 def _devil_text(review):
     review = review if isinstance(review, dict) else {}
     parts = []
-    verdict = _text(review.get('verdict'), limit=1000)
+    verdict = _unbold(_text(review.get('verdict'), limit=1000))
     if verdict:
         parts.append(f'**{verdict.rstrip()}**')
 
@@ -1234,12 +1240,12 @@ def _devil_text(review):
     for risk in review.get('risks') or []:
         if not isinstance(risk, dict):
             continue
-        title = _text(risk.get('title'), limit=300).rstrip(' .;')
+        title = _unbold(_text(risk.get('title'), limit=300)).rstrip(' .;')
         description = _text(risk.get('description'), limit=1000).rstrip(' .;')
         severity = _text(risk.get('severity'), limit=40)
         if not (title or description):
             continue
-        line = f'**{title}** — {description}' if title and description else f'**{title or description}**'
+        line = f'**{title}** — {description}' if title and description else f'**{_unbold(title or description)}**'
         if severity:
             line += f' _(ризик: {severity})_'
         risks.append(f'- {line}')
@@ -1257,7 +1263,7 @@ def _devil_text(review):
 def _final_text(summary):
     summary = summary if isinstance(summary, dict) else {}
     parts = []
-    answer = _text(summary.get('answer'), limit=200)
+    answer = _unbold(_text(summary.get('answer'), limit=200))
     if answer:
         parts.append(f'**Відповідь: {answer}**')
 

@@ -30,7 +30,7 @@ export function parseBlocks(content) {
 
     const heading = HEADING_RE.exec(line);
     if (heading) {
-      blocks.push({ type: 'heading', text: heading[2] });
+      blocks.push({ type: 'heading', level: heading[1].length, text: heading[2] });
       return;
     }
     if (HR_RE.test(line)) {
@@ -67,9 +67,9 @@ export function parseBlocks(content) {
   return blocks;
 }
 
-// **жирний**, __жирний__, `код`, [n], [текст](https://…), *курсив*, _курсив_
+// **жирний**, __жирний__, ~~закреслений~~, `код`, [n], [текст](https://…), *курсив*, _курсив_
 const INLINE_RE =
-  /(\*\*(?=\S)[\s\S]+?\*\*|__(?=\S)[\s\S]+?__|`[^`\n]+`|\[\d+\]|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|\*(?=[^\s*])[^*\n]+?\*|(?<![\p{L}\d])_(?=[^\s_])[^_\n]+?_(?![\p{L}\d]))/gu;
+  /(\*\*(?=\S)[\s\S]+?\*\*|__(?=\S)[\s\S]+?__|~~(?=\S)[^~\n]+?~~|`[^`\n]+`|\[\d+\]|\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)|\*(?=[^\s*])[^*\n]+?\*|(?<![\p{L}\d])_(?=[^\s_])[^_\n]+?_(?![\p{L}\d]))/gu;
 
 /** Розбиває рядок на інлайн-токени: { type, text, ... }. */
 export function parseInline(text) {
@@ -81,6 +81,8 @@ export function parseInline(text) {
     const value = match[0];
     if (value.startsWith('**') || value.startsWith('__')) {
       tokens.push({ type: 'strong', text: value.slice(2, -2) });
+    } else if (value.startsWith('~~')) {
+      tokens.push({ type: 'del', text: value.slice(2, -2) });
     } else if (value.startsWith('`')) {
       tokens.push({ type: 'code', text: value.slice(1, -1) });
     } else if (/^\[\d+\]$/.test(value)) {
@@ -102,14 +104,25 @@ export function citedIds(content) {
   return [...String(content || '').matchAll(/\[(\d+)\]/g)].map((match) => Number(match[1]));
 }
 
+/** Рядок без інлайн-розмітки: **жирний** → жирний. */
+export function inlinePlain(value) {
+  return parseInline(value)
+    .map((token) => {
+      if (token.type === 'link') return `${token.text} (${token.url})`;
+      // виділення можуть бути вкладені: **важливо, *дуже***
+      if (token.type === 'strong' || token.type === 'em' || token.type === 'del') {
+        return inlinePlain(token.text);
+      }
+      return token.text;
+    })
+    .join('');
+}
+
 /** Текст без розмітки — для копіювання в месенджер чи нотатки. */
 export function plainText(content) {
   return parseBlocks(content)
     .map((block) => {
-      const strip = (value) =>
-        parseInline(value)
-          .map((token) => (token.type === 'link' ? `${token.text} (${token.url})` : token.text))
-          .join('');
+      const strip = inlinePlain;
       switch (block.type) {
         case 'heading':
           return strip(block.text).toUpperCase();

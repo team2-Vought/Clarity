@@ -111,8 +111,7 @@ export const uk = {
   },
 
   nav: {
-    home: 'Головна',
-    debates: 'Дебати',
+    debates: 'Новий чат',
     history: 'Історія',
     profile: 'Мій профіль',
     settings: 'Налаштування',
@@ -223,10 +222,6 @@ export const uk = {
     searchedFor: (query) => `Шукав: ${query}`,
     sources: 'Джерела',
     resume: 'Продовжити',
-    delete: 'Видалити дискусію',
-    deleting: 'Видаляємо…',
-    deleteConfirm: 'Видалити цю дискусію назавжди?',
-    deleteError: 'Не вдалося видалити дискусію',
     summary: 'Підсумок',
     summaryDecision: 'Рішення',
     summaryAnswer: 'Відповідь',
