@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Discussion, Message
+from .models import DailyUsage, Discussion, Message
 
 
 class MessageInline(admin.StackedInline):
@@ -26,3 +26,10 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ('discussion_id', 'persona_name', 'role', 'seq', 'created_at')
     list_filter = ('role', 'phase')
     search_fields = ('content', 'persona_name')
+
+
+@admin.register(DailyUsage)
+class DailyUsageAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date', 'discussions', 'replies')
+    list_filter = ('date',)
+    search_fields = ('user__email',)

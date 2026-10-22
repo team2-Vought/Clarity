@@ -1,11 +1,13 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+from rest_framework.throttling import SimpleRateThrottle
 
 from discussions.models import Discussion, Message
-from discussions.services import engine
+from discussions.services import engine, usage
 
 from .fakes import FakeProvider
 
@@ -486,17 +488,58 @@ class DiscussionApiTests(TestCase):
             format='json',
         )
         discussion = Discussion.objects.get(pk=created.data['id'])
-        discussion.messages.create(
-            seq=2,
-            phase=Discussion.Phase.OPENING,
-            role=Message.Role.AI,
-            persona_slug='logician',
-            persona_name='Логік',
-            avatar='🧠',
-            content='Тестова відповідь',
-        )
+        usage.record(self.user.pk, replies=1)
         limited = self.client.post(f'/api/discussions/{discussion.id}/advance/')
         self.assertEqual(limited.status_code, 429)
+
+    @override_settings(DISCUSSION_DAILY_LIMIT=1)
+    def test_deleting_discussion_does_not_restore_creation_limit(self):
+        self.auth()
+        payload = {
+            'question': 'Чи варто запускати власний продукт?',
+            'personas': ['logician', 'skeptic'],
+        }
+        created = self.client.post('/api/discussions/', payload, format='json')
+        self.assertEqual(created.status_code, 201)
+        self.client.delete(f'/api/discussions/{created.data["id"]}/')
+
+        limited = self.client.post('/api/discussions/', payload, format='json')
+        self.assertEqual(limited.status_code, 429)
+
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=1)
+    def test_deleting_discussion_does_not_restore_reply_limit(self):
+        self.auth()
+        payload = {
+            'question': 'Чи варто запускати власний продукт?',
+            'personas': ['logician', 'skeptic'],
+        }
+        first = self.client.post('/api/discussions/', payload, format='json')
+        step = self.client.post(f'/api/discussions/{first.data["id"]}/advance/')
+        self.assertEqual(step.status_code, 200)
+        self.assertEqual(usage.today(self.user).replies, len(step.data['messages']))
+        self.client.delete(f'/api/discussions/{first.data["id"]}/')
+
+        second = self.client.post('/api/discussions/', payload, format='json')
+        limited = self.client.post(f'/api/discussions/{second.data["id"]}/advance/')
+        self.assertEqual(limited.status_code, 429)
+
+    def test_action_endpoints_do_not_inherit_detail_methods(self):
+        self.auth()
+        created = self.client.post(
+            '/api/discussions/',
+            {
+                'question': 'Чи варто запускати власний продукт?',
+                'personas': ['logician', 'skeptic'],
+            },
+            format='json',
+        )
+        discussion_id = created.data['id']
+        for action in ('advance', 'run', 'stop', 'messages'):
+            url = f'/api/discussions/{discussion_id}/{action}/'
+            self.assertEqual(self.client.get(url).status_code, 405, action)
+            self.assertEqual(self.client.patch(url, {}, format='json').status_code, 405, action)
+            self.assertEqual(self.client.delete(url).status_code, 405, action)
+        self.assertTrue(Discussion.objects.filter(pk=discussion_id).exists())
 
     def test_delete_own_discussion(self):
         self.auth()
@@ -575,3 +618,35 @@ class DiscussionApiTests(TestCase):
         response = self.client.delete(f'/api/discussions/{created.data["id"]}/')
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Discussion.objects.filter(pk=created.data['id']).exists())
+
+
+class DiscussionThrottleTests(TestCase):
+    """Справжній throttle (без патчу allow_request з DiscussionApiTests)."""
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        rates = mock.patch.dict(SimpleRateThrottle.THROTTLE_RATES, {'discussion_create': '1/min'})
+        rates.start()
+        self.addCleanup(rates.stop)
+        self.user = User.objects.create_user(
+            email='throttle@test.com', name='Тест', password='pass123!A'
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_history_is_not_limited_by_creation_rate(self):
+        for _ in range(3):
+            self.assertEqual(self.client.get('/api/discussions/').status_code, 200)
+
+    def test_creation_is_still_rate_limited(self):
+        payload = {
+            'question': 'Чи варто запускати власний продукт?',
+            'personas': ['logician', 'skeptic'],
+        }
+        self.assertEqual(
+            self.client.post('/api/discussions/', payload, format='json').status_code, 201
+        )
+        self.assertEqual(
+            self.client.post('/api/discussions/', payload, format='json').status_code, 429
+        )

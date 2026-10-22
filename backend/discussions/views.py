@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
@@ -27,7 +28,7 @@ from .serializers import (
     MessageSerializer,
     UpdateDiscussionSerializer,
 )
-from .services import engine, runner, search
+from .services import engine, runner, search, usage
 from .services.catalog import catalog
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,12 @@ class DiscussionListCreateView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'discussion_create'
 
+    def get_throttles(self):
+        # ліміт створення не має гальмувати перегляд історії
+        if self.request.method != 'POST':
+            return [throttle() for throttle in api_settings.DEFAULT_THROTTLE_CLASSES]
+        return super().get_throttles()
+
     def get(self, request):
         # остання репліка учасників — прев'ю для дискусій, що ще не мають рішення
         last_reply = (
@@ -147,18 +154,12 @@ class DiscussionListCreateView(APIView):
         return Response({'results': serializer.data}, status=status.HTTP_200_OK)
 
     def post(self, request):
-        limit = int(getattr(settings, 'DISCUSSION_DAILY_LIMIT', 0) or 0)
-        if limit:
-            today = timezone.localdate()
-            created_today = Discussion.objects.filter(
-                user=request.user,
-                created_at__date=today,
-            ).count()
-            if created_today >= limit:
-                return _too_many(
-                    f'Денний ліміт створення дискусій вичерпано ({limit}). '
-                    'Спробуйте завтра.'
-                )
+        if usage.over_discussion_limit(request.user):
+            limit = int(settings.DISCUSSION_DAILY_LIMIT)
+            return _too_many(
+                f'Денний ліміт створення дискусій вичерпано ({limit}). '
+                'Спробуйте завтра.'
+            )
 
         serializer = CreateDiscussionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -190,18 +191,24 @@ class DiscussionListCreateView(APIView):
             avatar='🧑',
             content=discussion.question,
         )
+        usage.record(request.user.pk, discussions=1)
         return Response(
             DiscussionSerializer(discussion).data,
             status=status.HTTP_201_CREATED,
         )
 
 
-class DiscussionDetailView(APIView):
+class OwnedDiscussionView(APIView):
+    """Доступ до власної дискусії. Методи визначає кожен підклас сам:
+    дії (/run/, /stop/…) не мають успадковувати GET, PATCH чи DELETE."""
+
     permission_classes = [IsAuthenticated]
 
     def get_discussion(self, request, pk):
         return Discussion.objects.filter(user=request.user, pk=pk).first()
 
+
+class DiscussionDetailView(OwnedDiscussionView):
     def get(self, request, pk):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
@@ -242,7 +249,7 @@ class DiscussionDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class DiscussionAdvanceView(DiscussionDetailView):
+class DiscussionAdvanceView(OwnedDiscussionView):
     """Один синхронний крок (сумісність і тести). UI користується /run."""
 
     throttle_classes = [ScopedRateThrottle]
@@ -290,7 +297,7 @@ class DiscussionAdvanceView(DiscussionDetailView):
         return Response(payload, status=status.HTTP_200_OK)
 
 
-class DiscussionRunView(DiscussionDetailView):
+class DiscussionRunView(OwnedDiscussionView):
     """Запускає фонове виконання дискусії; клієнт далі лише опитує стан."""
 
     throttle_classes = [ScopedRateThrottle]
@@ -309,7 +316,7 @@ class DiscussionRunView(DiscussionDetailView):
         return Response(_discussion_state(discussion), status=status.HTTP_202_ACCEPTED)
 
 
-class DiscussionStopView(DiscussionDetailView):
+class DiscussionStopView(OwnedDiscussionView):
     """Зупинка після поточного кроку: за нього вже заплачено, результат збережеться."""
 
     def post(self, request, pk):
@@ -321,7 +328,7 @@ class DiscussionStopView(DiscussionDetailView):
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)
 
 
-class DiscussionMessageView(DiscussionDetailView):
+class DiscussionMessageView(OwnedDiscussionView):
     """Уточнення користувача під час дискусії або після фіналу."""
 
     throttle_classes = [ScopedRateThrottle]

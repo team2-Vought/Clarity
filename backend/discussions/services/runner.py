@@ -18,10 +18,9 @@ import time
 
 from django.conf import settings
 from django.db import connection
-from django.utils import timezone
 
-from ..models import Discussion, Message
-from . import engine
+from ..models import Discussion
+from . import engine, usage
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +37,11 @@ def is_active(discussion_id):
 
 def daily_usage(user):
     """Скільки AI-відповідей (учасники, модератор, Devil, пошук) створено сьогодні."""
-    return Message.objects.filter(
-        discussion__user=user,
-        created_at__date=timezone.localdate(),
-    ).exclude(role=Message.Role.USER).count()
+    return usage.today(user).replies
 
 
 def over_daily_limit(user):
-    limit = int(getattr(settings, 'DISCUSSION_DAILY_ADVANCE_LIMIT', 0) or 0)
-    return bool(limit) and daily_usage(user) >= limit
+    return usage.over_reply_limit(user)
 
 
 def _fail_with_limit(discussion_id):

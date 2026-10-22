@@ -146,3 +146,34 @@ class Message(models.Model):
 
     def __str__(self):
         return f'#{self.seq} {self.persona_name}: {self.content[:40]}'
+
+
+class DailyUsage(models.Model):
+    """Денне використання AI для лімітів.
+
+    Живе окремо від дискусій: видалення дискусії не повертає витрачений ліміт.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='daily_usage',
+        verbose_name='користувач',
+    )
+    date = models.DateField('дата')
+    discussions = models.PositiveIntegerField('створено дискусій', default=0)
+    replies = models.PositiveIntegerField('AI-відповідей', default=0)
+
+    class Meta:
+        verbose_name = 'денне використання'
+        verbose_name_plural = 'денне використання'
+        ordering = ['-date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'date'],
+                name='unique_daily_usage_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} {self.date}: {self.discussions} / {self.replies}'

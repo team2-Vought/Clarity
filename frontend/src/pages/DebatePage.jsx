@@ -22,6 +22,8 @@ const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_MAX_PARTICIPANTS = 5;
 const DEFAULT_ROUNDS = 2;
+// сервер рахує довжину після стискання пробілів, тож і тут так само
+const MIN_QUESTION = 10;
 const MAX_QUESTION = 6000;
 const MAX_STYLE = 300;
 const MAX_NAME = 64;
@@ -441,6 +443,10 @@ export default function DebatePage() {
     const question = description.trim();
     if (!question) {
       setError(t.placeholderDescription);
+      return;
+    }
+    if (question.replace(/[ \t]+/g, ' ').length < MIN_QUESTION) {
+      setError(t.tooShort);
       return;
     }
     if (question.length > MAX_QUESTION) {

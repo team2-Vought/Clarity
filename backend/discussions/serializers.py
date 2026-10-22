@@ -17,7 +17,7 @@ from .services import engine, runner, search
 from .services.catalog import resolve_model
 
 REQUIRED = 'Це поле обов’язкове'
-QUESTION_TOO_SHORT = f'Запитання має бути довшим за {QUESTION_MIN} символів'
+QUESTION_TOO_SHORT = f'Запитання має містити щонайменше {QUESTION_MIN} символів'
 QUESTION_TOO_LONG = f'Запитання задовге (максимум {QUESTION_MAX} символів)'
 PERSONAS_TYPE = 'Повинен бути список персон'
 PERSONAS_COUNT = f'Оберіть від {MIN_AI} до {MAX_AI} AI-учасників'

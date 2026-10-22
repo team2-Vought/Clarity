@@ -43,7 +43,7 @@ from django.utils import timezone
 
 from ..models import Discussion, Message
 from ..personas import DEVIL, MODERATOR, RESEARCHER
-from . import prompts, search
+from . import prompts, search, usage
 from .catalog import available_model_ids, default_model_id, model_label, resolve_model
 from .providers import ProviderError, get_provider
 
@@ -1622,6 +1622,7 @@ def _commit(discussion_id, token, phase, results, error=None):
 
         personas = _resolved_personas(discussion)
         created = [_store(discussion, plan, payload, personas) for plan, payload in results]
+        usage.record(discussion.user_id, replies=len(created))
         if error is not None:
             _set_error(discussion, error)
         else:
