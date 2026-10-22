@@ -2007,6 +2007,32 @@ ol.chat__reveal {
   color: var(--error, #c93a62);
 }
 
+/* Поява результату: лінія-розділювач проступає, а блоки й рядки таблиці
+   проявляються з розмиття один за одним — так само, як абзаци реплік */
+.chat__summary--enter {
+  animation: chat-summary-rule 0.8s ease-out both;
+}
+
+.chat__summary--enter > *,
+.chat__summary--enter tr {
+  animation: chat-reveal-item 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.15s + var(--i, 0) * 0.28s);
+}
+
+@keyframes chat-summary-rule {
+  from {
+    border-top-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__summary--enter,
+  .chat__summary--enter > *,
+  .chat__summary--enter tr {
+    animation: none;
+  }
+}
+
 .chat__summary-table {
   width: 100%;
   border-collapse: collapse;
@@ -2837,9 +2863,9 @@ ol.chat__reveal {
 
 .chat__column .chat__main {
   flex: 1;
-  /* останні репліки прокручуються вище за поле, а не ховаються під ним */
-  /* мінус верхній відступ шару: над полем він прозорий, туди можна гортати */
-  padding-bottom: calc(var(--composer-h, 0px) - 24px);
+  /* останні репліки прокручуються вище за поле з запасом, тож унизу
+     сторінки текст, що з'являється, не ховається за полем вводу */
+  padding-bottom: calc(var(--composer-h, 0px) + 40px);
 }
 
 .chat__composer {

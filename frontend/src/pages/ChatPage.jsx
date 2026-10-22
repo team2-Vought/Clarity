@@ -261,6 +261,8 @@ export default function ChatPage() {
   const [showJump, setShowJump] = useState(false);
   const [flashId, setFlashId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  // результат з'являється з анімацією лише тоді, коли дискусія йшла на очах
+  const [animateSummary, setAnimateSummary] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [dismissedHints, setDismissedHints] = useState(() => new Set());
   const advancedRef = useRef(null);
@@ -654,6 +656,10 @@ export default function ChatPage() {
     updateJump();
   }, [updateJump, messages, isFinished]);
 
+  useEffect(() => {
+    if (isRunning) setAnimateSummary(true);
+  }, [isRunning]);
+
   const handleCopyMessage = async (message) => {
     try {
       await navigator.clipboard.writeText(plainText(message.content));
@@ -915,6 +921,10 @@ export default function ChatPage() {
       window.setTimeout(() => setPdfState(''), 2500);
     }
   };
+
+  // Частини результату проявляються по черзі, як абзаци реплік
+  let summaryIndex = 0;
+  const summaryStep = () => (animateSummary ? { '--i': summaryIndex++ } : undefined);
 
   const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
   const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
@@ -1309,27 +1319,31 @@ export default function ChatPage() {
           })}
 
           {summaryDecision && isFinished && !isRevealing && (
-            <section className="chat__summary" ref={summaryRef} aria-label={t.summary}>
+            <section
+              className={`chat__summary ${animateSummary ? 'chat__summary--enter' : ''}`}
+              ref={summaryRef}
+              aria-label={t.summary}
+            >
               {summary?.answer && (
-                <div className="chat__summary-item">
+                <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryAnswer}</span>
                   <p>{String(summary.answer)}</p>
                 </div>
               )}
-              <div className="chat__summary-item">
+              <div className="chat__summary-item" style={summaryStep()}>
                 <span className="chat__summary-label">{t.summaryDecision}</span>
                 <p>
                   <InlineText text={summaryDecision} sources={sourcesById} />
                 </p>
               </div>
               {summaryConfirmed === false && summary?.revision && (
-                <div className="chat__summary-item">
+                <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryRevision}</span>
                   <p>{String(summary.revision)}</p>
                 </div>
               )}
               {(agreement || summaryConfidence !== null) && (
-                <div className="chat__summary-meta">
+                <div className="chat__summary-meta" style={summaryStep()}>
                   {agreement && (
                     <div className="chat__summary-item">
                       <span className="chat__summary-label">{t.summaryAgreement}</span>
@@ -1348,7 +1362,7 @@ export default function ChatPage() {
                 <table className="chat__summary-table">
                   <tbody>
                     {summaryLists.map(({ key, title, items }) => (
-                      <tr key={key}>
+                      <tr key={key} style={summaryStep()}>
                         <th scope="row">
                           <span className="chat__summary-label">{title}</span>
                         </th>
@@ -1367,12 +1381,12 @@ export default function ChatPage() {
                 </table>
               )}
               {summary?.recommendation && (
-                <div className="chat__summary-item">
+                <div className="chat__summary-item" style={summaryStep()}>
                   <span className="chat__summary-label">{t.summaryNextStep}</span>
                   <p>{String(summary.recommendation)}</p>
                 </div>
               )}
-              <div className="chat__summary-actions">
+              <div className="chat__summary-actions" style={summaryStep()}>
                 <button
                   type="button"
                   className="chat__icon-button"
@@ -1402,7 +1416,11 @@ export default function ChatPage() {
                   {copyState === 'error' ? t.copyError : t.pdfError}
                 </p>
               )}
-              {discussion?.sources?.length > 0 && <SourceList sources={discussion.sources} />}
+              {discussion?.sources?.length > 0 && (
+                <div style={summaryStep()}>
+                  <SourceList sources={discussion.sources} />
+                </div>
+              )}
             </section>
           )}
 
