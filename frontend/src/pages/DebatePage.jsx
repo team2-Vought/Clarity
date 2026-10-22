@@ -2,11 +2,15 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   BookmarkAdd01Icon,
   BubbleChatIcon,
   CheckmarkCircle02Icon,
+  Delete02Icon,
   LeftToRightListBulletIcon,
   PencilEdit02Icon,
+  Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import {
   createDiscussion,
@@ -19,15 +23,13 @@ import {
 import { getToken } from '../api/client';
 import {
   ArrowUpIcon,
-  ChevronIcon,
   CloseIcon,
   PlusIcon,
-  UserPlusIcon,
 } from '../components/DebateIcons';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import { uk } from '../copy/uk';
-import { ROLE_ORDER, TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { useToasts } from '../hooks/useToasts';
 
 const t = uk.debate;
@@ -41,10 +43,8 @@ const DEFAULT_ROUNDS = 2;
 // сервер рахує довжину після стискання пробілів, тож і тут так само
 const MIN_QUESTION = 10;
 const MAX_QUESTION = 6000;
-const MAX_STYLE = 300;
 const MAX_NAME = 64;
 const MAX_TRAIT = 40;
-const DEFAULT_TEMPERATURE = 0.7;
 // орієнтовна тривалість одного послідовного кроку (виклик моделі + показ)
 const SECONDS_PER_STEP = 12;
 const DRAFT_KEY = 'clarity:draft-question';
@@ -80,8 +80,6 @@ const toParticipants = (list, { known, availableIds, fallbackModel }) =>
       color: TRAIT_COLORS[i % TRAIT_COLORS.length],
       model: availableIds.has(item.model) ? item.model : fallbackModel(i),
       traits: Array.isArray(item.traits) ? item.traits : [],
-      style: item.style || '',
-      temperature: item.temperature ?? DEFAULT_TEMPERATURE,
     }));
 
 const customTraitsOf = (list) => [
@@ -126,10 +124,10 @@ export default function DebatePage() {
   const [modelOrder, setModelOrder] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [activeSlug, setActiveSlug] = useState('');
+  // Лічильник перемикань учасника: ключ анкети, щоб вона анімувалась лише при
+  // переході до іншого учасника, а не при зміні ролі (slug ролі теж змінюється)
+  const [sheetKey, setSheetKey] = useState(0);
   const [maxParticipants, setMaxParticipants] = useState(DEFAULT_MAX_PARTICIPANTS);
-  const [renamingSlug, setRenamingSlug] = useState(null);
-  const [nameDraft, setNameDraft] = useState('');
-  const [scrollState, setScrollState] = useState({ overflow: false, left: false, right: false });
   const [customTraits, setCustomTraits] = useState([]);
   const [traitDraft, setTraitDraft] = useState('');
   const location = useLocation();
@@ -148,6 +146,7 @@ export default function DebatePage() {
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
   const [maxRounds, setMaxRounds] = useState(3);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
@@ -167,16 +166,14 @@ export default function DebatePage() {
   const [error, setError] = useState('');
 
   const allTraits = [...TRAITS, ...customTraits];
-  const participantListRef = useRef(null);
   const advancedRef = useRef(null);
-  const cancelRenameRef = useRef(false);
+  const modeMenuRef = useRef(null);
+  const panelRef = useRef(null);
   const formRef = useRef(null);
   const questionRef = useRef(null);
   const activeParticipant =
     participants.find((p) => p.slug === activeSlug) || participants[0];
   const activeTraits = activeParticipant?.traits || [];
-  const activeStyle = activeParticipant?.style || '';
-  const activeTemperature = activeParticipant?.temperature ?? DEFAULT_TEMPERATURE;
   const activeRole = personas.find((p) => p.slug === activeParticipant?.slug);
   const hasAvailableModels = models.some((m) => m.available);
   const allParticipantsHaveModels =
@@ -184,14 +181,10 @@ export default function DebatePage() {
     && participants.every((p) => models.some((m) => m.id === p.model && m.available));
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
-  const customizedCount = participants.filter(
-    (p) => p.style.trim() || p.temperature !== DEFAULT_TEMPERATURE
-  ).length;
   const advancedSummary = [
     rounds !== DEFAULT_ROUNDS ? t.advancedRounds(rounds) : '',
     webSearch ? t.webSearchOn : '',
     moderatorModel || devilModel ? t.judgesCustomized : '',
-    customizedCount ? t.advancedCustomized(customizedCount) : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -249,8 +242,6 @@ export default function DebatePage() {
           color: TRAIT_COLORS[i % TRAIT_COLORS.length],
           model: fallbackModel(i),
           traits: [],
-          style: '',
-          temperature: DEFAULT_TEMPERATURE,
         }));
       if (template) {
         setCustomTraits(customTraitsOf(initial));
@@ -265,9 +256,9 @@ export default function DebatePage() {
       }
       const search = pData.search || { available: false };
       setSearchStatus(search);
-      // Wikipedia без ключа дає лише енциклопедичні факти — вмикаємо за бажанням.
+      // пошук увімкнено за замовчуванням, якщо сервер його підтримує
       const templateSearch = template?.webSearch;
-      setWebSearch(Boolean(search.available && (templateSearch ?? !search.limited)));
+      setWebSearch(Boolean(search.available && (templateSearch ?? true)));
       setModelOrder(pool);
       setPersonas(personaList);
       setMaxParticipants(pData.max_ai || DEFAULT_MAX_PARTICIPANTS);
@@ -307,44 +298,6 @@ export default function DebatePage() {
     if (canStart) formRef.current?.requestSubmit();
   };
 
-  const updateScrollState = useCallback(() => {
-    const el = participantListRef.current;
-    if (!el) return;
-    const max = el.scrollWidth - el.clientWidth;
-    setScrollState({
-      overflow: max > 1,
-      left: el.scrollLeft > 1,
-      right: el.scrollLeft < max - 1,
-    });
-  }, []);
-
-  useEffect(() => {
-    updateScrollState();
-    const el = participantListRef.current;
-    if (!el) return undefined;
-    const observer = new ResizeObserver(updateScrollState);
-    observer.observe(el);
-    window.addEventListener('resize', updateScrollState);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateScrollState);
-    };
-  }, [participants.length, updateScrollState]);
-
-  useEffect(() => {
-    const el = participantListRef.current;
-    if (!el) return;
-    const active = el.querySelector('[data-active="true"]');
-    if (!active) return;
-    const listRect = el.getBoundingClientRect();
-    const activeRect = active.getBoundingClientRect();
-    if (activeRect.left < listRect.left) {
-      el.scrollBy({ left: activeRect.left - listRect.left - 4, behavior: 'smooth' });
-    } else if (activeRect.right > listRect.right) {
-      el.scrollBy({ left: activeRect.right - listRect.right + 4, behavior: 'smooth' });
-    }
-  }, [activeSlug, participants.length, scrollState.overflow]);
-
   useEffect(() => {
     if (!isPanelOpen) return undefined;
     const handleKeyDown = (e) => {
@@ -370,49 +323,16 @@ export default function DebatePage() {
     };
   }, [isAdvancedOpen]);
 
-  const scrollParticipants = (direction) => {
-    const el = participantListRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction * 108, behavior: 'smooth' });
-  };
-
-  const handleParticipantClick = (participant) => {
-    if (participant.slug === activeParticipant?.slug) {
-      setNameDraft(participant.name || '');
-      setRenamingSlug(participant.slug);
-      return;
-    }
-    setRenamingSlug(null);
-    setActiveSlug(participant.slug);
-  };
-
-  const commitRename = () => {
-    if (!renamingSlug) return;
-    const name = nameDraft.trim();
-    setParticipants((prev) =>
-      prev.map((p) => (p.slug === renamingSlug ? { ...p, name } : p))
-    );
-    setRenamingSlug(null);
-  };
-
-  const handleRenameBlur = () => {
-    if (cancelRenameRef.current) {
-      cancelRenameRef.current = false;
-      return;
-    }
-    commitRename();
-  };
-
-  const handleRenameKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitRename();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelRenameRef.current = true;
-      setRenamingSlug(null);
-    }
-  };
+  useEffect(() => {
+    if (!isModeMenuOpen) return undefined;
+    // фокус на вибраний пункт, щоб стрілками й Enter можна було обрати одразу
+    modeMenuRef.current?.querySelector('[aria-checked="true"]')?.focus();
+    const handleMouseDown = (e) => {
+      if (!modeMenuRef.current?.contains(e.target)) setIsModeMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [isModeMenuOpen]);
 
   const updateActiveParticipant = (updater) => {
     setParticipants((prev) =>
@@ -433,7 +353,6 @@ export default function DebatePage() {
     const previous = activeParticipant.slug;
     setParticipants((prev) => prev.map((p) => (p.slug === previous ? { ...p, slug } : p)));
     setActiveSlug(slug);
-    setRenamingSlug(null);
   };
 
   const handleRemoveParticipant = (slug) => {
@@ -445,11 +364,59 @@ export default function DebatePage() {
     if (slug === activeParticipant?.slug) {
       // активним стає сусід зліва (або новий перший)
       setActiveSlug(next[Math.max(0, index - 1)]?.slug || '');
+      setSheetKey((key) => key + 1);
     }
-    setRenamingSlug(null);
   };
 
-  const toggleAdvanced = () => setIsAdvancedOpen((open) => !open);
+  const selectParticipant = (slug) => {
+    if (slug === activeParticipant?.slug) return;
+    setActiveSlug(slug);
+    setSheetKey((key) => key + 1);
+  };
+
+  // Ім'я редагується прямо в заголовку анкети; пробіли по краях прибираються на виході з поля
+  const updateName = (value) => {
+    updateActiveParticipant((p) => ({ ...p, name: value }));
+  };
+
+  const handleNameKeyDown = (e) => {
+    if (e.key !== 'Enter' && e.key !== 'Escape') return;
+    e.preventDefault(); // Enter у полі не має відправляти форму
+    e.currentTarget.blur();
+  };
+
+  // Додаткові налаштування — окремий екран панелі; кожен екран відкривається з початку
+  const toggleAdvanced = () => {
+    setIsAdvancedOpen((open) => !open);
+    panelRef.current?.scrollTo({ top: 0 });
+  };
+
+  const currentMode = MODES.find((item) => item.value === mode) || MODES[0];
+
+  // Формат відповіді — меню з кнопки ліворуч у полі питання
+  const closeModeMenu = (returnFocus = false) => {
+    setIsModeMenuOpen(false);
+    if (returnFocus) modeMenuRef.current?.querySelector('.debate__mode-button')?.focus();
+  };
+
+  const chooseMode = (value) => {
+    handleModeChange(value);
+    setIsModeMenuOpen(false);
+    questionRef.current?.focus();
+  };
+
+  const handleModeMenuKeyDown = (e) => {
+    const items = [...e.currentTarget.querySelectorAll('[role="menuitemradio"]')];
+    const index = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      items[(index + step + items.length) % items.length]?.focus();
+    } else if (e.key === 'Escape' || e.key === 'Tab') {
+      if (e.key === 'Escape') e.preventDefault();
+      closeModeMenu(e.key === 'Escape');
+    }
+  };
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
@@ -483,14 +450,6 @@ export default function DebatePage() {
     setOptions((prev) => prev.filter((item) => item !== value));
   };
 
-  const updateStyle = (value) => {
-    updateActiveParticipant((p) => ({ ...p, style: value }));
-  };
-
-  const updateTemperature = (value) => {
-    updateActiveParticipant((p) => ({ ...p, temperature: Number(value) }));
-  };
-
   const addTrait = () => {
     const val = traitDraft.trim();
     if (!val) return;
@@ -520,11 +479,10 @@ export default function DebatePage() {
         color: TRAIT_COLORS[prev.length % TRAIT_COLORS.length],
         model: modelOrder.length ? modelOrder[prev.length % modelOrder.length] : defaultModel,
         traits: [],
-        style: '',
-        temperature: DEFAULT_TEMPERATURE,
       },
     ]);
     setActiveSlug(persona.slug);
+    setSheetKey((key) => key + 1);
   };
 
   const toggleTrait = (trait) => {
@@ -579,10 +537,8 @@ export default function DebatePage() {
   const personasPayload = () =>
     participants.map((p) => ({
       slug: p.slug,
-      name: p.name || undefined,
+      name: (p.name || '').trim() || undefined,
       model: p.model,
-      style: p.style || undefined,
-      temperature: p.temperature,
       traits: p.traits.length > 0 ? p.traits : undefined,
     }));
 
@@ -700,386 +656,370 @@ export default function DebatePage() {
           aria-hidden="true"
         />
       )}
-      <div className="debate__form-panel" id="debate-settings">
-        <section className="debate__section">
-          <div className="debate__section-head">
-            <h2 className="debate__section-title">{t.participants}</h2>
-            {!isTeamFormOpen && (
+      <div className="debate__form-panel" id="debate-settings" ref={panelRef}>
+        {isAdvancedOpen ? (
+          <section
+            className="debate__more"
+            id="debate-advanced"
+            ref={advancedRef}
+            aria-labelledby="debate-more-title"
+          >
+            <div className="debate__cast-head">
               <button
                 type="button"
-                className="debate__head-action"
-                onClick={() => setIsTeamFormOpen(true)}
-                disabled={isCreating || participants.length < MIN_PARTICIPANTS}
-                aria-label={t.saveTeam}
-                title={t.teamsHint}
+                className="debate__more-back"
+                onClick={toggleAdvanced}
+                aria-label={t.backToCast}
+                title={t.backToCast}
               >
-                <HugeiconsIcon icon={BookmarkAdd01Icon} size={16} aria-hidden="true" />
-                {t.saveTeamShort}
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={18} aria-hidden="true" />
+                <h2 id="debate-more-title" className="debate__cast-title">{t.advancedShort}</h2>
               </button>
-            )}
-          </div>
-          <div className="debate__participant-row">
-            {scrollState.left && (
-              <button
-                type="button"
-                className="debate__participant-arrow debate__participant-arrow--left"
-                onClick={() => scrollParticipants(-1)}
-                aria-label={t.scrollLeft}
-              >
-                <ChevronIcon />
-              </button>
-            )}
-            <div
-              className="debate__participant-list"
-              ref={participantListRef}
-              onScroll={updateScrollState}
-            >
-              {participants.map((p, i) => {
-                const active = p.slug === activeParticipant?.slug;
-                const label = p.name || t.participantN(i + 1);
-                const roleName = personas.find((persona) => persona.slug === p.slug)?.name || '';
-                const modelName = shortModel(models.find((m) => m.id === p.model));
-                const canRemove = participants.length > MIN_PARTICIPANTS && !isCreating;
-                if (renamingSlug === p.slug) {
-                  return (
-                    <div key={p.slug} className="debate__participant-item">
-                      <div
-                        className="debate__card debate__participant debate__participant--active debate__participant--renaming"
-                        style={{ '--chip': p.color }}
-                      >
-                        <UserPlusIcon />
-                        <input
-                          className="debate__participant-input"
-                          type="text"
-                          value={nameDraft}
-                          maxLength={MAX_NAME}
-                          onChange={(e) => setNameDraft(e.target.value)}
-                          onBlur={handleRenameBlur}
-                          onKeyDown={handleRenameKeyDown}
-                          aria-label={`${t.renameParticipant} ${i + 1}`}
-                          placeholder={t.participantN(i + 1)}
-                          autoFocus
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={p.slug} className="debate__participant-item">
+            </div>
+
+            <div className="debate__sheet">
+              <div className="debate__field debate__field--first">
+                <h3 className="debate__field-title">
+                  {t.rounds}
+                  <span className="debate__field-aside">{t.roundsSub(rounds)}</span>
+                </h3>
+                <div className="debate__roles" role="radiogroup" aria-label={t.rounds}>
+                  {Array.from({ length: maxRounds }, (_, i) => i + 1).map((value) => (
                     <button
+                      key={value}
                       type="button"
-                      className={`debate__card debate__participant ${active ? 'debate__participant--active' : ''}`}
-                      style={{ '--chip': p.color }}
-                      data-active={active ? 'true' : undefined}
-                      aria-label={active ? t.renameParticipantNamed(label) : t.selectParticipant(label)}
-                      title={[active ? t.renameHint : '', modelName].filter(Boolean).join(' · ') || undefined}
-                      aria-pressed={active}
-                      onClick={() => handleParticipantClick(p)}
+                      role="radio"
+                      aria-checked={rounds === value}
+                      className={`debate__role ${rounds === value ? 'debate__role--active' : ''}`}
+                      onClick={() => setRounds(value)}
+                      disabled={isCreating}
                     >
-                      {active ? (
-                        <HugeiconsIcon icon={PencilEdit02Icon} size={20} aria-hidden="true" />
-                      ) : (
-                        <UserPlusIcon />
-                      )}
-                      <span className="debate__participant-label">{label}</span>
-                      <span className="debate__participant-meta">{roleName}</span>
+                      {t.advancedRounds(value)}
                     </button>
-                    {canRemove && (
+                  ))}
+                </div>
+                <p className="debate__role-note">{t.roundsHint}</p>
+              </div>
+
+              <div className="debate__field">
+                <label className={`debate__switch-row ${searchStatus.available ? '' : 'debate__switch-row--off'}`}>
+                  <span className="debate__field-title">{t.webSearch}</span>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    className="debate__switch-input"
+                    checked={webSearch}
+                    onChange={(e) => setWebSearch(e.target.checked)}
+                    disabled={isCreating || !searchStatus.available}
+                  />
+                </label>
+                {!searchStatus.available && (
+                  <p className="debate__role-note">{t.webSearchUnavailable}</p>
+                )}
+                {estimate && <p className="debate__hint">{estimate}</p>}
+              </div>
+            </div>
+
+            <div className="debate__sheet">
+              <div className="debate__field debate__field--first">
+                <h3 className="debate__field-title">{t.judges}</h3>
+              </div>
+              {[
+                { key: 'moderator', name: t.moderator, sub: t.moderatorSub, value: moderatorModel, onChange: setModeratorModel, label: t.moderatorModel },
+                { key: 'devil', name: t.devil, sub: t.devilSub, value: devilModel, onChange: setDevilModel, label: t.devilModel },
+              ].map((judge) => (
+                <div key={judge.key} className="debate__field">
+                  <h3 className="debate__field-title">
+                    <span className="debate__judge-name">
+                      <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                      {judge.name}
+                    </span>
+                    <span className="debate__field-aside">{judge.sub}</span>
+                  </h3>
+                  <ModelPicker
+                    models={models}
+                    value={judge.value}
+                    onChange={judge.onChange}
+                    disabled={isCreating}
+                    label={judge.label}
+                    autoLabel={t.autoModel}
+                  />
+                </div>
+              ))}
+            </div>
+
+          </section>
+        ) : (
+          <div className="debate__panel-view">
+            <section className="debate__cast" aria-labelledby="debate-cast-title">
+              <div className="debate__cast-head">
+                <h2 id="debate-cast-title" className="debate__cast-title">
+                  {t.participants}
+                  <span className="debate__cast-count">
+                    {participants.length}/{maxParticipants}
+                  </span>
+                </h2>
+                {!isTeamFormOpen && (
+                  <button
+                    type="button"
+                    className="debate__ghost"
+                    onClick={() => setIsTeamFormOpen(true)}
+                    disabled={isCreating || participants.length < MIN_PARTICIPANTS}
+                    aria-label={t.saveTeam}
+                    title={t.teamsHint}
+                  >
+                    <HugeiconsIcon icon={BookmarkAdd01Icon} size={15} aria-hidden="true" />
+                    <span className="debate__ghost-label">{t.saveTeamShort}</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="debate__lineup">
+                {participants.map((p, i) => {
+                  const active = p.slug === activeParticipant?.slug;
+                  const label = p.name.trim() || t.participantN(i + 1);
+                  const roleName = personas.find((persona) => persona.slug === p.slug)?.name || '';
+                  const modelName = shortModel(models.find((m) => m.id === p.model));
+                  return (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      className={`debate__token ${active ? 'debate__token--active' : ''}`}
+                      style={{ '--chip': p.color }}
+                      aria-pressed={active}
+                      aria-label={t.selectParticipant(label)}
+                      title={[label, roleName, modelName].filter(Boolean).join(' · ')}
+                      onClick={() => selectParticipant(p.slug)}
+                    >
+                      <HugeiconsIcon icon={roleIcon(p.slug)} size={20} strokeWidth={1.8} aria-hidden="true" />
+                      <span className="debate__token-num" aria-hidden="true">{i + 1}</span>
+                    </button>
+                  );
+                })}
+                {canAddParticipant && (
+                  <button
+                    type="button"
+                    className="debate__token debate__token--add"
+                    onClick={handleAddParticipant}
+                    aria-label={t.addParticipant}
+                    title={t.addParticipant}
+                  >
+                    <PlusIcon />
+                  </button>
+                )}
+              </div>
+
+              {isTeamFormOpen && (
+                <div className="debate__team-form">
+                  <input
+                    type="text"
+                    value={teamName}
+                    maxLength={MAX_NAME}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    onKeyDown={handleTeamKeyDown}
+                    onBlur={() => {
+                      if (!teamName.trim()) setIsTeamFormOpen(false);
+                    }}
+                    placeholder={t.teamNamePlaceholder}
+                    aria-label={t.teamName}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="debate__mini-add"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={saveCurrentTeam}
+                    disabled={!teamName.trim() || isSavingTeam}
+                    aria-label={t.saveTeam}
+                    title={t.saveTeam}
+                  >
+                    ✓
+                  </button>
+                </div>
+              )}
+
+              {teams.length > 0 && (
+                <div className="debate__teams" role="group" aria-label={t.teams}>
+                  <span className="debate__teams-label">{t.teams}</span>
+                  {teams.map((team) => (
+                    <span key={team.id} className="debate__team-chip">
                       <button
                         type="button"
-                        className="debate__participant-remove"
-                        onClick={() => handleRemoveParticipant(p.slug)}
-                        aria-label={t.removeParticipant(label)}
-                        title={t.removeParticipant(label)}
+                        className="debate__team-apply"
+                        onClick={() => applyTeam(team)}
+                        disabled={isCreating}
+                        title={t.applyTeam(team.name)}
+                      >
+                        {team.name}
+                      </button>
+                      <button
+                        type="button"
+                        className="debate__team-remove"
+                        onClick={() => removeTeam(team)}
+                        aria-label={t.deleteTeam(team.name)}
+                        title={t.deleteTeam(team.name)}
                       >
                         <CloseIcon />
                       </button>
-                    )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {activeParticipant && (
+              <section
+                key={sheetKey}
+                className="debate__sheet"
+                style={{ '--chip': activeParticipant.color }}
+                aria-label={t.participantSheet(activeLabel)}
+              >
+                <div className="debate__sheet-head">
+                  <span className="debate__sheet-avatar" aria-hidden="true">
+                    <HugeiconsIcon icon={roleIcon(activeParticipant.slug)} size={22} strokeWidth={1.8} />
+                  </span>
+                  <label className="debate__sheet-name">
+                    <input
+                      type="text"
+                      value={activeParticipant.name}
+                      maxLength={MAX_NAME}
+                      onChange={(e) => updateName(e.target.value)}
+                      onBlur={() => updateName(activeParticipant.name.trim())}
+                      onKeyDown={handleNameKeyDown}
+                      placeholder={t.participantN(activeIndex + 1)}
+                      aria-label={t.participantName}
+                      disabled={isCreating}
+                    />
+                    <HugeiconsIcon icon={PencilEdit02Icon} size={14} aria-hidden="true" />
+                  </label>
+                  {participants.length > MIN_PARTICIPANTS && (
+                    <button
+                      type="button"
+                      className="debate__sheet-remove"
+                      onClick={() => handleRemoveParticipant(activeParticipant.slug)}
+                      disabled={isCreating}
+                      aria-label={t.removeParticipant(activeLabel)}
+                      title={t.removeParticipant(activeLabel)}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} size={16} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{t.role}</h3>
+                  <div className="debate__roles" role="group" aria-label={t.role}>
+                    {personas.map((persona) => {
+                      const active = persona.slug === activeParticipant.slug;
+                      const holderIndex = participants.findIndex((p) => p.slug === persona.slug);
+                      const holder = !active && holderIndex >= 0 ? participants[holderIndex] : null;
+                      const holderLabel = holder ? holder.name.trim() || t.participantN(holderIndex + 1) : '';
+                      return (
+                        <button
+                          key={persona.slug}
+                          type="button"
+                          className={`debate__role ${active ? 'debate__role--active' : ''}`}
+                          aria-pressed={active}
+                          disabled={isCreating || Boolean(holder)}
+                          title={holder ? t.roleHeldBy(holderLabel) : persona.description}
+                          onClick={() => handleRoleSelect(persona.slug)}
+                        >
+                          <HugeiconsIcon icon={roleIcon(persona.slug)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                          {persona.name}
+                          {holder && (
+                            <span className="debate__role-holder" style={{ '--chip': holder.color }} aria-hidden="true">
+                              {holderIndex + 1}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                );
-              })}
-              <button
-                type="button"
-                className="debate__card debate__participant-add"
-                onClick={handleAddParticipant}
-                disabled={!canAddParticipant}
-              >
-                <PlusIcon />
-                <span>{t.addParticipant}</span>
-              </button>
-            </div>
-            {scrollState.right && (
-              <button
-                type="button"
-                className="debate__participant-arrow debate__participant-arrow--right"
-                onClick={() => scrollParticipants(1)}
-                aria-label={t.scrollRight}
-              >
-                <ChevronIcon />
-              </button>
-            )}
-          </div>
-          {isTeamFormOpen && (
-            <div className="debate__card debate__option-input debate__team-form">
-              <input
-                className="debate__card-input"
-                type="text"
-                value={teamName}
-                maxLength={MAX_NAME}
-                onChange={(e) => setTeamName(e.target.value)}
-                onKeyDown={handleTeamKeyDown}
-                onBlur={() => {
-                  if (!teamName.trim()) setIsTeamFormOpen(false);
-                }}
-                placeholder={t.teamNamePlaceholder}
-                aria-label={t.teamName}
-                autoFocus
-              />
-              <button
-                type="button"
-                className="debate__mini-add"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={saveCurrentTeam}
-                disabled={!teamName.trim() || isSavingTeam}
-                aria-label={t.saveTeam}
-                title={t.saveTeam}
-              >
-                ✓
-              </button>
-            </div>
-          )}
-          {teams.length > 0 && (
-            <div className="debate__teams" role="group" aria-label={t.teams}>
-              <span className="debate__teams-label">{t.teams}</span>
-              {teams.map((team) => (
-                <span key={team.id} className="debate__team-chip">
-                  <button
-                    type="button"
-                    className="debate__team-apply"
-                    onClick={() => applyTeam(team)}
+                  {activeRole && <p className="debate__role-note">{activeRole.description}</p>}
+                </div>
+
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{t.aiModel}</h3>
+                  <ModelPicker
+                    models={models}
+                    value={activeParticipant.model || ''}
+                    onChange={handleModelSelect}
                     disabled={isCreating}
-                    title={t.applyTeam(team.name)}
-                  >
-                    {team.name}
-                  </button>
-                  <button
-                    type="button"
-                    className="debate__team-remove"
-                    onClick={() => removeTeam(team)}
-                    aria-label={t.deleteTeam(team.name)}
-                    title={t.deleteTeam(team.name)}
-                  >
-                    <CloseIcon />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </section>
+                  />
+                  {models.length > 0 && !hasAvailableModels && (
+                    <p className="debate__hint">{t.noModelsAvailable}</p>
+                  )}
+                </div>
 
-        <section className="debate__section">
-          <h2 className="debate__section-title">{t.role}</h2>
-          <div className="debate__trait-list" role="group" aria-label={t.role}>
-            {personas.map((persona) => {
-              const active = persona.slug === activeParticipant?.slug;
-              const taken = !active && participants.some((p) => p.slug === persona.slug);
-              return (
-                <button
-                  key={persona.slug}
-                  type="button"
-                  className={`debate__trait-chip ${active ? 'debate__trait-chip--active' : ''}`}
-                  style={{ '--chip': activeParticipant?.color }}
-                  aria-pressed={active}
-                  disabled={isCreating || taken}
-                  title={taken ? t.roleTaken : persona.description}
-                  onClick={() => handleRoleSelect(persona.slug)}
-                >
-                  <span>{persona.name}</span>
-                </button>
-              );
-            })}
-          </div>
-          {activeRole && <p className="debate__hint">{activeRole.description}</p>}
-        </section>
-
-        <section className="debate__section">
-          <h2 className="debate__section-title">{t.aiModel}</h2>
-          <ModelPicker
-            models={models}
-            value={activeParticipant?.model || ''}
-            onChange={handleModelSelect}
-            disabled={isCreating || !activeParticipant}
-          />
-          {models.length > 0 && !hasAvailableModels && (
-            <p className="debate__hint">{t.noModelsAvailable}</p>
-          )}
-        </section>
-
-        <section className="debate__section">
-          <h2 className="debate__section-title">{t.character}</h2>
-          <div className="debate__card debate__trait-input">
-            <UserPlusIcon />
-            <input
-              className="debate__card-input"
-              type="text"
-              value={traitDraft}
-              maxLength={MAX_TRAIT}
-              onChange={(e) => setTraitDraft(e.target.value)}
-              onKeyDown={handleTraitKeyDown}
-              placeholder={t.placeholderTrait}
-              aria-label={t.customTrait}
-              disabled={isCreating}
-            />
+                <div className="debate__field">
+                  <h3 className="debate__field-title">
+                    {t.character}
+                    {activeTraits.length > 0 && (
+                      <span className="debate__field-aside">{t.traitsPicked(activeTraits.length)}</span>
+                    )}
+                  </h3>
+                  <div className="debate__tags">
+                    {allTraits.map((trait) => {
+                      const active = activeTraits.includes(trait);
+                      return (
+                        <button
+                          key={trait}
+                          type="button"
+                          className={`debate__tag ${active ? 'debate__tag--active' : ''}`}
+                          aria-pressed={active}
+                          onClick={() => toggleTrait(trait)}
+                          disabled={isCreating}
+                        >
+                          {trait}
+                        </button>
+                      );
+                    })}
+                    <span className="debate__tag-new">
+                      <input
+                        type="text"
+                        value={traitDraft}
+                        maxLength={MAX_TRAIT}
+                        onChange={(e) => setTraitDraft(e.target.value)}
+                        onKeyDown={handleTraitKeyDown}
+                        placeholder={t.placeholderTrait}
+                        aria-label={t.customTrait}
+                        disabled={isCreating}
+                      />
+                      {traitDraft.trim() && (
+                        <button
+                          type="button"
+                          className="debate__mini-add"
+                          onClick={addTrait}
+                          disabled={isCreating}
+                          aria-label={t.addTrait}
+                          title={t.addTrait}
+                        >
+                          +
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </section>
+            )}
+            {isLoading && (
+              <p className="debate__hint" role="status">{t.loading}</p>
+            )}
             <button
               type="button"
-              className="debate__mini-add"
-              onClick={addTrait}
-              disabled={isCreating || !traitDraft.trim()}
-              aria-label={t.addTrait}
-              title={t.addTrait}
+              className="debate__more-toggle"
+              onClick={toggleAdvanced}
+              aria-expanded={isAdvancedOpen}
+              aria-controls="debate-advanced"
             >
-              +
+              <span className="debate__more-toggle-text">
+                {t.advancedShort}
+                {advancedSummary && <small>{advancedSummary}</small>}
+              </span>
+              <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
             </button>
           </div>
-          <div className="debate__trait-list">
-            {allTraits.map((trait, i) => {
-              const active = activeTraits.includes(trait);
-              return (
-                <button
-                  key={trait}
-                  type="button"
-                  className={`debate__trait-chip ${active ? 'debate__trait-chip--active' : ''}`}
-                  style={{ '--chip': TRAIT_COLORS[i % TRAIT_COLORS.length] }}
-                  aria-pressed={active}
-                  onClick={() => toggleTrait(trait)}
-                  disabled={isCreating}
-                >
-                  <span>{trait}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {isLoading && (
-          <p className="debate__hint" role="status">{t.loading}</p>
         )}
-        <section className="debate__advanced" ref={advancedRef}>
-          <button
-            type="button"
-            className={`debate__advanced-toggle ${isAdvancedOpen ? 'debate__advanced-toggle--open' : ''}`}
-            onClick={toggleAdvanced}
-            aria-expanded={isAdvancedOpen}
-            aria-haspopup="dialog"
-            aria-controls="debate-advanced"
-          >
-            <span className="debate__advanced-heading">
-              <span className="debate__section-title">{t.advanced}</span>
-              {advancedSummary && (
-                <span className="debate__advanced-summary">{advancedSummary}</span>
-              )}
-            </span>
-            <span className="debate__model-chevron">
-              <ChevronIcon />
-            </span>
-          </button>
-          <div
-            id="debate-advanced"
-            className={`debate__advanced-body ${isAdvancedOpen ? 'debate__advanced-body--open' : ''}`}
-            inert={!isAdvancedOpen}
-            aria-hidden={!isAdvancedOpen}
-            role="dialog"
-            aria-label={t.advanced}
-          >
-            <h3 className="debate__advanced-group">{t.advancedGeneral}</h3>
-            <span className="debate__field-label">{t.rounds}</span>
-            <label className="debate__range-card">
-              <input
-                type="range"
-                min="1"
-                max={maxRounds}
-                step="1"
-                value={rounds}
-                onChange={(e) => setRounds(Number(e.target.value))}
-                disabled={isCreating}
-                aria-label={t.rounds}
-              />
-              <span className="debate__range-value">{rounds}</span>
-            </label>
-            <p className="debate__hint">{t.roundsHint}</p>
-
-            <span className="debate__field-label">{t.webSearch}</span>
-            <label className={`debate__switch ${searchStatus.available ? '' : 'debate__switch--disabled'}`}>
-              <input
-                type="checkbox"
-                checked={webSearch}
-                onChange={(e) => setWebSearch(e.target.checked)}
-                disabled={isCreating || !searchStatus.available}
-              />
-              <span>
-                {searchStatus.available
-                  ? t.webSearchLabel(searchStatus.provider)
-                  : t.webSearchUnavailable}
-              </span>
-            </label>
-            <p className="debate__hint">
-              {searchStatus.limited ? t.webSearchLimitedHint : t.webSearchHint}
-            </p>
-
-            <span className="debate__field-label">{t.moderatorModel}</span>
-            <ModelPicker
-              models={models}
-              value={moderatorModel}
-              onChange={setModeratorModel}
-              disabled={isCreating}
-              label={t.moderatorModel}
-              autoLabel={t.autoModel}
-              compact
-            />
-            <span className="debate__field-label">{t.devilModel}</span>
-            <ModelPicker
-              models={models}
-              value={devilModel}
-              onChange={setDevilModel}
-              disabled={isCreating}
-              label={t.devilModel}
-              autoLabel={t.autoModel}
-              compact
-            />
-            <p className="debate__hint">{t.judgesHint}</p>
-
-            <h3 className="debate__advanced-group">
-              {t.advancedParticipant(activeLabel)}
-            </h3>
-            <label className="debate__card debate__style-card">
-              <span className="debate__field-label">{t.style}</span>
-              <input
-                className="debate__card-input"
-                type="text"
-                value={activeStyle}
-                maxLength={MAX_STYLE}
-                onChange={(e) => updateStyle(e.target.value)}
-                placeholder={t.placeholderStyle}
-                disabled={isCreating}
-              />
-            </label>
-            <label className="debate__range-card">
-              <span className="debate__field-label">{t.temperature}</span>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={activeTemperature}
-                onChange={(e) => updateTemperature(e.target.value)}
-                disabled={isCreating}
-                aria-label={t.temperature}
-              />
-              <span className="debate__range-value">{Number(activeTemperature).toFixed(1)}</span>
-            </label>
-            <p className="debate__hint">{t.temperatureHint}</p>
-          </div>
-        </section>
 
       </div>
 
@@ -1095,6 +1035,58 @@ export default function DebatePage() {
             if (e.target === e.currentTarget) questionRef.current?.focus();
           }}
         >
+          <div className="debate__mode-picker" ref={modeMenuRef}>
+            <button
+              type="button"
+              className={`debate__mode-button ${isModeMenuOpen ? 'debate__mode-button--open' : ''}`}
+              onClick={() => setIsModeMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={isModeMenuOpen}
+              aria-label={t.modeButton(currentMode.label)}
+              title={currentMode.label}
+              disabled={isCreating}
+            >
+              <HugeiconsIcon icon={currentMode.icon} size={19} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+            <div
+              className={`debate__mode-menu ${isModeMenuOpen ? 'debate__mode-menu--open' : ''}`}
+              role="menu"
+              aria-label={t.mode}
+              inert={!isModeMenuOpen}
+              onKeyDown={handleModeMenuKeyDown}
+            >
+              <p className="debate__mode-menu-title" aria-hidden="true">{t.mode}</p>
+              {MODES.map((item) => {
+                const active = mode === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    className={`debate__mode-item ${active ? 'debate__mode-item--active' : ''}`}
+                    onClick={() => chooseMode(item.value)}
+                  >
+                    <span className="debate__mode-item-icon" aria-hidden="true">
+                      <HugeiconsIcon icon={item.icon} size={17} strokeWidth={1.8} />
+                    </span>
+                    <span className="debate__mode-item-text">
+                      <span>{item.label}</span>
+                      <small>{t.modeHints[item.value]}</small>
+                    </span>
+                    {active && (
+                      <HugeiconsIcon
+                        icon={Tick02Icon}
+                        size={16}
+                        className="debate__mode-item-check"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <textarea
             ref={questionRef}
             className="debate__composer-input"
@@ -1129,33 +1121,6 @@ export default function DebatePage() {
         </div>
 
         <div className="debate__mode-bar">
-          <div
-            className="debate__segmented"
-            role="group"
-            aria-label={t.mode}
-            style={{ '--active': Math.max(0, MODES.findIndex((item) => item.value === mode)) }}
-          >
-            <span className="debate__segment-thumb" aria-hidden="true" />
-            {MODES.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={`debate__segment ${mode === item.value ? 'debate__segment--active' : ''}`}
-                aria-pressed={mode === item.value}
-                onClick={() => handleModeChange(item.value)}
-                disabled={isCreating}
-              >
-                <HugeiconsIcon icon={item.icon} size={16} strokeWidth={1.8} aria-hidden="true" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <p className="debate__mode-meta" aria-live="polite">
-            <span className="debate__mode-hint">{t.modeHints[mode]}</span>
-            {estimate && <span className="debate__estimate">{estimate}</span>}
-          </p>
-
           {mode === 'choose_one' && (
             <div
               className="debate__option-field"

@@ -28,6 +28,7 @@ import {
 import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
+  AvatarIcon,
   ChevronIcon,
   CloseIcon,
   StopIcon,
@@ -40,7 +41,7 @@ import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ParagraphReveal from '../components/ParagraphReveal';
 import SummaryDetails from '../components/SummaryDetails';
 import { uk } from '../copy/uk';
-import { TRAITS, TRAIT_COLORS } from '../utils/debateOptions';
+import { TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 import { describeSummary, summaryDetailSteps } from '../utils/summary';
@@ -82,13 +83,6 @@ const isHintDismissed = (key) => {
     return false;
   }
 };
-
-const AvatarIcon = () => (
-  <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
-    <circle cx="20" cy="15" r="6" fill="#ffffff" />
-    <path d="M7 36c1.2-7.6 6-11.5 13-11.5s11.8 3.9 13 11.5H7Z" fill="#ffffff" />
-  </svg>
-);
 
 const domainOf = (url) => {
   try {
@@ -1455,11 +1449,15 @@ export default function ChatPage() {
                       style={{ '--avatar': color }}
                       aria-hidden="true"
                     >
-                      {/* емодзі ролі (🧠, ⚖️, 😈…) розрізняє учасників не лише кольором */}
-                      {message.role !== 'user' && message.avatar ? (
-                        <span className="chat__avatar-emoji">{message.avatar}</span>
-                      ) : (
+                      {/* іконка ролі розрізняє учасників не лише кольором — та сама, що в складі команди */}
+                      {message.role === 'user' ? (
                         <AvatarIcon />
+                      ) : (
+                        <HugeiconsIcon
+                          icon={roleIcon(message.persona_slug || message.role)}
+                          className="chat__avatar-role"
+                          strokeWidth={1.8}
+                        />
                       )}
                     </span>
                     <div className="chat__body">

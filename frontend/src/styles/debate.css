@@ -1247,111 +1247,164 @@ body:has(.app-shell) {
   width: min(760px, 100%);
 }
 
-/* Формат відповіді: сегментований перемикач одразу під полем питання.
-   Сегменти рівної ширини, тож «бігунок» просто зсувається на --active ширин. */
+/* Формат відповіді: кнопка-іконка ліворуч у полі питання, як «вкладення»,
+   і меню з трьома режимами під нею */
+.debate__mode-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.debate__mode-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-left: -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.debate__mode-button:hover:not(:disabled),
+.debate__mode-button--open {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.debate__mode-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__mode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debate__mode-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: -10px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
+  cursor: default;
+  /* закрите меню лишається в розмітці — і відкриття, і закриття плавні */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 0.16s ease,
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.2s;
+}
+
+:root[data-theme='dark'] .debate__mode-menu {
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+}
+
+.debate__mode-menu--open {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.debate__mode-menu-title {
+  margin: 0;
+  padding: 6px 10px 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.debate__mode-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px 8px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.debate__mode-item:hover,
+.debate__mode-item:focus-visible {
+  background: color-mix(in srgb, var(--ink) 5%, var(--card));
+  outline: none;
+}
+
+.debate__mode-item-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ink) 6%, var(--card));
+  color: var(--ink);
+  transition: background 0.15s, color 0.15s;
+}
+
+.debate__mode-item--active .debate__mode-item-icon {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.debate__mode-item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.debate__mode-item-text span {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.debate__mode-item-text small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.debate__mode-item-check {
+  flex-shrink: 0;
+  color: var(--ink);
+}
+
+/* під полем лишаються тільки варіанти для режиму «Один із варіантів» */
 .debate__mode-bar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
   width: min(760px, 100%);
 }
 
-.debate__segmented {
-  position: relative;
-  display: inline-grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  max-width: 100%;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--soft);
-}
-
-.debate__segment-thumb {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / 3);
-  border-radius: 999px;
-  background: var(--card);
-  box-shadow: 0 1px 3px rgba(18, 18, 18, 0.1), 0 0 0 1px rgba(18, 18, 18, 0.04);
-  transform: translateX(calc(var(--active, 0) * 100%));
-  transition: transform 0.32s cubic-bezier(0.3, 1.25, 0.5, 1);
-}
-
-:root[data-theme='dark'] .debate__segment-thumb {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.debate__segment {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.debate__segment svg {
-  flex-shrink: 0;
-  opacity: 0.7;
-  transition: opacity 0.2s, color 0.2s;
-}
-
-.debate__segment:hover:not(:disabled) {
-  color: var(--ink);
-}
-
-.debate__segment--active,
-.debate__segment--active:hover {
-  color: var(--ink);
-}
-
-/* активна іконка — у пастельному кольорі акценту рамки поля */
-.debate__segment--active svg {
-  opacity: 1;
-  color: var(--focus);
-}
-
-.debate__segment:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
-/* Пояснення формату й оцінка — один тихий рядок */
-.debate__mode-meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px 8px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.debate__estimate {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.75;
-}
-
-.debate__estimate::before {
-  content: '·';
-  margin-right: 8px;
+.debate__mode-bar:empty {
+  display: none;
 }
 
 /* Варіанти: одне поле-теги, кожен варіант позначено літерою */
@@ -1456,41 +1509,9 @@ body:has(.app-shell) {
   }
 }
 
-@media (max-width: 639px) {
-  /* вузька область: три рівні сегменти на всю ширину, іконка над підписом */
-  .debate__segmented {
-    display: grid;
-    width: 100%;
-    border-radius: 18px;
-  }
-
-  .debate__segment-thumb {
-    border-radius: 15px;
-  }
-
-  .debate__segment {
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-    padding: 7px 6px;
-    border-radius: 15px;
-    font-size: 0.75rem;
-    line-height: 1.2;
-    white-space: normal;
-  }
-
-  /* пояснення й оцінка — двома рядками, без розділювача на початку другого */
-  .debate__mode-meta {
-    flex-direction: column;
-  }
-
-  .debate__estimate::before {
-    content: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .debate__segment-thumb {
+  .debate__mode-menu,
+  .debate__mode-menu--open {
     transition: none;
   }
 
@@ -1620,6 +1641,798 @@ body:has(.app-shell) {
 .debate__link-button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* ---------- Склад команди й анкета учасника ----------
+   Склад — ряд кольорових «жетонів» з іконкою ролі. Під ним анкета
+   вибраного учасника: одна пласка картка.
+   Основа монохромна, колір учасника — лише його впізнаваність. */
+
+.debate__cast {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  container-type: inline-size;
+}
+
+.debate__cast-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.debate__cast-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.debate__cast-count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.debate__ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.debate__ghost:hover:not(:disabled) {
+  background: var(--card);
+  color: var(--ink);
+}
+
+.debate__ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.debate__ghost:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* жетони складу */
+.debate__lineup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 3px;
+}
+
+.debate__token {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chip, #f4c1cf);
+  color: #121212;
+  cursor: pointer;
+  transition:
+    transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1),
+    box-shadow 0.2s ease;
+}
+
+.debate__token:active {
+  transform: scale(0.94);
+}
+
+.debate__token--active {
+  box-shadow:
+    0 0 0 3px var(--panel),
+    0 0 0 5px var(--ink);
+}
+
+.debate__token:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 6px;
+}
+
+.debate__token-num {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--panel);
+  box-shadow: 0 0 0 2px var(--panel);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.debate__token--add {
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 28%, transparent);
+  background: transparent;
+  color: var(--muted);
+  transition:
+    transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1),
+    border-color 0.18s,
+    color 0.18s;
+}
+
+.debate__token--add:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.debate__token--add svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* назва нової команди — рядок під жетонами */
+.debate__team-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 14px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.debate__team-form input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.debate__team-form input::placeholder {
+  color: var(--muted);
+}
+
+.debate__cast .debate__teams {
+  gap: 6px;
+}
+
+/* анкета */
+.debate__sheet {
+  --well: color-mix(in srgb, var(--ink) 5%, var(--card));
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--card);
+  animation: debate-sheet-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  container-type: inline-size;
+}
+
+@keyframes debate-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.debate__sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.debate__sheet-avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--chip, #f4c1cf);
+  color: #121212;
+}
+
+/* ім'я — це поле: виглядає як заголовок, редагується на місці */
+.debate__sheet-name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  cursor: text;
+}
+
+.debate__sheet-name input {
+  flex: 1;
+  min-width: 0;
+  /* де підтримується — поле завширшки з ім'я, і олівець стоїть поруч */
+  field-sizing: content;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1.5px dashed transparent;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  transition: border-color 0.18s;
+}
+
+@supports (field-sizing: content) {
+  .debate__sheet-name input {
+    flex: 0 1 auto;
+  }
+}
+
+.debate__sheet-name input::placeholder {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.debate__sheet-name:hover input {
+  border-bottom-color: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+.debate__sheet-name input:focus {
+  border-bottom-style: solid;
+  border-bottom-color: var(--ink);
+}
+
+.debate__sheet-name input:focus::placeholder {
+  opacity: 0.35;
+}
+
+.debate__sheet-name svg {
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.18s;
+}
+
+.debate__sheet-name:focus-within svg {
+  opacity: 0;
+}
+
+.debate__sheet-remove {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.debate__sheet-remove:hover:not(:disabled),
+.debate__sheet-remove:focus-visible {
+  background: #c93a62;
+  color: #ffffff;
+  outline: none;
+}
+
+.debate__field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.debate__field-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.debate__field-aside {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ролі */
+.debate__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debate__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, transform 0.15s;
+}
+
+.debate__role svg {
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.debate__role:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 11%, var(--card));
+}
+
+.debate__role:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.debate__role--active,
+.debate__role--active:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.debate__role--active svg {
+  opacity: 1;
+}
+
+/* роль, яку вже має інший учасник: видно, хто саме */
+.debate__role:disabled:not(.debate__role--active) {
+  padding-right: 5px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  cursor: not-allowed;
+}
+
+.debate__role-holder {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: var(--chip, #f4c1cf);
+  color: #121212;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.debate__role:focus-visible,
+.debate__tag:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__role-note {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--chip, #f4c1cf) 75%, var(--ink));
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* модель — «колодязь» на білій картці */
+.debate__sheet .debate__model-card {
+  border-radius: 12px;
+  background: var(--well);
+}
+
+.debate__sheet .debate__model-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.debate__sheet .debate__model-toggle > svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.debate__sheet .debate__model-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* риси характеру */
+.debate__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debate__tag {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 82%, transparent);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+}
+
+.debate__tag:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+  color: var(--ink);
+}
+
+.debate__tag:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.debate__tag--active,
+.debate__tag--active:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--chip, #f4c1cf);
+  color: #121212;
+  font-weight: 600;
+}
+
+.debate__tag-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 4px 0 11px;
+  border: 1px dashed color-mix(in srgb, var(--ink) 25%, transparent);
+  border-radius: 999px;
+  transition: border-color 0.18s;
+}
+
+.debate__tag-new:focus-within {
+  border-style: solid;
+  border-color: var(--ink);
+}
+
+.debate__tag-new input {
+  width: 92px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.debate__tag-new input::placeholder {
+  color: var(--muted);
+}
+
+.debate__tag-new .debate__mini-add {
+  width: 22px;
+  height: 22px;
+}
+
+/* вузька панель: менші жетони й аватар, щоб імені було де жити */
+@container (max-width: 240px) {
+  .debate__lineup {
+    gap: 10px;
+  }
+
+  .debate__token {
+    width: 40px;
+    height: 40px;
+  }
+
+  .debate__sheet-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .debate__sheet-avatar svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .debate__sheet-head {
+    gap: 8px;
+  }
+
+  .debate__sheet-name input {
+    font-size: 1rem;
+  }
+}
+
+/* висувна панель на телефоні: весь склад в один ряд, «Зберегти» — лише іконкою */
+@container (max-width: 190px) {
+  .debate__lineup {
+    gap: 8px;
+  }
+
+  .debate__token {
+    width: 34px;
+    height: 34px;
+  }
+
+  .debate__token svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .debate__ghost-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__sheet {
+    animation: none;
+  }
+
+  .debate__token,
+  .debate__role,
+  .debate__tag {
+    transition: none;
+  }
+
+  .debate__token:active,
+  .debate__role:active:not(:disabled),
+  .debate__tag:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ---------- Додаткові налаштування: окремий екран панелі ----------
+   Збудований з тих самих частин, що й основний екран: картки-анкети,
+   поля з тонкими розділювачами, пігулки, «колодязь» вибору моделі. */
+
+.debate__panel-view,
+.debate__more {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: inherit;
+}
+
+.debate__more {
+  gap: 14px;
+}
+
+.debate__panel-view,
+.debate__more {
+  animation: debate-view-in 0.22s ease-out;
+}
+
+@keyframes debate-view-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* перехід на екран — рядок притиснутий до низу панелі */
+.debate__more-toggle {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: auto;
+  padding: 14px 2px 4px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.debate__more-toggle-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.debate__more-toggle-text small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate__more-toggle > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.18s, transform 0.18s;
+}
+
+.debate__more-toggle:hover > svg {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+.debate__more-toggle:focus-visible,
+.debate__more-back:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* заголовок «‹ Додатково» — як «Учасники» на основному екрані */
+.debate__more-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.debate__more-back svg {
+  color: var(--muted);
+  transition: color 0.18s, transform 0.18s;
+}
+
+.debate__more-back:hover svg {
+  color: var(--ink);
+  transform: translateX(-2px);
+}
+
+/* пояснення в загальних картках — нейтральна риска замість кольору учасника */
+.debate__more .debate__role-note {
+  border-left-color: color-mix(in srgb, var(--ink) 15%, transparent);
+}
+
+/* у вузькій панелі підпис праворуч переходить на новий рядок, а не вилазить */
+.debate__more .debate__field-title {
+  flex-wrap: wrap;
+}
+
+/* перше поле картки — без розділювача зверху */
+.debate__field--first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.debate__judge-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debate__judge-name svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+/* перемикач у рядку з назвою поля */
+.debate__switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.debate__switch-row--off {
+  cursor: not-allowed;
+}
+
+.debate__switch-row--off .debate__field-title {
+  color: var(--muted);
+}
+
+.debate__switch-input {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--well);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  appearance: none;
+  cursor: inherit;
+  transition: background 0.2s;
+}
+
+.debate__switch-input::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.4;
+  transition: transform 0.22s ease, opacity 0.2s, background 0.2s;
+}
+
+.debate__switch-input:checked {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+.debate__switch-input:checked::before {
+  background: var(--card);
+  opacity: 1;
+  transform: translateX(16px);
+}
+
+.debate__switch-input:disabled {
+  opacity: 0.45;
+}
+
+.debate__switch-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__panel-view,
+  .debate__more {
+    animation: none;
+  }
+
+  .debate__switch-input::before,
+  .debate__more-toggle > svg,
+  .debate__more-back svg {
+    transition: none;
+  }
 }
 
 /* текстова дія в панелі чату («Створити посилання», «Закрити доступ») */
@@ -1884,9 +2697,15 @@ body:has(.app-shell) {
   font-weight: 600;
 }
 
-.chat__avatar-emoji {
-  font-size: 17px;
-  line-height: 1;
+/* іконка ролі на кольоровому кружечку учасника */
+.chat__avatar .chat__avatar-role {
+  width: 17px;
+  height: 17px;
+  color: #121212;
+}
+
+.chat__row--devil .chat__avatar .chat__avatar-role {
+  color: #ffffff;
 }
 
 /* модель, яка написала репліку: дрібно, щоб не змагатися з ім'ям */
@@ -2993,6 +3812,16 @@ ol.chat__reveal {
     font-size: 0.75rem;
   }
 
+  /* у вузькій висувній панелі — щільніша анкета */
+  .debate__sheet {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .debate__sheet-name input {
+    font-size: 1rem;
+  }
+
   .debate__participant,
   .debate__participant-add,
   .debate__participant-item {
@@ -3076,6 +3905,16 @@ ol.chat__reveal {
 
   .debate__main .debate__composer-input {
     font-size: 1rem;
+  }
+
+  .debate__main .debate__mode-button {
+    margin-left: -4px;
+  }
+
+  /* меню — у межах екрана праворуч від смуги іконок */
+  .debate__main .debate__mode-menu {
+    left: -4px;
+    width: min(300px, calc(100vw - 104px));
   }
 
 

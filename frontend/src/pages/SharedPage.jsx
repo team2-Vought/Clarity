@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { HugeiconsIcon } from '@hugeicons/react';
 import { fetchSharedDiscussion } from '../api/discussions';
 import { getToken } from '../api/client';
+import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
 import SummaryDetails from '../components/SummaryDetails';
 import logo from '../assets/Clarity_logo_8.svg';
 import { uk } from '../copy/uk';
-import { TRAIT_COLORS } from '../utils/debateOptions';
+import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import {
   USER_COLOR,
   buildSpeakers,
@@ -106,7 +108,7 @@ export default function SharedPage() {
 
             <div className="chat__row chat__row--right chat__row--user">
               <span className="chat__avatar" style={{ '--avatar': USER_COLOR }} aria-hidden="true">
-                <span className="chat__avatar-emoji">{question?.avatar || '🧑'}</span>
+                <AvatarIcon />
               </span>
               <div className="chat__body">
                 <div className="chat__head">
@@ -142,7 +144,15 @@ export default function SharedPage() {
                   ) : (
                     <div className={`chat__row chat__row--${side} chat__row--${message.role}`}>
                       <span className="chat__avatar" style={{ '--avatar': color }} aria-hidden="true">
-                        <span className="chat__avatar-emoji">{message.avatar}</span>
+                        {message.role === 'user' ? (
+                          <AvatarIcon />
+                        ) : (
+                          <HugeiconsIcon
+                            icon={roleIcon(message.persona_slug || message.role)}
+                            className="chat__avatar-role"
+                            strokeWidth={1.8}
+                          />
+                        )}
                       </span>
                       <div className="chat__body">
                         <div className="chat__head">

@@ -1,3 +1,14 @@
+import {
+  BrainIcon,
+  BulbIcon,
+  FavouriteIcon,
+  Fire03Icon,
+  JusticeScale01Icon,
+  Search01Icon,
+  UserIcon,
+  Wrench01Icon,
+} from '@hugeicons/core-free-icons';
+
 export const TRAITS = [
   'Перфекціоніст',
   'Реаліст',
@@ -20,3 +31,17 @@ export const TRAIT_COLORS = [
 // Порядок ролей за замовчуванням: уже двоє учасників дають різні погляди
 // (аналітичний і людський), далі — критика, практичність, нестандартність.
 export const ROLE_ORDER = ['logician', 'emotional', 'skeptic', 'pragmatist', 'creative'];
+
+// Іконка ролі — «обличчя» учасника: у складі команди й аватар у дискусії
+const ROLE_ICONS = {
+  logician: BrainIcon,
+  emotional: FavouriteIcon,
+  skeptic: Search01Icon,
+  pragmatist: Wrench01Icon,
+  creative: BulbIcon,
+  moderator: JusticeScale01Icon,
+  devil: Fire03Icon,
+  research: Search01Icon,
+};
+
+export const roleIcon = (slug) => ROLE_ICONS[slug] || UserIcon;

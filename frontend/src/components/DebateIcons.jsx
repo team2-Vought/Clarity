@@ -78,3 +78,11 @@ export const PanelIcon = () => (
     <path d="M4 8h16M4 15h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
+
+// силует користувача на кружечку аватара в дискусії
+export const AvatarIcon = () => (
+  <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+    <circle cx="20" cy="15" r="6" fill="#ffffff" />
+    <path d="M7 36c1.2-7.6 6-11.5 13-11.5s11.8 3.9 13 11.5H7Z" fill="#ffffff" />
+  </svg>
+);
