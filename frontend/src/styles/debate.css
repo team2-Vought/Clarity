@@ -1296,7 +1296,7 @@ body:has(.app-shell) {
   width: min(300px, calc(100vw - 32px));
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 18px;
+  border-radius: 24px;
   background: var(--card);
   box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
   cursor: default;
@@ -1328,7 +1328,7 @@ body:has(.app-shell) {
   margin: 0;
   padding: 6px 10px 6px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 
@@ -1339,7 +1339,7 @@ body:has(.app-shell) {
   width: 100%;
   padding: 8px 10px 8px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 16px;
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1360,7 +1360,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--ink) 6%, var(--card));
   color: var(--ink);
   transition: background 0.15s, color 0.15s;
@@ -1380,13 +1380,13 @@ body:has(.app-shell) {
 }
 
 .debate__mode-item-text span {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
 .debate__mode-item-text small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.35;
 }
 
@@ -1828,7 +1828,7 @@ body:has(.app-shell) {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 28px;
   background: var(--card);
   animation: debate-sheet-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   container-type: inline-size;
@@ -1853,7 +1853,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--chip, #f4c1cf);
   color: #121212;
 }
@@ -2057,7 +2057,7 @@ body:has(.app-shell) {
 
 /* модель — «колодязь» на білій картці */
 .debate__sheet .debate__model-card {
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--well);
 }
 
@@ -2166,7 +2166,7 @@ body:has(.app-shell) {
   .debate__sheet-avatar {
     width: 30px;
     height: 30px;
-    border-radius: 10px;
+    border-radius: 14px;
   }
 
   .debate__sheet-avatar svg {
