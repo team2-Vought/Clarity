@@ -1301,6 +1301,11 @@ body:has(.app-shell) {
   container-type: inline-size;
 }
 
+/* анкета трохи відступає від жетонів, щоб не злипалася з ними */
+.debate__cast + .debate__sheet {
+  margin-top: 8px;
+}
+
 .debate__sheet-head {
   display: flex;
   align-items: center;
@@ -1738,6 +1743,62 @@ body:has(.app-shell) {
 .debate__tag-new .debate__mini-add {
   width: 22px;
   height: 22px;
+}
+
+/* риси характеру — кнопка-«колодязь» з обраними рисами, меню з галочками */
+.debate__trait-button {
+  min-height: 46px;
+  padding: 7px 12px;
+}
+
+.debate__trait-chips {
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+
+.debate__trait-chips .debate__tag {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 0.75rem;
+}
+
+.debate__trait-placeholder {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.debate__trait-menu {
+  overflow: visible;
+}
+
+.debate__trait-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(296px, calc(100vh - 80px));
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.debate__trait-menu .debate__mode-item {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.debate__trait-new {
+  display: flex;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 4px 2px 2px;
+  border-radius: 14px;
+}
+
+.debate__trait-new input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
 }
 
 /* вузька панель: менші жетони й аватар, щоб імені було де жити */

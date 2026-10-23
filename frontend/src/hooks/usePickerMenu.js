@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 
+const ITEMS = '[role="menuitemradio"], [role="menuitemcheckbox"]';
+
 /**
- * Спільна поведінка меню з пунктами menuitemradio (формат відповіді, роль):
- * при відкритті фокус на вибраний пункт, клік поза rootRef і menuRef закриває,
+ * Спільна поведінка меню з пунктами menuitemradio чи menuitemcheckbox
+ * (формат відповіді, роль, риси характеру): при відкритті фокус на вибраний пункт, клік поза rootRef і menuRef закриває,
  * стрілки ходять пунктами, Esc закриває й повертає фокус на кнопку.
  * tabReturnsFocus — для меню, винесеного порталом: Tab теж повертає на кнопку,
  * а не стрибає в кінець сторінки.
@@ -11,7 +13,8 @@ export function usePickerMenu({ isOpen, setIsOpen, rootRef, menuRef, triggerRef,
   useEffect(() => {
     if (!isOpen) return undefined;
     // фокус на вибраний пункт, щоб стрілками й Enter можна було обрати одразу
-    menuRef.current?.querySelector('[aria-checked="true"]')?.focus({ preventScroll: true });
+    const menu = menuRef.current;
+    (menu?.querySelector('[aria-checked="true"]') || menu?.querySelector(ITEMS))?.focus({ preventScroll: true });
     const handleMouseDown = (e) => {
       if (!rootRef.current?.contains(e.target) && !menuRef.current?.contains(e.target)) setIsOpen(false);
     };
@@ -25,7 +28,7 @@ export function usePickerMenu({ isOpen, setIsOpen, rootRef, menuRef, triggerRef,
   };
 
   const handleKeyDown = (e) => {
-    const items = [...e.currentTarget.querySelectorAll('[role="menuitemradio"]')];
+    const items = [...e.currentTarget.querySelectorAll(ITEMS)];
     const index = items.indexOf(document.activeElement);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();

@@ -26,6 +26,7 @@ import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import RolePicker from '../components/RolePicker';
+import TraitPicker from '../components/TraitPicker';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { useToasts } from '../hooks/useToasts';
@@ -438,12 +439,6 @@ export default function DebatePage() {
         ? p.traits.filter((x) => x !== trait)
         : [...p.traits, trait],
     }));
-  };
-
-  const handleTraitKeyDown = (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault(); // Enter у полі не має відправляти форму
-    addTrait();
   };
 
   const handleOptionKeyDown = (e) => {
@@ -883,47 +878,16 @@ export default function DebatePage() {
                         <span className="debate__field-aside">{t.traitsPicked(activeTraits.length)}</span>
                       )}
                     </h3>
-                    <div className="debate__tags">
-                      {allTraits.map((trait) => {
-                        const active = activeTraits.includes(trait);
-                        return (
-                          <button
-                            key={trait}
-                            type="button"
-                            className={`debate__tag ${active ? 'debate__tag--active' : ''}`}
-                            aria-pressed={active}
-                            onClick={() => toggleTrait(trait)}
-                            disabled={isCreating}
-                          >
-                            {trait}
-                          </button>
-                        );
-                      })}
-                      <span className="debate__tag-new">
-                        <input
-                          type="text"
-                          value={traitDraft}
-                          maxLength={MAX_TRAIT}
-                          onChange={(e) => setTraitDraft(e.target.value)}
-                          onKeyDown={handleTraitKeyDown}
-                          placeholder={t.placeholderTrait}
-                          aria-label={t.customTrait}
-                          disabled={isCreating}
-                        />
-                        {traitDraft.trim() && (
-                          <button
-                            type="button"
-                            className="debate__mini-add"
-                            onClick={addTrait}
-                            disabled={isCreating}
-                            aria-label={t.addTrait}
-                            title={t.addTrait}
-                          >
-                            +
-                          </button>
-                        )}
-                      </span>
-                    </div>
+                    <TraitPicker
+                      traits={allTraits}
+                      value={activeTraits}
+                      onToggle={toggleTrait}
+                      draft={traitDraft}
+                      onDraftChange={setTraitDraft}
+                      onAdd={addTrait}
+                      maxLength={MAX_TRAIT}
+                      disabled={isCreating}
+                    />
                   </div>
                 </section>
               )}

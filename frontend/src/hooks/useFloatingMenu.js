@@ -34,9 +34,14 @@ export function useFloatingMenu(isOpen, anchorRef, menuRef, { gap = 6, outset = 
       setPlace({ top, left, width, up });
     };
     update();
+    // якір і меню можуть змінити розмір, поки меню відкрите (обрали ще одну рису)
+    const observer = new ResizeObserver(update);
+    if (anchorRef.current) observer.observe(anchorRef.current);
+    if (menuRef.current) observer.observe(menuRef.current);
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };

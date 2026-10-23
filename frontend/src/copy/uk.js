@@ -178,6 +178,8 @@ export const uk = {
     character: 'Характер',
     customTrait: 'Своя риса характеру',
     placeholderTrait: '+ своя риса',
+    chooseTraits: 'Оберіть риси',
+    traitsButton: (traits) => `Характер: ${traits.length ? traits.join(', ') : 'не обрано'}`,
     addTrait: 'Додати рису',
     traitTooLong: 'Риса характеру задовга (максимум 40 символів)',
     mode: 'Формат відповіді',
