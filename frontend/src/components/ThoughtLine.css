@@ -99,8 +99,11 @@
     var(--tl-color) 50%,
     color-mix(in srgb, var(--tl-color) 50%, transparent) 70%
   );
-  background-size: 250% 100%;
-  background-position: 125% 0;
+  /* фон повторюється плиткою втричі ширшою за напис; за цикл він зсувається
+     рівно на одну плитку, тож кінець циклу збігається з початком і відблиск
+     пливе безперервно, без стрибка */
+  background-size: 300% 100%;
+  background-position: 0 0;
   -webkit-background-clip: text;
   background-clip: text;
   color: inherit;
@@ -110,7 +113,7 @@
 
 @keyframes thought-line-shimmer {
   to {
-    background-position: -125% 0;
+    background-position: -150% 0;
   }
 }
 

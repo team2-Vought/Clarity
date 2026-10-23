@@ -163,6 +163,17 @@ export default function ThoughtLine({
     };
   }, [isWorking, period, depth, trough, settleDuration, glyph, sheen]);
 
+  // фаза відблиску прив'язана до спільного годинника сторінки (старт — на нулі
+  // часової шкали документа): коли рядок ховають і показують знову, анімація
+  // продовжується з того самого місця, а не стартує з початку
+  useLayoutEffect(() => {
+    const breathEl = breathRef.current;
+    if (!breathEl || !isWorking || !sheen) return;
+    breathEl.getAnimations?.().forEach((animation) => {
+      if (animation.animationName === 'thought-line-shimmer') animation.startTime = 0;
+    });
+  }, [isWorking, sheen, shimmerDuration]);
+
   const paint = (ds) => {
     dsRef.current = ds;
     setElapsedDs((current) => (current === ds ? current : ds));
