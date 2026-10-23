@@ -95,6 +95,7 @@ export default function ThoughtLine({
   const glyphRef = useRef(null);
   const breathRef = useRef(null);
   const timerGroupRef = useRef(null);
+  const chevronRef = useRef(null);
   const stackRef = useRef(null);
   const workRef = useRef(null);
   const doneRef = useRef(null);
@@ -198,17 +199,23 @@ export default function ThoughtLine({
 
   useLayoutEffect(() => {
     const timer = timerGroupRef.current;
+    const chevron = chevronRef.current;
     const stack = stackRef.current;
-    if (!timer || !stack) return undefined;
+    // написи стоять один на одному, тож ширина стека — ширший із двох; таймер і
+    // стрілку зсуваємо до кінця активного напису, щоб між ними не лишалось дірки
+    const followers = [timer, chevron].filter(Boolean);
+    if (!stack || followers.length === 0) return undefined;
     const place = (glide) => {
       const active = isWorking ? workRef.current : doneRef.current;
       if (!active) return;
       const shift = active.offsetWidth - stack.offsetWidth;
-      if (!glide) timer.style.transition = 'none';
-      timer.style.transform = `translateX(${shift}px)`;
+      if (!glide) followers.forEach((el) => { el.style.transition = 'none'; });
+      if (timer) timer.style.transform = `translateX(${shift}px)`;
+      // окрема властивість translate, щоб не збивати поворот стрілки з CSS
+      if (chevron) chevron.style.translate = `${shift}px 0`;
       if (!glide) {
-        void timer.offsetWidth;
-        timer.style.transition = '';
+        void stack.offsetWidth;
+        followers.forEach((el) => { el.style.transition = ''; });
       }
     };
     place(prevWorking.current !== isWorking);
@@ -268,7 +275,12 @@ export default function ThoughtLine({
         </span>
       ) : null}
       {collapsible ? (
-        <span className="thought-line__chevron" data-on={hasTrace ? '' : undefined} aria-hidden="true">
+        <span
+          ref={chevronRef}
+          className="thought-line__chevron"
+          data-on={hasTrace ? '' : undefined}
+          aria-hidden="true"
+        >
           <HugeiconsIcon icon={ArrowDown01Icon} size="1em" strokeWidth={2.2} />
         </span>
       ) : null}

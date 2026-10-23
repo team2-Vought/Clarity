@@ -157,7 +157,8 @@
   opacity: 0;
   transition:
     opacity 200ms ease,
-    transform 200ms var(--tl-ease-out);
+    transform 200ms var(--tl-ease-out),
+    translate var(--tl-settle) var(--tl-ease-in-out);
 }
 
 .thought-line__chevron[data-on] {
