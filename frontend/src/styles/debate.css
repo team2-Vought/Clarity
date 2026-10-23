@@ -598,7 +598,9 @@ body:has(.app-shell) {
   width: min(760px, 100%);
   padding: 8px 8px 8px 18px;
   border: 1.5px solid transparent;
-  border-radius: 26px;
+  /* половина висоти однорядкового поля (57px): з одним рядком — повна пігулка,
+     як 999px, а з кількома поле лишається заокругленим прямокутником, не овалом */
+  border-radius: 28.5px;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd), var(--lilac, #b4b5ce)) border-box;
@@ -3587,7 +3589,6 @@ ol.chat__reveal {
 
   .debate__main .debate__composer {
     padding: 8px 8px 8px 12px;
-    border-radius: 10px;
   }
 
   .debate__main .debate__composer-input {
@@ -3683,7 +3684,6 @@ ol.chat__reveal {
 
   .chat__composer-box {
     padding: 8px 8px 8px 12px;
-    border-radius: 10px;
   }
 
   .chat__composer-box .debate__mode-button {
