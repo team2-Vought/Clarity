@@ -216,7 +216,6 @@ export const uk = {
     devil: 'AI Devil',
     advancedRounds: (count) => `${count} ${count === 1 ? 'раунд' : count < 5 ? 'раунди' : 'раундів'}`,
     optionsRequired: 'Додайте від 2 до 8 варіантів відповіді під полем питання',
-    estimate: (replies, minutes) => `≈ ${replies} відповідей AI · ~${minutes} хв`,
     loadError: 'Не вдалося завантажити дані',
     loading: 'Завантаження…',
     retry: 'Спробувати ще раз',

@@ -44,8 +44,6 @@ const MIN_QUESTION = 10;
 const MAX_QUESTION = 6000;
 const MAX_NAME = 64;
 const MAX_TRAIT = 40;
-// орієнтовна тривалість одного послідовного кроку (виклик моделі + показ)
-const SECONDS_PER_STEP = 12;
 const DRAFT_KEY = 'clarity:draft-question';
 
 const readDraft = () => {
@@ -176,16 +174,6 @@ export default function DebatePage() {
   ]
     .filter(Boolean)
     .join(' · ');
-  // Скільки AI-відповідей і часу займе дискусія — до старту, щоб не було сюрпризів з лімітом
-  const estimate = (() => {
-    const count = participants.length;
-    if (count < MIN_PARTICIPANTS) return '';
-    const research = webSearch ? 1 : 0;
-    const replies = research + count + rounds * count + 2 + count + 1;
-    // вступ і відповіді на критику йдуть паралельно, решта кроків — по черзі
-    const sequential = research + 1 + rounds * count + 4;
-    return t.estimate(replies, Math.max(1, Math.round((sequential * SECONDS_PER_STEP) / 60)));
-  })();
   const canStart =
     !isCreating
     && !isLoading
@@ -657,7 +645,6 @@ export default function DebatePage() {
                 {!searchStatus.available && (
                   <p className="debate__note">{t.webSearchUnavailable}</p>
                 )}
-                {estimate && <p className="debate__hint">{estimate}</p>}
               </div>
             </div>
 
