@@ -4008,35 +4008,6 @@ ol.chat__reveal {
   font-size: 0.75rem;
 }
 
-.chat__composer-hint-close {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s;
-}
-
-.chat__composer-hint-close:hover {
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-  color: var(--ink);
-}
-
-.chat__composer-hint-close:focus-visible {
-  outline: 2px solid var(--focus, #7f80ac);
-  outline-offset: 1px;
-}
-
-.chat__composer-hint-close svg {
-  width: 10px;
-  height: 10px;
-}
-
 /* ---------- Публічне посилання на дискусію ---------- */
 
 .shared {

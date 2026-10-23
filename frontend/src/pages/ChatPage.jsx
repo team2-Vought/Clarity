@@ -32,7 +32,6 @@ import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
   AvatarIcon,
-  CloseIcon,
   StopIcon,
 } from '../components/DebateIcons';
 import ModePicker from '../components/ModePicker';
@@ -80,18 +79,6 @@ const MAX_KICKS = 3;
 const MAX_NOTE = 1000;
 const CITATION_RE = /(\[\d+\])/g;
 const COMPACT_KEY = 'clarity:chat-compact';
-
-// Закритий бейдж «Уточнень залишилось» пам'ятаємо для дискусії й кількості:
-// після нового уточнення число змінюється, і бейдж з'являється знову.
-const hintStorageKey = (id, left) => `clarity:followup-hint:${id}:${left}`;
-
-const isHintDismissed = (key) => {
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
-};
 
 const domainOf = (url) => {
   try {
@@ -274,7 +261,6 @@ export default function ChatPage() {
   // результат з'являється з анімацією лише тоді, коли дискусія йшла на очах
   const [animateSummary, setAnimateSummary] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [dismissedHints, setDismissedHints] = useState(() => new Set());
   const advancedRef = useRef(null);
   const [composerHeight, setComposerHeight] = useState(0);
   // «Лише тези»: AI-репліки стиснуті до головної думки, повний текст — за кліком
@@ -823,21 +809,11 @@ export default function ChatPage() {
     0,
     (Number(discussion?.max_followups) || 0) - (Number(discussion?.followups) || 0)
   );
-  const hintKey = hintStorageKey(discussion?.id, followupsLeft);
-  const isHintVisible = !dismissedHints.has(hintKey) && !isHintDismissed(hintKey);
-
-  const dismissHint = () => {
-    setDismissedHints((current) => new Set(current).add(hintKey));
-    try {
-      localStorage.setItem(hintKey, '1');
-    } catch {
-      // без сховища бейдж просто з'явиться знову після перезавантаження
-    }
-  };
   // фінальний висновок уже пишеться: уточнення не потрапило б у нього й лишилося б без відповіді
   const isFinalWriting = discussion?.phase === 'final' && !isFinished;
+  // ліміт уточнень вичерпано — поле вимкнене, і підказка в ньому пояснює чому
   const notePlaceholder = isFinished
-    ? t.followupPlaceholder
+    ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
     : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
   const canSendNote =
     Boolean(discussion)
@@ -1648,20 +1624,6 @@ export default function ChatPage() {
               </button>
             )}
             {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}
-            {isFinished && isHintVisible && (
-              <p className="chat__composer-hint">
-                <span>{followupsLeft > 0 ? t.followupsLeft(followupsLeft) : t.followupsDone}</span>
-                <button
-                  type="button"
-                  className="chat__composer-hint-close"
-                  onClick={dismissHint}
-                  aria-label={t.hideHint}
-                  title={t.hideHint}
-                >
-                  <CloseIcon />
-                </button>
-              </p>
-            )}
             <div className="debate__composer chat__composer-box">
               {/* режим видно, але після старту дискусії його вже не змінити */}
               <ModePicker value={discussion.mode} locked />
