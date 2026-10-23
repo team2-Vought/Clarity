@@ -1038,206 +1038,208 @@ export default function ChatPage() {
           </section>
         ) : (
           <div className="debate__panel-view">
-            <section className="debate__cast" aria-labelledby="chat-cast-title">
-              <div className="debate__cast-head">
-                <h2 id="chat-cast-title" className="debate__cast-title">
-                  {d.participants}
-                  <span className="debate__cast-count">{participantEntries.length}</span>
-                </h2>
-              </div>
-              <div className="debate__lineup">
-                {participantEntries.map((participant, index) => {
-                  const active = participant.key === activeParticipant?.key;
-                  return (
-                    <button
-                      key={participant.key}
-                      type="button"
-                      className={`debate__token ${active ? 'debate__token--active' : ''}`}
-                      style={{ '--chip': participant.color }}
-                      aria-pressed={active}
-                      aria-label={d.selectParticipant(participant.label)}
-                      title={[participant.label, participant.role].filter(Boolean).join(' · ')}
-                      onClick={() => setActiveSlug(participant.key)}
-                    >
-                      <HugeiconsIcon icon={roleIcon(participant.key)} size={20} strokeWidth={1.8} aria-hidden="true" />
-                      <span className="debate__token-num" aria-hidden="true">{index + 1}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            {activeParticipant && (
-              <section
-                key={activeParticipant.key}
-                className="debate__sheet"
-                style={{ '--chip': activeParticipant.color }}
-                aria-label={d.participantSheet(activeParticipant.label)}
-              >
-                <div className="debate__sheet-head">
-                  <span className="debate__sheet-avatar" aria-hidden="true">
-                    <HugeiconsIcon icon={roleIcon(activeParticipant.key)} size={22} strokeWidth={1.8} />
-                  </span>
-                  <div className="debate__sheet-title">
-                    <span>{activeParticipant.label}</span>
-                    {activeParticipant.role && activeParticipant.role !== activeParticipant.label && (
-                      <small>{activeParticipant.role}</small>
-                    )}
-                  </div>
+            <div className="debate__panel-body">
+              <section className="debate__cast" aria-labelledby="chat-cast-title">
+                <div className="debate__cast-head">
+                  <h2 id="chat-cast-title" className="debate__cast-title">
+                    {d.participants}
+                    <span className="debate__cast-count">{participantEntries.length}</span>
+                  </h2>
                 </div>
-
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{d.aiModel}</h3>
-                  <ModelPicker
-                    models={models}
-                    value={activeParticipant.model || ''}
-                    onChange={(modelId) =>
-                      saveModels({ personas: [{ slug: activeParticipant.key, model: modelId }] })
-                    }
-                    disabled={!canEditModels}
-                  />
-                </div>
-
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{d.character}</h3>
-                  {activeTraits.length > 0 ? (
-                    <div className="debate__tags">
-                      {activeTraits.map((trait) => (
-                        <span key={trait} className="debate__tag debate__tag--active">{trait}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="debate__hint">{t.noTraits}</p>
-                  )}
+                <div className="debate__lineup">
+                  {participantEntries.map((participant, index) => {
+                    const active = participant.key === activeParticipant?.key;
+                    return (
+                      <button
+                        key={participant.key}
+                        type="button"
+                        className={`debate__token ${active ? 'debate__token--active' : ''}`}
+                        style={{ '--chip': participant.color }}
+                        aria-pressed={active}
+                        aria-label={d.selectParticipant(participant.label)}
+                        title={[participant.label, participant.role].filter(Boolean).join(' · ')}
+                        onClick={() => setActiveSlug(participant.key)}
+                      >
+                        <HugeiconsIcon icon={roleIcon(participant.key)} size={20} strokeWidth={1.8} aria-hidden="true" />
+                        <span className="debate__token-num" aria-hidden="true">{index + 1}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
-            )}
 
-            <section className="debate__sheet debate__sheet--plain" aria-label={t.view}>
-              <div className="debate__field debate__field--first">
-                <h3 className="debate__field-title">{t.view}</h3>
-                <div className="debate__roles" role="group" aria-label={t.view}>
-                  {[
-                    [false, t.viewFull],
-                    [true, t.viewTheses],
-                  ].map(([value, label]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={`debate__role ${compact === value ? 'debate__role--active' : ''}`}
-                      aria-pressed={compact === value}
-                      onClick={() => toggleCompact(value)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {positionMap.columns.length > 0 && (
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{t.positions}</h3>
-                  <div className="chat__positions">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th scope="col">
-                            <span className="sr-only">{d.participants}</span>
-                          </th>
-                          {positionMap.columns.map((column) => (
-                            <th key={column.key} scope="col">
-                              {column.label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {participantEntries.map((participant) => {
-                          let previous = '';
-                          return (
-                            <tr key={participant.key}>
-                              <th scope="row" title={participant.label}>
-                                {participant.label}
-                              </th>
-                              {positionMap.columns.map((column) => {
-                                const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
-                                const changed =
-                                  discussion.mode !== 'open' && previous && value && value !== previous;
-                                if (value) previous = value;
-                                const text = discussion.mode === 'open'
-                                  ? t.positionMark[value] || ''
-                                  : value;
-                                const title = [
-                                  discussion.mode === 'open' ? t.stance[value] : value,
-                                  changed ? t.positionChanged : '',
-                                ].filter(Boolean).join(' · ');
-                                return (
-                                  <td
-                                    key={column.key}
-                                    className={changed ? 'chat__position--changed' : undefined}
-                                    data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
-                                    title={title || undefined}
-                                  >
-                                    {text || '—'}
-                                    {title && <span className="sr-only">{title}</span>}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              {activeParticipant && (
+                <section
+                  key={activeParticipant.key}
+                  className="debate__sheet"
+                  style={{ '--chip': activeParticipant.color }}
+                  aria-label={d.participantSheet(activeParticipant.label)}
+                >
+                  <div className="debate__sheet-head">
+                    <span className="debate__sheet-avatar" aria-hidden="true">
+                      <HugeiconsIcon icon={roleIcon(activeParticipant.key)} size={22} strokeWidth={1.8} />
+                    </span>
+                    <div className="debate__sheet-title">
+                      <span>{activeParticipant.label}</span>
+                      {activeParticipant.role && activeParticipant.role !== activeParticipant.label && (
+                        <small>{activeParticipant.role}</small>
+                      )}
+                    </div>
                   </div>
-                  <p className="debate__role-note">{t.positionsHint(discussion.mode)}</p>
-                </div>
+
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{d.aiModel}</h3>
+                    <ModelPicker
+                      models={models}
+                      value={activeParticipant.model || ''}
+                      onChange={(modelId) =>
+                        saveModels({ personas: [{ slug: activeParticipant.key, model: modelId }] })
+                      }
+                      disabled={!canEditModels}
+                    />
+                  </div>
+
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{d.character}</h3>
+                    {activeTraits.length > 0 ? (
+                      <div className="debate__tags">
+                        {activeTraits.map((trait) => (
+                          <span key={trait} className="debate__tag debate__tag--active">{trait}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="debate__hint">{t.noTraits}</p>
+                    )}
+                  </div>
+                </section>
               )}
 
-              <div className="debate__field">
-                <h3 className="debate__field-title">{t.share}</h3>
-                {shareUrl ? (
-                  <>
-                    <div className="debate__share">
-                      <input
-                        type="text"
-                        value={shareUrl}
-                        readOnly
-                        onFocus={(e) => e.target.select()}
-                        aria-label={t.shareLink}
-                      />
+              <section className="debate__sheet debate__sheet--plain" aria-label={t.view}>
+                <div className="debate__field debate__field--first">
+                  <h3 className="debate__field-title">{t.view}</h3>
+                  <div className="debate__roles" role="group" aria-label={t.view}>
+                    {[
+                      [false, t.viewFull],
+                      [true, t.viewTheses],
+                    ].map(([value, label]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={`debate__role ${compact === value ? 'debate__role--active' : ''}`}
+                        aria-pressed={compact === value}
+                        onClick={() => toggleCompact(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {positionMap.columns.length > 0 && (
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{t.positions}</h3>
+                    <div className="chat__positions">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th scope="col">
+                              <span className="sr-only">{d.participants}</span>
+                            </th>
+                            {positionMap.columns.map((column) => (
+                              <th key={column.key} scope="col">
+                                {column.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {participantEntries.map((participant) => {
+                            let previous = '';
+                            return (
+                              <tr key={participant.key}>
+                                <th scope="row" title={participant.label}>
+                                  {participant.label}
+                                </th>
+                                {positionMap.columns.map((column) => {
+                                  const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
+                                  const changed =
+                                    discussion.mode !== 'open' && previous && value && value !== previous;
+                                  if (value) previous = value;
+                                  const text = discussion.mode === 'open'
+                                    ? t.positionMark[value] || ''
+                                    : value;
+                                  const title = [
+                                    discussion.mode === 'open' ? t.stance[value] : value,
+                                    changed ? t.positionChanged : '',
+                                  ].filter(Boolean).join(' · ');
+                                  return (
+                                    <td
+                                      key={column.key}
+                                      className={changed ? 'chat__position--changed' : undefined}
+                                      data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
+                                      title={title || undefined}
+                                    >
+                                      {text || '—'}
+                                      {title && <span className="sr-only">{title}</span>}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="debate__role-note">{t.positionsHint(discussion.mode)}</p>
+                  </div>
+                )}
+
+                <div className="debate__field">
+                  <h3 className="debate__field-title">{t.share}</h3>
+                  {shareUrl ? (
+                    <>
+                      <div className="debate__share">
+                        <input
+                          type="text"
+                          value={shareUrl}
+                          readOnly
+                          onFocus={(e) => e.target.select()}
+                          aria-label={t.shareLink}
+                        />
+                        <button
+                          type="button"
+                          className="debate__share-copy"
+                          onClick={() => copyLink(shareUrl)}
+                          aria-label={t.copyLink}
+                          title={t.copyLink}
+                        >
+                          <HugeiconsIcon icon={Copy01Icon} size={15} aria-hidden="true" />
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        className="debate__share-copy"
-                        onClick={() => copyLink(shareUrl)}
-                        aria-label={t.copyLink}
-                        title={t.copyLink}
+                        className="debate__link-button"
+                        onClick={handleUnshare}
+                        disabled={isSharing}
                       >
-                        <HugeiconsIcon icon={Copy01Icon} size={15} aria-hidden="true" />
+                        {t.unshare}
                       </button>
-                    </div>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      className="debate__link-button"
-                      onClick={handleUnshare}
+                      className="debate__role debate__share-create"
+                      onClick={handleShare}
                       disabled={isSharing}
                     >
-                      {t.unshare}
+                      <HugeiconsIcon icon={Link01Icon} size={15} strokeWidth={1.8} aria-hidden="true" />
+                      {t.createShareLink}
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="debate__role debate__share-create"
-                    onClick={handleShare}
-                    disabled={isSharing}
-                  >
-                    <HugeiconsIcon icon={Link01Icon} size={15} strokeWidth={1.8} aria-hidden="true" />
-                    {t.createShareLink}
-                  </button>
-                )}
-                <p className="debate__role-note">{t.shareHint}</p>
-              </div>
-            </section>
+                  )}
+                  <p className="debate__role-note">{t.shareHint}</p>
+                </div>
+              </section>
+            </div>
 
             <button
               type="button"

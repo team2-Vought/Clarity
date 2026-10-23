@@ -697,259 +697,261 @@ export default function DebatePage() {
           </section>
         ) : (
           <div className="debate__panel-view">
-            <section className="debate__cast" aria-labelledby="debate-cast-title">
-              <div className="debate__cast-head">
-                <h2 id="debate-cast-title" className="debate__cast-title">
-                  {t.participants}
-                  <span className="debate__cast-count">
-                    {participants.length}/{maxParticipants}
-                  </span>
-                </h2>
-                {!isTeamFormOpen && (
-                  <button
-                    type="button"
-                    className="debate__ghost"
-                    onClick={() => setIsTeamFormOpen(true)}
-                    disabled={isCreating || participants.length < MIN_PARTICIPANTS}
-                    aria-label={t.saveTeam}
-                    title={t.teamsHint}
-                  >
-                    <HugeiconsIcon icon={BookmarkAdd01Icon} size={15} aria-hidden="true" />
-                    <span className="debate__ghost-label">{t.saveTeamShort}</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="debate__lineup">
-                {participants.map((p, i) => {
-                  const active = p.slug === activeParticipant?.slug;
-                  const label = p.name.trim() || t.participantN(i + 1);
-                  const roleName = personas.find((persona) => persona.slug === p.slug)?.name || '';
-                  const modelName = shortModel(models.find((m) => m.id === p.model));
-                  return (
-                    <button
-                      key={p.slug}
-                      type="button"
-                      className={`debate__token ${active ? 'debate__token--active' : ''}`}
-                      style={{ '--chip': p.color }}
-                      aria-pressed={active}
-                      aria-label={t.selectParticipant(label)}
-                      title={[label, roleName, modelName].filter(Boolean).join(' · ')}
-                      onClick={() => selectParticipant(p.slug)}
-                    >
-                      <HugeiconsIcon icon={roleIcon(p.slug)} size={20} strokeWidth={1.8} aria-hidden="true" />
-                      <span className="debate__token-num" aria-hidden="true">{i + 1}</span>
-                    </button>
-                  );
-                })}
-                {canAddParticipant && (
-                  <button
-                    type="button"
-                    className="debate__token debate__token--add"
-                    onClick={handleAddParticipant}
-                    aria-label={t.addParticipant}
-                    title={t.addParticipant}
-                  >
-                    <PlusIcon />
-                  </button>
-                )}
-              </div>
-
-              {isTeamFormOpen && (
-                <div className="debate__team-form">
-                  <input
-                    type="text"
-                    value={teamName}
-                    maxLength={MAX_NAME}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    onKeyDown={handleTeamKeyDown}
-                    onBlur={() => {
-                      if (!teamName.trim()) setIsTeamFormOpen(false);
-                    }}
-                    placeholder={t.teamNamePlaceholder}
-                    aria-label={t.teamName}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="debate__mini-add"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={saveCurrentTeam}
-                    disabled={!teamName.trim() || isSavingTeam}
-                    aria-label={t.saveTeam}
-                    title={t.saveTeam}
-                  >
-                    ✓
-                  </button>
-                </div>
-              )}
-
-              {teams.length > 0 && (
-                <div className="debate__teams" role="group" aria-label={t.teams}>
-                  <span className="debate__teams-label">{t.teams}</span>
-                  {teams.map((team) => (
-                    <span key={team.id} className="debate__team-chip">
-                      <button
-                        type="button"
-                        className="debate__team-apply"
-                        onClick={() => applyTeam(team)}
-                        disabled={isCreating}
-                        title={t.applyTeam(team.name)}
-                      >
-                        {team.name}
-                      </button>
-                      <button
-                        type="button"
-                        className="debate__team-remove"
-                        onClick={() => removeTeam(team)}
-                        aria-label={t.deleteTeam(team.name)}
-                        title={t.deleteTeam(team.name)}
-                      >
-                        <CloseIcon />
-                      </button>
+            <div className="debate__panel-body">
+              <section className="debate__cast" aria-labelledby="debate-cast-title">
+                <div className="debate__cast-head">
+                  <h2 id="debate-cast-title" className="debate__cast-title">
+                    {t.participants}
+                    <span className="debate__cast-count">
+                      {participants.length}/{maxParticipants}
                     </span>
-                  ))}
+                  </h2>
+                  {!isTeamFormOpen && (
+                    <button
+                      type="button"
+                      className="debate__ghost"
+                      onClick={() => setIsTeamFormOpen(true)}
+                      disabled={isCreating || participants.length < MIN_PARTICIPANTS}
+                      aria-label={t.saveTeam}
+                      title={t.teamsHint}
+                    >
+                      <HugeiconsIcon icon={BookmarkAdd01Icon} size={15} aria-hidden="true" />
+                      <span className="debate__ghost-label">{t.saveTeamShort}</span>
+                    </button>
+                  )}
                 </div>
-              )}
-            </section>
 
-            {activeParticipant && (
-              <section
-                className="debate__sheet"
-                style={{ '--chip': activeParticipant.color }}
-                aria-label={t.participantSheet(activeLabel)}
-              >
-                <div className="debate__sheet-head">
-                  <span className="debate__sheet-avatar" aria-hidden="true">
-                    <HugeiconsIcon icon={roleIcon(activeParticipant.slug)} size={22} strokeWidth={1.8} />
-                  </span>
-                  <label className="debate__sheet-name">
+                <div className="debate__lineup">
+                  {participants.map((p, i) => {
+                    const active = p.slug === activeParticipant?.slug;
+                    const label = p.name.trim() || t.participantN(i + 1);
+                    const roleName = personas.find((persona) => persona.slug === p.slug)?.name || '';
+                    const modelName = shortModel(models.find((m) => m.id === p.model));
+                    return (
+                      <button
+                        key={p.slug}
+                        type="button"
+                        className={`debate__token ${active ? 'debate__token--active' : ''}`}
+                        style={{ '--chip': p.color }}
+                        aria-pressed={active}
+                        aria-label={t.selectParticipant(label)}
+                        title={[label, roleName, modelName].filter(Boolean).join(' · ')}
+                        onClick={() => selectParticipant(p.slug)}
+                      >
+                        <HugeiconsIcon icon={roleIcon(p.slug)} size={20} strokeWidth={1.8} aria-hidden="true" />
+                        <span className="debate__token-num" aria-hidden="true">{i + 1}</span>
+                      </button>
+                    );
+                  })}
+                  {canAddParticipant && (
+                    <button
+                      type="button"
+                      className="debate__token debate__token--add"
+                      onClick={handleAddParticipant}
+                      aria-label={t.addParticipant}
+                      title={t.addParticipant}
+                    >
+                      <PlusIcon />
+                    </button>
+                  )}
+                </div>
+
+                {isTeamFormOpen && (
+                  <div className="debate__team-form">
                     <input
                       type="text"
-                      value={activeParticipant.name}
+                      value={teamName}
                       maxLength={MAX_NAME}
-                      onChange={(e) => updateName(e.target.value)}
-                      onBlur={() => updateName(activeParticipant.name.trim())}
-                      onKeyDown={handleNameKeyDown}
-                      placeholder={t.participantN(activeIndex + 1)}
-                      aria-label={t.participantName}
-                      disabled={isCreating}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      onKeyDown={handleTeamKeyDown}
+                      onBlur={() => {
+                        if (!teamName.trim()) setIsTeamFormOpen(false);
+                      }}
+                      placeholder={t.teamNamePlaceholder}
+                      aria-label={t.teamName}
+                      autoFocus
                     />
-                    <HugeiconsIcon icon={PencilEdit02Icon} size={14} aria-hidden="true" />
-                  </label>
-                  {participants.length > MIN_PARTICIPANTS && (
                     <button
                       type="button"
-                      className="debate__sheet-remove"
-                      onClick={() => handleRemoveParticipant(activeParticipant.slug)}
-                      disabled={isCreating}
-                      aria-label={t.removeParticipant(activeLabel)}
-                      title={t.removeParticipant(activeLabel)}
+                      className="debate__mini-add"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={saveCurrentTeam}
+                      disabled={!teamName.trim() || isSavingTeam}
+                      aria-label={t.saveTeam}
+                      title={t.saveTeam}
                     >
-                      <HugeiconsIcon icon={Delete02Icon} size={16} aria-hidden="true" />
+                      ✓
                     </button>
-                  )}
-                </div>
-
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{t.role}</h3>
-                  <div className="debate__roles" role="group" aria-label={t.role}>
-                    {personas.map((persona) => {
-                      const active = persona.slug === activeParticipant.slug;
-                      const holderIndex = participants.findIndex((p) => p.slug === persona.slug);
-                      const holder = !active && holderIndex >= 0 ? participants[holderIndex] : null;
-                      const holderLabel = holder ? holder.name.trim() || t.participantN(holderIndex + 1) : '';
-                      return (
-                        <button
-                          key={persona.slug}
-                          type="button"
-                          className={`debate__role ${active ? 'debate__role--active' : ''}`}
-                          aria-pressed={active}
-                          disabled={isCreating || Boolean(holder)}
-                          title={holder ? t.roleHeldBy(holderLabel) : persona.description}
-                          onClick={() => handleRoleSelect(persona.slug)}
-                        >
-                          <HugeiconsIcon icon={roleIcon(persona.slug)} size={15} strokeWidth={1.8} aria-hidden="true" />
-                          {persona.name}
-                          {holder && (
-                            <span className="debate__role-holder" style={{ '--chip': holder.color }} aria-hidden="true">
-                              {holderIndex + 1}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
                   </div>
-                  {activeRole && <p className="debate__role-note">{activeRole.description}</p>}
-                </div>
+                )}
 
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{t.aiModel}</h3>
-                  <ModelPicker
-                    models={models}
-                    value={activeParticipant.model || ''}
-                    onChange={handleModelSelect}
-                    disabled={isCreating}
-                  />
-                  {models.length > 0 && !hasAvailableModels && (
-                    <p className="debate__hint">{t.noModelsAvailable}</p>
-                  )}
-                </div>
-
-                <div className="debate__field">
-                  <h3 className="debate__field-title">
-                    {t.character}
-                    {activeTraits.length > 0 && (
-                      <span className="debate__field-aside">{t.traitsPicked(activeTraits.length)}</span>
-                    )}
-                  </h3>
-                  <div className="debate__tags">
-                    {allTraits.map((trait) => {
-                      const active = activeTraits.includes(trait);
-                      return (
+                {teams.length > 0 && (
+                  <div className="debate__teams" role="group" aria-label={t.teams}>
+                    <span className="debate__teams-label">{t.teams}</span>
+                    {teams.map((team) => (
+                      <span key={team.id} className="debate__team-chip">
                         <button
-                          key={trait}
                           type="button"
-                          className={`debate__tag ${active ? 'debate__tag--active' : ''}`}
-                          aria-pressed={active}
-                          onClick={() => toggleTrait(trait)}
+                          className="debate__team-apply"
+                          onClick={() => applyTeam(team)}
                           disabled={isCreating}
+                          title={t.applyTeam(team.name)}
                         >
-                          {trait}
+                          {team.name}
                         </button>
-                      );
-                    })}
-                    <span className="debate__tag-new">
+                        <button
+                          type="button"
+                          className="debate__team-remove"
+                          onClick={() => removeTeam(team)}
+                          aria-label={t.deleteTeam(team.name)}
+                          title={t.deleteTeam(team.name)}
+                        >
+                          <CloseIcon />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {activeParticipant && (
+                <section
+                  className="debate__sheet"
+                  style={{ '--chip': activeParticipant.color }}
+                  aria-label={t.participantSheet(activeLabel)}
+                >
+                  <div className="debate__sheet-head">
+                    <span className="debate__sheet-avatar" aria-hidden="true">
+                      <HugeiconsIcon icon={roleIcon(activeParticipant.slug)} size={22} strokeWidth={1.8} />
+                    </span>
+                    <label className="debate__sheet-name">
                       <input
                         type="text"
-                        value={traitDraft}
-                        maxLength={MAX_TRAIT}
-                        onChange={(e) => setTraitDraft(e.target.value)}
-                        onKeyDown={handleTraitKeyDown}
-                        placeholder={t.placeholderTrait}
-                        aria-label={t.customTrait}
+                        value={activeParticipant.name}
+                        maxLength={MAX_NAME}
+                        onChange={(e) => updateName(e.target.value)}
+                        onBlur={() => updateName(activeParticipant.name.trim())}
+                        onKeyDown={handleNameKeyDown}
+                        placeholder={t.participantN(activeIndex + 1)}
+                        aria-label={t.participantName}
                         disabled={isCreating}
                       />
-                      {traitDraft.trim() && (
-                        <button
-                          type="button"
-                          className="debate__mini-add"
-                          onClick={addTrait}
-                          disabled={isCreating}
-                          aria-label={t.addTrait}
-                          title={t.addTrait}
-                        >
-                          +
-                        </button>
-                      )}
-                    </span>
+                      <HugeiconsIcon icon={PencilEdit02Icon} size={14} aria-hidden="true" />
+                    </label>
+                    {participants.length > MIN_PARTICIPANTS && (
+                      <button
+                        type="button"
+                        className="debate__sheet-remove"
+                        onClick={() => handleRemoveParticipant(activeParticipant.slug)}
+                        disabled={isCreating}
+                        aria-label={t.removeParticipant(activeLabel)}
+                        title={t.removeParticipant(activeLabel)}
+                      >
+                        <HugeiconsIcon icon={Delete02Icon} size={16} aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
-                </div>
-              </section>
-            )}
-            {isLoading && (
-              <p className="debate__hint" role="status">{t.loading}</p>
-            )}
+
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{t.role}</h3>
+                    <div className="debate__roles" role="group" aria-label={t.role}>
+                      {personas.map((persona) => {
+                        const active = persona.slug === activeParticipant.slug;
+                        const holderIndex = participants.findIndex((p) => p.slug === persona.slug);
+                        const holder = !active && holderIndex >= 0 ? participants[holderIndex] : null;
+                        const holderLabel = holder ? holder.name.trim() || t.participantN(holderIndex + 1) : '';
+                        return (
+                          <button
+                            key={persona.slug}
+                            type="button"
+                            className={`debate__role ${active ? 'debate__role--active' : ''}`}
+                            aria-pressed={active}
+                            disabled={isCreating || Boolean(holder)}
+                            title={holder ? t.roleHeldBy(holderLabel) : persona.description}
+                            onClick={() => handleRoleSelect(persona.slug)}
+                          >
+                            <HugeiconsIcon icon={roleIcon(persona.slug)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                            {persona.name}
+                            {holder && (
+                              <span className="debate__role-holder" style={{ '--chip': holder.color }} aria-hidden="true">
+                                {holderIndex + 1}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {activeRole && <p className="debate__role-note">{activeRole.description}</p>}
+                  </div>
+
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{t.aiModel}</h3>
+                    <ModelPicker
+                      models={models}
+                      value={activeParticipant.model || ''}
+                      onChange={handleModelSelect}
+                      disabled={isCreating}
+                    />
+                    {models.length > 0 && !hasAvailableModels && (
+                      <p className="debate__hint">{t.noModelsAvailable}</p>
+                    )}
+                  </div>
+
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">
+                      {t.character}
+                      {activeTraits.length > 0 && (
+                        <span className="debate__field-aside">{t.traitsPicked(activeTraits.length)}</span>
+                      )}
+                    </h3>
+                    <div className="debate__tags">
+                      {allTraits.map((trait) => {
+                        const active = activeTraits.includes(trait);
+                        return (
+                          <button
+                            key={trait}
+                            type="button"
+                            className={`debate__tag ${active ? 'debate__tag--active' : ''}`}
+                            aria-pressed={active}
+                            onClick={() => toggleTrait(trait)}
+                            disabled={isCreating}
+                          >
+                            {trait}
+                          </button>
+                        );
+                      })}
+                      <span className="debate__tag-new">
+                        <input
+                          type="text"
+                          value={traitDraft}
+                          maxLength={MAX_TRAIT}
+                          onChange={(e) => setTraitDraft(e.target.value)}
+                          onKeyDown={handleTraitKeyDown}
+                          placeholder={t.placeholderTrait}
+                          aria-label={t.customTrait}
+                          disabled={isCreating}
+                        />
+                        {traitDraft.trim() && (
+                          <button
+                            type="button"
+                            className="debate__mini-add"
+                            onClick={addTrait}
+                            disabled={isCreating}
+                            aria-label={t.addTrait}
+                            title={t.addTrait}
+                          >
+                            +
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </section>
+              )}
+              {isLoading && (
+                <p className="debate__hint" role="status">{t.loading}</p>
+              )}
+            </div>
             <button
               type="button"
               className="debate__more-toggle"

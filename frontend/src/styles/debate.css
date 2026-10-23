@@ -58,7 +58,8 @@ body:has(.app-shell) {
 /* жест прокрутки в межах області не передається сторінці */
 .debate__main,
 .chat__main,
-.debate__form-panel,
+.debate__panel-body,
+.debate__more,
 .history {
   overscroll-behavior-y: none;
 }
@@ -274,16 +275,16 @@ body:has(.app-shell) {
   min-height: 0;
   padding: clamp(14px, 2.2vh, 22px) clamp(12px, 1.2vw, 18px)
     clamp(14px, 2.2vh, 20px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: none;
+  /* панель не прокручується вся: гортається вміст, а «Додатково» — футер знизу */
+  overflow: hidden;
   /* тонка вертикальна лінія зліва, з відступами зверху і знизу, як у макеті */
   background:
     linear-gradient(var(--divider), var(--divider)) 0 24px / 1px calc(100% - 48px) no-repeat,
     var(--panel);
 }
 
-.debate__form-panel::-webkit-scrollbar {
+.debate__panel-body::-webkit-scrollbar,
+.debate__more::-webkit-scrollbar {
   display: none;
 }
 
@@ -1656,9 +1657,28 @@ body:has(.app-shell) {
 .debate__panel-view,
 .debate__more {
   display: flex;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: inherit;
+  min-height: 0;
+}
+
+/* прокручувана частина панелі; поля по краях, щоб не різати кільця фокусу й тіні */
+.debate__panel-body,
+.debate__more {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  margin: -6px -8px 0;
+  padding: 6px 8px 2px;
+}
+
+.debate__panel-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: inherit;
+  min-height: 0;
 }
 
 .debate__more {
@@ -1676,18 +1696,14 @@ body:has(.app-shell) {
   }
 }
 
-/* перехід на екран — рядок притиснутий до низу панелі */
+/* перехід на екран — футер панелі під прокручуваним вмістом */
 .debate__more-toggle {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
   width: 100%;
-  margin-top: auto;
-  padding: 14px 2px 4px;
+  padding: 12px 2px 0;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
   background: var(--panel);
