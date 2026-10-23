@@ -27,15 +27,6 @@ DEVIL = {
     'description': 'Шукає ризики, помилки та слабкі місця в обраному рішенні.',
 }
 
-RESEARCHER = {
-    'slug': 'research',
-    'name': 'Пошук',
-    'avatar': '🔎',
-    'color': '#0ea5e9',
-    'temperament': 'Уважний',
-    'description': 'Шукає в інтернеті факти й джерела для дискусії.',
-}
-
 PERSONAS = [
     {
         'slug': 'logician',

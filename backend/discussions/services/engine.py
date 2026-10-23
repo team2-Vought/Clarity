@@ -1,7 +1,7 @@
 """Движок дискусії: стан-машина, яка робить один крок за виклик.
 
-Фази: research → opening → debate (до N раундів) → synthesis → devil → rebuttal
-→ final → done. Етап research є лише тоді, коли увімкнено пошук в інтернеті.
+Фази: opening → debate (до N раундів) → synthesis → devil → rebuttal
+→ final → done.
 
 Вступ (opening) і відповідь на Devil (rebuttal) виконуються паралельно: один
 крок створює повідомлення всіх учасників. Дебати — по одній репліці за крок;
@@ -14,8 +14,9 @@
 не належить жодному учаснику (і для Devil — відмінна від моделі модератора).
 Якщо модель судді не відповідає, крок повторюється на наступній доступній.
 
-Моделі можуть шукати в інтернеті: етап research формує запити до старту,
-учасники додають службовий рядок ПОШУК, а Devil — поле search_queries.
+Якщо увімкнено пошук в інтернеті, моделі шукають лише тоді, коли їм бракує
+фактів: учасники додають службовий рядок ПОШУК, а Devil — поле search_queries.
+Окремого обов’язкового кроку пошуку перед дискусією немає.
 
 Крок розділений на три частини:
 1. атомарний «lease» на дискусії (захист від паралельних advance), який
@@ -42,7 +43,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from ..models import Discussion, Message
-from ..personas import DEVIL, MODERATOR, RESEARCHER
+from ..personas import DEVIL, MODERATOR
 from . import prompts, search, usage
 from .catalog import available_model_ids, default_model_id, model_label, resolve_model
 from .providers import ProviderError, get_provider
@@ -55,7 +56,6 @@ JSON_TEMPERATURE = 0.2
 MAX_ERROR_DETAIL = 4000
 MAX_ERROR_PUBLIC = 300
 MAX_PARALLEL_CALLS = 5
-MAX_RESEARCH_QUERIES = 3
 MAX_DEVIL_QUERIES = 2
 STANCE_AGREE = 'згода'
 STANCE_DISPUTE = 'суперечка'
@@ -383,17 +383,10 @@ def _summary_problems(data, mode, options):
     return problems + _answer_problems(data, mode, options)
 
 
-def _queries_problems(data, mode, options):
-    if isinstance(data, dict) and isinstance(data.get('queries'), list):
-        return []
-    return ['потрібне поле "queries" зі списком рядків']
-
-
 PROBLEM_CHECKS = {
     'solution': _solution_problems,
     'review': _review_problems,
     'summary': _summary_problems,
-    'queries': _queries_problems,
 }
 
 
@@ -890,16 +883,6 @@ def _run_plan(plan, provider_factory, discussion):
         reply['search'] = _run_searches([reply['search_query']])
         return reply
 
-    if plan.json_kind == 'queries':
-        try:
-            _, data = _run_json_plan(plan, provider_factory, discussion)
-            queries = _queries(data.get('queries'), MAX_RESEARCH_QUERIES)
-        except EngineError as exc:
-            # Без запитів від моделі шукаємо за самим питанням — дебати важливіші.
-            logger.warning('Research planning failed', extra={'error': exc.detail})
-            queries = [search.normalize_query(discussion.question)]
-        return {'queries': queries, 'search': _run_searches(queries)}
-
     _, data = _run_json_plan(plan, provider_factory, discussion)
     if plan.json_kind == 'solution':
         return normalize_solution(
@@ -1033,26 +1016,6 @@ def _prepare_step(discussion):
         'rounds': discussion.rounds,
         'sources': sources,
     }
-
-    if phase == Discussion.Phase.RESEARCH:
-        return [
-            _judge_plan(
-                discussion,
-                personas,
-                'moderator',
-                phase=phase,
-                role=Message.Role.RESEARCH,
-                persona=RESEARCHER,
-                system=prompts.RESEARCH_SYSTEM,
-                prompt=prompts.research_prompt(
-                    discussion.question,
-                    mode=mode,
-                    options=options,
-                    max_queries=min(MAX_RESEARCH_QUERIES, _search_budget(discussion)),
-                ),
-                json_kind='queries',
-            )
-        ]
 
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)
@@ -1266,9 +1229,6 @@ def describe_step(discussion):
     messages = _list_messages(discussion)
     phase = discussion.phase
 
-    if phase == Discussion.Phase.RESEARCH:
-        return [_focus(RESEARCHER, f'підбирає пошукові запити до {_quote(discussion.question)}')]
-
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)
         text = _question_focus(discussion)
@@ -1419,18 +1379,6 @@ def _final_text(summary):
     )
     parts.append(_section('Що робити далі', _text(summary.get('recommendation'), limit=2000)))
     return '\n\n'.join(part for part in parts if part).strip()
-
-
-def _research_text(queries, added):
-    if not queries:
-        return 'Зовнішні джерела для цього питання не потрібні — учасники спиратимуться на ваш опис.'
-    # самі запити показуються окремо (search_query), тут — лише результат
-    if added:
-        return (
-            f'Знайдено джерел: {len(added)}. Учасники бачать їх і посилатимуться '
-            'на них як [n]; повний список — у блоці «Джерела».'
-        )
-    return 'Нічого корисного не знайдено — дискусія спиратиметься на ваш опис.'
 
 
 def _merge_sources(discussion, found, added_by):
@@ -1675,11 +1623,7 @@ def _store(discussion, plan, payload, personas):
         )
     search_query = ''
     added = []
-    if plan.phase == Discussion.Phase.RESEARCH:
-        added = _merge_sources(discussion, payload.get('search'), RESEARCHER['name'])
-        search_query = '; '.join(payload.get('queries') or [])
-        content = _research_text(payload.get('queries'), added)
-    elif plan.phase == Discussion.Phase.SYNTHESIS:
+    if plan.phase == Discussion.Phase.SYNTHESIS:
         discussion.best_solution = payload
         content = _moderator_text(payload)
     elif plan.phase == Discussion.Phase.DEVIL:
@@ -1707,9 +1651,7 @@ def _store(discussion, plan, payload, personas):
 
 def _transition(discussion, personas):
     phase = discussion.phase
-    if phase == Discussion.Phase.RESEARCH:
-        discussion.phase = Discussion.Phase.OPENING
-    elif phase == Discussion.Phase.OPENING:
+    if phase == Discussion.Phase.OPENING:
         if _all_spoke(discussion, personas, phase):
             discussion.phase = Discussion.Phase.DEBATE
             discussion.current_round = 1

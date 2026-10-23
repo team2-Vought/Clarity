@@ -279,22 +279,26 @@ class JudgeModelTests(Base):
 
 @override_settings(SEARCH_PROVIDER='wikipedia', SEARCH_MAX_QUERIES=5)
 class WebSearchTests(Base):
-    def test_research_phase_collects_sources(self):
-        discussion = self.make(web_search=True, phase=Discussion.Phase.RESEARCH, rounds=1)
+    def test_no_forced_search_before_opening(self):
+        # пошук увімкнено, але учасникам фактів вистачає — ніхто нічого не шукає
+        discussion = self.make(web_search=True, rounds=1)
         with mock.patch('discussions.services.search.search', return_value=FAKE_RESULTS) as found:
             self.step(discussion)
-            found.assert_called_once_with('тестовий запит')
-            research = discussion.messages.get(phase=Discussion.Phase.RESEARCH)
-            self.assertEqual(research.role, Message.Role.RESEARCH)
-            self.assertEqual(research.source_ids, [1, 2])
-            self.assertEqual(discussion.phase, Discussion.Phase.OPENING)
-            self.assertEqual(discussion.search_count, 1)
+        found.assert_not_called()
+        self.assertEqual(discussion.phase, Discussion.Phase.DEBATE)
+        self.assertFalse(discussion.messages.filter(role=Message.Role.RESEARCH).exists())
+        self.assertEqual(discussion.search_count, 0)
+        self.assertIn('ПОШУК:', self.provider.calls[-1]['prompt'])
 
-            self.step(discussion)
-        opening_prompt = self.provider.calls[-1]['prompt']
-        self.assertIn('<web_sources>', opening_prompt)
-        self.assertIn('[1] Статистика зарплат (example.com)', opening_prompt)
-        self.assertIn('ПОШУК:', opening_prompt)
+    def test_found_sources_reach_later_replies(self):
+        self.provider = FakeProvider(search_query='медіанна зарплата IT 2026')
+        discussion = self.make(web_search=True, rounds=1)
+        with mock.patch('discussions.services.search.search', return_value=FAKE_RESULTS):
+            self.step(discussion)  # вступ: учасник сам попросив пошук
+            self.step(discussion)  # перша репліка дебатів уже бачить джерела
+        debate_prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('<web_sources>', debate_prompt)
+        self.assertIn('[1] Статистика зарплат (example.com)', debate_prompt)
 
     def test_participant_search_line_adds_sources(self):
         self.provider = FakeProvider(search_query='медіанна зарплата IT 2026')
@@ -314,10 +318,11 @@ class WebSearchTests(Base):
     def test_search_failure_does_not_break_debate(self):
         from discussions.services.search import SearchError
 
-        discussion = self.make(web_search=True, phase=Discussion.Phase.RESEARCH)
+        self.provider = FakeProvider(search_query='медіанна зарплата IT 2026')
+        discussion = self.make(web_search=True)
         with mock.patch('discussions.services.search.search', side_effect=SearchError('down')):
             self.step(discussion)
-        self.assertEqual(discussion.phase, Discussion.Phase.OPENING)
+        self.assertEqual(discussion.phase, Discussion.Phase.DEBATE)
         self.assertEqual(discussion.sources, [])
 
     def test_search_off_hides_search(self):
@@ -523,9 +528,9 @@ class ApiV3Tests(TestCase):
         self.assertEqual(bad.status_code, 400)
 
     @override_settings(SEARCH_PROVIDER='wikipedia')
-    def test_web_search_discussion_starts_with_research(self):
+    def test_web_search_discussion_starts_with_opening(self):
         created = self.create(web_search=True)
-        self.assertEqual(created['phase'], 'research')
+        self.assertEqual(created['phase'], 'opening')
         self.assertTrue(created['search']['available'])
 
     @override_settings(SEARCH_PROVIDER='off')

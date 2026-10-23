@@ -223,11 +223,9 @@ class DiscussionListCreateView(APIView):
             web_search=data.get('web_search', False),
             moderator_model=data.get('moderator_model', ''),
             devil_model=data.get('devil_model', ''),
-            phase=(
-                Discussion.Phase.RESEARCH
-                if data.get('web_search')
-                else Discussion.Phase.OPENING
-            ),
+            # навіть з пошуком дискусія одразу починається з вступу:
+            # учасники шукають самі, коли їм бракує фактів
+            phase=Discussion.Phase.OPENING,
         )
         # одразу створюємо повідомлення користувача як початок чату
         discussion.messages.create(

@@ -27,8 +27,6 @@ class FakeProvider:
                     'json_mode': json_mode,
                 }
             )
-            if '{"queries"' in prompt:
-                return json.dumps({'queries': ['тестовий запит']}, ensure_ascii=False)
             if '"confirmed"' in prompt:
                 return json.dumps(self._final(prompt), ensure_ascii=False)
             if '"verdict"' in prompt:
