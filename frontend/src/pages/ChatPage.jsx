@@ -65,6 +65,12 @@ const STICK_THRESHOLD = 96;
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;
 const JUMP_THRESHOLD = 400;
+// частка відстані до низу, яку чат проходить за кадр: великий стрибок висоти
+// стає м'яким доїздом (~0,3 с), а рівний ріст тексту — майже без відставання
+const FOLLOW_EASE = 0.16;
+
+const prefersReducedMotion = () =>
+  Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 // Дискусію виконує сервер; сторінка лише опитує стан.
 const POLL_MS = 2000;
 // Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
@@ -401,6 +407,15 @@ export default function ChatPage() {
     () => (messages || []).find((message) => message.role === 'user'),
     [messages]
   );
+  const summary = discussion?.final_summary || null;
+  const summaryView = describeSummary(summary);
+  const {
+    decision: summaryDecision,
+    confirmed: summaryConfirmed,
+    confidence: summaryConfidence,
+    agreement,
+    lists: summaryLists,
+  } = summaryView;
   const visibleMessages = useMemo(
     () => (messages || []).filter((message) => message !== questionMessage),
     [messages, questionMessage]
@@ -591,14 +606,53 @@ export default function ChatPage() {
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
+  // Плавне доганяння низу: щокадру чат проходить частку відстані, що лишилась,
+  // тож нова репліка, абзац чи рядок «Аналізуємо…» з'являються без ривка.
+  // Зупиняється, щойно дійшов донизу або користувач відгорнув угору.
+  const followFrameRef = useRef(0);
+  const followBottom = useCallback(() => {
+    if (followFrameRef.current) return;
+    const step = () => {
+      const el = mainRef.current;
+      const distance = el ? el.scrollHeight - el.clientHeight - el.scrollTop : 0;
+      if (!el || !stickToBottomRef.current || distance <= 1) {
+        followFrameRef.current = 0;
+        return;
+      }
+      el.scrollTop += prefersReducedMotion()
+        ? distance
+        : Math.max(1, Math.ceil(distance * FOLLOW_EASE));
+      followFrameRef.current = requestAnimationFrame(step);
+    };
+    followFrameRef.current = requestAnimationFrame(step);
+  }, []);
+
+  // скидаємо й сам ref: інакше followBottom вважав би доганяння запущеним і більше не стартував
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(followFrameRef.current);
+      followFrameRef.current = 0;
+    },
+    []
+  );
+
+  // Відкриваючи дискусію, одразу стаємо внизу — історію не прокручуємо на очах
+  const openedAtBottomRef = useRef(null);
+
   const handleTypingDone = useCallback(() => {
     setRevealedCount((count) => count + 1);
     setSkipTyping(false);
   }, []);
 
   useEffect(() => {
-    if (stickToBottomRef.current) scrollToBottom();
-  }, [scrollToBottom, revealedCount, isRunning, actionError, isStopped, isRevealing]);
+    if (!stickToBottomRef.current) return;
+    if (discussionId && openedAtBottomRef.current !== discussionId) {
+      openedAtBottomRef.current = discussionId;
+      scrollToBottom();
+      return;
+    }
+    followBottom();
+  }, [scrollToBottom, followBottom, discussionId, revealedCount, isRunning, actionError, isStopped, isRevealing]);
 
   // Поки йде генерація, вміст росте плавно (поява абзаців, висота бульбашки),
   // тож низ відстежується щокадру, а не за окремими подіями.
@@ -606,15 +660,12 @@ export default function ChatPage() {
     if (!isRunning && !isRevealing) return undefined;
     let frame = 0;
     const tick = () => {
-      const el = mainRef.current;
-      if (el && stickToBottomRef.current && el.scrollHeight - el.clientHeight - el.scrollTop > 1) {
-        el.scrollTop = el.scrollHeight;
-      }
+      followBottom();
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [isRunning, isRevealing]);
+  }, [isRunning, isRevealing, followBottom]);
 
   // Стрілка «до рішення» з'являється, коли рішення (а поки його немає —
   // кінець чату) опинилося нижче видимої частини, тобто користувач гортав угору.
@@ -700,8 +751,7 @@ export default function ChatPage() {
     const target = document.getElementById(`message-${messageId}`);
     if (!target) return;
     stickToBottomRef.current = false;
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
     setFlashId(messageId);
   };
 
@@ -711,17 +761,38 @@ export default function ChatPage() {
     return () => clearTimeout(timer);
   }, [flashId]);
 
+  // Верх картки підсумку з невеликим відступом — туди веде стрілка «до рішення»
+  const summaryScrollTop = (el, summaryEl) =>
+    el.scrollTop + summaryEl.getBoundingClientRect().top - el.getBoundingClientRect().top - 16;
+
   const handleJumpToDecision = () => {
     const el = mainRef.current;
     if (!el) return;
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const summaryEl = summaryRef.current;
-    const top = summaryEl
-      ? el.scrollTop + summaryEl.getBoundingClientRect().top - el.getBoundingClientRect().top - 16
-      : el.scrollHeight;
+    const top = summaryEl ? summaryScrollTop(el, summaryEl) : el.scrollHeight;
     if (!summaryEl) stickToBottomRef.current = true;
-    el.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
+    el.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   };
+
+  // Підсумок, що з'явився на очах, читають з початку: чат плавно доїжджає до
+  // верху картки й відпускає низ, а не кидає в самий кінець сторінки
+  const summaryShown = Boolean(summaryDecision) && isFinished && !isRevealing;
+  const summaryShownRef = useRef(summaryShown);
+  // до відмальовування: інакше доганяння низу встигає зробити крок униз
+  useLayoutEffect(() => {
+    const appeared = summaryShown && !summaryShownRef.current;
+    summaryShownRef.current = summaryShown;
+    const el = mainRef.current;
+    const summaryEl = summaryRef.current;
+    if (!appeared || !animateSummary || !stickToBottomRef.current || !el || !summaryEl) return;
+    stickToBottomRef.current = false;
+    cancelAnimationFrame(followFrameRef.current);
+    followFrameRef.current = 0;
+    el.scrollTo({
+      top: Math.min(summaryScrollTop(el, summaryEl), el.scrollHeight - el.clientHeight),
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  }, [summaryShown, animateSummary]);
 
   const handleStop = async () => {
     if (!discussion) return;
@@ -810,15 +881,6 @@ export default function ChatPage() {
     [messages, participantColors]
   );
 
-  const summary = discussion?.final_summary || null;
-  const summaryView = describeSummary(summary);
-  const {
-    decision: summaryDecision,
-    confirmed: summaryConfirmed,
-    confidence: summaryConfidence,
-    agreement,
-    lists: summaryLists,
-  } = summaryView;
 
   const handleCopySummary = async () => {
     const lines = [discussion.question, ''];
