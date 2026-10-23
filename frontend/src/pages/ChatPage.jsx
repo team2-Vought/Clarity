@@ -474,20 +474,25 @@ export default function ChatPage() {
     [participantEntries]
   );
 
-  // Кроки індикатора «Аналізуємо…» — лише цього запуску (після питання чи
-  // останнього уточнення): зроблені репліки й те, над чим AI думають зараз
-  const thinking = discussion?.thinking;
-  const traceSteps = useMemo(() => {
-    const list = messages || [];
-    let start = 0;
-    list.forEach((message, index) => {
-      if (message.role === 'user') start = index + 1;
+  // Запуски аналізу: питання чи уточнення користувача й усі репліки AI після нього
+  const runs = useMemo(() => {
+    const list = [];
+    (messages || []).forEach((message) => {
+      if (message.role === 'user') list.push({ start: message, items: [] });
+      else if (list.length > 0) list[list.length - 1].items.push(message);
     });
-    return [
-      ...list.slice(start).map(doneStep),
-      ...(thinking || []).map(thinkingStep),
-    ];
-  }, [messages, thinking]);
+    return list;
+  }, [messages]);
+  const currentRun = runs[runs.length - 1];
+
+  // Кроки індикатора «Аналізуємо…» — лише цього запуску: зроблені репліки
+  // й те, над чим AI думають зараз
+  const thinking = discussion?.thinking;
+  const traceSteps = useMemo(
+    () => [...(currentRun?.items || []).map(doneStep), ...(thinking || []).map(thinkingStep)],
+    [currentRun, thinking]
+  );
+  const runStartedAt = Date.parse(currentRun?.start.created_at) || undefined;
   const pendingMessage =
     revealedCount < visibleMessages.length ? visibleMessages[revealedCount] : null;
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
@@ -507,6 +512,24 @@ export default function ChatPage() {
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
   // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
   const showThoughtLine = participantNames.length > 0 && !isRevealing && isRunning && !isFinished;
+
+  // Завершені запуски лишають у чаті згорнутий рядок «Аналізовано за …» після
+  // своєї останньої репліки — розгорнувши його, видно, що саме аналізували.
+  // Тривалість — за часом сервера: від питання чи уточнення до останньої репліки.
+  const runRecords = useMemo(() => {
+    const records = new Map();
+    const lastSettled = !isRunning && (isFinished || isFailed || isStopped);
+    runs.forEach((run, index) => {
+      const last = run.items[run.items.length - 1];
+      if (!last || (index === runs.length - 1 && !lastSettled)) return;
+      const seconds = (Date.parse(last.created_at) - Date.parse(run.start.created_at)) / 1000;
+      records.set(last.id, {
+        steps: run.items.map(doneStep),
+        seconds: Number.isFinite(seconds) ? Math.max(0, seconds) : 0,
+      });
+    });
+    return records;
+  }, [runs, isRunning, isFinished, isFailed, isStopped]);
 
   // уточнення користувача показуємо одразу, без «друку»
   useEffect(() => {
@@ -1470,6 +1493,18 @@ export default function ChatPage() {
                     </div>
                   </div>
                 )}
+                {!typing && runRecords.has(message.id) && (
+                  <ThoughtLine
+                    working={false}
+                    steps={runRecords.get(message.id).steps}
+                    elapsed={runRecords.get(message.id).seconds}
+                    label={t.advancing}
+                    doneLabel={t.thoughtDone}
+                    glyph="sparkle"
+                    fontSize={16}
+                    className="chat__thought chat__thought--done"
+                  />
+                )}
               </Fragment>
             );
           })}
@@ -1558,6 +1593,7 @@ export default function ChatPage() {
               working={isRunning}
               steps={traceSteps}
               activeCount={thinking?.length || 0}
+              startedAt={runStartedAt}
               label={t.advancing}
               doneLabel={t.thoughtDone}
               glyph="sparkle"

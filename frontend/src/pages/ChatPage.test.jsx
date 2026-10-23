@@ -122,6 +122,27 @@ describe('ChatPage', () => {
     expect(screen.getByText('Марта · «Залежить від людей. Теза.»')).toBeInTheDocument();
   });
 
+  it('після аналізу лишає згорнутий рядок «Аналізовано за …» з кроками', async () => {
+    const user = userEvent.setup();
+    const at = (seconds) => new Date(Date.UTC(2026, 9, 23, 9, 0, seconds)).toISOString();
+    const finished = structuredClone(DISCUSSION);
+    finished.messages = finished.messages.map((message, index) => ({
+      ...message,
+      created_at: at([0, 20, 40, 95][index]),
+    }));
+    vi.mocked(fetchDiscussion).mockResolvedValue(finished);
+    renderPage();
+
+    const status = await screen.findByText('Аналізовано за 1 хвилину 35 секунд');
+    const toggle = status.closest('button');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const steps = [...toggle.closest('.thought-line').querySelectorAll('.thought-line__step-text')];
+    expect(steps.map((step) => step.textContent)).toEqual(['Учасник 1', 'Марта', 'Модератор']);
+  });
+
   it('нова модель учасника зберігається на сервері', async () => {
     const user = userEvent.setup();
     vi.mocked(updateDiscussion).mockResolvedValue(structuredClone(DISCUSSION));

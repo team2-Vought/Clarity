@@ -9,10 +9,12 @@ const EASE_IN_OUT = [0.77, 0, 0.175, 1];
 const GLYPH_DONE = 0.55;
 const EMPTY_STEPS = [];
 
-const fmt = (ds) =>
-  ds < 600
-    ? `${(ds / 10).toFixed(1)}s`
-    : `${Math.floor(ds / 600)}m ${((ds % 600) / 10).toFixed(1)}s`;
+// цілі секунди: десяті частки лише мерехтіли й відволікали
+const fmt = (ds) => {
+  const seconds = Math.floor(ds / 10);
+  if (seconds < 60) return `${seconds} с`;
+  return `${Math.floor(seconds / 60)} хв ${String(seconds % 60).padStart(2, '0')} с`;
+};
 
 // У DM Sans немає табличних цифр («1» удвічі вужча за «0»), тож кожна цифра
 // стоїть у комірці однакової ширини — інакше таймер і стрілка поруч тремтять
@@ -25,10 +27,22 @@ const fixedDigits = (text) =>
     )
   );
 
-const spoken = (ds) =>
-  ds < 600
-    ? `${(ds / 10).toFixed(1)} seconds`
-    : `${Math.floor(ds / 600)} minutes ${((ds % 600) / 10).toFixed(1)} seconds`;
+// «за 1 секунду / 2 секунди / 5 секунд» — знахідний відмінок після «за»
+const plural = (n, one, few, many) => {
+  const tens = n % 100;
+  if (n % 10 === 1 && tens !== 11) return one;
+  if (n % 10 >= 2 && n % 10 <= 4 && (tens < 12 || tens > 14)) return few;
+  return many;
+};
+
+const spoken = (ds) => {
+  const total = Math.floor(ds / 10);
+  const seconds = total % 60;
+  const minutes = Math.floor(total / 60);
+  const secondsText = `${seconds} ${plural(seconds, 'секунду', 'секунди', 'секунд')}`;
+  if (!minutes) return secondsText;
+  return `${minutes} ${plural(minutes, 'хвилину', 'хвилини', 'хвилин')} ${secondsText}`;
+};
 
 export default function ThoughtLine({
   label = 'Thinking…',
@@ -52,6 +66,9 @@ export default function ThoughtLine({
   working = true,
   settleAfter = 0,
   elapsed,
+  // момент початку (мс від епохи): таймер іде від нього, а не від монтування,
+  // тож не скидається, якщо рядок ненадовго ховали
+  startedAt,
   showTimer = true,
   timerLabel = '',
   onSettle,
@@ -157,15 +174,16 @@ export default function ThoughtLine({
       return undefined;
     }
     if (!isWorking) return undefined;
-    const startedAt = performance.now();
-    dsRef.current = 0;
-    const id = setInterval(() => {
-      const ds = Math.floor((performance.now() - startedAt) / 100);
+    const origin = performance.now() - (startedAt ? Math.max(0, Date.now() - startedAt) : 0);
+    const tick = () => {
+      const ds = Math.floor((performance.now() - origin) / 100);
       paint(ds);
       if (settleAfter > 0 && ds >= Math.round(settleAfter * 10)) setAutoSettled(true);
-    }, 100);
+    };
+    tick();
+    const id = setInterval(tick, 100);
     return () => clearInterval(id);
-  }, [isWorking, elapsed, settleAfter]);
+  }, [isWorking, elapsed, settleAfter, startedAt]);
 
   useLayoutEffect(() => {
     const timer = timerGroupRef.current;

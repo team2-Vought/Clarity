@@ -132,8 +132,8 @@
 }
 
 .thought-line__timer-value {
-  /* ширина «00.0s»: стрілка не зсувається, поки секунди двозначні */
-  min-width: 2.75em;
+  /* ширина «00 с»: стрілка не зсувається, поки секунди двозначні */
+  min-width: 2.25em;
   font-variant-numeric: tabular-nums;
 }
 
