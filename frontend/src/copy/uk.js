@@ -327,20 +327,6 @@ export const uk = {
     viewFull: 'Повністю',
     viewTheses: 'Лише тези',
     expandMessage: 'Показати повністю',
-    positions: 'Позиції',
-    positionOpening: 'Вступ',
-    positionRound: (round) => `Р${round}`,
-    positionDevil: 'Devil',
-    positionDevilN: (index) => `Devil ${index}`,
-    positionMark: {
-      'згода': '✓',
-      'суперечка': '✗',
-    },
-    positionChanged: 'змінив(-ла) позицію',
-    positionsHint: (mode) =>
-      mode === 'open'
-        ? '✓ — погоджується зі співрозмовником, ✗ — сперечається. Devil — ставлення до рішення після критики.'
-        : 'Позиція кожного учасника по етапах. Підсвічено, де хтось змінив думку.',
     revealAll: (count) => `Показати всі нові репліки (${count})`,
     notePlaceholderByPhase: {
       synthesis: 'Уточніть — це врахують AI Devil, учасники й модератор',
@@ -353,7 +339,6 @@ export const uk = {
     repeat: 'Нова дискусія з цими налаштуваннями',
     share: 'Публічне посилання',
     createShareLink: 'Створити посилання для перегляду',
-    shareHint: 'За посиланням дискусію можна переглянути без входу, але не змінити. Ваше ім’я не показується.',
     shareLink: 'Публічне посилання на дискусію',
     shareAction: 'Поділитися посиланням',
     copyLink: 'Копіювати посилання',

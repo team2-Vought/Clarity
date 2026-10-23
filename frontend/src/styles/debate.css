@@ -2460,63 +2460,6 @@ span.debate__tag {
   color: var(--ink);
 }
 
-/* Карта позицій: хто що думав на кожному етапі */
-.chat__positions {
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.chat__positions table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.chat__positions th,
-.chat__positions td {
-  padding: 5px 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.chat__positions thead th {
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.chat__positions tbody th {
-  max-width: 96px;
-  overflow: hidden;
-  color: var(--ink);
-  font-weight: 600;
-  text-align: left;
-  text-overflow: ellipsis;
-}
-
-.chat__positions td {
-  max-width: 90px;
-  overflow: hidden;
-  color: var(--ink);
-  text-overflow: ellipsis;
-}
-
-.chat__positions td[data-tone='agree'] {
-  color: #2f9e6b;
-}
-
-.chat__positions td[data-tone='disagree'] {
-  color: var(--error, #c93a62);
-}
-
-.chat__position--changed {
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--peach, #feedd5) 80%, transparent);
-  color: #121212;
-  font-weight: 600;
-}
-
 .chat__stance {
   padding: 1px 8px;
   border-radius: 999px;

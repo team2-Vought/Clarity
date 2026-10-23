@@ -172,20 +172,6 @@ const modelNameOf = (models, id) => {
 
 // Колонка карти позицій: вступ, раунд або відповідь на Devil (після
 // уточнення синтез і Devil проходять ще раз, тож відповідей може бути кілька).
-const positionColumnOf = (message, devilCount) => {
-  if (message.phase === 'opening') return { key: 'opening', label: t.positionOpening };
-  if (message.phase === 'debate') {
-    return { key: `round-${message.round || 1}`, label: t.positionRound(message.round || 1) };
-  }
-  if (message.phase === 'rebuttal') {
-    return {
-      key: `rebuttal-${devilCount}`,
-      label: devilCount > 1 ? t.positionDevilN(devilCount) : t.positionDevil,
-    };
-  }
-  return null;
-};
-
 const snippetOf = (content) =>
   plainText(content).replace(CITATION_RE, '').replace(/\s+/g, ' ').trim().slice(0, 220);
 
@@ -464,21 +450,6 @@ export default function ChatPage() {
       })),
     [discussionPersonas, defaultModel, personaInfo]
   );
-
-  const positionMap = useMemo(() => {
-    const columns = [];
-    const cells = new Map();
-    let devilCount = 0;
-    (messages || []).forEach((message) => {
-      if (message.role === 'devil') devilCount += 1;
-      if (message.role !== 'ai' || !message.stance) return;
-      const column = positionColumnOf(message, devilCount);
-      if (!column) return;
-      if (!columns.some((item) => item.key === column.key)) columns.push(column);
-      cells.set(`${message.persona_slug}:${column.key}`, message.stance);
-    });
-    return { columns, cells };
-  }, [messages]);
 
   const participantColors = useMemo(
     () => new Map(participantEntries.map((participant) => [participant.key, participant.color])),
@@ -1209,65 +1180,6 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {positionMap.columns.length > 0 && (
-                  <div className="debate__field">
-                    <h3 className="debate__field-title">{t.positions}</h3>
-                    <div className="chat__positions">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th scope="col">
-                              <span className="sr-only">{d.participants}</span>
-                            </th>
-                            {positionMap.columns.map((column) => (
-                              <th key={column.key} scope="col">
-                                {column.label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {participantEntries.map((participant) => {
-                            let previous = '';
-                            return (
-                              <tr key={participant.key}>
-                                <th scope="row" title={participant.label}>
-                                  {participant.label}
-                                </th>
-                                {positionMap.columns.map((column) => {
-                                  const value = positionMap.cells.get(`${participant.key}:${column.key}`) || '';
-                                  const changed =
-                                    discussion.mode !== 'open' && previous && value && value !== previous;
-                                  if (value) previous = value;
-                                  const text = discussion.mode === 'open'
-                                    ? t.positionMark[value] || ''
-                                    : value;
-                                  const title = [
-                                    discussion.mode === 'open' ? t.stance[value] : value,
-                                    changed ? t.positionChanged : '',
-                                  ].filter(Boolean).join(' · ');
-                                  return (
-                                    <td
-                                      key={column.key}
-                                      className={changed ? 'chat__position--changed' : undefined}
-                                      data-tone={discussion.mode === 'open' ? stanceTone(value) : undefined}
-                                      title={title || undefined}
-                                    >
-                                      {text || '—'}
-                                      {title && <span className="sr-only">{title}</span>}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="debate__note">{t.positionsHint(discussion.mode)}</p>
-                  </div>
-                )}
-
                 <div className="debate__field">
                   <h3 className="debate__field-title">{t.share}</h3>
                   {shareUrl ? (
@@ -1310,7 +1222,6 @@ export default function ChatPage() {
                       {t.createShareLink}
                     </button>
                   )}
-                  <p className="debate__note">{t.shareHint}</p>
                 </div>
               </section>
             </div>
