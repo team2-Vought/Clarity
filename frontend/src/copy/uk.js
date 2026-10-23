@@ -375,13 +375,6 @@ export const uk = {
     phaseRebuttal: 'Відповіді на критику',
     phaseFinal: 'Фінальний висновок',
     earlyStop: (round) => `Учасники дійшли згоди після раунду ${round} — решту раундів пропущено`,
-    stageResearch: 'Пошук джерел в інтернеті',
-    stageOpening: 'Вступні позиції · усі учасники одночасно',
-    stageRound: (round, name) => `Раунд ${round} · ${name}`,
-    stageSynthesis: 'Узагальнення · Модератор',
-    stageDevil: 'Перевірка · AI Devil',
-    stageRebuttal: 'Відповіді на критику · усі учасники',
-    stageFinal: 'Фінальний висновок · Модератор',
   },
 
   field: {

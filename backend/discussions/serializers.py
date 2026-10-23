@@ -330,6 +330,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     retryable = serializers.SerializerMethodField()
     search = serializers.SerializerMethodField()
     max_followups = serializers.SerializerMethodField()
+    thinking = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
         queryset = obj.messages.order_by('seq')
@@ -352,6 +353,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_max_followups(self, obj):
         return int(settings.DISCUSSION_MAX_FOLLOWUPS)
+
+    def get_thinking(self, obj):
+        return engine.describe_step(obj)
 
     class Meta:
         model = Discussion
@@ -387,6 +391,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'best_solution',
             'devil_review',
             'final_summary',
+            'thinking',
             'messages',
             'created_at',
             'finished_at',

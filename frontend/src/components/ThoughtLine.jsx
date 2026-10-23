@@ -36,6 +36,8 @@ export default function ThoughtLine({
   renderLabel,
   glyph = 'sparkle',
   steps = EMPTY_STEPS,
+  // скільки останніх кроків іде зараз: паралельні фази думають кількома AI одразу
+  activeCount = 1,
   collapsible = true,
   collapseOnSettle = true,
   color = 'currentColor',
@@ -283,7 +285,7 @@ export default function ThoughtLine({
           <div className="thought-line__fold">
             <div className="thought-line__steps">
               {steps.map((text, index) => {
-                const done = !isWorking || index < steps.length - 1;
+                const done = !isWorking || index < steps.length - activeCount;
                 return (
                   <div key={`${index}-${text}`} className="thought-line__step" data-done={done ? '' : undefined}>
                     <span className="thought-line__mark" aria-hidden="true">

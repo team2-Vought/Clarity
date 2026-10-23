@@ -1202,6 +1202,126 @@ def _prepare_step(discussion):
 
 
 # ---------------------------------------------------------------------------
+# Над чим зараз думають AI — для індикатора «Аналізуємо…»
+# ---------------------------------------------------------------------------
+
+FOCUS_QUOTE_LIMIT = 110
+
+
+def _quote(text, limit=FOCUS_QUOTE_LIMIT):
+    """Коротка цитата в лапках: обрізаємо по слову, щоб влізла в один-два рядки."""
+    text = ' '.join(str(text or '').split())
+    if len(text) > limit:
+        text = text[: limit - 1].rsplit(' ', 1)[0].rstrip(' ,.;:—-') + '…'
+    return f'«{text}»' if text else ''
+
+
+def _thesis_of(message):
+    return message.thesis or prompts.fallback_thesis(message.content)
+
+
+def _focus(persona, text):
+    return {'slug': persona['slug'], 'name': persona['name'], 'text': text}
+
+
+def _question_focus(discussion):
+    """Що саме вирішують у вступі: питання й варіанти, а не загальне «формує позицію»."""
+    mode, options = _mode_ctx(discussion)
+    question = _quote(discussion.question)
+    if mode == Discussion.Mode.YES_NO:
+        return f'вирішує «так» чи «ні»: {question}'
+    if mode == Discussion.Mode.CHOOSE_ONE and options:
+        return 'обирає між ' + ', '.join(_quote(option, 40) for option in options[:4])
+    return f'шукає відповідь на {question}'
+
+
+def _stance_tally(messages, personas):
+    """«Так — Логік, Скептик; Ні — Емоційний»: останні позиції учасників."""
+    latest = {}
+    for message in messages:
+        if message.role == Message.Role.AI and message.stance:
+            latest[message.persona_slug] = message.stance
+    groups = {}
+    for persona in personas:
+        stance = latest.get(persona['slug'])
+        if stance:
+            groups.setdefault(stance, []).append(persona['name'])
+    return '; '.join(f'{stance} — {", ".join(names)}' for stance, names in groups.items())
+
+
+def describe_step(discussion):
+    """Над чим конкретно зараз працюють AI: по рядку на кожного, хто думає.
+
+    Нічого не викликає в моделей — лише читає стан, тож безпечно для кожного
+    опитування. Повертає [{slug, name, text}], порожньо для завершеної дискусії.
+    """
+    if discussion.phase == Discussion.Phase.DONE or discussion.status in {
+        Discussion.Status.DONE,
+        Discussion.Status.FAILED,
+    }:
+        return []
+    personas = _resolved_personas(discussion)
+    if not personas:
+        return []
+    messages = _list_messages(discussion)
+    phase = discussion.phase
+
+    if phase == Discussion.Phase.RESEARCH:
+        return [_focus(RESEARCHER, f'підбирає пошукові запити до {_quote(discussion.question)}')]
+
+    if phase == Discussion.Phase.OPENING:
+        done = _speakers_done(messages, phase)
+        text = _question_focus(discussion)
+        return [_focus(persona, text) for persona in personas if persona['slug'] not in done]
+
+    if phase == Discussion.Phase.DEBATE:
+        order = _speaker_order(personas, discussion.current_round)
+        if discussion.speaker_index >= len(order):
+            return []
+        persona = order[discussion.speaker_index]
+        target, reason = _reply_target(messages, persona)
+        if target is None:
+            return [_focus(persona, 'розвиває власну позицію')]
+        quote = _quote(_thesis_of(target)) if reason != 'user' else _quote(target.content)
+        if reason == 'user':
+            return [_focus(persona, f'відповідає на ваше уточнення {quote}')]
+        verb = {
+            'question': 'відповідає на звернення',
+            'disagree': 'сперечається з тезою',
+        }.get(reason, 'розбирає тезу')
+        return [_focus(persona, f'→ {target.persona_name} · {verb} {quote}')]
+
+    if phase == Discussion.Phase.SYNTHESIS:
+        tally = _stance_tally(messages, personas)
+        text = f'зважує позиції: {tally}' if tally else 'зводить аргументи учасників у рішення'
+        return [_focus(MODERATOR, text)]
+
+    solution = discussion.best_solution or {}
+    decision = _quote(solution.get('answer') or solution.get('decision'))
+
+    if phase == Discussion.Phase.DEVIL:
+        text = f'шукає слабкі місця в рішенні {decision}' if decision else 'шукає слабкі місця в рішенні'
+        return [_focus(DEVIL, text)]
+
+    review = discussion.devil_review or {}
+    risks = review.get('risks') or []
+    critique = _quote(risks[0].get('title') if risks else review.get('verdict'))
+
+    if phase == Discussion.Phase.REBUTTAL:
+        done = _speakers_done(messages, phase)
+        text = f'→ {DEVIL["name"]} · відповідає на критику {critique}' if critique else (
+            f'→ {DEVIL["name"]} · відповідає на критику'
+        )
+        return [_focus(persona, text) for persona in personas if persona['slug'] not in done]
+
+    if phase == Discussion.Phase.FINAL:
+        text = f'зважує критику {critique} і формулює висновок' if critique else 'формулює фінальний висновок'
+        return [_focus(MODERATOR, text)]
+
+    return []
+
+
+# ---------------------------------------------------------------------------
 # Тексти повідомлень судді
 # ---------------------------------------------------------------------------
 

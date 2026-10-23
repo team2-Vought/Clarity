@@ -98,6 +98,30 @@ describe('ChatPage', () => {
     expect(within(second).getByText('Без особливих рис')).toBeInTheDocument();
   });
 
+  it('поки AI думають, показує зроблені кроки й те, над чим саме вони думають зараз', async () => {
+    const running = {
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'debate',
+      is_finished: false,
+      is_running: true,
+      messages: DISCUSSION.messages.slice(0, 3).map((message) => ({
+        ...message,
+        thesis: message.role === 'ai' ? `${message.content} Теза.` : '',
+      })),
+      thinking: [
+        { slug: 'emotional', name: 'Марта', text: '→ Учасник 1 · сперечається з тезою «Так, варто. Теза.»' },
+      ],
+    };
+    vi.mocked(fetchDiscussion).mockResolvedValue(running);
+    renderPage();
+
+    const line = await screen.findByText('Марта → Учасник 1 · сперечається з тезою «Так, варто. Теза.»');
+    expect(line).toBeInTheDocument();
+    expect(screen.getByText('Учасник 1 · «Так, варто. Теза.»')).toBeInTheDocument();
+    expect(screen.getByText('Марта · «Залежить від людей. Теза.»')).toBeInTheDocument();
+  });
+
   it('нова модель учасника зберігається на сервері', async () => {
     const user = userEvent.setup();
     vi.mocked(updateDiscussion).mockResolvedValue(structuredClone(DISCUSSION));

@@ -199,12 +199,24 @@ const mergeMessages = (current, incoming) => {
 const lastSeqOf = (discussion) =>
   (discussion?.messages || []).reduce((max, message) => Math.max(max, message.seq || 0), 0);
 
-// Порядок виступів зсувається щораунду — так само, як на сервері.
-const rotate = (list, round) => {
-  if (list.length === 0) return list;
-  const shift = (Math.max(1, round) - 1) % list.length;
-  return [...list.slice(shift), ...list.slice(0, shift)];
+// Коротка цитата тези в кроці індикатора — обрізана по слову
+const shortQuote = (text, limit = 60) => {
+  const clean = (text || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  const cut = clean.length > limit ? `${clean.slice(0, limit - 1).replace(/\s+\S*$/, '')}…` : clean;
+  return `«${cut}»`;
 };
+
+// Зроблений крок: хто говорив, кому відповідав і з якою тезою
+const doneStep = (message) => {
+  const who = message.reply_to ? `${message.persona_name} → ${message.reply_to}` : message.persona_name;
+  const thesis = shortQuote(message.thesis);
+  return thesis ? `${who} · ${thesis}` : who;
+};
+
+// Поточний крок із сервера: над чим саме зараз думає кожен AI
+const thinkingStep = (item) =>
+  item.text.startsWith('→') ? `${item.name} ${item.text}` : `${item.name} · ${item.text}`;
 
 
 
@@ -394,9 +406,13 @@ export default function ChatPage() {
     [messages, questionMessage]
   );
 
+  // поля дискусії — окремими змінними, щоб React Compiler бачив ті самі залежності, що й useMemo
+  const discussionSources = discussion?.sources;
+  const discussionPersonas = discussion?.personas;
+
   const sourcesById = useMemo(
-    () => new Map((discussion?.sources || []).map((source) => [source.id, source])),
-    [discussion?.sources]
+    () => new Map((discussionSources || []).map((source) => [source.id, source])),
+    [discussionSources]
   );
 
   const personaInfo = useMemo(
@@ -406,15 +422,15 @@ export default function ChatPage() {
 
   const customNames = useMemo(() => {
     const map = new Map();
-    (discussion?.personas || []).forEach((persona) => {
+    (discussionPersonas || []).forEach((persona) => {
       if (persona.name) map.set(persona.slug, persona.name);
     });
     return map;
-  }, [discussion?.personas]);
+  }, [discussionPersonas]);
 
   const participantEntries = useMemo(
     () =>
-      (discussion?.personas || []).map((persona, index) => ({
+      (discussionPersonas || []).map((persona, index) => ({
         key: persona.slug || `participant-${index}`,
         label:
           persona.name
@@ -425,7 +441,7 @@ export default function ChatPage() {
         traits: Array.isArray(persona.traits) ? persona.traits : [],
         color: TRAIT_COLORS[index % TRAIT_COLORS.length],
       })),
-    [discussion?.personas, defaultModel, personaInfo]
+    [discussionPersonas, defaultModel, personaInfo]
   );
 
   const positionMap = useMemo(() => {
@@ -458,56 +474,20 @@ export default function ChatPage() {
     [participantEntries]
   );
 
-  // Етапи дискусії: вступ і відповіді на Devil — паралельні, тож це один етап.
-  // Після раннього консенсусу раунди, які пропустили, не показуємо.
-  const plannedRounds = discussion?.early_stop
-    ? Number(discussion?.current_round) || 1
-    : Math.max(1, Number(discussion?.rounds) || 1);
-  const hasResearch = Boolean(discussion?.web_search);
-
-  const stagePlan = useMemo(() => {
-    if (participantNames.length === 0) return [];
-    const stages = hasResearch ? [t.stageResearch, t.stageOpening] : [t.stageOpening];
-    for (let round = 1; round <= plannedRounds; round += 1) {
-      rotate(participantNames, round).forEach((name) => stages.push(t.stageRound(round, name)));
-    }
-    stages.push(t.stageSynthesis, t.stageDevil, t.stageRebuttal, t.stageFinal);
-    return stages;
-  }, [participantNames, plannedRounds, hasResearch]);
-
-  const currentStage = useMemo(() => {
-    if (!discussion) return 0;
-    const offset = hasResearch ? 1 : 0;
-    const debateStart = offset + 1;
-    const afterDebate = debateStart + plannedRounds * participantNames.length;
-    switch (discussion.phase) {
-      case 'research':
-        return 0;
-      case 'opening':
-        return offset;
-      case 'debate':
-        return (
-          debateStart
-          + (Math.max(1, Number(discussion.current_round) || 1) - 1) * participantNames.length
-          + (Number(discussion.speaker_index) || 0)
-        );
-      case 'synthesis':
-        return afterDebate;
-      case 'devil':
-        return afterDebate + 1;
-      case 'rebuttal':
-        return afterDebate + 2;
-      case 'final':
-        return afterDebate + 3;
-      default:
-        return stagePlan.length;
-    }
-  }, [discussion, plannedRounds, participantNames.length, stagePlan.length, hasResearch]);
-
-  const traceSteps = stagePlan.slice(
-    0,
-    isFinished ? stagePlan.length : Math.min(currentStage + 1, stagePlan.length)
-  );
+  // Кроки індикатора «Аналізуємо…» — лише цього запуску (після питання чи
+  // останнього уточнення): зроблені репліки й те, над чим AI думають зараз
+  const thinking = discussion?.thinking;
+  const traceSteps = useMemo(() => {
+    const list = messages || [];
+    let start = 0;
+    list.forEach((message, index) => {
+      if (message.role === 'user') start = index + 1;
+    });
+    return [
+      ...list.slice(start).map(doneStep),
+      ...(thinking || []).map(thinkingStep),
+    ];
+  }, [messages, thinking]);
   const pendingMessage =
     revealedCount < visibleMessages.length ? visibleMessages[revealedCount] : null;
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
@@ -526,7 +506,7 @@ export default function ChatPage() {
       : '';
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
   // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
-  const showThoughtLine = stagePlan.length > 0 && !isRevealing && isRunning && !isFinished;
+  const showThoughtLine = participantNames.length > 0 && !isRevealing && isRunning && !isFinished;
 
   // уточнення користувача показуємо одразу, без «друку»
   useEffect(() => {
@@ -1577,6 +1557,7 @@ export default function ChatPage() {
             <ThoughtLine
               working={isRunning}
               steps={traceSteps}
+              activeCount={thinking?.length || 0}
               label={t.advancing}
               doneLabel={t.thoughtDone}
               glyph="sparkle"

@@ -289,6 +289,35 @@ class EngineTests(TestCase):
         self.assertIn('Ти відповідаєш учаснику «', debate_prompt)
         self.assertIn('→ відповідає', debate_prompt)
 
+    def test_describe_step_names_what_each_step_works_on(self):
+        opening = engine.describe_step(self.discussion)
+        self.assertEqual([item['slug'] for item in opening], ['logician', 'skeptic', 'creative'])
+        self.assertIn('Чи варто змінювати роботу на стартап?', opening[0]['text'])
+
+        seen = set()
+        while self.discussion.phase != Discussion.Phase.DONE:
+            focus = engine.describe_step(self.discussion)
+            self.assertTrue(focus, f'порожній опис у фазі {self.discussion.phase}')
+            phase = self.discussion.phase
+            created = engine.advance(self.discussion, provider_factory=self.provider_factory)
+            self.discussion.refresh_from_db()
+            seen.add(phase)
+            if phase == Discussion.Phase.DEBATE:
+                # опис називає саме того, кому учасник потім відповів, і його тезу
+                (message,) = created
+                self.assertEqual(focus[0]['slug'], message.persona_slug)
+                self.assertIn(f'→ {message.reply_to} ·', focus[0]['text'])
+                theses = self.discussion.messages.filter(
+                    persona_slug=message.reply_to_slug, seq__lt=message.seq
+                ).values_list('thesis', flat=True)
+                self.assertTrue(any(f'«{thesis}»' in focus[0]['text'] for thesis in theses))
+            if phase == Discussion.Phase.DEVIL:
+                self.assertEqual(focus[0]['slug'], 'devil')
+                self.assertIn('слабкі місця в рішенні «', focus[0]['text'])
+
+        self.assertIn(Discussion.Phase.DEBATE, seen)
+        self.assertEqual(engine.describe_step(self.discussion), [])
+
     def test_addressed_participant_answers_first(self):
         for _ in range(4):  # вступ + три репліки першого раунду
             engine.advance(self.discussion, provider_factory=self.provider_factory)
