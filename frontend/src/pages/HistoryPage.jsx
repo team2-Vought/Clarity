@@ -35,8 +35,6 @@ const GROUP_ORDER = ['pinned', 'today', 'yesterday', 'week', 'older'];
 // закріплені — першими, далі від нових до старих (як сортує сервер)
 const byPinThenDate = (a, b) =>
   Number(b.pinned) - Number(a.pinned) || new Date(b.created_at) - new Date(a.created_at);
-// «archived» — не статус, а окремий розділ: архівні дискусії не змішуються з рештою
-const STATUS_FILTERS = ['', 'in_progress', 'done', 'failed', 'archived'];
 const SEARCH_DELAY = 300;
 // стільки секунд можна скасувати видалення
 const UNDO_MS = 5000;
@@ -128,14 +126,14 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  // архів — окремий розділ: архівні дискусії не змішуються з рештою
+  const [isArchive, setIsArchive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   // видалена, але ще не стерта на сервері дискусія: її можна повернути
   const [pendingDelete, setPendingDelete] = useState(null);
   const pendingRef = useRef(null);
   const { pushToast } = useToasts();
-  const isArchive = statusFilter === 'archived';
-  const listParams = { status: isArchive ? '' : statusFilter, archived: isArchive, q: searchTerm };
+  const listParams = { archived: isArchive, q: searchTerm };
   const [view, setView] = useState(readView);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -151,11 +149,7 @@ export default function HistoryPage() {
     setIsLoading(true);
     setError('');
     try {
-      const data = await fetchDiscussions({
-        status: statusFilter === 'archived' ? '' : statusFilter,
-        archived: statusFilter === 'archived',
-        q: searchTerm,
-      });
+      const data = await fetchDiscussions({ archived: isArchive, q: searchTerm });
       setItems(data?.results || []);
       setNextOffset(data?.next_offset ?? null);
       setNow(new Date());
@@ -164,7 +158,7 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter, searchTerm]);
+  }, [isArchive, searchTerm]);
 
   const loadMore = async () => {
     if (nextOffset === null || isLoadingMore) return;
@@ -199,8 +193,7 @@ export default function HistoryPage() {
       try {
         const data = await fetchDiscussions({
           limit: loadedCount,
-          status: statusFilter === 'archived' ? '' : statusFilter,
-          archived: statusFilter === 'archived',
+          archived: isArchive,
           q: searchTerm,
           signal: controller.signal,
         });
@@ -214,7 +207,7 @@ export default function HistoryPage() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [hasRunning, loadedCount, statusFilter, searchTerm]);
+  }, [hasRunning, loadedCount, isArchive, searchTerm]);
 
   const commitDelete = useCallback(async (pending) => {
     clearTimeout(pending.timer);
@@ -289,7 +282,7 @@ export default function HistoryPage() {
   };
 
   const visible = items;
-  const isFiltered = Boolean(statusFilter || searchTerm);
+  const isFiltered = Boolean(isArchive || searchTerm);
 
   const skeletons = useMemo(
     () => Array.from({ length: SKELETON_COUNT }, (_, index) => ({ skeleton: index })),
@@ -479,22 +472,6 @@ export default function HistoryPage() {
 
           {isLoading && <p className="history__sr-only" role="status">{t.loading}</p>}
 
-          {hasItems && (
-            <div className="history__filters" role="group" aria-label={t.filterLabel}>
-              {STATUS_FILTERS.map((value) => (
-                <button
-                  key={value || 'all'}
-                  type="button"
-                  className={`history__filter${statusFilter === value ? ' history__filter--active' : ''}`}
-                  aria-pressed={statusFilter === value}
-                  onClick={() => setStatusFilter(value)}
-                >
-                  {t.filters[value || 'all']}
-                </button>
-              ))}
-            </div>
-          )}
-
           {!isLoading && items.length === 0 && !error && !isFiltered && (
             <p className="history__empty history__empty--blank">{t.empty}</p>
           )}
@@ -551,7 +528,7 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* вертикальна панель: пошук і вигляд угорі, нова дискусія внизу */}
+      {/* вертикальна панель: пошук, вигляд і архів угорі, нова дискусія внизу */}
       <aside className="history__rail" aria-label={t.toolbar}>
         <div className="history__rail-group">
           {/* поле пошуку «виростає» з круглої кнопки ліворуч і ховається назад у неї */}
@@ -607,6 +584,17 @@ export default function HistoryPage() {
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            className={`history__rail-button history__archive${isArchive ? ' history__archive--active' : ''}`}
+            aria-pressed={isArchive}
+            aria-label={t.archiveSection}
+            title={t.archiveSection}
+            onClick={() => setIsArchive((current) => !current)}
+          >
+            <HugeiconsIcon icon={Archive02Icon} size={22} aria-hidden="true" />
+          </button>
         </div>
 
         <button
