@@ -1269,15 +1269,7 @@ body:has(.app-shell) {
   padding: 16px;
   border-radius: 28px;
   background: var(--card);
-  animation: debate-sheet-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   container-type: inline-size;
-}
-
-@keyframes debate-sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
 }
 
 .debate__sheet-head {
@@ -1644,10 +1636,6 @@ body:has(.app-shell) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .debate__sheet {
-    animation: none;
-  }
-
   .debate__token,
   .debate__role,
   .debate__tag {

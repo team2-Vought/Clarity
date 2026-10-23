@@ -116,9 +116,6 @@ export default function DebatePage() {
   const [modelOrder, setModelOrder] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [activeSlug, setActiveSlug] = useState('');
-  // Лічильник перемикань учасника: ключ анкети, щоб вона анімувалась лише при
-  // переході до іншого учасника, а не при зміні ролі (slug ролі теж змінюється)
-  const [sheetKey, setSheetKey] = useState(0);
   const [maxParticipants, setMaxParticipants] = useState(DEFAULT_MAX_PARTICIPANTS);
   const [customTraits, setCustomTraits] = useState([]);
   const [traitDraft, setTraitDraft] = useState('');
@@ -343,14 +340,12 @@ export default function DebatePage() {
     if (slug === activeParticipant?.slug) {
       // активним стає сусід зліва (або новий перший)
       setActiveSlug(next[Math.max(0, index - 1)]?.slug || '');
-      setSheetKey((key) => key + 1);
     }
   };
 
   const selectParticipant = (slug) => {
     if (slug === activeParticipant?.slug) return;
     setActiveSlug(slug);
-    setSheetKey((key) => key + 1);
   };
 
   // Ім'я редагується прямо в заголовку анкети; пробіли по краях прибираються на виході з поля
@@ -434,7 +429,6 @@ export default function DebatePage() {
       },
     ]);
     setActiveSlug(persona.slug);
-    setSheetKey((key) => key + 1);
   };
 
   const toggleTrait = (trait) => {
@@ -821,7 +815,6 @@ export default function DebatePage() {
 
             {activeParticipant && (
               <section
-                key={sheetKey}
                 className="debate__sheet"
                 style={{ '--chip': activeParticipant.color }}
                 aria-label={t.participantSheet(activeLabel)}
