@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { AiModelIcon, ChevronIcon } from './DebateIcons';
 import { uk } from '../copy/uk';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
 
 const t = uk.debate;
+
+// галочка біля вибраної моделі — як у меню ролі й формату відповіді
+const OptionCheck = () => (
+  <HugeiconsIcon icon={Tick02Icon} size={16} className="debate__model-option-check" aria-hidden="true" />
+);
 
 const modelLabel = (model) =>
   model ? `${model.provider} — ${model.label || model.model}` : '';
@@ -32,6 +39,12 @@ export default function ModelPicker({
 
   useEffect(() => {
     if (!isOpen) return undefined;
+    // список довгий: вибрана модель — посередині видимої частини, а не обрізана внизу
+    const list = menuRef.current;
+    const option = list?.querySelector('[aria-selected="true"]');
+    if (list && option) {
+      list.scrollTop = option.offsetTop - (list.clientHeight - option.offsetHeight) / 2;
+    }
     const handleMouseDown = (e) => {
       if (!ref.current?.contains(e.target) && !menuRef.current?.contains(e.target)) setIsOpen(false);
     };
@@ -116,6 +129,7 @@ export default function ModelPicker({
                 onClick={() => choose('')}
               >
                 <span>{autoLabel}</span>
+                {!value && <OptionCheck />}
               </button>
             </li>
           )}
@@ -136,6 +150,7 @@ export default function ModelPicker({
                   {!model.available && (
                     <span className="debate__model-option-note">{t.modelUnavailable}</span>
                   )}
+                  {active && <OptionCheck />}
                 </button>
               </li>
             );

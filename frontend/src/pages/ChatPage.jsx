@@ -1117,7 +1117,7 @@ export default function ChatPage() {
               <section className="debate__sheet debate__sheet--plain" aria-label={t.view}>
                 <div className="debate__field debate__field--first">
                   <h3 className="debate__field-title">{t.view}</h3>
-                  <div className="debate__roles" role="group" aria-label={t.view}>
+                  <div className="debate__pills" role="group" aria-label={t.view}>
                     {[
                       [false, t.viewFull],
                       [true, t.viewTheses],
@@ -1125,7 +1125,7 @@ export default function ChatPage() {
                       <button
                         key={label}
                         type="button"
-                        className={`debate__role ${compact === value ? 'debate__role--active' : ''}`}
+                        className={`debate__pill ${compact === value ? 'debate__pill--active' : ''}`}
                         aria-pressed={compact === value}
                         onClick={() => toggleCompact(value)}
                       >
@@ -1190,7 +1190,7 @@ export default function ChatPage() {
                         </tbody>
                       </table>
                     </div>
-                    <p className="debate__role-note">{t.positionsHint(discussion.mode)}</p>
+                    <p className="debate__note">{t.positionsHint(discussion.mode)}</p>
                   </div>
                 )}
 
@@ -1228,7 +1228,7 @@ export default function ChatPage() {
                   ) : (
                     <button
                       type="button"
-                      className="debate__role debate__share-create"
+                      className="debate__pill debate__share-create"
                       onClick={handleShare}
                       disabled={isSharing}
                     >
@@ -1236,7 +1236,7 @@ export default function ChatPage() {
                       {t.createShareLink}
                     </button>
                   )}
-                  <p className="debate__role-note">{t.shareHint}</p>
+                  <p className="debate__note">{t.shareHint}</p>
                 </div>
               </section>
             </div>

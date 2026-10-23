@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   BubbleChatIcon,
@@ -7,6 +7,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { uk } from '../copy/uk';
+import { usePickerMenu } from '../hooks/usePickerMenu';
 
 const t = uk.debate;
 
@@ -21,23 +22,17 @@ const MODES = [
 export default function ModePicker({ value, onChange, disabled = false, locked = false, onChosen }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
+  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   const current = MODES.find((item) => item.value === value) || MODES[0];
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    // фокус на вибраний пункт, щоб стрілками й Enter можна було обрати одразу
-    ref.current?.querySelector('[aria-checked="true"]')?.focus();
-    const handleMouseDown = (e) => {
-      if (!ref.current?.contains(e.target)) setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [isOpen]);
-
-  const close = (returnFocus = false) => {
-    setIsOpen(false);
-    if (returnFocus) ref.current?.querySelector('.debate__mode-button')?.focus();
-  };
+  const { handleKeyDown } = usePickerMenu({
+    isOpen,
+    setIsOpen,
+    rootRef: ref,
+    menuRef,
+    triggerRef,
+  });
 
   const choose = (next) => {
     if (locked) return;
@@ -46,22 +41,10 @@ export default function ModePicker({ value, onChange, disabled = false, locked =
     onChosen?.();
   };
 
-  const handleKeyDown = (e) => {
-    const items = [...e.currentTarget.querySelectorAll('[role="menuitemradio"]')];
-    const index = items.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      items[(index + step + items.length) % items.length]?.focus();
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
-      if (e.key === 'Escape') e.preventDefault();
-      close(e.key === 'Escape');
-    }
-  };
-
   return (
     <div className={`debate__mode-picker ${locked ? 'debate__mode-picker--locked' : ''}`} ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         className={`debate__mode-button ${isOpen ? 'debate__mode-button--open' : ''}`}
         onClick={() => setIsOpen((open) => !open)}
@@ -74,6 +57,7 @@ export default function ModePicker({ value, onChange, disabled = false, locked =
         <HugeiconsIcon icon={current.icon} size={19} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <div
+        ref={menuRef}
         className={`debate__mode-menu ${isOpen ? 'debate__mode-menu--open' : ''}`}
         role="menu"
         aria-label={t.mode}

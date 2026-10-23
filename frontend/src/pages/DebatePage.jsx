@@ -629,14 +629,14 @@ export default function DebatePage() {
                   {t.rounds}
                   <span className="debate__field-aside">{t.roundsSub(rounds)}</span>
                 </h3>
-                <div className="debate__roles" role="radiogroup" aria-label={t.rounds}>
+                <div className="debate__pills" role="radiogroup" aria-label={t.rounds}>
                   {Array.from({ length: maxRounds }, (_, i) => i + 1).map((value) => (
                     <button
                       key={value}
                       type="button"
                       role="radio"
                       aria-checked={rounds === value}
-                      className={`debate__role ${rounds === value ? 'debate__role--active' : ''}`}
+                      className={`debate__pill ${rounds === value ? 'debate__pill--active' : ''}`}
                       onClick={() => setRounds(value)}
                       disabled={isCreating}
                     >
@@ -644,7 +644,7 @@ export default function DebatePage() {
                     </button>
                   ))}
                 </div>
-                <p className="debate__role-note">{t.roundsHint}</p>
+                <p className="debate__note">{t.roundsHint}</p>
               </div>
 
               <div className="debate__field">
@@ -660,7 +660,7 @@ export default function DebatePage() {
                   />
                 </label>
                 {!searchStatus.available && (
-                  <p className="debate__role-note">{t.webSearchUnavailable}</p>
+                  <p className="debate__note">{t.webSearchUnavailable}</p>
                 )}
                 {estimate && <p className="debate__hint">{estimate}</p>}
               </div>

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { ChevronIcon } from './DebateIcons';
 import { uk } from '../copy/uk';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
+import { usePickerMenu } from '../hooks/usePickerMenu';
 import { roleIcon } from '../utils/debateOptions';
 
 const t = uk.debate;
@@ -19,44 +20,24 @@ export default function RolePicker({ personas, participants, value, onChange, di
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   const current = personas.find((persona) => persona.slug === value);
 
   const { host, place } = useFloatingMenu(isOpen, ref, menuRef, { outset: OUTSET });
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    // фокус на вибраний пункт, щоб стрілками й Enter можна було обрати одразу
-    menuRef.current?.querySelector('[aria-checked="true"]')?.focus({ preventScroll: true });
-    const handleMouseDown = (e) => {
-      if (!ref.current?.contains(e.target) && !menuRef.current?.contains(e.target)) setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [isOpen]);
-
-  const close = (returnFocus = false) => {
-    setIsOpen(false);
-    if (returnFocus) ref.current?.querySelector('.debate__role-button')?.focus();
-  };
+  const { close, handleKeyDown } = usePickerMenu({
+    isOpen,
+    setIsOpen,
+    rootRef: ref,
+    menuRef,
+    triggerRef,
+    tabReturnsFocus: true,
+  });
 
   const choose = (slug, taken) => {
     if (taken) return;
     onChange(slug);
     close(true);
-  };
-
-  const handleKeyDown = (e) => {
-    const items = [...e.currentTarget.querySelectorAll('[role="menuitemradio"]')];
-    const index = items.indexOf(document.activeElement);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      items[(index + step + items.length) % items.length]?.focus();
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
-      // меню живе в іншому місці розмітки — Tab повертає на кнопку, а не стрибає в кінець сторінки
-      e.preventDefault();
-      close(true);
-    }
   };
 
   const menu = (
@@ -114,6 +95,7 @@ export default function RolePicker({ personas, participants, value, onChange, di
   return (
     <div className="debate__role-picker" ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         className={`debate__role-button ${isOpen ? 'debate__role-button--open' : ''}`}
         onClick={() => setIsOpen((open) => !open)}
