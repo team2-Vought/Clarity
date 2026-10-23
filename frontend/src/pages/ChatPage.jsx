@@ -128,31 +128,46 @@ function SourceFavicon({ url }) {
   );
 }
 
+// Згорнутий вигляд джерел: кілька логотипів і кількість
+function SourcesLabel({ sources }) {
+  return (
+    <>
+      <span className="chat__sources-icons" aria-hidden="true">
+        {sources.slice(0, 4).map((source) => (
+          <SourceFavicon key={source.id} url={source.url} />
+        ))}
+      </span>
+      {`${t.sources} · ${sources.length}`}
+      <HugeiconsIcon icon={ArrowDown01Icon} size={14} className="chat__sources-chevron" />
+    </>
+  );
+}
+
+function SourceItems({ sources, query = '' }) {
+  return (
+    <ol>
+      {query && <li className="chat__sources-query">{t.searchedFor(query)}</li>}
+      {sources.map((source) => (
+        <li key={source.id}>
+          <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
+            <SourceFavicon url={source.url} />
+            <span className="chat__source-title">{source.title || domainOf(source.url)}</span>
+            <span className="chat__source-domain">{domainOf(source.url)}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 // Згорнуто — рядок із кількома логотипами, розгорнуто — список посилань
 function SourceList({ sources, query = '', compact = false }) {
   return (
     <details className={`chat__sources ${compact ? 'chat__sources--compact' : ''}`}>
       <summary>
-        <span className="chat__sources-icons" aria-hidden="true">
-          {sources.slice(0, 4).map((source) => (
-            <SourceFavicon key={source.id} url={source.url} />
-          ))}
-        </span>
-        {`${t.sources} · ${sources.length}`}
-        <HugeiconsIcon icon={ArrowDown01Icon} size={14} className="chat__sources-chevron" />
+        <SourcesLabel sources={sources} />
       </summary>
-      <ol>
-        {query && <li className="chat__sources-query">{t.searchedFor(query)}</li>}
-        {sources.map((source) => (
-          <li key={source.id}>
-            <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
-              <SourceFavicon url={source.url} />
-              <span className="chat__source-title">{source.title || domainOf(source.url)}</span>
-              <span className="chat__source-domain">{domainOf(source.url)}</span>
-            </a>
-          </li>
-        ))}
-      </ol>
+      <SourceItems sources={sources} query={query} />
     </details>
   );
 }
@@ -224,6 +239,7 @@ export default function ChatPage() {
   const [loadError, setLoadError] = useState('');
   const [copyState, setCopyState] = useState('');
   const [pdfState, setPdfState] = useState('');
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [note, setNote] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -1555,16 +1571,28 @@ export default function ChatPage() {
                 >
                   <HugeiconsIcon icon={RepeatIcon} size={18} />
                 </button>
+                {/* кнопка — праворуч у рядку дій, а список розкривається під рядком */}
+                {discussion?.sources?.length > 0 && (
+                  <button
+                    type="button"
+                    className="chat__sources-toggle"
+                    onClick={() => setIsSourcesOpen((open) => !open)}
+                    aria-expanded={isSourcesOpen}
+                    aria-controls="chat-summary-sources"
+                  >
+                    <SourcesLabel sources={discussion.sources} />
+                  </button>
+                )}
               </div>
+              {discussion?.sources?.length > 0 && isSourcesOpen && (
+                <div id="chat-summary-sources" className="chat__sources chat__sources--summary">
+                  <SourceItems sources={discussion.sources} />
+                </div>
+              )}
               {(copyState === 'error' || pdfState === 'error') && (
                 <p className="chat__summary-note" role="alert">
                   {copyState === 'error' ? t.copyError : t.pdfError}
                 </p>
-              )}
-              {discussion?.sources?.length > 0 && (
-                <div style={summaryStep()}>
-                  <SourceList sources={discussion.sources} />
-                </div>
               )}
             </section>
           )}

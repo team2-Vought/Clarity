@@ -3726,7 +3726,8 @@ ol.chat__reveal {
   font-size: 0.875rem;
 }
 
-.chat__sources summary {
+.chat__sources summary,
+.chat__sources-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -3741,12 +3742,14 @@ ol.chat__reveal {
   display: none;
 }
 
-.chat__sources summary:hover {
+.chat__sources summary:hover,
+.chat__sources-toggle:hover {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--ink);
 }
 
-.chat__sources summary:focus-visible {
+.chat__sources summary:focus-visible,
+.chat__sources-toggle:focus-visible {
   outline: 2px solid var(--focus, #7f80ac);
   outline-offset: 1px;
 }
@@ -3777,6 +3780,24 @@ ol.chat__reveal {
   width: min(520px, 100%);
 }
 
+/* під підсумком кнопка джерел стоїть праворуч у рядку дій, а список
+   розкривається під рядком, як і під репліками */
+.chat__sources-toggle {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.chat__sources--summary {
+  margin-top: -10px;
+}
+
 .chat__sources-query {
   padding: 2px 8px 6px 4px;
   color: var(--muted);
@@ -3788,7 +3809,8 @@ ol.chat__reveal {
   transition: transform 0.2s;
 }
 
-.chat__sources[open] .chat__sources-chevron {
+.chat__sources[open] .chat__sources-chevron,
+.chat__sources-toggle[aria-expanded='true'] .chat__sources-chevron {
   transform: rotate(180deg);
 }
 
