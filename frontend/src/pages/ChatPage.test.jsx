@@ -143,6 +143,22 @@ describe('ChatPage', () => {
     expect(steps.map((step) => step.textContent)).toEqual(['Учасник 1', 'Марта', 'Модератор']);
   });
 
+  it('фінальну репліку модератора не дублює — висновок лише в картці підсумку', async () => {
+    const finished = structuredClone(DISCUSSION);
+    finished.final_summary = { decision: 'Переходити, але домовитися про випробувальний строк.' };
+    finished.messages.push({
+      id: 'f', seq: 5, role: 'moderator', phase: 'final', persona_slug: 'moderator',
+      persona_name: 'Модератор', avatar: '⚖️', content: 'Висновок модератора дослівно.',
+    });
+    vi.mocked(fetchDiscussion).mockResolvedValue(finished);
+    renderPage();
+
+    expect(await screen.findByText('Переходити, але домовитися про випробувальний строк.')).toBeInTheDocument();
+    expect(screen.queryByText('Висновок модератора дослівно.')).not.toBeInTheDocument();
+    // проміжне узагальнення модератора лишається в чаті
+    expect(screen.getByText('Підсумок.')).toBeInTheDocument();
+  });
+
   it('нова модель учасника зберігається на сервері', async () => {
     const user = userEvent.setup();
     vi.mocked(updateDiscussion).mockResolvedValue(structuredClone(DISCUSSION));

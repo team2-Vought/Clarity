@@ -50,6 +50,7 @@ import { describeSummary, summaryDetailSteps } from '../utils/summary';
 import {
   USER_COLOR,
   buildSpeakers,
+  duplicateFinalId,
   findReplyTarget,
   phaseLabel,
   speakerKeyOf,
@@ -416,9 +417,14 @@ export default function ChatPage() {
     agreement,
     lists: summaryLists,
   } = summaryView;
+  // картка підсумку видна — фінальну репліку модератора, що її дублює, ховаємо
+  const hiddenFinalId = duplicateFinalId(messages || [], Boolean(summaryDecision) && isFinished);
   const visibleMessages = useMemo(
-    () => (messages || []).filter((message) => message !== questionMessage),
-    [messages, questionMessage]
+    () =>
+      (messages || []).filter(
+        (message) => message !== questionMessage && message.id !== hiddenFinalId
+      ),
+    [messages, questionMessage, hiddenFinalId]
   );
 
   // поля дискусії — окремими змінними, щоб React Compiler бачив ті самі залежності, що й useMemo
@@ -537,14 +543,17 @@ export default function ChatPage() {
     runs.forEach((run, index) => {
       const last = run.items[run.items.length - 1];
       if (!last || (index === runs.length - 1 && !lastSettled)) return;
+      // рядок стоїть після останньої видимої репліки запуску (фінальну могли сховати)
+      const anchor = run.items.findLast((item) => item.id !== hiddenFinalId);
       const seconds = (Date.parse(last.created_at) - Date.parse(run.start.created_at)) / 1000;
-      records.set(last.id, {
+      if (!anchor) return;
+      records.set(anchor.id, {
         steps: run.items.map(doneStep),
         seconds: Number.isFinite(seconds) ? Math.max(0, seconds) : 0,
       });
     });
     return records;
-  }, [runs, isRunning, isFinished, isFailed, isStopped]);
+  }, [runs, isRunning, isFinished, isFailed, isStopped, hiddenFinalId]);
 
   // уточнення користувача показуємо одразу, без «друку»
   useEffect(() => {

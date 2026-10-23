@@ -29,6 +29,17 @@ export const speakerKeyOf = (message) =>
 
 export const slugOf = (message) => (message.role === 'user' ? 'user' : message.persona_slug);
 
+// Остання репліка модератора у фазі «Фінальний висновок» дослівно повторює
+// картку підсумку під чатом. Поки картка видна, цю репліку не показуємо.
+export const duplicateFinalId = (messages, summaryShown) => {
+  if (!summaryShown) return null;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role === 'moderator' && message.phase === 'final') return message.id;
+  }
+  return null;
+};
+
 // Остання репліка того, кому відповідають, — для цитати над текстом
 export const findReplyTarget = (messages, index) => {
   const message = messages[index];

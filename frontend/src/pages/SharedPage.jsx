@@ -12,6 +12,7 @@ import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import {
   USER_COLOR,
   buildSpeakers,
+  duplicateFinalId,
   phaseLabel,
   speakerKeyOf,
   stanceLabel,
@@ -56,7 +57,10 @@ export default function SharedPage() {
 
   const messages = useMemo(() => discussion?.messages || [], [discussion]);
   const question = messages.find((message) => message.role === 'user');
-  const visible = messages.filter((message) => message !== question);
+  const summary = discussion?.final_summary || null;
+  const summaryView = describeSummary(summary);
+  const hiddenFinal = duplicateFinalId(messages, Boolean(summaryView.decision));
+  const visible = messages.filter((message) => message !== question && message.id !== hiddenFinal);
   const sourcesById = useMemo(
     () => new Map((discussion?.sources || []).map((source) => [source.id, source])),
     [discussion]
@@ -72,8 +76,6 @@ export default function SharedPage() {
     [discussion]
   );
   const speakers = useMemo(() => buildSpeakers(messages, participantColors), [messages, participantColors]);
-  const summary = discussion?.final_summary || null;
-  const summaryView = describeSummary(summary);
   const names = (discussion?.personas || []).map((persona) => persona.name).filter(Boolean);
 
   return (
