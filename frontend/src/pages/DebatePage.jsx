@@ -25,6 +25,7 @@ import {
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
+import RolePicker from '../components/RolePicker';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { useToasts } from '../hooks/useToasts';
@@ -161,7 +162,6 @@ export default function DebatePage() {
   const activeParticipant =
     participants.find((p) => p.slug === activeSlug) || participants[0];
   const activeTraits = activeParticipant?.traits || [];
-  const activeRole = personas.find((p) => p.slug === activeParticipant?.slug);
   const hasAvailableModels = models.some((m) => m.available);
   const allParticipantsHaveModels =
     participants.length > 0
@@ -854,34 +854,13 @@ export default function DebatePage() {
 
                   <div className="debate__field">
                     <h3 className="debate__field-title">{t.role}</h3>
-                    <div className="debate__roles" role="group" aria-label={t.role}>
-                      {personas.map((persona) => {
-                        const active = persona.slug === activeParticipant.slug;
-                        const holderIndex = participants.findIndex((p) => p.slug === persona.slug);
-                        const holder = !active && holderIndex >= 0 ? participants[holderIndex] : null;
-                        const holderLabel = holder ? holder.name.trim() || t.participantN(holderIndex + 1) : '';
-                        return (
-                          <button
-                            key={persona.slug}
-                            type="button"
-                            className={`debate__role ${active ? 'debate__role--active' : ''}`}
-                            aria-pressed={active}
-                            disabled={isCreating || Boolean(holder)}
-                            title={holder ? t.roleHeldBy(holderLabel) : persona.description}
-                            onClick={() => handleRoleSelect(persona.slug)}
-                          >
-                            <HugeiconsIcon icon={roleIcon(persona.slug)} size={15} strokeWidth={1.8} aria-hidden="true" />
-                            {persona.name}
-                            {holder && (
-                              <span className="debate__role-holder" style={{ '--chip': holder.color }} aria-hidden="true">
-                                {holderIndex + 1}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {activeRole && <p className="debate__role-note">{activeRole.description}</p>}
+                    <RolePicker
+                      personas={personas}
+                      participants={participants}
+                      value={activeParticipant.slug}
+                      onChange={handleRoleSelect}
+                      disabled={isCreating}
+                    />
                   </div>
 
                   <div className="debate__field">

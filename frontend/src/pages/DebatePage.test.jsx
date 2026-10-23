@@ -62,7 +62,8 @@ beforeEach(() => {
 });
 
 describe('DebatePage', () => {
-  it('показує склад жетонами, а зайняту роль — недоступною з підказкою, хто її має', async () => {
+  it('показує склад жетонами, а зайняту роль у меню — недоступною з підказкою, хто її має', async () => {
+    const user = userEvent.setup();
     renderPage();
     expect(await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' })).toHaveAttribute(
       'aria-pressed',
@@ -70,10 +71,14 @@ describe('DebatePage', () => {
     );
     expect(screen.getByRole('button', { name: 'Вибрати учасника «Учасник 2»' })).toBeInTheDocument();
 
-    const roles = within(sheetOf('Учасник 1')).getByRole('group', { name: 'Роль' });
-    const taken = within(roles).getByRole('button', { name: 'Емоційний' });
-    expect(taken).toBeDisabled();
+    await user.click(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' }));
+    const roles = screen.getByRole('menu', { name: 'Роль' });
+    const taken = within(roles).getByRole('menuitemradio', { name: /Емоційний/ });
+    expect(taken).toHaveAttribute('aria-disabled', 'true');
     expect(taken).toHaveAttribute('title', 'Цю роль уже має «Учасник 2»');
+
+    await user.click(taken);
+    expect(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' })).toBeInTheDocument();
   });
 
   it('зміна ролі оновлює анкету на місці, без перемонтування', async () => {
@@ -82,10 +87,12 @@ describe('DebatePage', () => {
     await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
     const sheet = sheetOf('Учасник 1');
 
-    await user.click(within(sheet).getByRole('button', { name: 'Скептик' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Роль: Логік' }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Скептик/ }));
 
     expect(sheetOf('Учасник 1')).toBe(sheet);
-    expect(within(sheet).getByRole('button', { name: 'Скептик' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('формат відповіді обирається з меню біля поля питання', async () => {

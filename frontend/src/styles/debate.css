@@ -432,12 +432,10 @@ body:has(.app-shell) {
   transform: rotate(180deg);
 }
 
+/* список — шар поверх сторінки; позицію й ширину ставить ModelPicker від картки */
 .debate__model-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  left: 0;
-  z-index: 30;
+  position: fixed;
+  z-index: 120;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -475,6 +473,17 @@ body:has(.app-shell) {
     clip-path 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
     opacity 0.14s ease,
     transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* над карткою, коли знизу не влазить: шторка розгортається знизу вгору */
+.debate__model-menu--up {
+  clip-path: inset(100% -28px -12px -28px);
+  transform: translateY(4px);
+}
+
+.debate__model-menu--up.debate__model-menu--open {
+  clip-path: inset(-36px -28px -12px -28px);
+  transform: none;
 }
 
 .debate__model-option {
@@ -1485,6 +1494,136 @@ body:has(.app-shell) {
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+/* вибір ролі в анкеті: «колодязь» з поточною роллю, меню — як у «Формату відповіді» */
+.debate__role-picker {
+  position: relative;
+}
+
+.debate__role-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 12px 7px 7px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--well);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.debate__role-button:hover:not(:disabled),
+.debate__role-button--open {
+  background: color-mix(in srgb, var(--ink) 11%, var(--card));
+}
+
+.debate__role-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__role-button:disabled {
+  cursor: not-allowed;
+}
+
+.debate__role-button-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: var(--chip, #f4c1cf);
+  color: #121212;
+}
+
+.debate__role-button-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.debate__role-button-text span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.debate__role-button-text small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debate__role-button--open .debate__model-chevron {
+  transform: rotate(180deg);
+}
+
+/* меню — шар поверх сторінки (позицію й ширину ставить RolePicker від кнопки):
+   так його не обрізає прокрутка панелі й не накриває футер */
+.debate__role-menu {
+  position: fixed;
+  z-index: 120;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  border-radius: 20px;
+  scrollbar-width: none;
+  transform-origin: top center;
+}
+
+.debate__role-menu--up {
+  transform: translateY(6px) scale(0.98);
+  transform-origin: bottom center;
+}
+
+.debate__role-menu--up.debate__mode-menu--open {
+  transform: none;
+}
+
+.debate__role-menu .debate__mode-item {
+  gap: 10px;
+  border-radius: 14px;
+}
+
+.debate__role-menu .debate__mode-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+}
+
+.debate__role-menu .debate__mode-item-text span {
+  font-size: 0.8125rem;
+}
+
+.debate__role-menu .debate__mode-item-text small {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* роль іншого учасника: видно його номер, але не обрати */
+.debate__role-item--taken {
+  cursor: not-allowed;
+}
+
+.debate__role-item--taken .debate__mode-item-icon,
+.debate__role-item--taken .debate__mode-item-text {
+  opacity: 0.45;
+}
+
+.debate__role-item--taken .debate__role-holder {
+  flex-shrink: 0;
+  margin-left: 0;
 }
 
 /* модель — «колодязь» на білій картці */

@@ -106,7 +106,7 @@ describe('ChatPage', () => {
     const sheet = sheetOf('Учасник 1');
 
     await user.click(within(sheet).getByRole('button', { name: 'Модель AI' }));
-    await user.click(within(sheet).getByRole('option', { name: 'Provider — Model Two' }));
+    await user.click(screen.getByRole('option', { name: 'Provider — Model Two' }));
 
     expect(updateDiscussion).toHaveBeenCalledWith('d1', {
       personas: [{ slug: 'logician', model: 'm2' }],
