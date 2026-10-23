@@ -901,6 +901,10 @@ export default function DebatePage() {
       </div>
 
       <main className="debate__main">
+        {/* бліда пляма під полем вводу, що повільно переливається, поки чат порожній */}
+        <div className="debate__glow" aria-hidden="true">
+          <span className="debate__glow-blob" />
+        </div>
         <div className="debate__hero">
           <h1 className="debate__title">{TITLE}</h1>
           <div className="debate__underline" />

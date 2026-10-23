@@ -571,6 +571,9 @@ body:has(.app-shell) {
 /* Основна область: заголовок і поле промпту по центру */
 
 .debate__main {
+  position: relative;
+  /* фон .debate__glow лежить під вмістом, але над тлом сторінки */
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -580,6 +583,65 @@ body:has(.app-shell) {
   min-height: 0;
   padding: 32px clamp(16px, 4vw, 48px);
   overflow-y: auto;
+}
+
+/* ---- фон порожнього чату: білий, під полем вводу — одна розмита пляма ----
+   Пляма трохи нижче центру, тож поле вводу лежить на її верхньому краї.
+   Повільно пливе й обертається, і кольори в ній переливаються.
+   Шар лежить під вмістом (isolation на .debate__main) і не ловить кліків.
+   Анімується лише transform — розмиття не перемальовується щокадру. */
+.debate__glow {
+  --glow-opacity: 0.25;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+:root[data-theme='dark'] .debate__glow {
+  --glow-opacity: 0.06;
+}
+
+.debate__glow-blob {
+  --glow-size: min(640px, 70vw, 80vh);
+  position: absolute;
+  top: calc(64% - var(--glow-size) / 2);
+  left: calc(50% - var(--glow-size) / 2);
+  width: var(--glow-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 45% 46%,
+    var(--lilac) 0%,
+    var(--pink) 30%,
+    var(--peach) 50%,
+    transparent 68%
+  );
+  opacity: var(--glow-opacity);
+  filter: blur(48px);
+  will-change: transform;
+  animation: debate-glow-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes debate-glow-drift {
+  0% {
+    transform: translate3d(-4%, 0, 0) scale(1) rotate(0deg);
+  }
+
+  50% {
+    transform: translate3d(5%, -3%, 0) scale(1.08) rotate(120deg);
+  }
+
+  100% {
+    transform: translate3d(-2%, 4%, 0) scale(0.95) rotate(240deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__glow-blob {
+    animation: none;
+  }
 }
 
 .debate__hero {
