@@ -907,7 +907,6 @@ export default function DebatePage() {
         </div>
         <div className="debate__hero">
           <h1 className="debate__title">{TITLE}</h1>
-          <div className="debate__underline" />
         </div>
 
         <div className="debate__prompt">

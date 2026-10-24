@@ -2283,19 +2283,9 @@ span.debate__tag {
   color: var(--ink);
 }
 
-/* глобальний градієнт під h1 з base.css тут не потрібен — є свій .debate__underline */
+/* без градієнтної смужки під заголовком, яку base.css додає всім h1 */
 .debate__title::after {
   content: none;
-}
-
-.debate__underline {
-  width: 72px;
-  height: 5px;
-  margin-top: 12px;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--lilac, #b4b5ce), var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd));
-  background-size: 200% 100%;
-  animation: gradient-shift 9s ease-in-out infinite alternate;
 }
 
 /* ---------- Chat ---------- */
