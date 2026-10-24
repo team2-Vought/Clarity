@@ -686,8 +686,9 @@
     --h-rail-gap: 10px;
   }
 
+  /* зверху місце під кнопку-«бургер», смуги іконок зліва вже немає */
   .history__scroll {
-    padding: 25px var(--h-rail-gap) 32px 6px;
+    padding: 72px var(--h-rail-gap) 32px 16px;
   }
 
   .history__rail {

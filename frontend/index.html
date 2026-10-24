@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- колір верхньої й нижньої смуг браузера на телефоні; оновлюється з темою -->
+    <meta name="theme-color" content="#ececec" />
     <title>Clarity</title>
     <script>
       (() => {
@@ -13,6 +15,9 @@
             ? saved
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
           document.documentElement.dataset.theme = theme;
+          if (theme === 'dark') {
+            document.querySelector('meta[name="theme-color"]').content = '#121212';
+          }
         } catch {
           document.documentElement.dataset.theme = 'light';
         }

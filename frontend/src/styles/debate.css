@@ -46,6 +46,15 @@ body:has(.app-shell) {
   overscroll-behavior: none;
 }
 
+/* тло документа — як у застосунку: Safari фарбує ним свої смуги й краї екрана */
+body:has(.app-shell) {
+  background: #ffffff;
+}
+
+:root[data-theme='dark'] body:has(.app-shell) {
+  background: #121212;
+}
+
 .app-shell__main {
   display: flex;
   flex-direction: column;
@@ -67,6 +76,11 @@ body:has(.app-shell) {
 .app-shell__rail {
   position: relative;
   background: var(--panel);
+}
+
+/* «бургер» потрібен лише на телефоні — на ширших екранах є смуга іконок */
+.app-shell__burger {
+  display: none;
 }
 
 .app-shell__backdrop {
@@ -1080,27 +1094,37 @@ body:has(.app-shell) {
   -webkit-line-clamp: 3;
 }
 
-/* вузький екран: картки гортаються вбік, а не стоять стовпчиком під полем */
+/* телефон: дві компактні картки стовпчиком над полем — тема й два рядки
+   питання; третя забирала б забагато висоти */
 @media (max-width: 640px) {
   .debate__suggestions {
-    display: flex;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
-    width: 100%;
-    /* гортальна стрічка сама обрізає вміст — місце під тінь карток знизу */
-    padding: 2px 0 26px;
-    margin-bottom: -26px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
   }
 
-  .debate__suggestions::-webkit-scrollbar {
+  .debate__suggestion:nth-child(n + 3) {
     display: none;
   }
 
   .debate__suggestion {
-    flex: 0 0 78%;
-    scroll-snap-align: start;
+    gap: 6px;
+    padding: 10px 12px 12px;
+    border-radius: 18px;
+  }
+
+  .debate__suggestion-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+  }
+
+  .debate__suggestion-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .debate__suggestion-text {
+    -webkit-line-clamp: 2;
   }
 }
 
@@ -3513,73 +3537,113 @@ ol.chat__reveal {
    смуга іконок — картка 50px з відступами 16 / 25, вміст — від 72px,
    панель налаштувань — суцільна шухляда майже на весь екран. */
 @media (max-width: 639px) {
+  /* смуги іконок на телефоні немає: вміст на весь екран, меню — шухляда
+     зліва за кнопкою-«бургером» */
   .app-shell {
     --rail-w: 50px;
-    grid-template-columns: 66px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-shell__rail {
-    background: var(--main-bg);
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 100;
+    width: 0;
   }
 
-  /* ---- смуга іконок і розгорнуте меню ----
-     Геометрія підібрана так, щоб логотип і іконки стояли на тих самих
-     координатах в обох станах: при розгортанні картка плавно розтягується
-     до краю екрана, а іконки не стрибають. Сума «відступ картки + відступ
-     списку + відступ пункту» однакова в обох станах, тож під час анімації
-     вона теж стала. */
+  .app-shell__burger {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    top: 20px;
+    left: 12px;
+    z-index: 80;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.18s, var(--press);
+  }
+
+  .app-shell__burger svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .app-shell__burger:focus-visible {
+    outline: 2px solid var(--focus, #7f80ac);
+  }
+
+  /* ---- меню: окреме вікно із закругленими кутами ----
+     Не від краю до краю, а картка з відступами від країв екрана. Згорнуте —
+     те саме вікно, лише сховане за лівим краєм, тож відкривається одним рухом. */
   .sidebar {
     --nav-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-    --nav-time: 0.28s;
+    --nav-time: 0.3s;
+    inset: 12px auto 12px 12px;
+    width: min(280px, calc(100vw - 72px));
+    padding: 16px 0;
+    border-radius: 28px;
+    background: var(--panel);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
     transition:
-      width var(--nav-time) var(--nav-ease),
-      top var(--nav-time) var(--nav-ease),
-      left var(--nav-time) var(--nav-ease),
-      bottom var(--nav-time) var(--nav-ease),
-      padding var(--nav-time) var(--nav-ease),
-      border-radius var(--nav-time) var(--nav-ease);
-  }
-
-  .sidebar__brand,
-  .sidebar__brand img,
-  .sidebar__nav,
-  .sidebar__item,
-  .sidebar__controls {
-    transition:
-      margin var(--nav-time) var(--nav-ease),
-      padding var(--nav-time) var(--nav-ease),
-      width var(--nav-time) var(--nav-ease),
-      background-color var(--nav-time) var(--nav-ease);
+      transform var(--nav-time) var(--nav-ease),
+      visibility 0s linear var(--nav-time);
   }
 
   .sidebar.sidebar--collapsed {
-    inset: 25px auto 25px 16px;
-    width: 50px;
-    padding: 10px 0;
-    border-radius: 10px;
+    inset: 12px auto 12px 12px;
+    width: min(280px, calc(100vw - 72px));
+    padding: 16px 0;
+    border-radius: 28px;
+    visibility: hidden;
+    transform: translateX(calc(-100% - 24px));
   }
 
-  .sidebar__brand {
-    gap: 0;
-    margin: 0 0 20px 5px;
-    padding: 0;
-    border-radius: 10px;
-    background-color: transparent;
+  .sidebar:not(.sidebar--collapsed) {
+    width: min(280px, calc(100vw - 72px));
+    visibility: visible;
+    transform: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+    transition: transform var(--nav-time) var(--nav-ease);
   }
 
-  .sidebar__brand img {
-    width: 40px;
+  /* лише логотип, без напису */
+  .sidebar__brand,
+  .sidebar:not(.sidebar--collapsed) .sidebar__brand {
+    margin: 0 0 16px;
+    padding: 4px 22px;
+    background: none;
   }
 
-  .sidebar__nav {
-    gap: 3px;
-    padding: 0 10px;
+  .sidebar__brand img,
+  .sidebar:not(.sidebar--collapsed) .sidebar__brand img {
+    width: 52px;
   }
 
-  .sidebar__item {
-    height: 32px;
-    padding: 0;
-    border-radius: 8px;
+  .sidebar__brand-label {
+    display: none;
+  }
+
+  /* великі пункти під палець: 52px заввишки, іконка 30px */
+  .sidebar__nav,
+  .sidebar:not(.sidebar--collapsed) .sidebar__nav {
+    gap: 4px;
+    padding: 0 12px;
+  }
+
+  .sidebar__item,
+  .sidebar:not(.sidebar--collapsed) .sidebar__item {
+    gap: 12px;
+    height: 52px;
+    padding: 0 12px;
+    border-radius: 16px;
+    font-size: 1.0625rem;
+    font-weight: 500;
   }
 
   .sidebar__item svg {
@@ -3587,108 +3651,26 @@ ol.chat__reveal {
     height: 30px;
   }
 
-  .sidebar__controls {
-    gap: 5px;
-    padding: 0 0 0 16px;
-  }
-
-  .sidebar__control {
-    width: auto;
-    height: 23px;
-    padding: 0;
-    gap: 6px;
-  }
-
-  .sidebar__control svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .sidebar__control--logout svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  /* розгорнуте меню: шухляда 220px. Зліва той самий суцільний колір, що
-     й у згорнутої смуги, праворуч плавно стає прозорим із легким розмиттям */
-  .sidebar:not(.sidebar--collapsed) {
-    inset: 0 auto 0 0;
-    width: 220px;
-    /* знизу 35 = 25 відступу картки + 10 її внутрішнього: кнопки не зсуваються */
-    padding: 25px 0 35px;
-    border-radius: 0;
-    background: linear-gradient(
-      to right,
-      var(--panel) 0%,
-      var(--panel) 45%,
-      color-mix(in srgb, var(--panel) 60%, transparent) 100%
-    );
-    backdrop-filter: blur(2px);
-    box-shadow: none;
-  }
-
-  /* логотип лишається на x 21→26, картка з назвою проступає навколо нього */
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand {
-    gap: 6px;
-    margin: 0 10px 10px 16px;
-    padding: 5px 10px;
-    background-color: var(--card);
-  }
-
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand img {
-    width: 55px;
-  }
-
-  .sidebar__brand-label {
-    display: inline;
-    overflow: hidden;
-    max-width: 0;
-    color: var(--ink);
-    font-size: 1.25rem;
-    font-weight: 700;
-    white-space: nowrap;
-    opacity: 0;
-    transition:
-      max-width var(--nav-time) var(--nav-ease),
-      opacity 0.12s ease;
-  }
-
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand-label {
-    max-width: 120px;
-    opacity: 1;
-    transition:
-      max-width var(--nav-time) var(--nav-ease),
-      opacity 0.2s ease 0.08s;
-  }
-
-  /* іконки пунктів стоять на x 26: картка 16 + список 10 → край 0 + 16 + 10 */
-  .sidebar:not(.sidebar--collapsed) .sidebar__nav {
-    padding: 0 10px 0 16px;
-  }
-
-  .sidebar:not(.sidebar--collapsed) .sidebar__item {
-    padding: 0 10px;
-    font-size: 0.875rem;
-    font-weight: 400;
-  }
-
+  .sidebar__controls,
   .sidebar:not(.sidebar--collapsed) .sidebar__controls {
-    padding-left: 32px;
+    gap: 2px;
+    padding: 12px 12px 0;
   }
 
+  .sidebar__control,
   .sidebar:not(.sidebar--collapsed) .sidebar__control {
-    font-size: 0.875rem;
-    font-weight: 400;
+    gap: 14px;
+    height: 46px;
+    padding: 0 15px;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 500;
   }
 
-  .sidebar__control:hover,
-  .sidebar:not(.sidebar--collapsed) .sidebar__control:hover {
-    background: transparent;
-  }
-
-  /* у макеті підпис є лише у «Вийти» */
-  .sidebar__control:not(.sidebar__control--logout) .sidebar__label {
-    display: none;
+  .sidebar__control svg,
+  .sidebar__control--logout svg {
+    width: 24px;
+    height: 24px;
   }
 
   .sidebar__control--logout {
@@ -3701,28 +3683,30 @@ ol.chat__reveal {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* панель налаштувань — окреме вікно справа із закругленими кутами,
+     як і меню зліва; сховане — за правим краєм екрана */
   .debate__form-panel {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset: 12px 12px 12px auto;
     z-index: 95;
-    /* майже на весь екран: 250px давали вмісту лише ~160px, і пігулки
-       ставали стовпчиком, а підписи переносились */
-    width: min(360px, calc(100vw - 16px));
+    /* зліва лишається смуга затемнення, на яку зручно тапнути, щоб закрити */
+    width: min(360px, calc(100vw - 72px));
     gap: 20px;
-    padding: 32px 15px 25px 75px;
-    /* лінія між смугою іконок і панеллю, як у макеті */
-    background:
-      linear-gradient(var(--divider), var(--divider)) 66px 25px / 1px calc(100% - 50px) no-repeat,
-      var(--panel);
+    padding: 20px 14px 14px;
+    border-radius: 28px;
+    background: var(--panel);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
     visibility: hidden;
-    transform: translateX(-100%);
-    transition: transform 0.22s ease, visibility 0s linear 0.22s;
+    transform: translateX(calc(100% + 24px));
+    transition:
+      transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+      visibility 0s linear 0.3s;
   }
 
   .debate-page--panel-open .debate__form-panel {
     visibility: visible;
     transform: none;
-    transition: transform 0.22s ease;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .debate__panel-backdrop {
@@ -3730,7 +3714,8 @@ ol.chat__reveal {
     position: fixed;
     inset: 0;
     z-index: 90;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.25);
+    animation: debate-view-in 0.22s ease-out;
   }
 
   
@@ -3762,13 +3747,14 @@ ol.chat__reveal {
 
   
 
-  /* кнопка «≡»: іконка 24px у точці (72, 35) */
+  /* кнопка панелі — у правому верхньому куті, навпроти «бургера»;
+     іконка віддзеркалена, бо й панель виїжджає справа */
   .debate__panel-toggle {
     display: grid;
     place-items: center;
     position: absolute;
-    top: 27px;
-    left: -2px;
+    top: 20px;
+    right: 12px;
     z-index: 30;
     width: 40px;
     height: 40px;
@@ -3783,6 +3769,7 @@ ol.chat__reveal {
   .debate__panel-toggle svg {
     width: 24px;
     height: 24px;
+    transform: scaleX(-1);
   }
 
   .debate__panel-toggle:focus-visible {
@@ -3800,40 +3787,79 @@ ol.chat__reveal {
     pointer-events: none;
   }
 
-  /* ---- головна: заголовок і поле 290px по центру ---- */
-  /* блок по центру екрана, як у макеті (рівні відступи зверху й знизу) */
+  /* ---- головна: заголовок по центру, поле внизу під великим пальцем ---- */
   .debate__main {
-    gap: 20px;
-    padding: 72px 25px 72px 9px;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 72px 16px max(16px, env(safe-area-inset-bottom));
   }
 
+  /* заголовок займає вільне місце й стоїть посередині нього */
   .debate__hero {
-    margin-bottom: 0;
+    margin: auto 0;
   }
 
   .debate__title {
-    max-width: 200px;
-    font-size: 1.5rem;
+    max-width: 300px;
+    font-size: 2.125rem;
+    line-height: 1.12;
     text-wrap: balance;
   }
 
+  /* знизу вгору: поле, над ним варіанти відповіді, ще вище — підказки */
+  .debate__suggestions-reveal {
+    order: 2;
+    --reveal-closed: -12px 0 0;
+    --reveal-open: 0;
+  }
+
+  .debate__mode-bar {
+    order: 3;
+  }
+
+  .debate__prompt {
+    order: 4;
+  }
+
+  .debate__main .debate__error-block {
+    order: 5;
+  }
+
+  /* поле внизу екрана — меню формату відкривається вгору */
+  .debate__main .debate__mode-menu {
+    top: auto;
+    bottom: calc(100% + 10px);
+    transform: translateY(6px) scale(0.98);
+    transform-origin: bottom left;
+  }
+
+  .debate__main .debate__mode-menu--open {
+    transform: none;
+  }
+
+  /* щільніший рядок поля: підказка «Детально опишіть проблему» влазить
+     цілою вже на екрані 375px (шрифт лишаємо 16px — менший iOS збільшує) */
+  .debate__prompt {
+    gap: 8px;
+  }
+
   .debate__main .debate__composer {
-    padding: 8px 8px 8px 16px;
+    gap: 6px;
+    padding: 8px 8px 8px 12px;
   }
 
   .debate__main .debate__composer-input {
     font-size: 1rem;
   }
 
-  /* меню — у межах екрана праворуч від смуги іконок */
   .debate__main .debate__mode-menu {
-    width: min(300px, calc(100vw - 104px));
+    width: min(300px, calc(100vw - 32px));
   }
 
   /* ---- чат: вміст 72–374px, поле внизу врівень зі смугою ---- */
   .chat__main {
     gap: 20px;
-    padding: 79px 16px 0 6px;
+    padding: 79px 16px 0;
   }
 
   .chat__row {
@@ -3898,7 +3924,7 @@ ol.chat__reveal {
   /* базове правило стоїть нижче у файлі, тому тут потрібна вища специфічність */
   /* вміст 72–374px, низ поля врівень зі смугою іконок (25px) */
   .chat-page .chat__column {
-    --chat-pad-l: 6px;
+    --chat-pad-l: 16px;
     --chat-pad-r: 16px;
   }
 
@@ -3912,7 +3938,7 @@ ol.chat__reveal {
   }
 
   .chat__composer-box .debate__mode-menu {
-    width: min(300px, calc(100vw - 104px));
+    width: min(300px, calc(100vw - 32px));
   }
 
   /* на вузькому екрані лічильник лише забирав би місце в рядку */

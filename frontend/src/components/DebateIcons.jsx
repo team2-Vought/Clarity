@@ -73,6 +73,13 @@ export const CloseIcon = () => (
   </svg>
 );
 
+// «бургер» — меню застосунку на телефоні, де смуги іконок немає
+export const MenuIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
 export const PanelIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M4 8h16M4 15h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

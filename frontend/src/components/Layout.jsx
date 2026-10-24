@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { MenuIcon } from './DebateIcons';
 import { UNAUTHORIZED_EVENT } from '../api/client';
 import { useToasts } from '../hooks/useToasts';
 import { uk } from '../copy/uk';
@@ -30,6 +31,17 @@ export default function Layout() {
     setPrevPathname(pathname);
     setCollapsed(true);
   }
+
+  // смуги браузера на телефоні — того ж кольору, що й сторінка застосунку;
+  // поза ним (лендинг, вхід) повертаємо колір їхнього сірого тла
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return undefined;
+    meta.content = theme === 'dark' ? '#121212' : '#ffffff';
+    return () => {
+      meta.content = document.documentElement.dataset.theme === 'dark' ? '#121212' : '#ececec';
+    };
+  }, [theme]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -84,6 +96,17 @@ export default function Layout() {
           onTogglePanel={togglePanel}
         />
       </div>
+
+      {/* на телефоні смуги іконок немає — меню відкривається цією кнопкою */}
+      <button
+        type="button"
+        className="app-shell__burger"
+        onClick={toggle}
+        aria-label={uk.nav.menu}
+        aria-expanded={!collapsed}
+      >
+        <MenuIcon />
+      </button>
 
       {/* затемнення завжди в розмітці, тож проявляється й зникає плавно */}
       <div

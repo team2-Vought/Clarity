@@ -249,7 +249,7 @@ export const uk = {
     retry: 'Спробувати ще раз',
     namePlaceholder: 'Ім’я',
     description: 'Опис',
-    placeholderDescription: 'Детально опишіть проблему та обставини',
+    placeholderDescription: 'Детально опишіть проблему',
     start: 'Почати дискусію',
     creating: 'Створюємо дискусію…',
     errorCreate: 'Не вдалося створити дискусію',
