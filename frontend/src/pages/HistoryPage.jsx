@@ -22,11 +22,9 @@ const t = uk.history;
 
 const VIEW_KEY = 'clarity:history-view';
 const SKELETON_COUNT = 6;
-// найвужча колонка сітки; на телефоні поруч із панеллю зазвичай вміщається одна
+// найвужча колонка сітки на ширших екранах
 const COLUMN_MIN = 250;
 const COLUMN_GAP = 16;
-const COLUMN_MIN_PHONE = 150;
-const COLUMN_GAP_PHONE = 12;
 // скільки чекаємо перед переходом, щоб картка встигла помітно «втиснутися»
 const PRESS_DELAY = 160;
 const DAY = 24 * 60 * 60 * 1000;
@@ -105,10 +103,12 @@ function useColumnCount(node) {
   useLayoutEffect(() => {
     if (!node) return undefined;
     const measure = () => {
-      const isPhone = window.matchMedia('(max-width: 639px)').matches;
-      const min = isPhone ? COLUMN_MIN_PHONE : COLUMN_MIN;
-      const gap = isPhone ? COLUMN_GAP_PHONE : COLUMN_GAP;
-      const fit = Math.floor((node.clientWidth + gap) / (min + gap));
+      // на телефоні завжди дві колонки — картки компактні й вміщаються
+      if (window.matchMedia('(max-width: 639px)').matches) {
+        setCount(2);
+        return;
+      }
+      const fit = Math.floor((node.clientWidth + COLUMN_GAP) / (COLUMN_MIN + COLUMN_GAP));
       setCount(Math.min(4, Math.max(1, fit)));
     };
     measure();

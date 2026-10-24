@@ -681,28 +681,68 @@
 /* ---- телефон ---- */
 
 @media (max-width: 639px) {
+  /* кнопки на телефоні білі, як «бургер» і кнопка панелі: вони висять над картками */
   .history {
-    --h-button: 44px;
-    --h-rail-gap: 10px;
+    --h-button: 50px;
+    --h-rail-gap: 16px;
+    --h-control: var(--card);
+    --h-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
+    --h-edge: 12px;
+    --h-bottom: max(16px, env(safe-area-inset-bottom));
   }
 
-  /* зверху місце під кнопку-«бургер», смуги іконок зліва вже немає */
+  /* картки на всю ширину: зверху місце під «бургер» і пошук,
+     знизу — під кнопки, що висять над вмістом */
   .history__scroll {
-    padding: 72px var(--h-rail-gap) 32px 16px;
+    padding: 72px 16px calc(var(--h-bottom) + var(--h-button) + 24px);
   }
 
+  /* смуги інструментів праворуч немає: її кнопки розкладені по кутах
+     екрана поверх вмісту — пошук угорі праворуч, вигляд і архів унизу
+     ліворуч, нова дискусія внизу праворуч */
   .history__rail {
-    gap: 10px;
-    padding: 25px 16px max(25px, env(safe-area-inset-bottom)) 0;
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    pointer-events: none;
   }
 
   .history__rail-group {
-    gap: 10px;
+    display: contents;
+  }
+
+  .history__searchbox,
+  .history__views,
+  .history__archive,
+  .history__new {
+    position: absolute;
+    pointer-events: auto;
+  }
+
+  .history__searchbox {
+    top: 16px;
+    right: var(--h-edge);
+  }
+
+  .history__views {
+    bottom: var(--h-bottom);
+    left: var(--h-edge);
+    flex-direction: row;
+  }
+
+  .history__archive {
+    bottom: var(--h-bottom);
+    left: calc(var(--h-edge) + 2 * var(--h-button) + 10px);
+  }
+
+  .history__new {
+    right: var(--h-edge);
+    bottom: var(--h-bottom);
   }
 
   .history__search {
-    /* від лівого краю вмісту (66px смуга меню + 6px відступ) до правого краю кнопки */
-    --search-width: calc(100vw - 72px - 16px);
+    /* поле виростає ліворуч від кнопки й зупиняється за «бургером» */
+    --search-width: calc(100vw - 2 * var(--h-edge) - var(--h-button) - 10px);
   }
 
   .history__grid,
@@ -747,7 +787,9 @@
 
   /* на вузькому екрані запит займає весь рядок, а час переходить під відповідь */
   .history--list .history__card {
-    grid-template-columns: minmax(0, 1fr) 40px;
+    /* дії (закріпити, архів, видалити) стоять стовпчиком праворуч — вузька
+       колонка, тож назва й опис отримують майже всю ширину рядка */
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'question delete'
       'preview delete'
@@ -756,6 +798,19 @@
 
   .history--list .history__when {
     font-size: 0.8125rem;
+  }
+
+  .history--list .history__actions {
+    flex-direction: column;
+    align-self: center;
+    gap: 0;
+    margin-right: -6px;
+  }
+
+  .history--list .history__action {
+    width: 34px;
+    height: 30px;
+    border-radius: 10px;
   }
 
   .history__group-title {
