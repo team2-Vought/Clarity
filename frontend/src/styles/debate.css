@@ -3555,23 +3555,30 @@ ol.chat__reveal {
     display: grid;
     place-items: center;
     position: fixed;
-    top: 20px;
+    top: 18px;
     left: 12px;
     z-index: 80;
-    width: 40px;
-    height: 40px;
+    /* кругла біла кнопка з тінню — видно й над текстом, що прокручується під нею */
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
-    border-radius: 12px;
-    background: transparent;
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: 0 4px 16px rgba(18, 18, 18, 0.12);
     color: var(--ink);
     cursor: pointer;
     transition: background 0.18s, var(--press);
   }
 
   .app-shell__burger svg {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
+  }
+
+  :root[data-theme='dark'] .app-shell__burger,
+  :root[data-theme='dark'] .debate__panel-toggle {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
 
   .app-shell__burger:focus-visible {
@@ -3753,22 +3760,24 @@ ol.chat__reveal {
     display: grid;
     place-items: center;
     position: absolute;
-    top: 20px;
+    top: 18px;
     right: 12px;
     z-index: 30;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
-    border-radius: 10px;
-    background: transparent;
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: 0 4px 16px rgba(18, 18, 18, 0.12);
     color: var(--ink);
     cursor: pointer;
+    transition: var(--press);
   }
 
   .debate__panel-toggle svg {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     transform: scaleX(-1);
   }
 
@@ -3776,7 +3785,7 @@ ol.chat__reveal {
     outline: 2px solid var(--focus, #7f80ac);
   }
 
-  /* смуга під кнопкою «≡»: прокручений текст не налазить на неї */
+  /* смуга під кнопками: прокручений текст не налазить на них */
   .debate-page::before {
     content: '';
     position: absolute;
@@ -3785,6 +3794,12 @@ ol.chat__reveal {
     height: 72px;
     background: linear-gradient(var(--main-bg) 80%, transparent);
     pointer-events: none;
+  }
+
+  /* у дискусії смуги немає: повідомлення прокручуються аж за верхній край
+     екрана, а кнопки лишаються помітними завдяки власному білому фону */
+  .chat-page::before {
+    content: none;
   }
 
   /* ---- головна: заголовок по центру, поле внизу під великим пальцем ---- */
