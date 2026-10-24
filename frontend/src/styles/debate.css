@@ -997,6 +997,99 @@ body:has(.app-shell) {
   width: min(760px, 100%);
 }
 
+/* картки-підказки під полем: білі, як анкета учасника; клік підставляє питання */
+.debate__suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(760px, 100%);
+  margin-top: 4px;
+  animation: debate-view-in 0.22s ease-out;
+}
+
+.debate__suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px 14px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: 0 6px 20px rgba(18, 18, 18, 0.05);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, var(--press);
+}
+
+:root[data-theme='dark'] .debate__suggestion {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.debate__suggestion:hover {
+  background: color-mix(in srgb, var(--ink) 3%, var(--card));
+  box-shadow: 0 10px 26px rgba(18, 18, 18, 0.09);
+}
+
+.debate__suggestion:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.debate__suggestion-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* бліда пастельна плитка; колір (--tone) кожній картці дає DebatePage випадково */
+.debate__suggestion-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone, #f4c1cf) 70%, #ffffff);
+  color: #121212;
+}
+
+.debate__suggestion-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* вузький екран: картки гортаються вбік, а не стоять стовпчиком під полем */
+@media (max-width: 640px) {
+  .debate__suggestions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding: 2px 0 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .debate__suggestions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .debate__suggestion {
+    flex: 0 0 78%;
+    scroll-snap-align: start;
+  }
+}
+
 .debate__mode-bar:empty {
   display: none;
 }

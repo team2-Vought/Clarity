@@ -123,6 +123,22 @@ describe('DebatePage', () => {
     expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('картка-підказка підставляє питання в поле, і підказки ховаються', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    const group = screen.getByRole('group', { name: 'Приклади питань' });
+    const card = within(group).getAllByRole('button')[0];
+    const text = card.querySelector('.debate__suggestion-text').textContent;
+    await user.click(card);
+
+    const field = screen.getByRole('textbox', { name: 'Опис' });
+    expect(field).toHaveValue(text);
+    expect(field).toHaveFocus();
+    expect(screen.queryByRole('group', { name: 'Приклади питань' })).not.toBeInTheDocument();
+  });
+
   it('Enter у полі створює дискусію без стилю й креативності та відкриває чат', async () => {
     const user = userEvent.setup();
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });

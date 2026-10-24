@@ -4,9 +4,15 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  BeachIcon,
   BookmarkAdd01Icon,
+  Briefcase01Icon,
   Delete02Icon,
+  Home01Icon,
+  Mortarboard01Icon,
+  PiggyBankIcon,
   PencilEdit02Icon,
+  Rocket01Icon,
 } from '@hugeicons/core-free-icons';
 import {
   createDiscussion,
@@ -35,6 +41,28 @@ const t = uk.debate;
 
 // Фраза заголовка обирається випадково один раз на завантаження сторінки
 const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
+
+// Підказки під полем: три випадкові з шести, теж один раз на завантаження
+const SUGGESTION_ICONS = {
+  work: Briefcase01Icon,
+  study: Mortarboard01Icon,
+  money: PiggyBankIcon,
+  home: Home01Icon,
+  product: Rocket01Icon,
+  rest: BeachIcon,
+};
+// пастельні плитки іконок: кожна картка отримує свій випадковий колір, без повторів
+const SUGGESTION_TONES = ['#f4c1cf', '#fbe6a6', '#c2effd', '#c6ebcf', '#d9cdf5'];
+const shuffle = (list) => [...list].sort(() => Math.random() - 0.5);
+const SUGGESTION_TONE_ORDER = shuffle(SUGGESTION_TONES);
+const SUGGESTIONS = shuffle(Object.keys(SUGGESTION_ICONS))
+  .slice(0, 3)
+  .map((key, index) => ({
+    key,
+    icon: SUGGESTION_ICONS[key],
+    tone: SUGGESTION_TONE_ORDER[index],
+    ...t.suggestions[key],
+  }));
 
 const MIN_PARTICIPANTS = 2;
 const DEFAULT_MAX_PARTICIPANTS = 5;
@@ -261,6 +289,16 @@ export default function DebatePage() {
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, [description]);
+
+  // підказка підставляється в поле як чернетка — її можна одразу дописати
+  const applySuggestion = (text) => {
+    setDescription(text);
+    saveDraft(text);
+    const el = questionRef.current;
+    if (!el) return;
+    el.focus();
+    requestAnimationFrame(() => el.setSelectionRange(text.length, text.length));
+  };
 
   const handleQuestionKeyDown = (e) => {
     if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
@@ -1015,6 +1053,31 @@ export default function DebatePage() {
             </div>
           )}
         </div>
+
+        {!description.trim() && !isCreating && (
+          <div className="debate__suggestions" role="group" aria-label={t.suggestionsLabel}>
+            {SUGGESTIONS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="debate__suggestion"
+                onClick={() => applySuggestion(item.text)}
+              >
+                <span className="debate__suggestion-head">
+                  <span
+                    className="debate__suggestion-icon"
+                    style={{ '--tone': item.tone }}
+                    aria-hidden="true"
+                  >
+                    <HugeiconsIcon icon={item.icon} size={15} strokeWidth={1.8} />
+                  </span>
+                  {item.topic}
+                </span>
+                <span className="debate__suggestion-text">{item.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="debate__error-block">
