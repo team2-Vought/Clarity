@@ -117,7 +117,7 @@ describe('DebatePage', () => {
     await user.click(screen.getByRole('radio', { name: '3 раунди' }));
     expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
 
-    await user.click(screen.getByRole('button', { name: 'Назад до учасників' }));
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
     expect(screen.getByRole('button', { name: /^Додатково/ })).toHaveTextContent('3 раунди');
   });
 

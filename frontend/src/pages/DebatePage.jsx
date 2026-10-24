@@ -588,94 +588,94 @@ export default function DebatePage() {
       <div className="debate__form-panel" id="debate-settings" ref={panelRef}>
         {isAdvancedOpen ? (
           <section
-            className="debate__more"
+            className="debate__panel-view"
             id="debate-advanced"
             ref={advancedRef}
             aria-labelledby="debate-more-title"
           >
-            <div className="debate__cast-head">
-              <button
-                type="button"
-                className="debate__more-back"
-                onClick={toggleAdvanced}
-                aria-label={t.backToCast}
-                title={t.backToCast}
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} size={18} aria-hidden="true" />
+            <div className="debate__panel-body debate__more">
+              <div className="debate__cast-head">
                 <h2 id="debate-more-title" className="debate__cast-title">{t.advancedShort}</h2>
-              </button>
-            </div>
-
-            <div className="debate__sheet">
-              <div className="debate__field debate__field--first">
-                <h3 className="debate__field-title">
-                  {t.rounds}
-                  <span className="debate__field-aside">{t.roundsSub(rounds)}</span>
-                </h3>
-                <div className="debate__pills" role="radiogroup" aria-label={t.rounds}>
-                  {Array.from({ length: maxRounds }, (_, i) => i + 1).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={rounds === value}
-                      className={`debate__pill ${rounds === value ? 'debate__pill--active' : ''}`}
-                      onClick={() => setRounds(value)}
-                      disabled={isCreating}
-                    >
-                      {t.advancedRounds(value)}
-                    </button>
-                  ))}
-                </div>
-                <p className="debate__note">{t.roundsHint}</p>
               </div>
 
-              <div className="debate__field">
-                <label className={`debate__switch-row ${searchStatus.available ? '' : 'debate__switch-row--off'}`}>
-                  <span className="debate__field-title">{t.webSearch}</span>
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    className="debate__switch-input"
-                    checked={webSearch}
-                    onChange={(e) => setWebSearch(e.target.checked)}
-                    disabled={isCreating || !searchStatus.available}
-                  />
-                </label>
-                {!searchStatus.available && (
-                  <p className="debate__note">{t.webSearchUnavailable}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="debate__sheet">
-              <div className="debate__field debate__field--first">
-                <h3 className="debate__field-title">{t.judges}</h3>
-              </div>
-              {[
-                { key: 'moderator', name: t.moderator, sub: t.moderatorSub, value: moderatorModel, onChange: setModeratorModel, label: t.moderatorModel },
-                { key: 'devil', name: t.devil, sub: t.devilSub, value: devilModel, onChange: setDevilModel, label: t.devilModel },
-              ].map((judge) => (
-                <div key={judge.key} className="debate__field">
+              <div className="debate__sheet">
+                <div className="debate__field debate__field--first">
                   <h3 className="debate__field-title">
-                    <span className="debate__judge-name">
-                      <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
-                      {judge.name}
-                    </span>
-                    <span className="debate__field-aside">{judge.sub}</span>
+                    {t.rounds}
+                    <span className="debate__field-aside">{t.roundsSub(rounds)}</span>
                   </h3>
-                  <ModelPicker
-                    models={models}
-                    value={judge.value}
-                    onChange={judge.onChange}
-                    disabled={isCreating}
-                    label={judge.label}
-                    autoLabel={t.autoModel}
-                  />
+                  <div className="debate__pills" role="radiogroup" aria-label={t.rounds}>
+                    {Array.from({ length: maxRounds }, (_, i) => i + 1).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={rounds === value}
+                        className={`debate__pill ${rounds === value ? 'debate__pill--active' : ''}`}
+                        onClick={() => setRounds(value)}
+                        disabled={isCreating}
+                      >
+                        {t.advancedRounds(value)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="debate__note">{t.roundsHint}</p>
                 </div>
-              ))}
-            </div>
 
+                <div className="debate__field">
+                  <label className={`debate__switch-row ${searchStatus.available ? '' : 'debate__switch-row--off'}`}>
+                    <span className="debate__field-title">{t.webSearch}</span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      className="debate__switch-input"
+                      checked={webSearch}
+                      onChange={(e) => setWebSearch(e.target.checked)}
+                      disabled={isCreating || !searchStatus.available}
+                    />
+                  </label>
+                  {!searchStatus.available && (
+                    <p className="debate__note">{t.webSearchUnavailable}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="debate__sheet">
+                <div className="debate__field debate__field--first">
+                  <h3 className="debate__field-title">{t.judges}</h3>
+                </div>
+                {[
+                  { key: 'moderator', name: t.moderator, sub: t.moderatorSub, value: moderatorModel, onChange: setModeratorModel, label: t.moderatorModel },
+                  { key: 'devil', name: t.devil, sub: t.devilSub, value: devilModel, onChange: setDevilModel, label: t.devilModel },
+                ].map((judge) => (
+                  <div key={judge.key} className="debate__field">
+                    <h3 className="debate__field-title">
+                      <span className="debate__judge-name">
+                        <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                        {judge.name}
+                      </span>
+                      <span className="debate__field-aside">{judge.sub}</span>
+                    </h3>
+                    <ModelPicker
+                      models={models}
+                      value={judge.value}
+                      onChange={judge.onChange}
+                      disabled={isCreating}
+                      label={judge.label}
+                      autoLabel={t.autoModel}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="debate__more-toggle debate__more-toggle--back"
+              onClick={toggleAdvanced}
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={16} aria-hidden="true" />
+              <span className="debate__more-toggle-text">{t.back}</span>
+            </button>
           </section>
         ) : (
           <div className="debate__panel-view">

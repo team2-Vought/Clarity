@@ -184,7 +184,7 @@ describe('ChatPage', () => {
     expect(screen.getByRole('button', { name: 'Модель модератора' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Модель AI Devil' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Назад до учасників' }));
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
     expect(screen.getByRole('button', { name: 'Вибрати учасника «Учасник 1»' })).toBeInTheDocument();
   });
 

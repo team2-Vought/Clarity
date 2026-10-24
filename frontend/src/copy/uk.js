@@ -210,7 +210,7 @@ export const uk = {
     advanced: 'Додаткові налаштування',
     advancedGeneral: 'Для всієї дискусії',
     advancedShort: 'Додатково',
-    backToCast: 'Назад до учасників',
+    back: 'Назад',
     judges: 'Судді',
     moderator: 'Модератор',
     devil: 'AI Devil',

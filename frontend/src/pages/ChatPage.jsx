@@ -1027,51 +1027,52 @@ export default function ChatPage() {
       <aside className="debate__form-panel chat__sidebar" id="chat-settings" ref={panelRef}>
         {discussion && (isAdvancedOpen ? (
           <section
-            className="debate__more"
+            className="debate__panel-view"
             id="chat-advanced"
             ref={advancedRef}
             aria-labelledby="chat-more-title"
           >
-            <div className="debate__cast-head">
-              <button
-                type="button"
-                className="debate__more-back"
-                onClick={toggleAdvanced}
-                aria-label={d.backToCast}
-                title={d.backToCast}
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} size={18} aria-hidden="true" />
+            <div className="debate__panel-body debate__more">
+              <div className="debate__cast-head">
                 <h2 id="chat-more-title" className="debate__cast-title">{d.advancedShort}</h2>
-              </button>
-            </div>
-
-            <div className="debate__sheet">
-              <div className="debate__field debate__field--first">
-                <h3 className="debate__field-title">{d.judges}</h3>
               </div>
-              {[
-                { key: 'moderator', name: d.moderator, sub: d.moderatorSub, value: discussion.moderator_model, save: 'moderatorModel', label: d.moderatorModel },
-                { key: 'devil', name: d.devil, sub: d.devilSub, value: discussion.devil_model, save: 'devilModel', label: d.devilModel },
-              ].map((judge) => (
-                <div key={judge.key} className="debate__field">
-                  <h3 className="debate__field-title">
-                    <span className="debate__judge-name">
-                      <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
-                      {judge.name}
-                    </span>
-                    <span className="debate__field-aside">{judge.sub}</span>
-                  </h3>
-                  <ModelPicker
-                    models={models}
-                    value={judge.value || ''}
-                    onChange={(modelId) => saveModels({ [judge.save]: modelId })}
-                    disabled={!canEditModels}
-                    label={judge.label}
-                    autoLabel={d.autoModel}
-                  />
+
+              <div className="debate__sheet">
+                <div className="debate__field debate__field--first">
+                  <h3 className="debate__field-title">{d.judges}</h3>
                 </div>
-              ))}
+                {[
+                  { key: 'moderator', name: d.moderator, sub: d.moderatorSub, value: discussion.moderator_model, save: 'moderatorModel', label: d.moderatorModel },
+                  { key: 'devil', name: d.devil, sub: d.devilSub, value: discussion.devil_model, save: 'devilModel', label: d.devilModel },
+                ].map((judge) => (
+                  <div key={judge.key} className="debate__field">
+                    <h3 className="debate__field-title">
+                      <span className="debate__judge-name">
+                        <HugeiconsIcon icon={roleIcon(judge.key)} size={15} strokeWidth={1.8} aria-hidden="true" />
+                        {judge.name}
+                      </span>
+                      <span className="debate__field-aside">{judge.sub}</span>
+                    </h3>
+                    <ModelPicker
+                      models={models}
+                      value={judge.value || ''}
+                      onChange={(modelId) => saveModels({ [judge.save]: modelId })}
+                      disabled={!canEditModels}
+                      label={judge.label}
+                      autoLabel={d.autoModel}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
+            <button
+              type="button"
+              className="debate__more-toggle debate__more-toggle--back"
+              onClick={toggleAdvanced}
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={16} aria-hidden="true" />
+              <span className="debate__more-toggle-text">{d.back}</span>
+            </button>
           </section>
         ) : (
           <div className="debate__panel-view">

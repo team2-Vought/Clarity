@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Tick02Icon } from '@hugeicons/core-free-icons';
+import { SmileIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { ChevronIcon } from './DebateIcons';
 import { uk } from '../copy/uk';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
@@ -135,6 +135,9 @@ export default function TraitPicker({
         aria-label={t.traitsButton(value)}
         disabled={disabled}
       >
+        <span className="debate__role-button-icon debate__role-button-icon--neutral" aria-hidden="true">
+          <HugeiconsIcon icon={SmileIcon} size={17} strokeWidth={1.8} />
+        </span>
         {value.length > 0 ? (
           <span className="debate__tags debate__trait-chips">
             {value.map((trait) => (
