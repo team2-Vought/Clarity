@@ -1624,49 +1624,51 @@ export default function ChatPage() {
               </button>
             )}
             {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}
-            <div className="debate__composer chat__composer-box">
+            <div className="debate__prompt chat__composer-box">
               {/* режим видно, але після старту дискусії його вже не змінити */}
               <ModePicker value={discussion.mode} locked />
-              <textarea
-                ref={noteRef}
-                className="debate__composer-input"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                onKeyDown={handleNoteKeyDown}
-                maxLength={MAX_NOTE}
-                rows={1}
-                placeholder={notePlaceholder}
-                disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
-                aria-label={notePlaceholder}
-              />
-              <div className="debate__composer-bar">
-                <span className="debate__composer-count">
-                  {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
-                </span>
-                {showStop ? (
-                  // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
-                  // щойно користувач почне писати — знову можна надіслати уточнення
-                  <button
-                    type="button"
-                    className="debate__send debate__send--stop"
-                    onClick={handleStop}
-                    disabled={isStopped}
-                    aria-label={isStopped ? t.stopping : t.stop}
-                    title={isStopped ? t.stopping : t.stop}
-                  >
-                    {isStopped ? <span className="debate__send-spinner" /> : <StopIcon />}
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    className="debate__send"
-                    disabled={!canSendNote}
-                    aria-label={isSending ? t.noteSending : t.noteSend}
-                    title={isSending ? t.noteSending : t.noteSend}
-                  >
-                    {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
-                  </button>
-                )}
+              <div className="debate__composer">
+                <textarea
+                  ref={noteRef}
+                  className="debate__composer-input"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onKeyDown={handleNoteKeyDown}
+                  maxLength={MAX_NOTE}
+                  rows={1}
+                  placeholder={notePlaceholder}
+                  disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
+                  aria-label={notePlaceholder}
+                />
+                <div className="debate__composer-bar">
+                  <span className="debate__composer-count">
+                    {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
+                  </span>
+                  {showStop ? (
+                    // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
+                    // щойно користувач почне писати — знову можна надіслати уточнення
+                    <button
+                      type="button"
+                      className="debate__send debate__send--stop"
+                      onClick={handleStop}
+                      disabled={isStopped}
+                      aria-label={isStopped ? t.stopping : t.stop}
+                      title={isStopped ? t.stopping : t.stop}
+                    >
+                      {isStopped ? <span className="debate__send-spinner" /> : <StopIcon />}
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="debate__send"
+                      disabled={!canSendNote}
+                      aria-label={isSending ? t.noteSending : t.noteSend}
+                      title={isSending ? t.noteSending : t.noteSend}
+                    >
+                      {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </form>

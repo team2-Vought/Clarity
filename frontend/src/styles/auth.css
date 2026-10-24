@@ -177,10 +177,9 @@
   font-size: 1.0625rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s, transform 0.15s, opacity 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, opacity 0.2s, var(--press);
 }
 .btn:not(:disabled):hover { background-color: color-mix(in srgb, var(--btn-bg) 80%, white); }
-.btn:active { transform: scale(0.985); }
 .btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .btn:disabled { opacity: 0.6; cursor: progress; }
 

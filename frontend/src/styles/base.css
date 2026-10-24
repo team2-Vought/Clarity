@@ -154,6 +154,17 @@ h1::after {
   to { opacity: 1; }
 }
 
+/* ---------- Натискання: однаковий ефект для всього, що клікається ----------
+   Окрема властивість scale не конфліктує з transform самих елементів.
+   Компоненти зі своїм transition дописують у нього var(--press). */
+:where(button, a[href], summary, [role='button'], [role='menuitem'], [role='menuitemradio']) {
+  transition: var(--press);
+}
+
+:where(button, a[href], summary, [role='button'], [role='menuitem'], [role='menuitemradio']):active:not(:disabled, [aria-disabled='true']) {
+  scale: var(--press-scale);
+}
+
 @media (max-width: 480px) {
   .main, .main--auth { align-content: center; padding-top: 12px; padding-bottom: 12px; }
 }

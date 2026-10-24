@@ -910,48 +910,50 @@ export default function DebatePage() {
           <div className="debate__underline" />
         </div>
 
-        <div
-          className={`debate__composer ${isCreating ? 'debate__composer--busy' : ''}`}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) questionRef.current?.focus();
-          }}
-        >
+        <div className="debate__prompt">
           <ModePicker
             value={mode}
             onChange={handleModeChange}
             onChosen={() => questionRef.current?.focus()}
             disabled={isCreating}
           />
-          <textarea
-            ref={questionRef}
-            className="debate__composer-input"
-            placeholder={t.placeholderDescription}
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              saveDraft(e.target.value);
+          <div
+            className={`debate__composer ${isCreating ? 'debate__composer--busy' : ''}`}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) questionRef.current?.focus();
             }}
-            onKeyDown={handleQuestionKeyDown}
-            maxLength={MAX_QUESTION}
-            rows={1}
-            disabled={isCreating}
-            aria-label={t.description}
-          />
-          <div className="debate__composer-bar">
-            <span
-              className={`debate__composer-count ${description.length >= MAX_QUESTION ? 'debate__hint--error' : ''}`}
-            >
-              {description.length > 0 ? `${description.length} / ${MAX_QUESTION}` : ''}
-            </span>
-            <button
-              type="submit"
-              className="debate__send"
-              disabled={!canStart}
-              aria-label={isCreating ? t.creating : t.start}
-              title={isCreating ? t.creating : t.start}
-            >
-              {isCreating ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
-            </button>
+          >
+            <textarea
+              ref={questionRef}
+              className="debate__composer-input"
+              placeholder={t.placeholderDescription}
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                saveDraft(e.target.value);
+              }}
+              onKeyDown={handleQuestionKeyDown}
+              maxLength={MAX_QUESTION}
+              rows={1}
+              disabled={isCreating}
+              aria-label={t.description}
+            />
+            <div className="debate__composer-bar">
+              <span
+                className={`debate__composer-count ${description.length >= MAX_QUESTION ? 'debate__hint--error' : ''}`}
+              >
+                {description.length > 0 ? `${description.length} / ${MAX_QUESTION}` : ''}
+              </span>
+              <button
+                type="submit"
+                className="debate__send"
+                disabled={!canStart}
+                aria-label={isCreating ? t.creating : t.start}
+                title={isCreating ? t.creating : t.start}
+              >
+                {isCreating ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+              </button>
+            </div>
           </div>
         </div>
 

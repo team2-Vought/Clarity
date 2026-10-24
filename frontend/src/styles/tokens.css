@@ -19,6 +19,9 @@
   --error: #c93a62;
   --toast-bg: rgba(255, 255, 255, 0.92);
   --blob-opacity: 0.16;
+  /* натискання по всьому сайту: елемент трохи «втискається» і так само плавно повертається */
+  --press-scale: 0.96;
+  --press: scale 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: light;
 }
 

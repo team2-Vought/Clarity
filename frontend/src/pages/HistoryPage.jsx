@@ -27,7 +27,7 @@ const COLUMN_MIN = 250;
 const COLUMN_GAP = 16;
 const COLUMN_MIN_PHONE = 150;
 const COLUMN_GAP_PHONE = 12;
-// скільки чекаємо перед переходом, щоб «желейний» відскок картки встиг проявитися
+// скільки чекаємо перед переходом, щоб картка встигла помітно «втиснутися»
 const PRESS_DELAY = 160;
 const DAY = 24 * 60 * 60 * 1000;
 const GROUP_ORDER = ['pinned', 'today', 'yesterday', 'week', 'older'];

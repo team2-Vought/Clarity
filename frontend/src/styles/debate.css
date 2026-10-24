@@ -172,7 +172,7 @@ body:has(.app-shell) {
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .sidebar__control {
@@ -508,7 +508,7 @@ body:has(.app-shell) {
   text-align: left;
   overflow-wrap: anywhere;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, var(--press);
 }
 
 .debate__model-option > span:first-child {
@@ -652,13 +652,24 @@ body:has(.app-shell) {
   text-align: center;
 }
 
-.debate__composer {
-  /* текст і кнопка в одному ряду; кнопка тримається нижнього рядка тексту */
+/* рядок поля: кругла кнопка режиму окремо ліворуч, поле питання праворуч */
+.debate__prompt {
+  /* висота однорядкового поля: 38px кнопки + 2 × 8px відступів + 2 × 1.5px рамки */
+  --prompt-h: 57px;
   display: flex;
   align-items: flex-end;
   gap: 10px;
   width: min(760px, 100%);
-  padding: 8px 8px 8px 18px;
+}
+
+.debate__composer {
+  /* текст і кнопка в одному ряду; кнопка тримається нижнього рядка тексту */
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 8px 8px 20px;
   border: 1.5px solid transparent;
   /* половина висоти однорядкового поля (57px): з одним рядком — повна пігулка,
      як 999px, а з кількома поле лишається заокругленим прямокутником, не овалом */
@@ -741,7 +752,7 @@ body:has(.app-shell) {
   background: var(--btn-bg, #121212);
   color: var(--btn-text, #ffffff);
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
+  transition: opacity 0.2s, var(--press);
 }
 
 .debate__send svg {
@@ -751,10 +762,6 @@ body:has(.app-shell) {
 
 .debate__send:not(:disabled):hover {
   opacity: 0.85;
-}
-
-.debate__send:not(:disabled):active {
-  transform: scale(0.94);
 }
 
 .debate__send:focus-visible {
@@ -793,32 +800,45 @@ body:has(.app-shell) {
   width: min(760px, 100%);
 }
 
-/* Формат відповіді: кнопка-іконка ліворуч у полі питання, як «вкладення»,
-   і меню з трьома режимами під нею */
+/* Формат відповіді: окрема кругла кнопка ліворуч від поля питання — такої ж
+   висоти й з такою ж рамкою, як поле, — і меню з трьома режимами під нею */
 .debate__mode-picker {
   position: relative;
   flex-shrink: 0;
 }
 
+/* зареєстрована як колір — тож заливка всередині градієнтної рамки змінюється плавно */
+@property --mode-fill {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
 .debate__mode-button {
+  --mode-fill: var(--card);
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  margin-left: -10px;
+  width: var(--prompt-h, 57px);
+  height: var(--prompt-h, 57px);
   padding: 0;
-  border: 0;
+  border: 1.5px solid transparent;
   border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
+  background:
+    linear-gradient(var(--mode-fill), var(--mode-fill)) padding-box,
+    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd), var(--lilac, #b4b5ce)) border-box;
+  box-shadow: 0 10px 30px rgba(18, 18, 18, 0.08);
+  color: var(--ink);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: --mode-fill 0.18s, box-shadow 0.18s, var(--press);
+}
+
+:root[data-theme='dark'] .debate__mode-button {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .debate__mode-button:hover:not(:disabled),
 .debate__mode-button--open {
-  background: var(--soft);
-  color: var(--ink);
+  --mode-fill: color-mix(in srgb, var(--ink) 6%, var(--card));
 }
 
 .debate__mode-button:focus-visible {
@@ -834,7 +854,7 @@ body:has(.app-shell) {
 .debate__mode-menu {
   position: absolute;
   top: calc(100% + 10px);
-  left: -10px;
+  left: 0;
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -891,7 +911,7 @@ body:has(.app-shell) {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, var(--press);
 }
 
 .debate__mode-item:hover,
@@ -1225,7 +1245,7 @@ body:has(.app-shell) {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .debate__ghost:hover:not(:disabled) {
@@ -1265,12 +1285,8 @@ body:has(.app-shell) {
   color: #121212;
   cursor: pointer;
   transition:
-    transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1),
-    box-shadow 0.2s ease;
-}
-
-.debate__token:active {
-  transform: scale(0.94);
+    box-shadow 0.2s ease,
+    var(--press);
 }
 
 .debate__token--active {
@@ -1307,9 +1323,9 @@ body:has(.app-shell) {
   background: transparent;
   color: var(--muted);
   transition:
-    transform 0.28s cubic-bezier(0.3, 1.4, 0.5, 1),
     border-color 0.18s,
-    color 0.18s;
+    color 0.18s,
+    var(--press);
 }
 
 .debate__token--add:hover {
@@ -1463,7 +1479,7 @@ body:has(.app-shell) {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .debate__sheet-remove:hover:not(:disabled),
@@ -1521,7 +1537,7 @@ body:has(.app-shell) {
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, transform 0.15s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .debate__pill svg {
@@ -1531,10 +1547,6 @@ body:has(.app-shell) {
 
 .debate__pill:hover:not(:disabled) {
   background: color-mix(in srgb, var(--ink) 11%, var(--card));
-}
-
-.debate__pill:active:not(:disabled) {
-  transform: scale(0.96);
 }
 
 .debate__pill--active,
@@ -1600,7 +1612,7 @@ body:has(.app-shell) {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .debate__role-button:hover:not(:disabled),
@@ -1753,16 +1765,12 @@ body:has(.app-shell) {
   font-size: 0.8125rem;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, color 0.18s, transform 0.15s;
+  transition: background 0.18s, border-color 0.18s, color 0.18s, var(--press);
 }
 
 .debate__tag:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--ink) 35%, transparent);
   color: var(--ink);
-}
-
-.debate__tag:active:not(:disabled) {
-  transform: scale(0.96);
 }
 
 .debate__tag--active,
@@ -1914,20 +1922,6 @@ body:has(.app-shell) {
 
   .debate__ghost-label {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .debate__token,
-  .debate__pill,
-  .debate__tag {
-    transition: none;
-  }
-
-  .debate__token:active,
-  .debate__pill:active:not(:disabled),
-  .debate__tag:active:not(:disabled) {
-    transform: none;
   }
 }
 
@@ -2230,7 +2224,7 @@ span.debate__tag {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .debate__share-copy:hover {
@@ -2568,7 +2562,7 @@ span.debate__tag {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .chat__quote:hover:not(:disabled) {
@@ -2881,7 +2875,7 @@ ol.chat__reveal {
   width: 28px;
   height: 28px;
   opacity: 0;
-  transition: opacity 0.18s, background 0.18s, color 0.18s;
+  transition: opacity 0.18s, background 0.18s, color 0.18s, var(--press);
 }
 
 .chat__row:hover .chat__copy,
@@ -2963,7 +2957,7 @@ ol.chat__reveal {
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.18s;
+  transition: opacity 0.18s, var(--press);
 }
 
 .chat__advance:hover {
@@ -3036,7 +3030,7 @@ ol.chat__reveal {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .chat__icon-button:hover:not(:disabled) {
@@ -3219,7 +3213,8 @@ ol.chat__reveal {
     transition:
       left 0.34s cubic-bezier(0.2, 0.8, 0.2, 1),
       background 0.18s,
-      color 0.18s;
+      color 0.18s,
+    var(--press);
   }
 
   .debate-page--panel-collapsed .debate__panel-toggle {
@@ -3593,20 +3588,15 @@ ol.chat__reveal {
   }
 
   .debate__main .debate__composer {
-    padding: 8px 8px 8px 12px;
+    padding: 8px 8px 8px 16px;
   }
 
   .debate__main .debate__composer-input {
     font-size: 1rem;
   }
 
-  .debate__main .debate__mode-button {
-    margin-left: -4px;
-  }
-
   /* меню — у межах екрана праворуч від смуги іконок */
   .debate__main .debate__mode-menu {
-    left: -4px;
     width: min(300px, calc(100vw - 104px));
   }
 
@@ -3687,16 +3677,11 @@ ol.chat__reveal {
     padding-bottom: 25px;
   }
 
-  .chat__composer-box {
-    padding: 8px 8px 8px 12px;
-  }
-
-  .chat__composer-box .debate__mode-button {
-    margin-left: -4px;
+  .chat__composer-box .debate__composer {
+    padding: 8px 8px 8px 16px;
   }
 
   .chat__composer-box .debate__mode-menu {
-    left: -4px;
     width: min(300px, calc(100vw - 104px));
   }
 
@@ -3797,7 +3782,7 @@ ol.chat__reveal {
   border-radius: 99px;
   list-style: none;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .chat__sources summary::-webkit-details-marker {
@@ -3912,7 +3897,7 @@ ol.chat__reveal {
   border-radius: 8px;
   color: var(--ink);
   text-decoration: none;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .chat__sources a:hover {
@@ -3989,7 +3974,7 @@ ol.chat__reveal {
   cursor: pointer;
   transform: translateX(-50%);
   animation: chat-jump-in 0.18s ease-out;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .chat__jump:hover {
@@ -4049,7 +4034,7 @@ ol.chat__reveal {
   font: inherit;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
 }
 
 .chat__reveal-all:hover {

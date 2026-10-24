@@ -152,7 +152,7 @@
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, var(--press);
   white-space: nowrap;
 }
 

@@ -14,7 +14,6 @@
   --h-done: #23855a;
   --h-progress: #d08a1d;
   --h-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  --h-jelly: cubic-bezier(0.34, 1.85, 0.5, 1);
 
   --h-button: 48px;
   --h-rail-gap: clamp(12px, 2vw, 24px);
@@ -113,16 +112,10 @@
   color: var(--ink);
   cursor: pointer;
   transition:
-    transform 0.6s var(--h-jelly),
     background-color 0.2s,
     color 0.2s,
-    opacity 0.18s;
-}
-
-.history__rail-button:active:not(:disabled) {
-  transform: scale(1.08, 0.88);
-  transition-duration: 0.12s;
-  transition-timing-function: ease-out;
+    opacity 0.18s,
+    var(--press);
 }
 
 .history__rail-button:disabled {
@@ -352,23 +345,24 @@
   gap: 8px;
   min-width: 0;
   color: var(--ink);
-  /* відпускання — пружний відскок з перехльостом */
   transition:
-    transform 0.6s var(--h-jelly),
     background-color 0.2s,
-    opacity 0.2s;
+    opacity 0.2s,
+    var(--press);
 }
 
 .history__card:not(.history__card--skeleton):hover {
   background-color: var(--h-hover);
 }
 
-/* натискання — картка швидко «приплющується» */
+/* натискання — уся картка «втискається», як і решта кнопок на сайті;
+   сама розтягнута кнопка всередині не зменшується, щоб не було подвійного ефекту */
 .history__card:has(.history__open:active) {
-  transform: scale(1.025, 0.95);
-  transition:
-    transform 0.12s ease-out,
-    background-color 0.2s;
+  scale: var(--press-scale);
+}
+
+.history__card .history__open:active {
+  scale: none;
 }
 
 .history__card:has(.history__open:focus-visible) {
@@ -463,7 +457,7 @@
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, opacity 0.18s;
+  transition: background 0.18s, color 0.18s, opacity 0.18s, var(--press);
 }
 
 /* зона дотику 44px */
@@ -626,9 +620,6 @@
   grid-area: delete;
 }
 
-.history--list .history__card:has(.history__open:active) {
-  transform: scale(1.012, 0.94);
-}
 
 /* ---- скелетони ---- */
 
@@ -773,17 +764,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .history__card,
-  .history__card:has(.history__open:active),
-  .history__rail-button,
   .history__search,
   .history__search-toggle svg {
     transition: none;
-  }
-
-  .history__card:has(.history__open:active),
-  .history__rail-button:active:not(:disabled) {
-    transform: none;
   }
 
   .history__skeleton {
