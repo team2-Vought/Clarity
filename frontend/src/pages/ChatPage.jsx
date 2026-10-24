@@ -12,6 +12,7 @@ import {
   FileExportIcon,
   Link01Icon,
   Loading03Icon,
+  PencilEdit02Icon,
   RepeatIcon,
   Share08Icon,
   Search01Icon,
@@ -28,6 +29,7 @@ import {
   unshareDiscussion,
   updateDiscussion,
 } from '../api/discussions';
+import { useIsPhone } from '../hooks/useIsPhone';
 import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
@@ -234,6 +236,7 @@ export default function ChatPage() {
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+  const isPhone = useIsPhone();
 
   // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
   useEffect(
@@ -251,6 +254,9 @@ export default function ChatPage() {
   const stickToBottomRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const touchYRef = useRef(0);
+  // на телефоні поле згортається в круглу кнопку, поки людина гортає вниз
+  const [isComposerMin, setIsComposerMin] = useState(false);
+  const swipeRef = useRef(0);
   const panelRef = useRef(null);
   const noteRef = useRef(null);
   const composerRef = useRef(null);
@@ -684,16 +690,40 @@ export default function ChatPage() {
 
   const handleMainWheel = (e) => {
     if (e.deltaY < 0) releaseBottom();
+    swipeComposer(e.deltaY);
   };
+
+  // Згортаємо лише від жестів самої людини (палець, колесо), а не від
+  // автопрокрутки за новими репліками. Поле з текстом чи у фокусі не чіпаємо.
+  const swipeComposer = (delta) => {
+    if (!isPhone) return;
+    swipeRef.current = Math.sign(delta) === Math.sign(swipeRef.current)
+      ? swipeRef.current + delta
+      : delta;
+    if (Math.abs(swipeRef.current) < 24) return;
+    const down = swipeRef.current > 0;
+    swipeRef.current = 0;
+    if (!down) {
+      setIsComposerMin(false);
+      return;
+    }
+    if (note.trim() || document.activeElement === noteRef.current) return;
+    setIsComposerMin(true);
+  };
+
+  // лише розгортає поле — клавіатура не вискакує, поки людина сама не тапне в нього
+  const expandComposer = () => setIsComposerMin(false);
 
   const handleMainTouchStart = (e) => {
     touchYRef.current = e.touches[0]?.clientY ?? 0;
+    swipeRef.current = 0;
   };
 
   // палець рухається донизу — вміст їде вгору, тобто користувач гортає назад
   const handleMainTouchMove = (e) => {
     const y = e.touches[0]?.clientY ?? 0;
     if (y > touchYRef.current + 2) releaseBottom();
+    swipeComposer(touchYRef.current - y);
     touchYRef.current = y;
   };
 
@@ -812,9 +842,14 @@ export default function ChatPage() {
   // фінальний висновок уже пишеться: уточнення не потрапило б у нього й лишилося б без відповіді
   const isFinalWriting = discussion?.phase === 'final' && !isFinished;
   // ліміт уточнень вичерпано — поле вимкнене, і підказка в ньому пояснює чому
-  const notePlaceholder = isFinished
+  // на телефоні поле вузьке — там короткий варіант, а повний лишається назвою поля
+  const noteHint = isFinished
     ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
     : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
+  const noteHintShort = isFinished
+    ? followupsLeft > 0 ? t.followupPlaceholderShort : t.followupsDoneShort
+    : t.notePlaceholderShort;
+  const notePlaceholder = isPhone ? noteHintShort : noteHint;
   const canSendNote =
     Boolean(discussion)
     && !isSending
@@ -1599,7 +1634,11 @@ export default function ChatPage() {
         </section>
 
         {discussion && (
-          <form className="chat__composer" ref={composerRef} onSubmit={handleSendNote}>
+          <form
+            className={`chat__composer ${isPhone && isComposerMin ? 'chat__composer--min' : ''}`}
+            ref={composerRef}
+            onSubmit={handleSendNote}
+          >
             <p className="sr-only" aria-live="polite">
               {liveText}
             </p>
@@ -1623,7 +1662,7 @@ export default function ChatPage() {
             <div className="debate__prompt chat__composer-box">
               {/* режим видно, але після старту дискусії його вже не змінити */}
               <ModePicker value={discussion.mode} locked />
-              <div className="debate__composer">
+              <div className="debate__composer" inert={isPhone && isComposerMin}>
                 <textarea
                   ref={noteRef}
                   className="debate__composer-input"
@@ -1634,7 +1673,7 @@ export default function ChatPage() {
                   rows={1}
                   placeholder={notePlaceholder}
                   disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
-                  aria-label={notePlaceholder}
+                  aria-label={noteHint}
                 />
                 <div className="debate__composer-bar">
                   <span className="debate__composer-count">
@@ -1666,6 +1705,18 @@ export default function ChatPage() {
                   )}
                 </div>
               </div>
+              {/* згорнуте поле — кругла кнопка; тап повертає поле */}
+              <button
+                type="button"
+                className="chat__composer-expand"
+                onClick={expandComposer}
+                aria-label={t.noteExpand}
+                title={t.noteExpand}
+                tabIndex={isPhone && isComposerMin ? 0 : -1}
+                aria-hidden={!(isPhone && isComposerMin)}
+              >
+                <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
+              </button>
             </div>
           </form>
         )}

@@ -1,19 +1,10 @@
-import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useOutletContext } from 'react-router-dom';
 import { PanelIcon } from './DebateIcons';
 import { uk } from '../copy/uk';
+import { useIsPhone } from '../hooks/useIsPhone';
 
 const t = uk.debate;
-const PHONE_QUERY = '(max-width: 639px)';
-
-const matchesPhone = () => {
-  try {
-    return window.matchMedia(PHONE_QUERY).matches;
-  } catch {
-    return false;
-  }
-};
 
 /**
  * Кнопка в куті області чату: на десктопі згортає / розгортає панель
@@ -23,19 +14,7 @@ const matchesPhone = () => {
  */
 export default function PanelToggle({ controls, phoneOpen = false }) {
   const { panelCollapsed = false, togglePanel } = useOutletContext() ?? {};
-  const [isPhone, setIsPhone] = useState(matchesPhone);
-
-  useEffect(() => {
-    let query;
-    try {
-      query = window.matchMedia(PHONE_QUERY);
-    } catch {
-      return undefined;
-    }
-    const update = () => setIsPhone(query.matches);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
+  const isPhone = useIsPhone();
 
   const expanded = isPhone ? phoneOpen : !panelCollapsed;
   const label = expanded ? t.hideSettings : t.showSettings;
