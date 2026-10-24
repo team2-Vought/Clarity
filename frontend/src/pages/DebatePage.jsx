@@ -156,6 +156,7 @@ export default function DebatePage() {
   const allTraits = [...TRAITS, ...customTraits];
   const advancedRef = useRef(null);
   const panelRef = useRef(null);
+  const teamInputRef = useRef(null);
   const formRef = useRef(null);
   const questionRef = useRef(null);
   const activeParticipant =
@@ -167,13 +168,6 @@ export default function DebatePage() {
     && participants.every((p) => models.some((m) => m.id === p.model && m.available));
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
-  const advancedSummary = [
-    rounds !== DEFAULT_ROUNDS ? t.advancedRounds(rounds) : '',
-    webSearch ? t.webSearchOn : '',
-    moderatorModel || devilModel ? t.judgesCustomized : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
   const canStart =
     !isCreating
     && !isLoading
@@ -282,6 +276,11 @@ export default function DebatePage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isPanelOpen, isAdvancedOpen]);
+
+  // поле назви команди завжди в розмітці (щоб плавно розкриватися), тож фокус ставимо самі
+  useEffect(() => {
+    if (isTeamFormOpen) teamInputRef.current?.focus({ preventScroll: true });
+  }, [isTeamFormOpen]);
 
   useEffect(() => {
     if (!isAdvancedOpen) return undefined;
@@ -697,8 +696,7 @@ export default function DebatePage() {
                       aria-label={t.saveTeam}
                       title={t.teamsHint}
                     >
-                      <HugeiconsIcon icon={BookmarkAdd01Icon} size={15} aria-hidden="true" />
-                      <span className="debate__ghost-label">{t.saveTeamShort}</span>
+                      <HugeiconsIcon icon={BookmarkAdd01Icon} size={16} aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -738,34 +736,40 @@ export default function DebatePage() {
                   )}
                 </div>
 
-                {isTeamFormOpen && (
-                  <div className="debate__team-form">
-                    <input
-                      type="text"
-                      value={teamName}
-                      maxLength={MAX_NAME}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      onKeyDown={handleTeamKeyDown}
-                      onBlur={() => {
-                        if (!teamName.trim()) setIsTeamFormOpen(false);
-                      }}
-                      placeholder={t.teamNamePlaceholder}
-                      aria-label={t.teamName}
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="debate__mini-add"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={saveCurrentTeam}
-                      disabled={!teamName.trim() || isSavingTeam}
-                      aria-label={t.saveTeam}
-                      title={t.saveTeam}
-                    >
-                      ✓
-                    </button>
+                {/* поле назви розкривається плавно й відсуває картку учасника вниз */}
+                <div
+                  className={`debate__team-reveal ${isTeamFormOpen ? 'debate__team-reveal--open' : ''}`}
+                  inert={!isTeamFormOpen}
+                >
+                  <div className="debate__team-reveal-inner">
+                    <div className="debate__team-form">
+                      <input
+                        ref={teamInputRef}
+                        type="text"
+                        value={teamName}
+                        maxLength={MAX_NAME}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        onKeyDown={handleTeamKeyDown}
+                        onBlur={() => {
+                          if (!teamName.trim()) setIsTeamFormOpen(false);
+                        }}
+                        placeholder={t.teamNamePlaceholder}
+                        aria-label={t.teamName}
+                      />
+                      <button
+                        type="button"
+                        className="debate__mini-add"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={saveCurrentTeam}
+                        disabled={!teamName.trim() || isSavingTeam}
+                        aria-label={t.saveTeam}
+                        title={t.saveTeam}
+                      >
+                        <PlusIcon />
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
 
                 {teams.length > 0 && (
                   <div className="debate__teams" role="group" aria-label={t.teams}>
@@ -889,10 +893,7 @@ export default function DebatePage() {
               aria-expanded={isAdvancedOpen}
               aria-controls="debate-advanced"
             >
-              <span className="debate__more-toggle-text">
-                {t.advancedShort}
-                {advancedSummary && <small>{advancedSummary}</small>}
-              </span>
+              <span className="debate__more-toggle-text">{t.advancedShort}</span>
               <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
             </button>
           </div>

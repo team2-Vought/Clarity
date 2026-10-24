@@ -338,6 +338,11 @@ body:has(.app-shell) {
   cursor: pointer;
 }
 
+.debate__mini-add svg {
+  width: 15px;
+  height: 15px;
+}
+
 .debate__mini-add:disabled {
   opacity: 0.35;
   cursor: not-allowed;
@@ -676,7 +681,7 @@ body:has(.app-shell) {
   border-radius: 28.5px;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
-    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd), var(--lilac, #b4b5ce)) border-box;
+    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5)) border-box;
   box-shadow: 0 10px 30px rgba(18, 18, 18, 0.08);
   cursor: text;
   transition: box-shadow 0.2s;
@@ -825,7 +830,7 @@ body:has(.app-shell) {
   border-radius: 50%;
   background:
     linear-gradient(var(--mode-fill), var(--mode-fill)) padding-box,
-    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5), var(--sky, #c2effd), var(--lilac, #b4b5ce)) border-box;
+    linear-gradient(135deg, var(--pink, #f4c1cf), var(--peach, #feedd5)) border-box;
   box-shadow: 0 10px 30px rgba(18, 18, 18, 0.08);
   color: var(--ink);
   cursor: pointer;
@@ -932,9 +937,10 @@ body:has(.app-shell) {
   transition: background 0.15s, color 0.15s;
 }
 
+/* вибраний пункт у меню (формат, роль, риси) — блідо-рожева плитка замість чорної */
 .debate__mode-item--active .debate__mode-item-icon {
-  background: var(--ink);
-  color: var(--card);
+  background: color-mix(in srgb, var(--pink, #f4c1cf) 70%, #ffffff);
+  color: #121212;
 }
 
 .debate__mode-item-text {
@@ -1212,6 +1218,8 @@ body:has(.app-shell) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  /* висота круглої кнопки «Зберегти»: коли вона ховається, рядок не стрибає */
+  min-height: 32px;
 }
 
 .debate__cast-title {
@@ -1231,26 +1239,24 @@ body:has(.app-shell) {
   font-variant-numeric: tabular-nums;
 }
 
+/* кругла кнопка-іконка в заголовку панелі */
 .debate__ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
   cursor: pointer;
   transition: background 0.18s, color 0.18s, var(--press);
 }
 
 .debate__ghost:hover:not(:disabled) {
-  background: var(--card);
-  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, var(--card));
 }
 
 .debate__ghost:disabled {
@@ -1339,6 +1345,41 @@ body:has(.app-shell) {
 }
 
 /* назва нової команди — рядок під жетонами */
+/* поле назви команди: рядок сітки росте з 0fr до 1fr, тож картка учасника
+   під ним плавно з'їжджає вниз; закрите — ще й «з'їдає» проміжок колонки */
+.debate__team-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin: -14px -3px 0;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.2s ease;
+}
+
+.debate__team-reveal--open {
+  grid-template-rows: 1fr;
+  margin: -3px -3px -3px;
+  opacity: 1;
+}
+
+.debate__team-reveal-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* поля, щоб обрізання не з'їдало кільце навколо поля */
+.debate__team-reveal-inner > .debate__team-form {
+  margin: 3px;
+  transform: translateY(-6px);
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.debate__team-reveal--open .debate__team-form {
+  transform: none;
+}
+
 .debate__team-form {
   display: flex;
   align-items: center;
@@ -1938,10 +1979,6 @@ body:has(.app-shell) {
     width: 17px;
     height: 17px;
   }
-
-  .debate__ghost-label {
-    display: none;
-  }
 }
 
 /* ---------- Додаткові налаштування: окремий екран панелі ----------
@@ -2013,22 +2050,10 @@ body:has(.app-shell) {
 }
 
 .debate__more-toggle-text {
-  display: flex;
   flex: 1;
-  flex-direction: column;
-  gap: 2px;
   min-width: 0;
   font-size: 0.8125rem;
   font-weight: 600;
-}
-
-.debate__more-toggle-text small {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 400;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .debate__more-toggle > svg {

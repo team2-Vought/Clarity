@@ -118,7 +118,9 @@ describe('DebatePage', () => {
     expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Назад' }));
-    expect(screen.getByRole('button', { name: /^Додатково/ })).toHaveTextContent('3 раунди');
+    // вибір зберігається, коли повертаємося на екран знову
+    await user.click(screen.getByRole('button', { name: 'Додатково' }));
+    expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('Enter у полі створює дискусію без стилю й креативності та відкриває чат', async () => {

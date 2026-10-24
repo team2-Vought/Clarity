@@ -1226,12 +1226,7 @@ export default function ChatPage() {
               aria-expanded={isAdvancedOpen}
               aria-controls="chat-advanced"
             >
-              <span className="debate__more-toggle-text">
-                {d.advancedShort}
-                {(discussion.moderator_model || discussion.devil_model) && (
-                  <small>{d.judgesCustomized}</small>
-                )}
-              </span>
+              <span className="debate__more-toggle-text">{d.advancedShort}</span>
               <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
             </button>
           </div>
