@@ -998,12 +998,24 @@ body:has(.app-shell) {
 }
 
 /* картки-підказки під полем: білі, як анкета учасника; клік підставляє питання */
+/* щойно в полі з'являється текст, підказки плавно згортаються, а поле
+   разом із заголовком м'яко зсувається на їхнє місце */
+.debate__suggestions-reveal {
+  --reveal-open: 4px 0 0;
+  width: min(760px, 100%);
+}
+
+/* картки не обрізаємо навіть під час руху — інакше їхні тіні з'являлися б
+   різко лише в кінці. Блок і так плавно проявляється з прозорості, а під
+   ним нічого немає, тож вихід за межі на мить нікому не заважає */
+.debate__suggestions-reveal > .debate__reveal-inner {
+  overflow: visible;
+}
+
 .debate__suggestions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  width: min(760px, 100%);
-  margin-top: 4px;
   animation: debate-view-in 0.22s ease-out;
 }
 
@@ -1074,7 +1086,9 @@ body:has(.app-shell) {
     display: flex;
     gap: 8px;
     width: 100%;
-    padding: 2px 0 10px;
+    /* гортальна стрічка сама обрізає вміст — місце під тінь карток знизу */
+    padding: 2px 0 26px;
+    margin-bottom: -26px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
@@ -1233,6 +1247,8 @@ body:has(.app-shell) {
   background: var(--card);
   color: var(--ink);
   font-size: 0.75rem;
+  /* нова збережена команда м'яко «вистрибує» на своє місце */
+  animation: debate-pop 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
   transition: background 0.18s;
 }
 
@@ -1438,12 +1454,15 @@ body:has(.app-shell) {
 }
 
 /* назва нової команди — рядок під жетонами */
-/* поле назви команди: рядок сітки росте з 0fr до 1fr, тож картка учасника
-   під ним плавно з'їжджає вниз; закрите — ще й «з'їдає» проміжок колонки */
-.debate__team-reveal {
+/* плавне розкриття блоку: рядок сітки росте з 0fr до 1fr, тож усе нижче
+   з'їжджає плавно, а не стрибає. Закритий блок ще й «з'їдає» проміжок колонки
+   (--reveal-closed), щоб на його місці не лишалося порожнечі */
+.debate__reveal {
+  --reveal-closed: -14px 0 0;
+  --reveal-open: 0;
   display: grid;
   grid-template-rows: 0fr;
-  margin: -14px -3px 0;
+  margin: var(--reveal-closed);
   opacity: 0;
   transition:
     grid-template-rows 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -1451,26 +1470,56 @@ body:has(.app-shell) {
     opacity 0.2s ease;
 }
 
-.debate__team-reveal--open {
+.debate__reveal--open {
   grid-template-rows: 1fr;
-  margin: -3px -3px -3px;
+  margin: var(--reveal-open);
   opacity: 1;
 }
 
-.debate__team-reveal-inner {
+.debate__reveal-inner {
   min-height: 0;
   overflow: hidden;
 }
 
-/* поля, щоб обрізання не з'їдало кільце навколо поля */
-.debate__team-reveal-inner > .debate__team-form {
-  margin: 3px;
+/* обрізання потрібне лише поки блок рухається: щойно розкрився — вміст
+   знову може виходити за межі, тож тіні карток і кільця фокусу не зрізаються */
+.debate__reveal--open > .debate__reveal-inner {
+  animation: debate-reveal-unclip 0s 0.32s forwards;
+}
+
+@keyframes debate-reveal-unclip {
+  to {
+    overflow: visible;
+  }
+}
+
+.debate__reveal-inner > * {
   transform: translateY(-6px);
   transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.debate__team-reveal--open .debate__team-form {
+.debate__reveal--open .debate__reveal-inner > * {
   transform: none;
+}
+
+/* збережені команди: так само з полями навколо — для кілець фокусу чипів */
+.debate__teams-reveal {
+  --reveal-closed: -14px -3px 0;
+  --reveal-open: -3px;
+}
+
+.debate__teams-reveal .debate__teams {
+  margin: 3px;
+}
+
+/* поле назви команди: поля навколо, щоб обрізання не з'їдало кільце фокусу */
+.debate__team-reveal {
+  --reveal-closed: -14px -3px 0;
+  --reveal-open: -3px;
+}
+
+.debate__team-reveal .debate__team-form {
+  margin: 3px;
 }
 
 .debate__team-form {
@@ -1502,6 +1551,64 @@ body:has(.app-shell) {
 
 .debate__cast .debate__teams {
   gap: 6px;
+}
+
+/* заготовки під час завантаження панелі: сірі форми з «відблиском», що пробігає */
+.debate__skeleton {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ink) 6%, var(--card)) 25%,
+    color-mix(in srgb, var(--ink) 11%, var(--card)) 50%,
+    color-mix(in srgb, var(--ink) 6%, var(--card)) 75%
+  );
+  background-size: 200% 100%;
+  animation: debate-shimmer 1.4s ease-in-out infinite;
+}
+
+.debate__skeleton--token {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.debate__skeleton--avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 18px;
+}
+
+.debate__skeleton--name {
+  width: 45%;
+  height: 16px;
+}
+
+.debate__skeleton--label {
+  width: 30%;
+  height: 12px;
+}
+
+.debate__skeleton--well {
+  height: 48px;
+  border-radius: 16px;
+}
+
+@keyframes debate-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__skeleton {
+    animation: none;
+  }
 }
 
 /* анкета */
@@ -2185,6 +2292,14 @@ body:has(.app-shell) {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
+}
+
+/* у суддів підпис завжди окремим рядком під назвою: у вузькій панелі він
+   то вміщався впритул до краю картки, то переносився — тепер однаково */
+.debate__field-title:has(.debate__judge-name) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .debate__judge-name {

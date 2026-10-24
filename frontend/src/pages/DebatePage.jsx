@@ -202,6 +202,7 @@ export default function DebatePage() {
     && description.trim().length > 0
     && participants.length >= MIN_PARTICIPANTS
     && allParticipantsHaveModels;
+  const showSuggestions = !description.trim() && !isCreating;
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
 
@@ -740,6 +741,13 @@ export default function DebatePage() {
                 </div>
 
                 <div className="debate__lineup">
+                  {/* поки вантажиться склад — сірі заготовки жетонів замість порожнечі */}
+                  {isLoading && participants.length === 0 && (
+                    <>
+                      <span className="debate__skeleton debate__skeleton--token" aria-hidden="true" />
+                      <span className="debate__skeleton debate__skeleton--token" aria-hidden="true" />
+                    </>
+                  )}
                   {participants.map((p, i) => {
                     const active = p.slug === activeParticipant?.slug;
                     const label = p.name.trim() || t.participantN(i + 1);
@@ -776,10 +784,10 @@ export default function DebatePage() {
 
                 {/* поле назви розкривається плавно й відсуває картку учасника вниз */}
                 <div
-                  className={`debate__team-reveal ${isTeamFormOpen ? 'debate__team-reveal--open' : ''}`}
+                  className={`debate__reveal debate__team-reveal ${isTeamFormOpen ? 'debate__reveal--open' : ''}`}
                   inert={!isTeamFormOpen}
                 >
-                  <div className="debate__team-reveal-inner">
+                  <div className="debate__reveal-inner">
                     <div className="debate__team-form">
                       <input
                         ref={teamInputRef}
@@ -809,33 +817,39 @@ export default function DebatePage() {
                   </div>
                 </div>
 
-                {teams.length > 0 && (
-                  <div className="debate__teams" role="group" aria-label={t.teams}>
-                    <span className="debate__teams-label">{t.teams}</span>
-                    {teams.map((team) => (
-                      <span key={team.id} className="debate__team-chip">
-                        <button
-                          type="button"
-                          className="debate__team-apply"
-                          onClick={() => applyTeam(team)}
-                          disabled={isCreating}
-                          title={t.applyTeam(team.name)}
-                        >
-                          {team.name}
-                        </button>
-                        <button
-                          type="button"
-                          className="debate__team-remove"
-                          onClick={() => removeTeam(team)}
-                          aria-label={t.deleteTeam(team.name)}
-                          title={t.deleteTeam(team.name)}
-                        >
-                          <CloseIcon />
-                        </button>
-                      </span>
-                    ))}
+                {/* збережені команди з'являються плавно, коли збережено першу */}
+                <div
+                  className={`debate__reveal debate__teams-reveal ${teams.length > 0 ? 'debate__reveal--open' : ''}`}
+                  inert={teams.length === 0}
+                >
+                  <div className="debate__reveal-inner">
+                    <div className="debate__teams" role="group" aria-label={t.teams}>
+                      <span className="debate__teams-label">{t.teams}</span>
+                      {teams.map((team) => (
+                        <span key={team.id} className="debate__team-chip">
+                          <button
+                            type="button"
+                            className="debate__team-apply"
+                            onClick={() => applyTeam(team)}
+                            disabled={isCreating}
+                            title={t.applyTeam(team.name)}
+                          >
+                            {team.name}
+                          </button>
+                          <button
+                            type="button"
+                            className="debate__team-remove"
+                            onClick={() => removeTeam(team)}
+                            aria-label={t.deleteTeam(team.name)}
+                            title={t.deleteTeam(team.name)}
+                          >
+                            <CloseIcon />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
               </section>
 
               {activeParticipant && (
@@ -920,8 +934,23 @@ export default function DebatePage() {
                   </div>
                 </section>
               )}
+              {isLoading && !activeParticipant && (
+                // заготовка анкети: та сама біла картка, лише з сірими смугами
+                <div className="debate__sheet debate__sheet--skeleton" aria-hidden="true">
+                  <div className="debate__sheet-head">
+                    <span className="debate__skeleton debate__skeleton--avatar" />
+                    <span className="debate__skeleton debate__skeleton--name" />
+                  </div>
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="debate__field">
+                      <span className="debate__skeleton debate__skeleton--label" />
+                      <span className="debate__skeleton debate__skeleton--well" />
+                    </div>
+                  ))}
+                </div>
+              )}
               {isLoading && (
-                <p className="debate__hint" role="status">{t.loading}</p>
+                <p className="sr-only" role="status">{t.loading}</p>
               )}
             </div>
             <button
@@ -1054,30 +1083,36 @@ export default function DebatePage() {
           )}
         </div>
 
-        {!description.trim() && !isCreating && (
-          <div className="debate__suggestions" role="group" aria-label={t.suggestionsLabel}>
-            {SUGGESTIONS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className="debate__suggestion"
-                onClick={() => applySuggestion(item.text)}
-              >
-                <span className="debate__suggestion-head">
-                  <span
-                    className="debate__suggestion-icon"
-                    style={{ '--tone': item.tone }}
-                    aria-hidden="true"
-                  >
-                    <HugeiconsIcon icon={item.icon} size={15} strokeWidth={1.8} />
+        {/* підказки згортаються плавно, щойно в полі з'являється текст */}
+        <div
+          className={`debate__reveal debate__suggestions-reveal ${showSuggestions ? 'debate__reveal--open' : ''}`}
+          inert={!showSuggestions}
+        >
+          <div className="debate__reveal-inner">
+            <div className="debate__suggestions" role="group" aria-label={t.suggestionsLabel}>
+              {SUGGESTIONS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="debate__suggestion"
+                  onClick={() => applySuggestion(item.text)}
+                >
+                  <span className="debate__suggestion-head">
+                    <span
+                      className="debate__suggestion-icon"
+                      style={{ '--tone': item.tone }}
+                      aria-hidden="true"
+                    >
+                      <HugeiconsIcon icon={item.icon} size={15} strokeWidth={1.8} />
+                    </span>
+                    {item.topic}
                   </span>
-                  {item.topic}
-                </span>
-                <span className="debate__suggestion-text">{item.text}</span>
-              </button>
-            ))}
+                  <span className="debate__suggestion-text">{item.text}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
+        </div>
 
         {error && (
           <div className="debate__error-block">

@@ -136,7 +136,9 @@ describe('DebatePage', () => {
     const field = screen.getByRole('textbox', { name: 'Опис' });
     expect(field).toHaveValue(text);
     expect(field).toHaveFocus();
-    expect(screen.queryByRole('group', { name: 'Приклади питань' })).not.toBeInTheDocument();
+    // блок лишається в розмітці, щоб згорнутися плавно, але вже недоступний
+    expect(group.closest('.debate__reveal')).not.toHaveClass('debate__reveal--open');
+    expect(group.closest('.debate__reveal')).toHaveAttribute('inert');
   });
 
   it('Enter у полі створює дискусію без стилю й креативності та відкриває чат', async () => {
