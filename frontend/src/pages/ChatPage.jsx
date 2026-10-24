@@ -63,6 +63,17 @@ import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exp
 const t = uk.chat;
 const d = uk.debate;
 
+// Чи вміщається текст підказки в поле цілим. Без вимірювань (тести, ще не
+// змонтоване поле) вважаємо, що ні, — тоді береться коротший варіант.
+let measureCtx;
+const fitsField = ({ width, font }, text) => {
+  if (!width || !font) return false;
+  measureCtx ??= document.createElement('canvas').getContext?.('2d');
+  if (!measureCtx) return false;
+  measureCtx.font = font;
+  return measureCtx.measureText(text).width <= width;
+};
+
 const STICK_THRESHOLD = 96;
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;
@@ -256,6 +267,7 @@ export default function ChatPage() {
   const touchYRef = useRef(0);
   // на телефоні поле згортається в круглу кнопку, поки людина гортає вниз
   const [isComposerMin, setIsComposerMin] = useState(false);
+  const [noteBox, setNoteBox] = useState({ width: 0, font: '' });
   const swipeRef = useRef(0);
   const panelRef = useRef(null);
   const noteRef = useRef(null);
@@ -553,6 +565,26 @@ export default function ChatPage() {
     return () => observer.disconnect();
   }, [discussion?.id]);
 
+  // ширина поля — щоб обрати підказку, яка в нього вміщається
+  useEffect(() => {
+    const el = noteRef.current;
+    if (!el) return undefined;
+    const update = () => {
+      const next = { width: el.clientWidth, font: getComputedStyle(el).font };
+      // поле росте й у висоту — тоді ширина та сама, і перерендер не потрібен
+      setNoteBox((prev) => (prev.width === next.width && prev.font === next.font ? prev : next));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    // запасний шлях: шрифт і ширина міняються й разом із вікном
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [discussion?.id]);
+
   // Поле уточнення росте разом із текстом; після max-height з'являється скрол.
   useLayoutEffect(() => {
     const el = noteRef.current;
@@ -842,14 +874,22 @@ export default function ChatPage() {
   // фінальний висновок уже пишеться: уточнення не потрапило б у нього й лишилося б без відповіді
   const isFinalWriting = discussion?.phase === 'final' && !isFinished;
   // ліміт уточнень вичерпано — поле вимкнене, і підказка в ньому пояснює чому
-  // на телефоні поле вузьке — там короткий варіант, а повний лишається назвою поля
+  // повна підказка довга навіть для широкого поля — вона лишається назвою поля,
+  // а в самому полі коротший варіант (на телефоні — найкоротший)
   const noteHint = isFinished
     ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
     : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
+  const noteHintMid = isFinished
+    ? followupsLeft > 0 ? t.followupPlaceholderMid : t.followupsDoneMid
+    : t.notePlaceholderByPhaseMid[discussion?.phase] || t.notePlaceholderMid;
   const noteHintShort = isFinished
     ? followupsLeft > 0 ? t.followupPlaceholderShort : t.followupsDoneShort
     : t.notePlaceholderShort;
-  const notePlaceholder = isPhone ? noteHintShort : noteHint;
+  // з трьох варіантів беремо найдовший, що вміщається в поле цілим
+  const notePlaceholder = useMemo(
+    () => [noteHint, noteHintMid].find((text) => fitsField(noteBox, text)) || noteHintShort,
+    [noteHint, noteHintMid, noteHintShort, noteBox]
+  );
   const canSendNote =
     Boolean(discussion)
     && !isSending
