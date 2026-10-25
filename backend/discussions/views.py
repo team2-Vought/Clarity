@@ -12,6 +12,7 @@ from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from .account_settings import preferences_of
 from .models import Discussion, Message, Team
 from .personas import (
     DEVIL,
@@ -32,9 +33,25 @@ from .serializers import (
     UpdateDiscussionSerializer,
 )
 from .services import engine, runner, search, usage
-from .services.catalog import catalog
+from .services.catalog import catalog, user_context
 
 logger = logging.getLogger(__name__)
+
+
+class UserModelsMixin:
+    """Каталог моделей у запиті бачить власні ключі й вибір користувача."""
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        self._user_context = user_context(request.user)
+        self._user_context.__enter__()
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        context = getattr(self, '_user_context', None)
+        if context is not None:
+            self._user_context = None
+            context.__exit__(None, None, None)
+        return super().finalize_response(request, response, *args, **kwargs)
 
 
 def _retry_after_seconds():
@@ -153,14 +170,16 @@ class PersonaListView(APIView):
         )
 
 
-class FreeModelListView(APIView):
+class FreeModelListView(UserModelsMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(catalog(), status=status.HTTP_200_OK)
+        # параметри нової дискусії з «Налаштувань» — одним запитом з моделями
+        payload = {**catalog(), 'preferences': preferences_of(request.user)}
+        return Response(payload, status=status.HTTP_200_OK)
 
 
-class DiscussionListCreateView(APIView):
+class DiscussionListCreateView(UserModelsMixin, APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'discussion_create'
@@ -244,7 +263,7 @@ class DiscussionListCreateView(APIView):
         )
 
 
-class OwnedDiscussionView(APIView):
+class OwnedDiscussionView(UserModelsMixin, APIView):
     """Доступ до власної дискусії. Методи визначає кожен підклас сам:
     дії (/run/, /stop/…) не мають успадковувати GET, PATCH чи DELETE."""
 
@@ -447,7 +466,7 @@ class SharedDiscussionView(APIView):
         return Response(SharedDiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
 
 
-class TeamListCreateView(APIView):
+class TeamListCreateView(UserModelsMixin, APIView):
     """Збережені команди. POST з наявною назвою оновлює команду, а не дублює її."""
 
     permission_classes = [IsAuthenticated]
@@ -475,7 +494,7 @@ class TeamListCreateView(APIView):
         return Response(TeamSerializer(team).data, status=code)
 
 
-class TeamDetailView(APIView):
+class TeamDetailView(UserModelsMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):

@@ -102,7 +102,11 @@ const NAV_ITEMS = [
 const isItemActive = (item, pathname) =>
   (item.match || []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
+// Смуга іконок (`rail`) стоїть зліва на ширших екранах і завжди згорнута;
+// розгорнуте меню (`drawer`) — окреме вікно, що виїжджає поверх неї
+// і на ПК, і на телефоні.
 export default function Sidebar({
+  variant = 'rail',
   activePath,
   collapsed,
   onToggle,
@@ -122,7 +126,10 @@ export default function Sidebar({
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`} aria-label={t.appName}>
+    <aside
+      className={`sidebar sidebar--${variant} ${collapsed ? 'sidebar--collapsed' : ''}`}
+      aria-label={t.appName}
+    >
       <div
         className="sidebar__brand"
         role="button"
@@ -213,6 +220,7 @@ export default function Sidebar({
 }
 
 Sidebar.propTypes = {
+  variant: PropTypes.oneOf(['rail', 'drawer']),
   activePath: PropTypes.string.isRequired,
   collapsed: PropTypes.bool.isRequired,
   onToggle: PropTypes.func.isRequired,

@@ -53,7 +53,9 @@ const readView = () => {
   }
 };
 
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prefersReducedMotion = () =>
+  document.documentElement.dataset.motion === 'reduced'
+  || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const timeFormat = new Intl.DateTimeFormat('uk-UA', { hour: '2-digit', minute: '2-digit' });
 const weekdayFormat = new Intl.DateTimeFormat('uk-UA', { weekday: 'long' });

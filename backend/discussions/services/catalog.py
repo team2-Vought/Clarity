@@ -5,6 +5,9 @@
 Доступність залежить від наявності API-ключа або локального налаштування.
 """
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 from django.conf import settings
 
 OPENAI_COMPATIBLE = 'openai_compatible'
@@ -215,6 +218,47 @@ RECOMMENDED = [
 ]
 
 
+# Власні ключі користувача, від імені якого зараз працює запит чи раннер.
+# Мають перевагу над ключами сервера з .env. Потоки ThreadPoolExecutor
+# контекст не успадковують — engine передає його явно (copy_context).
+_user_keys = ContextVar('user_keys', default=None)
+_user_prefs = ContextVar('user_prefs', default=None)
+
+# провайдери, для яких користувач може вставити власний ключ
+USER_KEY_PROVIDERS = [pid for pid, provider in PROVIDERS.items() if provider['requires_key']]
+
+
+def load_user_keys(user):
+    """{provider_id: ключ} користувача; нечитабельні ключі пропускаються."""
+    from accounts.secrets import decrypt
+
+    if user is None or not getattr(user, 'pk', None):
+        return {}
+    keys = {}
+    for provider, token in user.provider_keys.values_list('provider', 'encrypted_key'):
+        value = decrypt(token)
+        if value and provider in PROVIDERS:
+            keys[provider] = value
+    return keys
+
+
+@contextmanager
+def user_context(user):
+    """Каталог і провайдери всередині блоку бачать ключі й вибір користувача."""
+    keys_token = _user_keys.set(load_user_keys(user))
+    prefs_token = _user_prefs.set(dict(getattr(user, 'preferences', None) or {}))
+    try:
+        yield
+    finally:
+        _user_keys.reset(keys_token)
+        _user_prefs.reset(prefs_token)
+
+
+def server_has_key(provider_id):
+    key_setting = PROVIDERS[provider_id].get('key_setting')
+    return bool(key_setting and getattr(settings, key_setting, ''))
+
+
 def _settings_list(name):
     value = getattr(settings, name, [])
     if isinstance(value, str):
@@ -251,6 +295,9 @@ def _dynamic_models():
 
 
 def _provider_key(provider_id):
+    user_key = (_user_keys.get() or {}).get(provider_id)
+    if user_key:
+        return user_key
     provider = PROVIDERS[provider_id]
     key_setting = provider.get('key_setting')
     if not key_setting:
@@ -320,12 +367,14 @@ def resolve_model(model_id):
 
 
 def default_model_id():
-    configured = getattr(settings, 'LLM_DEFAULT_MODEL', '')
     specs = list(_all_specs())
-    if configured and any(
-        spec['id'] == configured and _is_available(spec) for spec in specs
-    ):
-        return configured
+    # спершу — модель, яку користувач обрав у налаштуваннях
+    preferred = (_user_prefs.get() or {}).get('default_model', '')
+    for configured in (preferred, getattr(settings, 'LLM_DEFAULT_MODEL', '')):
+        if configured and any(
+            spec['id'] == configured and _is_available(spec) for spec in specs
+        ):
+            return configured
     for spec in specs:
         if _is_available(spec):
             return spec['id']
@@ -352,6 +401,8 @@ def catalog():
                 'available': available,
                 'requires_key': provider['requires_key'],
                 'key_env': provider.get('key_env', ''),
+                'user_key': provider_id in (_user_keys.get() or {}),
+                'server_key': server_has_key(provider_id),
             }
         )
     return {
@@ -360,9 +411,9 @@ def catalog():
         'recommended': recommended,
         'default_model': default_model_id(),
         'note': (
-            'Показано лише реальні моделі. Для віддалених моделей додайте API-ключ '
-            'у backend/.env; Ollama працює локально без ключа. Після зміни .env '
-            'перезапустіть backend.'
+            'Показано лише реальні моделі. Для віддалених моделей додайте власний '
+            'API-ключ у налаштуваннях або в backend/.env; Ollama працює локально '
+            'без ключа.'
         ),
     }
 

@@ -59,6 +59,7 @@ import {
   stanceTone,
 } from '../utils/chatView';
 import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exportMarkdown';
+import { isSendShortcut } from '../utils/devicePrefs';
 
 const t = uk.chat;
 const d = uk.debate;
@@ -83,7 +84,8 @@ const JUMP_THRESHOLD = 400;
 const FOLLOW_EASE = 0.16;
 
 const prefersReducedMotion = () =>
-  Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  document.documentElement.dataset.motion === 'reduced'
+  || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 // Дискусію виконує сервер; сторінка лише опитує стан.
 const POLL_MS = 2000;
 // Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
@@ -917,7 +919,7 @@ export default function ChatPage() {
   };
 
   const handleNoteKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    if (!isSendShortcut(e)) return;
     e.preventDefault();
     e.currentTarget.form?.requestSubmit();
   };

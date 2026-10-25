@@ -21,6 +21,7 @@ from django.db import connection
 
 from ..models import Discussion
 from . import engine, usage
+from .catalog import user_context
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,9 @@ def run(discussion_id, provider_factory=None):
             _fail_with_limit(discussion_id)
             return
         try:
-            engine.advance(discussion, provider_factory=provider_factory)
+            # моделі викликаються з власними ключами автора дискусії
+            with user_context(discussion.user):
+                engine.advance(discussion, provider_factory=provider_factory)
         except engine.EngineBusy:
             # крок виконує інший раннер (інший процес чи вкладка) — він і продовжить
             return

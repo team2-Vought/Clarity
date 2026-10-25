@@ -1,16 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { MenuIcon } from './DebateIcons';
 import { UNAUTHORIZED_EVENT } from '../api/client';
 import { useToasts } from '../hooks/useToasts';
 import { uk } from '../copy/uk';
+import { readThemeMode, writeThemeMode } from '../utils/devicePrefs';
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+const subscribeScheme = (onChange) => {
+  const query = window.matchMedia?.(DARK_QUERY);
+  query?.addEventListener('change', onChange);
+  return () => query?.removeEventListener('change', onChange);
+};
+
+const systemPrefersDark = () => Boolean(window.matchMedia?.(DARK_QUERY).matches);
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(true);
-  const [theme, setTheme] = useState(() =>
-    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
-  );
+  // 'light' | 'dark' | 'system': «як у системі» стежить за налаштуванням ОС наживо
+  const [themeMode, setThemeMode] = useState(readThemeMode);
+  const systemDark = useSyncExternalStore(subscribeScheme, systemPrefersDark);
+  const theme = themeMode === 'system' ? (systemDark ? 'dark' : 'light') : themeMode;
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { pushToast } = useToasts();
@@ -45,10 +57,11 @@ export default function Layout() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem('clarity-theme', theme);
-    } catch {}
   }, [theme]);
+
+  useEffect(() => {
+    writeThemeMode(themeMode);
+  }, [themeMode]);
 
   // Панель налаштувань дебату ховається кнопкою в куті області чату
   // (і повторним кліком на «Новий чат» на головній).
@@ -77,25 +90,47 @@ export default function Layout() {
   }, []);
 
   const outletContext = useMemo(
-    () => ({ panelCollapsed, registerPanelToggle, togglePanel }),
-    [panelCollapsed, registerPanelToggle, togglePanel]
+    () => ({ panelCollapsed, registerPanelToggle, togglePanel, themeMode, setThemeMode }),
+    [panelCollapsed, registerPanelToggle, togglePanel, themeMode]
   );
 
+  // Escape закриває розгорнуте меню
+  useEffect(() => {
+    if (collapsed) return undefined;
+    const handleKey = (event) => {
+      if (event.key === 'Escape') setCollapsed(true);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [collapsed]);
+
   const toggle = () => setCollapsed((c) => !c);
-  const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => setThemeMode(theme === 'dark' ? 'light' : 'dark');
 
   return (
     <div className="app-shell">
-      <div className="app-shell__rail">
+      {/* поки меню відкрите, смуга іконок під затемненням недоступна з клавіатури */}
+      <div className="app-shell__rail" inert={!collapsed}>
         <Sidebar
+          variant="rail"
           activePath={pathname}
-          collapsed={collapsed}
+          collapsed
           onToggle={toggle}
           theme={theme}
           onToggleTheme={toggleTheme}
           onTogglePanel={togglePanel}
         />
       </div>
+
+      <Sidebar
+        variant="drawer"
+        activePath={pathname}
+        collapsed={collapsed}
+        onToggle={toggle}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onTogglePanel={togglePanel}
+      />
 
       {/* на телефоні смуги іконок немає — меню відкривається цією кнопкою */}
       <button

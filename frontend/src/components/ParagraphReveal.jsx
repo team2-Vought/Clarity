@@ -13,7 +13,10 @@ const SETTLE_MS = 700;
 
 const prefersReducedMotion = () => {
   try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return (
+      document.documentElement.dataset.motion === 'reduced'
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
   } catch {
     return false;
   }

@@ -10,6 +10,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    # налаштування, що йдуть за акаунтом: модель і параметри нової дискусії
+    preferences = models.JSONField('налаштування', default=dict, blank=True)
 
     objects = UserManager()
 
@@ -38,3 +40,24 @@ class LoginAttempt(models.Model):
 
     def __str__(self):
         return f'{self.email}: {self.failed_count}'
+
+
+class ProviderKey(models.Model):
+    """Власний API-ключ користувача для LLM-провайдера (зашифрований)."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='provider_keys')
+    provider = models.CharField('провайдер', max_length=32)
+    encrypted_key = models.TextField('ключ (зашифрований)')
+    masked = models.CharField('ключ (скорочено)', max_length=24)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'API-ключ'
+        verbose_name_plural = 'API-ключі'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'provider'], name='unique_provider_key_per_user'),
+        ]
+
+    def __str__(self):
+        return f'{self.user} — {self.provider} ({self.masked})'

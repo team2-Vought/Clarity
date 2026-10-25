@@ -8,6 +8,7 @@ import './styles/auth.css';
 import './styles/landing.css';
 import './styles/debate.css';
 import './styles/history.css';
+import './styles/settings.css';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -16,6 +17,7 @@ const DebatePage = lazy(() => import('./pages/DebatePage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const SharedPage = lazy(() => import('./pages/SharedPage'));
 
@@ -44,7 +46,7 @@ export default function App() {
               <Route path="/chat/:id" element={<ChatPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/history" element={<HistoryPage />} />
-              <Route path="/settings" element={<AccountPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/help" element={<AccountPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />

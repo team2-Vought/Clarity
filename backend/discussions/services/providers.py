@@ -145,7 +145,7 @@ def _post_with_retries(url, *, headers, payload, timeout, provider_label):
             detail = response.text[:400]
             hint = ''
             if response.status_code in {401, 403}:
-                hint = ' Перевірте API-ключ у backend/.env.'
+                hint = ' Перевірте API-ключ у налаштуваннях або в backend/.env.'
             raise ProviderError(
                 f'{provider_label} {response.status_code}: {detail}{hint}',
                 status=response.status_code,
@@ -294,8 +294,8 @@ def get_provider(model_id):
                 config=True,
             )
         raise ProviderError(
-            f'Модель «{model_id}» недоступна: додайте {spec["key_env"]} '
-            'у backend/.env і перезапустіть backend.',
+            f'Модель «{model_id}» недоступна: додайте власний ключ {spec["provider"]} '
+            f'у налаштуваннях або {spec["key_env"]} у backend/.env.',
             config=True,
         )
 

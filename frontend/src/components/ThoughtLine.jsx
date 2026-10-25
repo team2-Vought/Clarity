@@ -75,7 +75,8 @@ export default function ThoughtLine({
   className = '',
   style,
 }) {
-  const reduce = useReducedMotion();
+  // системне налаштування або «Менше анімації» в налаштуваннях застосунку
+  const reduce = useReducedMotion() || document.documentElement.dataset.motion === 'reduced';
   const [autoSettled, setAutoSettled] = useState(false);
   const [prevWorkingProp, setPrevWorkingProp] = useState(working);
   // новий запуск знімає автозавершення попереднього

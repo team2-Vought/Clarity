@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .account_settings import ProviderKeyView, SettingsView
 from .views import (
     DiscussionAdvanceView,
     DiscussionDetailView,
@@ -19,6 +20,8 @@ app_name = 'discussions'
 
 urlpatterns = [
     path('personas/', PersonaListView.as_view(), name='personas'),
+    path('settings/', SettingsView.as_view(), name='settings'),
+    path('settings/keys/<str:provider>/', ProviderKeyView.as_view(), name='settings-key'),
     path('models/', FreeModelListView.as_view(), name='models'),
     path('discussions/', DiscussionListCreateView.as_view(), name='discussion-list'),
     path(

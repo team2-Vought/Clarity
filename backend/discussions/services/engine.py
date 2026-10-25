@@ -27,6 +27,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import re
@@ -906,8 +907,12 @@ def _run_plans(plans, provider_factory, discussion):
     results = []
     workers = max(1, min(len(plans), MAX_PARALLEL_CALLS))
     with ThreadPoolExecutor(max_workers=workers) as pool:
+        # кожен виклик — у копії поточного контексту: так потоки бачать ключі користувача
         futures = [
-            pool.submit(_run_plan, plan, provider_factory, discussion) for plan in plans
+            pool.submit(
+                contextvars.copy_context().run, _run_plan, plan, provider_factory, discussion
+            )
+            for plan in plans
         ]
         for plan, future in zip(plans, futures):
             try:

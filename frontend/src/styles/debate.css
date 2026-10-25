@@ -136,11 +136,6 @@ body:has(.app-shell) {
   display: none;
 }
 
-.sidebar:not(.sidebar--collapsed) {
-  width: clamp(208px, 17vw, 260px);
-  box-shadow: 0 0 32px rgba(0, 0, 0, 0.18);
-}
-
 .sidebar__brand {
   display: flex;
   align-items: center;
@@ -244,7 +239,7 @@ body:has(.app-shell) {
     transform 0.12s ease;
 }
 
-.sidebar:not(.sidebar--collapsed) .sidebar__label {
+.sidebar--drawer:not(.sidebar--collapsed) .sidebar__label {
   --label-delay: calc(0.06s + var(--i, 0) * 0.03s);
   opacity: 1;
   transform: none;
@@ -267,6 +262,87 @@ body:has(.app-shell) {
 
 .sidebar__control--logout:hover {
   background: rgba(255, 135, 135, 0.18);
+}
+
+/* ---- меню: окреме вікно із закругленими кутами ----
+   На всіх ширинах однакове: не від краю до краю, а картка з відступами від
+   країв екрана поверх смуги іконок. Згорнуте — те саме вікно, лише сховане
+   за лівим краєм, тож відкривається одним рухом. */
+.sidebar--drawer {
+  --nav-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --nav-time: 0.3s;
+  position: fixed;
+  inset: 12px auto 12px 12px;
+  width: min(280px, calc(100vw - 72px));
+  padding: 16px 0;
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  transition:
+    transform var(--nav-time) var(--nav-ease),
+    visibility 0s linear var(--nav-time);
+}
+
+.sidebar--drawer.sidebar--collapsed {
+  visibility: hidden;
+  transform: translateX(calc(-100% - 24px));
+}
+
+.sidebar--drawer:not(.sidebar--collapsed) {
+  visibility: visible;
+  transform: none;
+  transition: transform var(--nav-time) var(--nav-ease);
+}
+
+/* лише логотип, без напису */
+.sidebar--drawer .sidebar__brand {
+  margin: 0 0 16px;
+  padding: 4px 22px;
+}
+
+.sidebar--drawer .sidebar__brand img {
+  width: 52px;
+}
+
+/* великі пункти під палець: 52px заввишки, іконка 30px */
+.sidebar--drawer .sidebar__nav {
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.sidebar--drawer .sidebar__item {
+  gap: 12px;
+  height: 52px;
+  padding: 0 12px;
+  border-radius: 16px;
+  font-size: 1.0625rem;
+}
+
+.sidebar--drawer .sidebar__item svg {
+  width: 30px;
+  height: 30px;
+}
+
+.sidebar--drawer .sidebar__controls {
+  gap: 2px;
+  padding: 12px 12px 0;
+}
+
+.sidebar--drawer .sidebar__control {
+  gap: 14px;
+  height: 46px;
+  padding: 0 15px;
+  border-radius: 14px;
+  font-size: 1rem;
+}
+
+.sidebar--drawer .sidebar__control svg {
+  width: 24px;
+  height: 24px;
+}
+
+.sidebar--drawer .sidebar__control--logout {
+  color: #ff8787;
 }
 
 /* ---------- Debate page ---------- */
@@ -3545,10 +3621,7 @@ ol.chat__reveal {
   }
 
   .app-shell__rail {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 100;
-    width: 0;
+    display: none;
   }
 
   .app-shell__burger {
@@ -3583,105 +3656,6 @@ ol.chat__reveal {
 
   .app-shell__burger:focus-visible {
     outline: 2px solid var(--focus, #7f80ac);
-  }
-
-  /* ---- меню: окреме вікно із закругленими кутами ----
-     Не від краю до краю, а картка з відступами від країв екрана. Згорнуте —
-     те саме вікно, лише сховане за лівим краєм, тож відкривається одним рухом. */
-  .sidebar {
-    --nav-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-    --nav-time: 0.3s;
-    inset: 12px auto 12px 12px;
-    width: min(280px, calc(100vw - 72px));
-    padding: 16px 0;
-    border-radius: 28px;
-    background: var(--panel);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-    transition:
-      transform var(--nav-time) var(--nav-ease),
-      visibility 0s linear var(--nav-time);
-  }
-
-  .sidebar.sidebar--collapsed {
-    inset: 12px auto 12px 12px;
-    width: min(280px, calc(100vw - 72px));
-    padding: 16px 0;
-    border-radius: 28px;
-    visibility: hidden;
-    transform: translateX(calc(-100% - 24px));
-  }
-
-  .sidebar:not(.sidebar--collapsed) {
-    width: min(280px, calc(100vw - 72px));
-    visibility: visible;
-    transform: none;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-    transition: transform var(--nav-time) var(--nav-ease);
-  }
-
-  /* лише логотип, без напису */
-  .sidebar__brand,
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand {
-    margin: 0 0 16px;
-    padding: 4px 22px;
-    background: none;
-  }
-
-  .sidebar__brand img,
-  .sidebar:not(.sidebar--collapsed) .sidebar__brand img {
-    width: 52px;
-  }
-
-  .sidebar__brand-label {
-    display: none;
-  }
-
-  /* великі пункти під палець: 52px заввишки, іконка 30px */
-  .sidebar__nav,
-  .sidebar:not(.sidebar--collapsed) .sidebar__nav {
-    gap: 4px;
-    padding: 0 12px;
-  }
-
-  .sidebar__item,
-  .sidebar:not(.sidebar--collapsed) .sidebar__item {
-    gap: 12px;
-    height: 52px;
-    padding: 0 12px;
-    border-radius: 16px;
-    font-size: 1.0625rem;
-    font-weight: 500;
-  }
-
-  .sidebar__item svg {
-    width: 30px;
-    height: 30px;
-  }
-
-  .sidebar__controls,
-  .sidebar:not(.sidebar--collapsed) .sidebar__controls {
-    gap: 2px;
-    padding: 12px 12px 0;
-  }
-
-  .sidebar__control,
-  .sidebar:not(.sidebar--collapsed) .sidebar__control {
-    gap: 14px;
-    height: 46px;
-    padding: 0 15px;
-    border-radius: 14px;
-    font-size: 1rem;
-    font-weight: 500;
-  }
-
-  .sidebar__control svg,
-  .sidebar__control--logout svg {
-    width: 24px;
-    height: 24px;
-  }
-
-  .sidebar__control--logout {
-    color: #ff8787;
   }
 
   /* ---- сторінка: одна колонка, панель — висувна ---- */
@@ -4109,27 +4083,24 @@ ol.chat__reveal {
 }
 
 @media (max-height: 720px) {
-  .sidebar {
+  .sidebar--rail {
+    --item-icon: 26px;
+    --ctrl-icon: 20px;
     padding: 8px 0;
   }
 
-  .sidebar__brand {
+  .sidebar--rail .sidebar__brand {
     padding-bottom: 6px;
   }
 
-  .sidebar__item,
-  .sidebar__control {
+  .sidebar--rail .sidebar__item,
+  .sidebar--rail .sidebar__control {
     height: 30px;
   }
 
-  .sidebar__nav,
-  .sidebar__controls {
+  .sidebar--rail .sidebar__nav,
+  .sidebar--rail .sidebar__controls {
     gap: 2px;
-  }
-
-  .sidebar {
-    --item-icon: 26px;
-    --ctrl-icon: 20px;
   }
 
   

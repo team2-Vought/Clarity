@@ -198,6 +198,8 @@ REST_FRAMEWORK = {
         'discussion_create': '10/min',
         'discussion_advance': '60/min',
         'discussion_note': '20/min',
+        # перевірка ключа — запит до провайдера; не даємо перебирати ключі
+        'api_keys': '20/min',
     },
 }
 
@@ -272,3 +274,9 @@ LLM_CUSTOM_LABEL = os.getenv('CUSTOM_LLM_LABEL', '').strip()
 LLM_CUSTOM_BASE_URL = os.getenv('CUSTOM_LLM_BASE_URL', '').rstrip('/')
 LLM_CUSTOM_MODEL = os.getenv('CUSTOM_LLM_MODEL', '').strip()
 LLM_CUSTOM_API_KEY = os.getenv('CUSTOM_LLM_API_KEY', '').strip()
+
+# Власні ключі користувачів шифруються цим секретом (порожньо — похідний від
+# DJANGO_SECRET_KEY). Після зміни секрету збережені ключі доведеться ввести знову.
+API_KEYS_SECRET = os.getenv('API_KEYS_SECRET', '').strip()
+# Перед збереженням ключ перевіряється запитом до провайдера (список моделей)
+API_KEYS_VERIFY = os.getenv('API_KEYS_VERIFY', 'true').strip().lower() in {'1', 'true', 'yes'}

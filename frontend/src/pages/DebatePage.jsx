@@ -35,6 +35,7 @@ import RolePicker from '../components/RolePicker';
 import TraitPicker from '../components/TraitPicker';
 import { uk } from '../copy/uk';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
+import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
 
 const t = uk.debate;
@@ -227,6 +228,13 @@ export default function DebatePage() {
       const pool = modelPool(modelList, mData.recommended || [], selectedDefault);
       const fallbackModel = (i) => (pool.length ? pool[i % pool.length] : selectedDefault);
       const template = templateRef.current;
+      // параметри нової дискусії з «Налаштувань»; шаблон (повтор дискусії, команда) важливіший
+      const prefs = mData.preferences || {};
+      const startCount = Math.min(
+        Math.max(Number(prefs.default_participants) || MIN_PARTICIPANTS, MIN_PARTICIPANTS),
+        pData.max_ai || DEFAULT_MAX_PARTICIPANTS,
+        personaList.length
+      );
       const known = new Set(personaList.map((persona) => persona.slug));
       const fromTemplate = toParticipants(template?.personas, {
         known,
@@ -235,7 +243,7 @@ export default function DebatePage() {
       }).map((p) => ({ ...p, name: isDefaultName(p.name) ? '' : p.name }));
       const initial = fromTemplate.length >= MIN_PARTICIPANTS
         ? fromTemplate
-        : personaList.slice(0, MIN_PARTICIPANTS).map((persona, i) => ({
+        : personaList.slice(0, startCount).map((persona, i) => ({
           slug: persona.slug,
           name: '',
           color: TRAIT_COLORS[i % TRAIT_COLORS.length],
@@ -252,11 +260,15 @@ export default function DebatePage() {
         // шаблон застосовуємо один раз: після перезавантаження діє звичайна чернетка
         templateRef.current = null;
         window.history.replaceState({ ...window.history.state, usr: null }, '');
+      } else {
+        if (prefs.default_mode) setMode(prefs.default_mode);
+        const maxRoundsAllowed = pData.max_rounds || 3;
+        if (prefs.default_rounds) setRounds(Math.min(prefs.default_rounds, maxRoundsAllowed));
       }
       const search = pData.search || { available: false };
       setSearchStatus(search);
       // пошук увімкнено за замовчуванням, якщо сервер його підтримує
-      const templateSearch = template?.webSearch;
+      const templateSearch = template ? template.webSearch : prefs.web_search;
       setWebSearch(Boolean(search.available && (templateSearch ?? true)));
       setModelOrder(pool);
       setPersonas(personaList);
@@ -302,7 +314,7 @@ export default function DebatePage() {
   };
 
   const handleQuestionKeyDown = (e) => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    if (!isSendShortcut(e)) return;
     e.preventDefault();
     if (canStart) formRef.current?.requestSubmit();
   };

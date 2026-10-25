@@ -174,3 +174,15 @@ h1::after {
   h1::after, .hero__title::after { animation: none; }
   * { transition-duration: 0.01ms !important; }
 }
+
+/* «Менше анімації» в налаштуваннях: як системне prefers-reduced-motion,
+   але для цього пристрою незалежно від ОС */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
