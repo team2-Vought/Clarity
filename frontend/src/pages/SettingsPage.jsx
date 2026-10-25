@@ -73,11 +73,11 @@ function statusOf(provider) {
   return { kind: 'off', text: t.status.none };
 }
 
-/** Сегментований перемикач — як вигляд «сітка / список» в історії. */
-function Segmented({ label, value, options, onChange, disabled = false, fill = false }) {
+/** Пігулки-перемикачі — як раунди й вигляд чату на панелі нового чату. */
+function Pills({ label, value, options, onChange, disabled = false, fill = false }) {
   return (
     <div
-      className={`settings__segmented ${fill ? 'settings__segmented--fill' : ''}`}
+      className={`settings__pills ${fill ? 'settings__pills--fill' : ''}`}
       role="radiogroup"
       aria-label={label}
     >
@@ -89,11 +89,11 @@ function Segmented({ label, value, options, onChange, disabled = false, fill = f
             type="button"
             role="radio"
             aria-checked={active}
-            className={`settings__segment ${active ? 'settings__segment--active' : ''}`}
+            className={`settings__pill ${active ? 'settings__pill--active' : ''}`}
             onClick={() => !active && onChange(option.value)}
             disabled={disabled}
           >
-            {option.icon && <HugeiconsIcon icon={option.icon} size={18} aria-hidden="true" />}
+            {option.icon && <HugeiconsIcon icon={option.icon} size={16} aria-hidden="true" />}
             <span>{option.label}</span>
           </button>
         );
@@ -135,15 +135,6 @@ function SwitchRow({ title, hint, checked, onChange, disabled = false }) {
         onChange={(e) => onChange(e.target.checked)}
       />
     </label>
-  );
-}
-
-function SectionHead({ title, lead }) {
-  return (
-    <header className="settings__section-head">
-      <h2 className="settings__section-title">{title}</h2>
-      {lead && <p className="settings__section-lead">{lead}</p>}
-    </header>
   );
 }
 
@@ -481,8 +472,7 @@ export default function SettingsPage() {
 
   const renderModels = () => (
     <>
-      <SectionHead title={t.modelsTitle} lead={t.modelsLead} />
-      <div className="settings__card">
+      <div className="settings__sheet">
         <Row title={t.defaultModel} hint={t.defaultModelHint} wide>
           <ModelPicker
             models={availableModels}
@@ -497,7 +487,7 @@ export default function SettingsPage() {
 
       <div className="settings__toolbar">
         <span className="settings__count">{t.availableCount(availableModels.length, models.length)}</span>
-        <Segmented
+        <Pills
           label={t.filterLabel}
           value={filter}
           onChange={setFilter}
@@ -532,10 +522,9 @@ export default function SettingsPage() {
 
   const renderDebate = () => (
     <>
-      <SectionHead title={t.debateTitle} lead={t.debateLead} />
-      <div className="settings__card">
+      <div className="settings__sheet">
         <Row title={t.modeLabel} hint={uk.debate.modeHints[prefs.default_mode]} stacked>
-          <Segmented
+          <Pills
             fill
             label={t.modeLabel}
             value={prefs.default_mode}
@@ -547,7 +536,7 @@ export default function SettingsPage() {
           />
         </Row>
         <Row title={t.roundsLabel} hint={t.roundsHint}>
-          <Segmented
+          <Pills
             label={t.roundsLabel}
             value={prefs.default_rounds}
             onChange={(value) => savePreference({ default_rounds: value })}
@@ -555,7 +544,7 @@ export default function SettingsPage() {
           />
         </Row>
         <Row title={t.participantsLabel} hint={t.participantsHint}>
-          <Segmented
+          <Pills
             label={t.participantsLabel}
             value={prefs.default_participants}
             onChange={(value) => savePreference({ default_participants: value })}
@@ -569,15 +558,15 @@ export default function SettingsPage() {
           onChange={(value) => savePreference({ web_search: value })}
         />
       </div>
+      <p className="settings__footnote">{t.debateLead}</p>
     </>
   );
 
   const renderAppearance = () => (
     <>
-      <SectionHead title={t.appearanceTitle} lead={t.appearanceLead} />
-      <div className="settings__card">
+      <div className="settings__sheet">
         <Row title={t.themeLabel} stacked>
-          <Segmented
+          <Pills
             fill
             label={t.themeLabel}
             value={themeMode}
@@ -593,7 +582,7 @@ export default function SettingsPage() {
           title={t.sendLabel}
           hint={sendKey === 'enter' ? t.sendHintEnter : t.sendHintModEnter}
         >
-          <Segmented
+          <Pills
             label={t.sendLabel}
             value={sendKey}
             onChange={changeSendKey}
@@ -610,6 +599,7 @@ export default function SettingsPage() {
           onChange={changeMotion}
         />
       </div>
+      <p className="settings__footnote">{t.appearanceLead}</p>
     </>
   );
 
@@ -617,12 +607,11 @@ export default function SettingsPage() {
     const usage = data?.usage || {};
     return (
       <>
-        <SectionHead title={t.usageTitle} lead={t.usageLead} />
-        <div className="settings__card">
+        <div className="settings__sheet">
           <UsageMeter title={t.usageDiscussions} used={usage.discussions || 0} limit={usage.discussions_limit || 0} />
           <UsageMeter title={t.usageReplies} used={usage.replies || 0} limit={usage.replies_limit || 0} />
         </div>
-        <p className="settings__footnote">{t.usageKeysNote}</p>
+        <p className="settings__footnote">{t.usageLead} {t.usageKeysNote}</p>
       </>
     );
   };
@@ -644,56 +633,59 @@ export default function SettingsPage() {
   else if (tab === 'usage') content = renderUsage();
   else content = renderModels();
 
+  // коротка підказка праворуч на картці розділу
+  const usage = data?.usage;
+  const tabAside = {
+    models: data ? `${availableModels.length}/${models.length}` : '',
+    usage: usage?.replies_limit ? `${usage.replies}/${usage.replies_limit}` : '',
+  };
+
   return (
     <div className="settings">
-      <div className="settings__scroll">
-        <div className="settings__inner">
-          <header className="settings__head">
-            <h1 className="settings__title">{t.title}</h1>
-            <p className="settings__subtitle">{t.subtitle}</p>
-          </header>
+      <h1 className="settings__sr-only">{t.title}</h1>
 
-          <div className="settings__body">
-            <div
-              className="settings__tabs"
-              role="tablist"
-              aria-label={t.sections}
-              aria-orientation="vertical"
-              onKeyDown={handleTabsKeyDown}
-            >
-              {TABS.map((item) => {
-                const active = item.key === tab;
-                return (
-                  <button
-                    key={item.key}
-                    id={`settings-tab-${item.key}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    aria-controls="settings-panel"
-                    tabIndex={active ? 0 : -1}
-                    className={`settings__tab ${active ? 'settings__tab--active' : ''}`}
-                    onClick={() => selectTab(item.key)}
-                  >
-                    <HugeiconsIcon icon={item.icon} size={20} aria-hidden="true" />
-                    <span>{t.tabs[item.key]}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <section
-              key={tab}
-              id="settings-panel"
-              className="settings__panel"
-              role="tabpanel"
-              aria-labelledby={`settings-tab-${tab}`}
-              aria-busy={needsData && isLoading}
-            >
-              {content}
-            </section>
-          </div>
+      <aside className="settings__side">
+        <div
+          className="settings__tabs"
+          role="tablist"
+          aria-label={t.sections}
+          aria-orientation="vertical"
+          onKeyDown={handleTabsKeyDown}
+        >
+          {TABS.map((item) => {
+            const active = item.key === tab;
+            return (
+              <button
+                key={item.key}
+                id={`settings-tab-${item.key}`}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-controls="settings-panel"
+                tabIndex={active ? 0 : -1}
+                className={`settings__tab ${active ? 'settings__tab--active' : ''}`}
+                onClick={() => selectTab(item.key)}
+              >
+                <HugeiconsIcon icon={item.icon} size={18} aria-hidden="true" />
+                <span className="settings__tab-label">{t.tabs[item.key]}</span>
+                {tabAside[item.key] && <span className="settings__tab-aside">{tabAside[item.key]}</span>}
+              </button>
+            );
+          })}
         </div>
+      </aside>
+
+      <div className="settings__main">
+        <section
+          key={tab}
+          id="settings-panel"
+          className="settings__content"
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${tab}`}
+          aria-busy={needsData && isLoading}
+        >
+          {content}
+        </section>
       </div>
     </div>
   );
