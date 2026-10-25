@@ -1,7 +1,8 @@
 // Іконки не зникають, коли смуга іконок «відривається» й стає карткою меню:
 // кожна іконка картки (лого, пункти, кнопки внизу) стартує точно там і такого
 // розміру, як у смузі, і пливе на своє місце — а при закритті повертається.
-// Так само їде й підсвітка активного пункту. Підписи проявляються окремо (CSS).
+// Так само їде підсвітка активного пункту, а назви пливуть поруч зі своїми
+// іконками (проявляються вони через CSS).
 //
 // Сама картка змінює форму через clip-path, тож макет її вмісту завжди
 // остаточний — досить порахувати зсув і масштаб від смуги до картки (FLIP).
@@ -105,6 +106,16 @@ export function morphSidebar(rail, drawer, opening, store) {
     const end = opening ? AT_HOME : placeAt(docked, layout);
     const delay = opening && !interrupted ? i * OPEN_STAGGER : 0;
     store.current.push(animate(icon, [start, end], { ...timing, delay }));
+
+    // назва їде поруч зі своєю іконкою (той самий зсув), проявляється — CSS;
+    // рух — через властивість translate, щоб не сперечатися з CSS-переходом transform
+    const label = icon.parentElement?.querySelector(':scope > .sidebar__label');
+    if (label) {
+      const shift = (rect) => `${rect.left - layout.left}px ${rect.top - layout.top}px`;
+      const from = interrupted ? shift(current[i]) : opening ? shift(docked) : '0px 0px';
+      const to = opening ? '0px 0px' : shift(docked);
+      store.current.push(animate(label, [{ translate: from }, { translate: to }], { ...timing, delay }));
+    }
   });
 
   if (pill && railPill) {
