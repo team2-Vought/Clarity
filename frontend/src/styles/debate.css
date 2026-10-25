@@ -77,7 +77,7 @@ body:has(.app-shell) {
   position: relative;
   background: var(--panel);
   /* повертається, щойно меню знову прилипло до краю (кінець закриття меню) */
-  transition: visibility 0s linear 0.44s;
+  transition: visibility 0s linear 0.35s;
 }
 
 /* поки меню відкрите, смуги іконок немає: це вона «відірвалася» від краю
@@ -249,7 +249,7 @@ body:has(.app-shell) {
 }
 
 .sidebar--drawer:not(.sidebar--collapsed) .sidebar__label {
-  --label-delay: calc(0.06s + var(--i, 0) * 0.03s);
+  --label-delay: calc(0.05s + var(--i, 0) * 0.025s);
   opacity: 1;
   transform: none;
   transition:
@@ -330,13 +330,13 @@ body:has(.app-shell) {
   width: calc(var(--drawer-max) + 48px);
   pointer-events: none;
   filter: drop-shadow(0 0 0 transparent);
-  transition: filter 0.24s ease;
+  transition: filter 0.2s ease;
 }
 
 /* тінь густішає, поки картка «піднімається» над сторінкою */
 .app-shell__drawer--open {
   filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.2));
-  transition: filter 0.4s ease 0.08s;
+  transition: filter 0.32s ease 0.06s;
 }
 
 :root[data-theme='dark'] .app-shell__drawer--open {
@@ -373,13 +373,13 @@ body:has(.app-shell) {
   --drawer-rb: 0px;
   visibility: hidden;
   transition:
-    --drawer-w 0.42s cubic-bezier(0.5, -0.3, 0.3, 1.25),
-    --drawer-bottom 0.34s cubic-bezier(0.45, -0.2, 0.3, 1.5),
-    --drawer-left 0.36s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.03s,
-    --drawer-top 0.36s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.07s,
-    --drawer-rb 0.26s ease-in 0.08s,
-    --drawer-rt 0.26s ease-in 0.14s,
-    visibility 0s linear 0.44s;
+    --drawer-w 0.34s cubic-bezier(0.5, -0.3, 0.3, 1.25),
+    --drawer-bottom 0.27s cubic-bezier(0.45, -0.2, 0.3, 1.5),
+    --drawer-left 0.29s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.02s,
+    --drawer-top 0.29s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.06s,
+    --drawer-rb 0.21s ease-in 0.06s,
+    --drawer-rt 0.21s ease-in 0.11s,
+    visibility 0s linear 0.35s;
 }
 
 /* відкрите: верх відклеюється першим, потім лівий край, низ — останнім;
@@ -393,12 +393,12 @@ body:has(.app-shell) {
   --drawer-rb: 28px;
   visibility: visible;
   transition:
-    --drawer-w 0.5s cubic-bezier(0.34, 1.18, 0.5, 1),
-    --drawer-top 0.4s cubic-bezier(0.3, 1.6, 0.5, 1),
-    --drawer-left 0.42s cubic-bezier(0.3, 1.5, 0.5, 1) 0.04s,
-    --drawer-bottom 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.1s,
-    --drawer-rt 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
-    --drawer-rb 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s;
+    --drawer-w 0.4s cubic-bezier(0.34, 1.18, 0.5, 1),
+    --drawer-top 0.32s cubic-bezier(0.3, 1.6, 0.5, 1),
+    --drawer-left 0.34s cubic-bezier(0.3, 1.5, 0.5, 1) 0.03s,
+    --drawer-bottom 0.36s cubic-bezier(0.3, 1.6, 0.5, 1) 0.08s,
+    --drawer-rt 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    --drawer-rb 0.29s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s;
 }
 
 /* підсвітка активного пункту — окремим шаром (::before): sidebarMorph.js
