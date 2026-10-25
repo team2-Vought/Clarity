@@ -76,6 +76,15 @@ body:has(.app-shell) {
 .app-shell__rail {
   position: relative;
   background: var(--panel);
+  /* повертається, щойно меню знову прилипло до краю (кінець закриття меню) */
+  transition: visibility 0s linear 0.44s;
+}
+
+/* поки меню відкрите, смуги іконок немає: це вона «відірвалася» від краю
+   й стала карткою, тож на її місці лишається порожнє тло */
+.app-shell__rail--lifted {
+  visibility: hidden;
+  transition: none;
 }
 
 /* «бургер» потрібен лише на телефоні — на ширших екранах є смуга іконок */
@@ -265,33 +274,155 @@ body:has(.app-shell) {
 }
 
 /* ---- меню: окреме вікно із закругленими кутами ----
-   На всіх ширинах однакове: не від краю до краю, а картка з відступами від
-   країв екрана поверх смуги іконок. Згорнуте — те саме вікно, лише сховане
-   за лівим краєм, тож відкривається одним рухом. */
-.sidebar--drawer {
-  --nav-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --nav-time: 0.3s;
+   На всіх ширинах однакове: картка з відступами від країв екрана поверх
+   смуги іконок. Відкриваючись, вона «відривається» від краю: стартує точно
+   у формі смуги іконок (на телефоні — тонкої смужки біля краю), розтягується
+   вшир, відходить від країв і закруглює кути. Закриваючись — прилипає назад.
+
+   Форму малює clip-path, а не розміри блока: ширина, відступи від верхнього,
+   лівого й нижнього країв і радіуси верхніх і нижніх кутів — окремі
+   зареєстровані змінні, кожна зі своїм темпом. Верх відходить першим, низ —
+   останнім, тож картка відклеюється від краю, як наліпка, а ширина трохи
+   перелітає й пружно осідає. Тінь — на обгортці (drop-shadow),
+   бо clip-path обрізав би box-shadow разом з блоком. */
+@property --drawer-w {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --drawer-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --drawer-left {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --drawer-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --drawer-rt {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --drawer-rb {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.app-shell__drawer {
+  --drawer-max: min(280px, calc(100vw - 72px));
   position: fixed;
-  inset: 12px auto 12px 12px;
-  width: min(280px, calc(100vw - 72px));
-  padding: 16px 0;
-  border-radius: 28px;
+  inset: 0 auto 0 0;
+  z-index: 100;
+  /* із запасом праворуч: ширина на мить перелітає за кінцеву */
+  width: calc(var(--drawer-max) + 48px);
+  pointer-events: none;
+  filter: drop-shadow(0 0 0 transparent);
+  transition: filter 0.24s ease;
+}
+
+/* тінь густішає, поки картка «піднімається» над сторінкою */
+.app-shell__drawer--open {
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.2));
+  transition: filter 0.4s ease 0.08s;
+}
+
+:root[data-theme='dark'] .app-shell__drawer--open {
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.55));
+}
+
+.sidebar--drawer {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  /* 12px — поле між карткою й краями екрана, далі власні відступи картки;
+     праворуч ще запас під переліт ширини */
+  padding: 28px 36px 28px 12px;
   background: var(--panel);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-  transition:
-    transform var(--nav-time) var(--nav-ease),
-    visibility 0s linear var(--nav-time);
+  pointer-events: auto;
+  clip-path: inset(
+    var(--drawer-top)
+    calc(100% - var(--drawer-left) - var(--drawer-w))
+    var(--drawer-bottom)
+    var(--drawer-left)
+    round var(--drawer-rt) var(--drawer-rt) var(--drawer-rb) var(--drawer-rb)
+  );
 }
 
+/* закрите — рівно смуга іконок: прилипає до неї й ховається, коли рух скінчився.
+   Теж желейно: картка ледь тягнеться назовні, тоді з розгону ляпає об край —
+   низ першим, верх останнім, — трохи перелітає й пружно осідає */
 .sidebar--drawer.sidebar--collapsed {
+  --drawer-w: var(--rail-w);
+  --drawer-top: 0px;
+  --drawer-left: 0px;
+  --drawer-bottom: 0px;
+  --drawer-rt: 0px;
+  --drawer-rb: 0px;
   visibility: hidden;
-  transform: translateX(calc(-100% - 24px));
+  transition:
+    --drawer-w 0.42s cubic-bezier(0.5, -0.3, 0.3, 1.25),
+    --drawer-bottom 0.34s cubic-bezier(0.45, -0.2, 0.3, 1.5),
+    --drawer-left 0.36s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.03s,
+    --drawer-top 0.36s cubic-bezier(0.45, -0.2, 0.3, 1.5) 0.07s,
+    --drawer-rb 0.26s ease-in 0.08s,
+    --drawer-rt 0.26s ease-in 0.14s,
+    visibility 0s linear 0.44s;
 }
 
+/* відкрите: верх відклеюється першим, потім лівий край, низ — останнім;
+   кожен відступ трохи перелітає 12px і повертається */
 .sidebar--drawer:not(.sidebar--collapsed) {
+  --drawer-w: var(--drawer-max);
+  --drawer-top: 12px;
+  --drawer-left: 12px;
+  --drawer-bottom: 12px;
+  --drawer-rt: 28px;
+  --drawer-rb: 28px;
   visibility: visible;
-  transform: none;
-  transition: transform var(--nav-time) var(--nav-ease);
+  transition:
+    --drawer-w 0.5s cubic-bezier(0.34, 1.18, 0.5, 1),
+    --drawer-top 0.4s cubic-bezier(0.3, 1.6, 0.5, 1),
+    --drawer-left 0.42s cubic-bezier(0.3, 1.5, 0.5, 1) 0.04s,
+    --drawer-bottom 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 0.1s,
+    --drawer-rt 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    --drawer-rb 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s;
+}
+
+/* підсвітка активного пункту — окремим шаром (::before): sidebarMorph.js
+   переносить її з пункту смуги на пункт картки разом з іконками */
+.sidebar--drawer .sidebar__item {
+  position: relative;
+  isolation: isolate;
+}
+
+.sidebar--drawer .sidebar__item--active,
+.sidebar--drawer .sidebar__item--active:hover {
+  background: transparent;
+}
+
+.sidebar--drawer .sidebar__item--active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--peach, #feedd5);
 }
 
 /* лише логотип, без напису */
@@ -3624,6 +3755,11 @@ ol.chat__reveal {
     display: none;
   }
 
+  /* смуги іконок немає — меню відривається від самого краю екрана */
+  .sidebar--drawer.sidebar--collapsed {
+    --drawer-w: 0px;
+  }
+
   .app-shell__burger {
     display: grid;
     place-items: center;
@@ -4112,6 +4248,11 @@ ol.chat__reveal {
   }
 
   .sidebar,
+  .app-shell__rail,
+  .sidebar--drawer.sidebar--collapsed,
+  .sidebar--drawer:not(.sidebar--collapsed),
+  .app-shell__drawer,
+  .app-shell__drawer--open,
   .sidebar__brand,
   .sidebar__brand img,
   .sidebar__brand-label,

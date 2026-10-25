@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { MenuIcon } from './DebateIcons';
@@ -6,6 +14,7 @@ import { UNAUTHORIZED_EVENT } from '../api/client';
 import { useToasts } from '../hooks/useToasts';
 import { uk } from '../copy/uk';
 import { readThemeMode, writeThemeMode } from '../utils/devicePrefs';
+import { morphSidebar } from '../utils/sidebarMorph';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -94,6 +103,18 @@ export default function Layout() {
     [panelCollapsed, registerPanelToggle, togglePanel, themeMode]
   );
 
+  // іконки перетікають між смугою й карткою меню, а не зникають; рух
+  // запускається до першого кадру, тож картка одразу стартує з іконками смуги
+  const railRef = useRef(null);
+  const drawerRef = useRef(null);
+  const morphRef = useRef([]);
+  const morphedCollapsedRef = useRef(collapsed);
+  useLayoutEffect(() => {
+    if (morphedCollapsedRef.current === collapsed) return;
+    morphedCollapsedRef.current = collapsed;
+    morphSidebar(railRef.current, drawerRef.current, !collapsed, morphRef);
+  }, [collapsed]);
+
   // Escape закриває розгорнуте меню
   useEffect(() => {
     if (collapsed) return undefined;
@@ -109,8 +130,12 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      {/* поки меню відкрите, смуга іконок під затемненням недоступна з клавіатури */}
-      <div className="app-shell__rail" inert={!collapsed}>
+      {/* поки меню відкрите, смуги іконок немає — вона ніби стала карткою меню */}
+      <div
+        ref={railRef}
+        className={`app-shell__rail ${collapsed ? '' : 'app-shell__rail--lifted'}`}
+        inert={!collapsed}
+      >
         <Sidebar
           variant="rail"
           activePath={pathname}
@@ -122,15 +147,21 @@ export default function Layout() {
         />
       </div>
 
-      <Sidebar
-        variant="drawer"
-        activePath={pathname}
-        collapsed={collapsed}
-        onToggle={toggle}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onTogglePanel={togglePanel}
-      />
+      {/* обгортка несе тінь картки: clip-path самого меню обрізав би її */}
+      <div
+        ref={drawerRef}
+        className={`app-shell__drawer ${collapsed ? '' : 'app-shell__drawer--open'}`}
+      >
+        <Sidebar
+          variant="drawer"
+          activePath={pathname}
+          collapsed={collapsed}
+          onToggle={toggle}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onTogglePanel={togglePanel}
+        />
+      </div>
 
       {/* на телефоні смуги іконок немає — меню відкривається цією кнопкою */}
       <button
