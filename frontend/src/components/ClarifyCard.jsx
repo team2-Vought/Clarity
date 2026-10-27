@@ -1,33 +1,73 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon, ArrowRight01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { uk } from '../copy/uk';
 
 const t = uk.debate;
 const MAX_ANSWER = 500;
+// пауза після вибору варіанта: людина встигає побачити позначку, і картка гортає далі
+const ADVANCE_MS = 220;
 
 /**
- * Уточнювальні питання модератора перед стартом, як тест: до кожного питання —
- * варіанти-пігулки й остання пігулка-поле для своєї відповіді. Вибір варіанта
- * очищає поле, а введений текст знімає вибір — відповідь завжди одна.
- * З'являється так само, як репліка ШІ: картка виїжджає, а питання
- * проявляються з розмиття одне за одним.
+ * Уточнювальні питання модератора, як у ChatGPT чи Claude: по одному питанню
+ * за раз, варіанти — нумерованим списком, останній рядок — поле своєї
+ * відповіді. Вибір варіанта гортає до наступного питання; цифри 1–9 обирають
+ * варіант з клавіатури. Вибір варіанта очищає поле, а введений текст знімає
+ * вибір — відповідь завжди одна.
+ * Поява така сама, як у репліки ШІ: картка виїжджає, а питання проявляється
+ * з розмиття.
  */
 export default function ClarifyCard({ questions, answers, onChange, onSubmit, onSkip, disabled }) {
+  const [step, setStep] = useState(0);
   const cardRef = useRef(null);
+  const advanceRef = useRef(null);
+  const question = questions[Math.min(step, questions.length - 1)];
+  const answer = answers[question.id] || {};
+  const isLast = step >= questions.length - 1;
 
   // картка з'являється внизу чату — прокручуємо до неї, а фокус ставимо
-  // на саму картку: так Tab веде до варіантів, але жоден не виглядає обраним
+  // на саму картку: так цифри й Tab працюють одразу, але жоден варіант не виглядає обраним
   useEffect(() => {
     cardRef.current?.focus({ preventScroll: true });
     cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, []);
 
-  const handleRadioKeyDown = (e, question, index) => {
-    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
-    if (!step) return;
+  useEffect(() => () => clearTimeout(advanceRef.current), []);
+
+  // попереднє питання зникло разом із кнопкою у фокусі — повертаємо фокус
+  // картці, щоб цифри й Tab працювали й на новому питанні
+  useEffect(() => {
+    const card = cardRef.current;
+    if (card && !card.contains(document.activeElement)) card.focus({ preventScroll: true });
+  }, [step]);
+
+  const goTo = (next) => {
+    clearTimeout(advanceRef.current);
+    setStep(Math.max(0, Math.min(questions.length - 1, next)));
+  };
+
+  const choose = (option) => {
+    const active = answer.option === option && !answer.custom;
+    onChange(question.id, { option: active ? '' : option, custom: '' });
+    clearTimeout(advanceRef.current);
+    if (!active && !isLast) advanceRef.current = setTimeout(() => goTo(step + 1), ADVANCE_MS);
+  };
+
+  const handleKeyDown = (e) => {
+    if (disabled || e.target.tagName === 'INPUT' || e.altKey || e.ctrlKey || e.metaKey) return;
+    const index = Number(e.key) - 1;
+    if (Number.isInteger(index) && index >= 0 && index < question.options.length) {
+      e.preventDefault();
+      choose(question.options[index]);
+    }
+  };
+
+  const handleRadioKeyDown = (e, index) => {
+    const delta = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+    if (!delta) return;
     e.preventDefault();
-    const next = (index + step + question.options.length) % question.options.length;
-    onChange(question.id, { option: question.options[next], custom: '' });
+    const next = (index + delta + question.options.length) % question.options.length;
     e.currentTarget.parentElement.children[next]?.focus();
   };
 
@@ -36,73 +76,89 @@ export default function ClarifyCard({ questions, answers, onChange, onSubmit, on
       className="clarify"
       ref={cardRef}
       tabIndex={-1}
-      aria-labelledby="clarify-title"
+      aria-label={t.clarifyTitle}
+      onKeyDown={handleKeyDown}
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        if (isLast) onSubmit();
+        else goTo(step + 1);
       }}
     >
-      <h2 id="clarify-title" className="clarify__title clarify__reveal" style={{ '--item': 0 }}>
-        {t.clarifyTitle}
-      </h2>
-
-      <ol className="clarify__list">
-        {questions.map((question, qIndex) => {
-          const answer = answers[question.id] || {};
-          const titleId = `clarify-q-${question.id}`;
-          // у групі радіокнопок фокус табом потрапляє лише на одну: обрану або першу
-          const tabIndexOf = (option, index) =>
-            answer.option ? (answer.option === option ? 0 : -1) : index === 0 ? 0 : -1;
-          return (
-            <li
-              key={question.id}
-              className="clarify__item clarify__reveal"
-              style={{ '--item': qIndex + 1 }}
+      {/* key: нове питання проявляється так само, як абзац репліки */}
+      <header key={question.id} className="clarify__head clarify__reveal">
+        <p id={`clarify-q-${question.id}`} className="clarify__question">{question.question}</p>
+        {questions.length > 1 && (
+          <nav className="clarify__nav" aria-label={t.clarifyNav}>
+            <button
+              type="button"
+              className="clarify__arrow"
+              onClick={() => goTo(step - 1)}
+              disabled={step === 0}
+              aria-label={t.clarifyPrev}
             >
-              <p id={titleId} className="clarify__question">{question.question}</p>
-              <div className="clarify__options">
-                <div className="clarify__radios" role="radiogroup" aria-labelledby={titleId}>
-                  {question.options.map((option, index) => {
-                    const active = answer.option === option && !answer.custom;
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        tabIndex={tabIndexOf(option, index)}
-                        className={`clarify__option ${active ? 'clarify__option--active' : ''}`}
-                        onClick={() => onChange(question.id, { option: active ? '' : option, custom: '' })}
-                        onKeyDown={(e) => handleRadioKeyDown(e, question, index)}
-                        disabled={disabled}
-                      >
-                        {option}
-                      </button>
-                    );
-                  })}
-                </div>
-                <input
-                  type="text"
-                  className={`clarify__custom ${answer.custom ? 'clarify__custom--filled' : ''}`}
-                  value={answer.custom || ''}
-                  maxLength={MAX_ANSWER}
-                  onChange={(e) => onChange(question.id, { option: '', custom: e.target.value })}
-                  placeholder={t.clarifyCustom}
-                  aria-label={t.clarifyCustomLabel(question.question)}
-                  disabled={disabled}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+              <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+            </button>
+            <span className="clarify__step" aria-live="polite">
+              {t.clarifyStep(step + 1, questions.length)}
+            </span>
+            <button
+              type="button"
+              className="clarify__arrow"
+              onClick={() => goTo(step + 1)}
+              disabled={isLast}
+              aria-label={t.clarifyNext}
+            >
+              <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+            </button>
+          </nav>
+        )}
+      </header>
 
-      <footer className="clarify__actions clarify__reveal" style={{ '--item': questions.length + 1 }}>
+      <div key={`body-${question.id}`} className="clarify__body clarify__reveal">
+        <div className="clarify__options" role="radiogroup" aria-labelledby={`clarify-q-${question.id}`}>
+          {question.options.map((option, index) => {
+            const active = answer.option === option && !answer.custom;
+            return (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`clarify__option ${active ? 'clarify__option--active' : ''}`}
+                onClick={() => choose(option)}
+                onKeyDown={(e) => handleRadioKeyDown(e, index)}
+                disabled={disabled}
+              >
+                <span className="clarify__key" aria-hidden="true">{index + 1}</span>
+                <span className="clarify__option-text">{option}</span>
+                {active && (
+                  <HugeiconsIcon icon={Tick02Icon} size={18} className="clarify__tick" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <label className={`clarify__other ${answer.custom ? 'clarify__other--filled' : ''}`}>
+          <span className="clarify__key" aria-hidden="true">{question.options.length + 1}</span>
+          <input
+            type="text"
+            className="clarify__custom"
+            value={answer.custom || ''}
+            maxLength={MAX_ANSWER}
+            onChange={(e) => onChange(question.id, { option: '', custom: e.target.value })}
+            placeholder={t.clarifyCustom}
+            aria-label={t.clarifyCustomLabel(question.question)}
+            disabled={disabled}
+          />
+        </label>
+      </div>
+
+      <footer className="clarify__actions">
         <button type="button" className="clarify__skip" onClick={onSkip} disabled={disabled}>
           {t.clarifySkip}
         </button>
         <button type="submit" className="clarify__start" disabled={disabled}>
-          {disabled ? t.creating : t.clarifyStart}
+          {disabled ? t.creating : isLast ? t.clarifyStart : t.clarifyNextButton}
         </button>
       </footer>
     </form>

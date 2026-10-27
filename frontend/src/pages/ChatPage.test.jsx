@@ -271,11 +271,19 @@ describe('ChatPage', () => {
 
     const card = await screen.findByRole('form', { name: /Уточніть кілька деталей/ });
     expect(runDiscussion).not.toHaveBeenCalled();
-    await user.click(within(card).getByRole('radio', { name: 'Понад три роки' }));
-    await user.click(within(card).getByRole('radio', { name: 'Гроші' }));
-    // свій текст замінює обраний варіант
+    // по одному питанню за раз; вибір варіанта гортає далі
+    expect(within(card).getByText('1 з 3')).toBeInTheDocument();
+    expect(within(card).queryByText('Що найважливіше?')).not.toBeInTheDocument();
+    await user.click(within(card).getByRole('radio', { name: /Понад три роки/ }));
+    expect(await within(card).findByText('Що найважливіше?')).toBeInTheDocument();
+    // цифра з клавіатури обирає варіант
+    await user.keyboard('1');
+    expect(await within(card).findByText('Є запасний план?')).toBeInTheDocument();
+    // повертаємось і пишемо свою відповідь — вона замінює обраний варіант
+    await user.click(within(card).getByRole('button', { name: 'Попереднє питання' }));
     await user.type(within(card).getByRole('textbox', { name: 'Своя відповідь: Що найважливіше?' }), 'Команда');
-    expect(within(card).getByRole('radio', { name: 'Гроші' })).toHaveAttribute('aria-checked', 'false');
+    expect(within(card).getByRole('radio', { name: /Гроші/ })).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(card).getByRole('button', { name: 'Далі' }));
     await user.click(within(card).getByRole('button', { name: 'Почати дискусію' }));
 
     expect(answerClarify).toHaveBeenCalledWith('d1', [
@@ -307,8 +315,8 @@ describe('ChatPage', () => {
     renderPage();
 
     const card = await screen.findByRole('form', { name: /Уточніть кілька деталей/ });
-    await user.click(within(card).getByRole('radio', { name: 'До року' }));
-    await user.click(within(card).getByRole('button', { name: 'Пропустити' }));
+    await user.click(within(card).getByRole('radio', { name: /До року/ }));
+    await user.click(within(card).getByRole('button', { name: 'Пропустити все' }));
     expect(answerClarify).toHaveBeenCalledWith('d1', []);
   });
 });

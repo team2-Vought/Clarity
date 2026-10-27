@@ -4710,25 +4710,22 @@ ol.chat__reveal {
 }
 
 /* ---------- Уточнення модератора перед стартом ----------
-   Проста картка в рядку модератора в чаті: питання й варіанти-пігулки.
-   З'являється так само, як репліка ШІ в чаті: картка виїжджає (chat-row-in),
-   а заголовок, питання й кнопки проявляються з розмиття каскадом (chat-reveal) */
+   Як питання в ChatGPT чи Claude: одне питання за раз, варіанти — рядками
+   з номерами, останній рядок — своя відповідь. Картка в рядку модератора;
+   з'являється так само, як репліка ШІ: виїжджає (chat-row-in), а питання
+   проявляється з розмиття (chat-reveal) */
 
 .clarify {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  width: min(760px, 100%);
-  padding: 22px 24px 18px;
-  border-radius: 28px;
+  gap: 12px;
+  width: min(620px, 100%);
+  padding: 14px 14px 12px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-radius: 20px;
   background: var(--card);
-  box-shadow: 0 6px 20px rgba(18, 18, 18, 0.05);
   outline: none;
   animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-:root[data-theme='dark'] .clarify {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 /* та сама поява, що в абзаців репліки: з розмиття, «змиваючись» згори донизу */
@@ -4737,105 +4734,163 @@ ol.chat__reveal {
   mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
   -webkit-mask-size: 100% 250%;
   mask-size: 100% 250%;
-  animation: chat-reveal 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(0.12s + var(--item, 0) * 0.14s);
+  animation: chat-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.clarify__title {
-  margin: 0;
+.clarify__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 4px 6px;
+}
+
+.clarify__nav {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-top: -2px;
+}
+
+.clarify__step {
+  min-width: 44px;
   color: var(--muted);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.45;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
-.clarify__list {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  margin: 0;
+.clarify__arrow {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  list-style: none;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.18s, opacity 0.18s, var(--press);
 }
 
-.clarify__item {
+.clarify__arrow:hover:not(:disabled) {
+  background: var(--soft);
+}
+
+.clarify__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.clarify__body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
 }
 
 .clarify__question {
   margin: 0;
-  font-size: 0.9375rem;
+  padding-top: 2px;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.4;
 }
 
-/* варіанти й поле своєї відповіді — один ряд пігулок, що переноситься */
-.clarify__options,
-.clarify__radios {
+.clarify__options {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
 }
 
+/* рядок варіанта: номер-клавіша, текст і галочка обраного праворуч */
 .clarify__option,
-.clarify__custom {
-  height: 34px;
-  padding: 0 14px;
-  border: 1.5px solid transparent;
-  border-radius: 999px;
+.clarify__other {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  text-align: left;
+  transition: background 0.16s;
 }
 
 .clarify__option {
-  background: var(--soft);
-  white-space: nowrap;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, var(--press);
 }
 
-.clarify__option:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 9%, var(--card));
+.clarify__option:hover:not(:disabled),
+.clarify__option--active {
+  background: var(--soft);
 }
 
-.clarify__option--active,
-.clarify__option--active:hover:not(:disabled) {
+.clarify__option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.clarify__tick {
+  flex-shrink: 0;
+  color: var(--ink);
+}
+
+.clarify__key {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+
+.clarify__option--active .clarify__key,
+.clarify__other--filled .clarify__key {
+  border-color: var(--ink);
   background: var(--ink);
   color: var(--card);
 }
 
+.clarify__other {
+  cursor: text;
+}
+
+.clarify__other:focus-within,
+.clarify__other--filled {
+  background: var(--soft);
+}
+
 .clarify__custom {
-  flex: 1 1 160px;
+  flex: 1;
   min-width: 0;
-  border-color: color-mix(in srgb, var(--ink) 14%, transparent);
+  height: 28px;
+  padding: 0;
+  border: 0;
   background: transparent;
-  transition: border-color 0.18s, background 0.18s;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
 }
 
 .clarify__custom::placeholder {
   color: var(--muted);
 }
 
-.clarify__custom:focus {
-  border-color: var(--focus);
-  outline: none;
-}
-
-/* своя відповідь — теж вибір, тож виглядає як обрана пігулка, лише світліша */
-.clarify__custom--filled {
-  border-color: var(--ink);
-}
-
-.clarify__option:active:not(:disabled),
-.clarify__skip:active:not(:disabled),
-.clarify__start:active:not(:disabled) {
-  scale: var(--press-scale);
-}
-
 .clarify__option:focus-visible,
+.clarify__arrow:focus-visible,
 .clarify__skip:focus-visible,
 .clarify__start:focus-visible {
   outline: 2px solid var(--focus);
@@ -4843,7 +4898,6 @@ ol.chat__reveal {
 }
 
 .clarify__option:disabled,
-.clarify__custom:disabled,
 .clarify__skip:disabled,
 .clarify__start:disabled {
   opacity: 0.5;
@@ -4855,22 +4909,23 @@ ol.chat__reveal {
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+  padding-top: 4px;
 }
 
 .clarify__skip,
 .clarify__start {
-  height: 38px;
-  padding: 0 18px;
+  height: 36px;
+  padding: 0 16px;
   border: 0;
   border-radius: 999px;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.18s, color 0.18s, opacity 0.18s, var(--press);
 }
 
-/* «Пропустити» — тихе текстове посилання, головна дія лише одна */
+/* «Пропустити все» — тиха дія; головна лише одна */
 .clarify__skip {
   background: transparent;
   color: var(--muted);
@@ -4885,25 +4940,17 @@ ol.chat__reveal {
   color: var(--btn-text, #ffffff);
 }
 
+.clarify__arrow:active:not(:disabled),
+.clarify__skip:active:not(:disabled),
+.clarify__start:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
 @media (max-width: 640px) {
   .clarify {
-    padding: 18px 16px 14px;
-    border-radius: 24px;
+    padding: 12px 10px 10px;
     /* при автопрокрутці до картки її верх не ховається під плаваючими кнопками */
     scroll-margin-top: 96px;
-  }
-
-  .clarify__option {
-    white-space: normal;
-    height: auto;
-    min-height: 34px;
-    padding-block: 6px;
-    border-radius: 17px;
-    text-align: left;
-  }
-
-  .clarify__custom {
-    flex-basis: 100%;
   }
 }
 
