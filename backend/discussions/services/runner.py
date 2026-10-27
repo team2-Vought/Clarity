@@ -36,6 +36,14 @@ def is_active(discussion_id):
         return str(discussion_id) in _active
 
 
+def is_working(discussion):
+    """Чи виконується крок. Після «Зупинити» потік, що ще чекає на модель,
+    не рахується: lease з нього знято, тож його результат буде відкинуто."""
+    if engine.is_running(discussion):
+        return True
+    return not discussion.stop_requested and is_active(discussion.pk)
+
+
 def daily_usage(user):
     """Скільки AI-відповідей (учасники, модератор, Devil, пошук) створено сьогодні."""
     return usage.today(user).replies

@@ -64,9 +64,17 @@ import {
 } from '../utils/chatView';
 import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exportMarkdown';
 import { isSendShortcut } from '../utils/devicePrefs';
+import logoStill from '../assets/Clarity_logo_8.svg';
+import logoThinking from '../assets/logo-thinking.svg';
 
 const t = uk.chat;
 const d = uk.debate;
+
+// сталі елементи: ThoughtLine перезапускає анімації гліфа, коли той змінюється
+const THINKING_GLYPH = <img className="chat__thought-logo" src={logoThinking} alt="" />;
+// завершений аналіз, а також «Менше анімації» в налаштуваннях: туди не дістає
+// до анімації всередині <img>
+const STILL_GLYPH = <img className="chat__thought-logo chat__thought-logo--still" src={logoStill} alt="" />;
 
 // Чи вміщається текст підказки в поле цілим. Без вимірювань (тести, ще не
 // змонтоване поле) вважаємо, що ні, — тоді береться коротший варіант.
@@ -534,7 +542,7 @@ export default function ChatPage() {
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
   const isRevealing = Boolean(typingMessage);
   const shownMessages = visibleMessages.slice(0, revealedCount + 1);
-  const queuedCount = visibleMessages.length - revealedCount;
+  // «Зупинити» показує вже отримані репліки цілком, не чекаючи, доки вони допишуться
   const revealAll = () => {
     setRevealedCount(visibleMessages.length);
     setSkipTyping(false);
@@ -548,6 +556,12 @@ export default function ChatPage() {
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
   // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
   const showThoughtLine = participantNames.length > 0 && !isRevealing && isRunning && !isFinished;
+  // що саме зараз роблять AI: пошук → рядок, який написала модель → етап,
+  // поки модель ще не встигла описати крок
+  const live = discussion?.live;
+  const thoughtLabel = live?.search
+    ? t.searching(live.search)
+    : live?.status || t.phaseStatus[discussion?.phase] || t.advancing;
 
   // Завершені запуски лишають у чаті згорнутий рядок «Аналізовано за …» після
   // своєї останньої репліки — розгорнувши його, видно, що саме аналізували.
@@ -864,6 +878,7 @@ export default function ChatPage() {
 
   const handleStop = async () => {
     if (!discussion) return;
+    revealAll();
     try {
       applyState(await stopDiscussion(discussion.id));
     } catch (err) {
@@ -1611,7 +1626,7 @@ export default function ChatPage() {
                     elapsed={runRecords.get(message.id).seconds}
                     label={t.advancing}
                     doneLabel={t.thoughtDone}
-                    glyph="sparkle"
+                    glyph={STILL_GLYPH}
                     fontSize={16}
                     className="chat__thought chat__thought--done"
                   />
@@ -1745,9 +1760,11 @@ export default function ChatPage() {
               steps={traceSteps}
               activeCount={thinking?.length || 0}
               startedAt={runStartedAt}
-              label={t.advancing}
+              label={thoughtLabel}
               doneLabel={t.thoughtDone}
-              glyph="sparkle"
+              glyph={document.documentElement.dataset.motion === 'reduced' ? STILL_GLYPH : THINKING_GLYPH}
+              glyphBreath={false}
+              openOnWork={false}
               fontSize={16}
               className="chat__thought"
             />
@@ -1785,11 +1802,6 @@ export default function ChatPage() {
                 title={summary ? t.jumpToDecision : t.jumpToLatest}
               >
                 <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
-              </button>
-            )}
-            {queuedCount > 1 && (
-              <button type="button" className="chat__reveal-all" onClick={revealAll}>
-                {t.revealAll(queuedCount)}
               </button>
             )}
             {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}

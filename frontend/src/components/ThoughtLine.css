@@ -89,10 +89,47 @@
 }
 
 .thought-line__breath {
+  position: relative;
   display: inline-block;
 }
 
-.thought-line[data-working] .thought-line__breath[data-shimmer] {
+.thought-line__swap {
+  display: inline-block;
+  vertical-align: top;
+}
+
+/* новий напис підпливає знизу й проявляється, старий тане вгору поверх нього */
+.thought-line__swap[data-enter] {
+  animation: thought-line-swap-in 420ms var(--tl-ease-out) both;
+}
+
+.thought-line__swap--out {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  animation: thought-line-swap-out 300ms var(--tl-ease-out) both;
+}
+
+@keyframes thought-line-swap-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--tl-blur));
+    transform: translateY(0.45em);
+  }
+}
+
+@keyframes thought-line-swap-out {
+  to {
+    opacity: 0;
+    filter: blur(var(--tl-blur));
+    transform: translateY(-0.45em);
+  }
+}
+
+/* відблиск малює кожен напис окремо: інакше прозорість і зсув написів, що
+   змінюються, не було б видно крізь спільне обтинання тексту */
+.thought-line[data-working] .thought-line__breath[data-shimmer] .thought-line__swap {
   background: linear-gradient(
     100deg,
     color-mix(in srgb, var(--tl-color) 50%, transparent) 30%,
@@ -109,6 +146,19 @@
   color: inherit;
   -webkit-text-fill-color: transparent;
   animation: thought-line-shimmer var(--tl-shimmer) linear infinite;
+}
+
+/* відблиск не має перебити появу й зникнення напису — обидві анімації разом */
+.thought-line[data-working] .thought-line__breath[data-shimmer] .thought-line__swap[data-enter] {
+  animation:
+    thought-line-shimmer var(--tl-shimmer) linear infinite,
+    thought-line-swap-in 420ms var(--tl-ease-out) both;
+}
+
+.thought-line[data-working] .thought-line__breath[data-shimmer] .thought-line__swap--out {
+  animation:
+    thought-line-shimmer var(--tl-shimmer) linear infinite,
+    thought-line-swap-out 300ms var(--tl-ease-out) both;
 }
 
 @keyframes thought-line-shimmer {

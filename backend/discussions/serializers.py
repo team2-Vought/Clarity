@@ -335,6 +335,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     search = serializers.SerializerMethodField()
     max_followups = serializers.SerializerMethodField()
     thinking = serializers.SerializerMethodField()
+    live = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
         queryset = obj.messages.order_by('seq')
@@ -344,7 +345,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
         return MessageSerializer(queryset, many=True).data
 
     def get_is_running(self, obj):
-        return engine.is_running(obj) or runner.is_active(obj.pk)
+        return runner.is_working(obj)
 
     def get_title(self, obj):
         return discussion_title(obj.question)
@@ -360,6 +361,12 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_thinking(self, obj):
         return engine.describe_step(obj)
+
+    def get_live(self, obj):
+        """Живий статус поточного кроку: {status, search}; порожньо між кроками."""
+        if not obj.live_token or obj.live_token != obj.advance_token or not engine.is_running(obj):
+            return {'status': '', 'search': ''}
+        return {'status': obj.live_status, 'search': obj.live_search}
 
     class Meta:
         model = Discussion
@@ -398,6 +405,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'devil_review',
             'final_summary',
             'thinking',
+            'live',
             'messages',
             'created_at',
             'finished_at',
@@ -447,7 +455,7 @@ class DiscussionListSerializer(serializers.ModelSerializer):
         return discussion_title(obj.question)
 
     def get_is_running(self, obj):
-        return engine.is_running(obj) or runner.is_active(obj.pk)
+        return runner.is_working(obj)
 
     def get_preview(self, obj):
         """Фрагмент відповіді: фінальне рішення, інакше остання репліка або помилка."""

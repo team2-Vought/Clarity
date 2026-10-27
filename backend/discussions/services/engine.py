@@ -866,7 +866,14 @@ def _run_searches(queries):
     queries = [query for query in queries if query]
     if not queries:
         return []
+    _set_live(live_search=queries[0])
+    try:
+        return _search_all(queries)
+    finally:
+        _set_live(live_search='')
 
+
+def _search_all(queries):
     def run(query):
         try:
             return query, search.search(query)
@@ -1269,6 +1276,94 @@ def _stance_tally(messages, personas):
     return '; '.join(f'{stance} — {", ".join(names)}' for stance, names in groups.items())
 
 
+STATUS_TEMPERATURE = 0.4
+STATUS_LIMIT = 70
+_THINK_RE = re.compile(r'<think>.*?(</think>|$)', re.IGNORECASE | re.DOTALL)
+
+# Що відбувається на етапі — контекст для моделі, яка пише рядок статусу
+STAGE_NOTES = {
+    Discussion.Phase.CLARIFY: 'модератор перевіряє, чи вистачає контексту',
+    Discussion.Phase.OPENING: 'учасники формують перші позиції',
+    Discussion.Phase.DEBATE: 'учасники по черзі сперечаються',
+    Discussion.Phase.SYNTHESIS: 'модератор зводить аргументи в рішення',
+    Discussion.Phase.DEVIL: 'AI Devil шукає слабкі місця рішення',
+    Discussion.Phase.REBUTTAL: 'учасники відповідають на критику',
+    Discussion.Phase.FINAL: 'модератор формулює фінальний висновок',
+}
+
+# Крок, якому належать записи живого статусу: (discussion_id, advance_token)
+_live = contextvars.ContextVar('discussion_live', default=None)
+
+
+def _set_live(phase=None, **fields):
+    """Оновлює живий статус поточного кроку; після кроку запис нічого не змінює.
+
+    `phase` — записати, лише якщо дискусія досі в цій фазі: уточнення й вступ
+    ідуть одним кроком, і запізнілий статус уточнення не має перекрити вступ.
+    """
+    live = _live.get()
+    if live is None:
+        return
+    discussion_id, token = live
+    scope = {'phase': phase} if phase else {}
+    try:
+        Discussion.objects.filter(pk=discussion_id, advance_token=token, **scope).update(**fields)
+    except Exception as exc:
+        # статус — лише підказка інтерфейсу: крок не має падати через нього
+        logger.warning('Live status update failed', extra={'error': str(exc)})
+
+
+def clean_status(raw):
+    """Перший змістовний рядок відповіді моделі як «Зважуємо ризики…»."""
+    text = _THINK_RE.sub('', str(raw or ''))
+    line = next((line for line in text.splitlines() if line.strip()), '')
+    line = ' '.join(line.split()).strip(' "\'«»*`#>-—.…!')
+    if not line:
+        return ''
+    if len(line) > STATUS_LIMIT:
+        line = line[:STATUS_LIMIT].rsplit(' ', 1)[0].rstrip(' ,;:—-')
+    return f'{line[:1].upper()}{line[1:]}…'
+
+
+def _write_ai_status(discussion, focus, provider_factory):
+    try:
+        personas = _resolved_personas(discussion)
+        model_id = (_judge_models(discussion, personas, 'moderator') or [_default_model()])[0]
+        raw = _complete(
+            provider_factory,
+            model_id,
+            prompts.STATUS_SYSTEM,
+            prompts.status_prompt(
+                discussion.question, STAGE_NOTES.get(discussion.phase, ''), focus
+            ),
+            STATUS_TEMPERATURE,
+        )
+        text = clean_status(raw)
+        if text:
+            _set_live(phase=discussion.phase, live_status=text[:120])
+    except Exception:
+        # статус — прикраса: інтерфейс лишиться з рядком за фазою
+        logger.info('AI status skipped', extra={'discussion': str(discussion.pk)}, exc_info=True)
+    finally:
+        connection.close()
+
+
+def _start_ai_status(discussion, provider_factory):
+    """Фоном просить модель описати крок одним рядком; сам крок не чекає."""
+    if not settings.DISCUSSION_AI_STATUS or _live.get() is None:
+        return
+    focus = describe_step(discussion)
+    if not focus:
+        return
+    _set_live(live_status='')
+    context = contextvars.copy_context()
+    threading.Thread(
+        target=context.run,
+        args=(_write_ai_status, discussion, focus, provider_factory),
+        daemon=True,
+    ).start()
+
+
 def describe_step(discussion):
     """Над чим конкретно зараз працюють AI: по рядку на кожного, хто думає.
 
@@ -1562,6 +1657,9 @@ def _claim(discussion_id, token):
         discussion.advance_token = token
         discussion.advance_started_at = now
         discussion.advance_count = (discussion.advance_count or 0) + 1
+        discussion.live_token = token
+        discussion.live_status = ''
+        discussion.live_search = ''
         if discussion.status in {Discussion.Status.NEW, Discussion.Status.FAILED}:
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.error = ''
@@ -1572,6 +1670,9 @@ def _claim(discussion_id, token):
                 'advance_token',
                 'advance_started_at',
                 'advance_count',
+                'live_token',
+                'live_status',
+                'live_search',
                 'status',
                 'error',
                 'error_code',
@@ -1789,12 +1890,15 @@ def advance(discussion, provider_factory=None):
 
     heartbeat = _Heartbeat(discussion_id, token)
     heartbeat.start()
+    live = _live.set((discussion_id, token))
     try:
         if claimed.phase == Discussion.Phase.CLARIFY:
+            _start_ai_status(claimed, provider_factory)
             if not _clarify_step(claimed, token, provider_factory):
                 return []
             # контексту досить — у тому ж кроці починаємо вступ
             claimed.phase = Discussion.Phase.OPENING
+        _start_ai_status(claimed, provider_factory)
         plans = _prepare_step(claimed)
         results = _run_plans(plans, provider_factory, claimed) if plans else []
         succeeded = [(plan, payload) for plan, payload, error in results if error is None]
@@ -1833,6 +1937,7 @@ def advance(discussion, provider_factory=None):
         _fail(discussion_id, token, error)
         raise error from exc
     finally:
+        _live.reset(live)
         heartbeat.stop()
 
 

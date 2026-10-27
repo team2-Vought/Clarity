@@ -49,11 +49,15 @@ export default function ThoughtLine({
   doneLabel = '',
   renderLabel,
   glyph = 'sparkle',
+  // false — гліф має власну анімацію (як логотип), тож не блимаємо ним зверху
+  glyphBreath = true,
   steps = EMPTY_STEPS,
   // скільки останніх кроків іде зараз: паралельні фази думають кількома AI одразу
   activeCount = 1,
   collapsible = true,
   collapseOnSettle = true,
+  // false — під час роботи кроки згорнуті, поки їх не розгорнуть самі
+  openOnWork = true,
   color = 'currentColor',
   glyphColor = '',
   fontSize = 16,
@@ -85,7 +89,7 @@ export default function ThoughtLine({
     if (working) setAutoSettled(false);
   }
   const isWorking = working && !autoSettled;
-  const [open, setOpen] = useState(() => isWorking || !collapseOnSettle);
+  const [open, setOpen] = useState(() => (isWorking ? openOnWork : !collapseOnSettle));
   const doneText = doneLabel || (showTimer ? 'Thought for' : 'Done thinking');
   const hasTrace = steps.length > 0;
   const depth = reduce ? Math.min(breathDepth, 0.2) : breathDepth;
@@ -104,13 +108,20 @@ export default function ThoughtLine({
   const prevWorking = useRef(isWorking);
   const latest = useRef({ onSettle });
   const [elapsedDs, setElapsedDs] = useState(0);
+  // новий напис під час роботи приходить плавно, а старий ще мить тане поверх:
+  // `n` — номер зміни (ключ анімації), `previous` — напис, що йде
+  const [swap, setSwap] = useState({ label, previous: '', n: 0 });
+  if (swap.label !== label) {
+    setSwap({ label, previous: isWorking && !reduce ? swap.label : '', n: swap.n + 1 });
+  }
+  const labelWidth = useRef(0);
   const [wasWorking, setWasWorking] = useState(isWorking);
   // зміна стану скидає таймер і розгортання під час рендеру, а не в ефекті
   if (wasWorking !== isWorking) {
     setWasWorking(isWorking);
     if (isWorking) {
       setElapsedDs(0);
-      setOpen(true);
+      setOpen(openOnWork);
     } else if (collapseOnSettle) {
       setOpen(false);
     }
@@ -123,7 +134,7 @@ export default function ThoughtLine({
   }, [onSettle]);
 
   useEffect(() => {
-    const glyphEl = glyphRef.current;
+    const glyphEl = glyphBreath ? glyphRef.current : null;
     const breathEl = breathRef.current;
     if (!breathEl) return undefined;
     const s = settleDuration / 1000;
@@ -135,6 +146,10 @@ export default function ThoughtLine({
       );
     let cancelled = false;
     const running = [];
+    if (!glyphBreath && glyphRef.current) {
+      const target = isWorking ? 1 : GLYPH_DONE;
+      running.push(animate(glyphRef.current, { opacity: target }, { duration: isWorking ? 0.2 : s, ease: EASE_OUT }));
+    }
     if (isWorking) {
       if (depth > 0) {
         if (sheen) {
@@ -163,7 +178,7 @@ export default function ThoughtLine({
       cancelled = true;
       running.forEach((animation) => animation.stop());
     };
-  }, [isWorking, period, depth, trough, settleDuration, glyph, sheen]);
+  }, [isWorking, period, depth, trough, settleDuration, glyph, glyphBreath, sheen]);
 
   // фаза відблиску прив'язана до спільного годинника сторінки (старт — на нулі
   // часової шкали документа): коли рядок ховають і показують знову, анімація
@@ -171,10 +186,28 @@ export default function ThoughtLine({
   useLayoutEffect(() => {
     const breathEl = breathRef.current;
     if (!breathEl || !isWorking || !sheen) return;
-    breathEl.getAnimations?.().forEach((animation) => {
+    // відблиск малюють написи всередині, і кожен новий підхоплює ту саму фазу
+    breathEl.getAnimations?.({ subtree: true }).forEach((animation) => {
       if (animation.animationName === 'thought-line-shimmer') animation.startTime = 0;
     });
-  }, [isWorking, sheen, shimmerDuration]);
+  }, [isWorking, sheen, shimmerDuration, swap.n]);
+
+  // ширина напису перетікає від старої до нової, а таймер зі стрілкою їдуть
+  // слідом (їх підсуває ResizeObserver нижче), замість стрибка
+  useLayoutEffect(() => {
+    const breathEl = breathRef.current;
+    if (!breathEl) return undefined;
+    const from = labelWidth.current;
+    breathEl.style.width = '';
+    const to = breathEl.offsetWidth;
+    labelWidth.current = to;
+    if (!swap.n || !isWorking || reduce || !from || from === to) return undefined;
+    const glide = animate(breathEl, { width: [`${from}px`, `${to}px`] }, { duration: 0.4, ease: EASE_OUT });
+    glide.then(() => {
+      breathEl.style.width = '';
+    });
+    return () => glide.stop();
+  }, [swap.n, isWorking, reduce]);
 
   const paint = (ds) => {
     dsRef.current = ds;
@@ -253,7 +286,22 @@ export default function ThoughtLine({
       <span ref={stackRef} className="thought-line__label" aria-hidden="true">
         <span ref={workRef} className="thought-line__text" data-active={isWorking ? '' : undefined}>
           <span ref={breathRef} className="thought-line__breath" data-shimmer={sheen ? '' : undefined}>
-            {renderLabel ? renderLabel(label, true) : label}
+            <span key={swap.n} className="thought-line__swap" data-enter={swap.previous ? '' : undefined}>
+              {renderLabel ? renderLabel(label, true) : label}
+            </span>
+            {swap.previous ? (
+              <span
+                key={`out-${swap.n}`}
+                className="thought-line__swap thought-line__swap--out"
+                onAnimationEnd={(event) => {
+                  if (event.animationName !== 'thought-line-swap-out') return;
+                  const n = swap.n;
+                  setSwap((current) => (current.n === n ? { ...current, previous: '' } : current));
+                }}
+              >
+                {renderLabel ? renderLabel(swap.previous, true) : swap.previous}
+              </span>
+            ) : null}
           </span>
         </span>
         <span

@@ -1,11 +1,13 @@
 import uuid
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from discussions.models import Discussion, Message
+from discussions.serializers import DiscussionSerializer
 from discussions.services import engine
 from discussions.services.providers import ProviderError
 
@@ -660,3 +662,70 @@ class StructuredTextTests(TestCase):
         )
         self.assertIn('- ризик перший\n- ризик другий', reply['content'])
         self.assertEqual(reply['thesis'], 'Не варто переходити зараз.')
+
+
+class LiveStatusTests(EngineTests):
+    """Рядок «що зараз роблять AI» і поточний пошуковий запит."""
+
+    def claim_step(self):
+        token = uuid.uuid4()
+        Discussion.objects.filter(pk=self.discussion.pk).update(
+            advance_token=token, advance_started_at=timezone.now(), live_token=token
+        )
+        self.discussion.refresh_from_db()
+        return engine._live.set((self.discussion.pk, token))
+
+    def live(self):
+        self.discussion.refresh_from_db()
+        return DiscussionSerializer(self.discussion).data['live']
+
+    def test_clean_status_keeps_one_short_line(self):
+        raw = '<think>хм, треба коротко</think>\n«зважуємо ризики переходу в стартап».\nПояснення'
+        self.assertEqual(engine.clean_status(raw), 'Зважуємо ризики переходу в стартап…')
+        self.assertEqual(engine.clean_status('   \n'), '')
+        self.assertLessEqual(len(engine.clean_status('слово ' * 40)), engine.STATUS_LIMIT + 1)
+
+    def test_ai_status_and_search_are_live_only_during_the_step(self):
+        provider = mock.Mock()
+        provider.complete.return_value = 'Порівнюємо стартап зі стабільною роботою'
+        live = self.claim_step()
+        try:
+            # фоновий потік закриває своє з'єднання; у тесті воно спільне
+            with mock.patch('discussions.services.engine.connection'):
+                engine._write_ai_status(
+                    self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
+                )
+            prompt = provider.complete.call_args.kwargs['prompt']
+            self.assertIn('Чи варто змінювати роботу на стартап?', prompt)
+
+            seen = []
+
+            def search(query):
+                seen.append(self.live()['search'])
+                return []
+
+            with mock.patch('discussions.services.search.search', side_effect=search):
+                engine._run_searches(['зарплати в стартапах'])
+        finally:
+            engine._live.reset(live)
+
+        self.assertEqual(seen, ['зарплати в стартапах'])
+        self.assertEqual(
+            self.live(), {'status': 'Порівнюємо стартап зі стабільною роботою…', 'search': ''}
+        )
+
+        Discussion.objects.filter(pk=self.discussion.pk).update(advance_token=None)
+        self.assertEqual(self.live(), {'status': '', 'search': ''})
+
+    def test_status_failure_is_silent(self):
+        provider = mock.Mock()
+        provider.complete.side_effect = ProviderError('down')
+        live = self.claim_step()
+        try:
+            with mock.patch('discussions.services.engine.connection'):
+                engine._write_ai_status(
+                    self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
+                )
+        finally:
+            engine._live.reset(live)
+        self.assertEqual(self.live()['status'], '')

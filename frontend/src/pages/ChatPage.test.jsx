@@ -130,6 +130,41 @@ describe('ChatPage', () => {
     expect(screen.getByText('Марта · «Залежить від людей. Теза.»')).toBeInTheDocument();
   });
 
+  it('замість «Аналізуємо…» показує, що саме зараз роблять AI', async () => {
+    const running = {
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'debate',
+      is_finished: false,
+      is_running: true,
+      messages: DISCUSSION.messages.slice(0, 1),
+      thinking: [{ slug: 'emotional', name: 'Марта', text: 'розвиває власну позицію' }],
+      live: { status: '', search: '' },
+    };
+    vi.mocked(fetchDiscussion).mockResolvedValue(running);
+    const { unmount } = renderPage();
+    // модель ще не описала крок — видно етап
+    expect(await screen.findByText('Обмінюємося аргументами…')).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...running,
+      live: { status: 'Порівнюємо зарплати й ризики…', search: '' },
+    });
+    const second = renderPage();
+    expect(await screen.findByText('Порівнюємо зарплати й ризики…')).toBeInTheDocument();
+    second.unmount();
+
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...running,
+      live: { status: 'Порівнюємо зарплати й ризики…', search: 'медіанна зарплата в стартапах 2026' },
+    });
+    renderPage();
+    expect(
+      await screen.findByText('Шукаємо в інтернеті «медіанна зарплата в стартапах 2026»…')
+    ).toBeInTheDocument();
+  });
+
   it('після аналізу лишає згорнутий рядок «Аналізовано за …» з кроками', async () => {
     const user = userEvent.setup();
     const at = (seconds) => new Date(Date.UTC(2026, 9, 23, 9, 0, seconds)).toISOString();

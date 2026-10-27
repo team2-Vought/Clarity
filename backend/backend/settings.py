@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -233,6 +234,12 @@ DISCUSSION_RUNNER_SYNC = os.getenv('DISCUSSION_RUNNER_SYNC', '').lower() in {'1'
 DISCUSSION_RUNNER_MAX_RETRIES = int(os.getenv('DISCUSSION_RUNNER_MAX_RETRIES', '2'))
 DISCUSSION_RUNNER_RETRY_DELAY_SECONDS = float(
     os.getenv('DISCUSSION_RUNNER_RETRY_DELAY_SECONDS', '5')
+)
+# Короткий статус «що зараз роблять AI» пише модель модератора окремим
+# коротким викликом на кожен крок. У тестах вимкнено: фоновий виклик заважав би
+# детермінованим фейкам.
+DISCUSSION_AI_STATUS = os.getenv('DISCUSSION_AI_STATUS', 'true').lower() in {'1', 'true', 'yes'} and (
+    'test' not in sys.argv[1:2]
 )
 
 # Пошук в інтернеті для моделей. SEARCH_PROVIDER: auto | tavily | brave |

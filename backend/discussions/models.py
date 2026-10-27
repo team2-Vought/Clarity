@@ -78,6 +78,11 @@ class Discussion(models.Model):
     advance_count = models.PositiveIntegerField('кроків виконано', default=0)
     advance_token = models.UUIDField(null=True, blank=True, editable=False)
     advance_started_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Живий статус кроку для інтерфейсу: рядок від AI і поточний пошуковий запит.
+    # Дійсний, лише поки live_token збігається з advance_token, тож не «залипає».
+    live_token = models.UUIDField(null=True, blank=True, editable=False)
+    live_status = models.CharField(max_length=120, blank=True, default='', editable=False)
+    live_search = models.CharField(max_length=300, blank=True, default='', editable=False)
 
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)

@@ -479,6 +479,29 @@ class ApiV3Tests(TestCase):
         self.assertFalse(run.data['stop_requested'])
         self.assertTrue(run.data['is_finished'])
 
+    def test_stop_discards_reply_still_being_written(self):
+        created = self.create()
+        url = f'/api/discussions/{created["id"]}/stop/'
+        before = Message.objects.filter(discussion_id=created['id']).count()
+        write = self.provider.complete
+        stopped = []
+
+        def complete(**kwargs):
+            # «Зупинити» натиснули, поки модель ще пише відповідь
+            if not stopped:
+                stopped.append(self.client.post(url).data)
+            return write(**kwargs)
+
+        self.provider.complete = complete
+        runner.run(created['id'])
+
+        self.assertFalse(stopped[0]['is_running'])
+        self.assertTrue(stopped[0]['stop_requested'])
+        self.assertEqual(Message.objects.filter(discussion_id=created['id']).count(), before)
+        discussion = Discussion.objects.get(pk=created['id'])
+        self.assertIsNone(discussion.advance_token)
+        self.assertEqual(discussion.phase, created['phase'])
+
     def test_note_endpoint_reopens_finished_discussion(self):
         created = self.create()
         self.client.post(f'/api/discussions/{created["id"]}/run/')

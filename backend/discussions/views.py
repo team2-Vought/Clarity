@@ -105,7 +105,7 @@ def _discussion_state(discussion):
         'rounds': discussion.rounds,
         'stop_requested': discussion.stop_requested,
         'clarify_questions': discussion.clarify_questions,
-        'is_running': engine.is_running(discussion) or runner.is_active(discussion.pk),
+        'is_running': runner.is_working(discussion),
         'error_code': discussion.error_code,
         'error_public': discussion.error_public,
         'retryable': discussion.error_code not in NON_RETRYABLE_CODES,
@@ -297,7 +297,7 @@ class DiscussionDetailView(OwnedDiscussionView):
         if discussion is None:
             return _not_found()
         changes_models = bool(MODEL_FIELDS & set(request.data))
-        if changes_models and (engine.is_running(discussion) or runner.is_active(discussion.pk)):
+        if changes_models and runner.is_working(discussion):
             return Response(
                 {'detail': 'Зачекайте, поки завершиться поточний крок, або зупиніть дискусію.'},
                 status=status.HTTP_409_CONFLICT,
@@ -385,13 +385,16 @@ class DiscussionRunView(OwnedDiscussionView):
 
 
 class DiscussionStopView(OwnedDiscussionView):
-    """Зупинка після поточного кроку: за нього вже заплачено, результат збережеться."""
+    """Негайна зупинка: lease кроку знімається, тож відповідь, яку модель ще
+    пише, буде відкинута (крок не збережеться через зміну токена)."""
 
     def post(self, request, pk):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
-        Discussion.objects.filter(pk=discussion.pk).update(stop_requested=True)
+        Discussion.objects.filter(pk=discussion.pk).update(
+            stop_requested=True, advance_token=None, advance_started_at=None, live_token=None
+        )
         discussion.refresh_from_db()
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)
 
