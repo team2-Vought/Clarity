@@ -8,13 +8,16 @@ class FakeProvider:
     `stance` — значення службового рядка ПОЗИЦІЯ у репліках учасників
     (None — рядок не додається, тож консенсус ніколи не настає).
     `search_query` — службовий рядок ПОШУК у першій репліці, де пошук дозволено.
+    `clarify_questions` — уточнювальні питання модератора перед стартом
+    (порожньо — контексту досить).
     """
 
-    def __init__(self, stance=None, search_query=None):
+    def __init__(self, stance=None, search_query=None, clarify_questions=None):
         self.calls = []
         self.counter = 0
         self.stance = stance
         self.search_query = search_query
+        self.clarify_questions = clarify_questions or []
         self._lock = threading.Lock()
 
     def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
@@ -27,6 +30,11 @@ class FakeProvider:
                     'json_mode': json_mode,
                 }
             )
+            if '"ready"' in prompt:
+                return json.dumps(
+                    {'ready': not self.clarify_questions, 'questions': self.clarify_questions},
+                    ensure_ascii=False,
+                )
             if '"confirmed"' in prompt:
                 return json.dumps(self._final(prompt), ensure_ascii=False)
             if '"verdict"' in prompt:

@@ -62,7 +62,7 @@ def run(discussion_id, provider_factory=None):
         discussion = Discussion.objects.select_related('user').filter(pk=discussion_id).first()
         if discussion is None or discussion.phase == Discussion.Phase.DONE:
             return
-        if discussion.stop_requested:
+        if discussion.stop_requested or discussion.awaiting_clarification:
             return
         if over_daily_limit(discussion.user):
             _fail_with_limit(discussion_id)

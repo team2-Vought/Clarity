@@ -1,6 +1,6 @@
 """Движок дискусії: стан-машина, яка робить один крок за виклик.
 
-Фази: opening → debate (до N раундів) → synthesis → devil → rebuttal
+Фази: clarify → opening → debate (до N раундів) → synthesis → devil → rebuttal
 → final → done.
 
 Вступ (opening) і відповідь на Devil (rebuttal) виконуються паралельно: один
@@ -13,6 +13,10 @@
 «судді»: користувач може задати їм моделі явно, інакше обирається модель, що
 не належить жодному учаснику (і для Devil — відмінна від моделі модератора).
 Якщо модель судді не відповідає, крок повторюється на наступній доступній.
+
+Нова дискусія починається з перевірки контексту: модератор вирішує, чи досить
+деталей. Якщо так — той самий крок одразу переходить до вступу; якщо ні —
+дискусія чекає відповідей користувача на його питання (раннер зупиняється).
 
 Якщо увімкнено пошук в інтернеті, моделі шукають лише тоді, коли їм бракує
 фактів: учасники додають службовий рядок ПОШУК, а Devil — поле search_queries.
@@ -351,6 +355,39 @@ def normalize_summary(data, best_solution, mode, options):
     return result
 
 
+_EMPHASIS_RE = re.compile(r'\*{1,2}|(?<!\w)_{1,2}|_{1,2}(?!\w)')
+
+
+def _plain(value, limit):
+    """Питання й варіанти показуються як звичайний текст: прибираємо **жирний** і *курсив*."""
+    return _text(_EMPHASIS_RE.sub('', str(value or '')), limit=limit)
+
+
+def normalize_clarify(data):
+    """{ready, questions: [{id, question, options}]}; без запитань — готово."""
+    data = data if isinstance(data, dict) else {}
+    questions = []
+    raw = data.get('questions') if isinstance(data.get('questions'), list) else []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        text = _plain(item.get('question'), 300)
+        options = item.get('options') if isinstance(item.get('options'), list) else []
+        variants = []
+        for option in options:
+            option = _plain(option, 100)
+            if option and option.casefold() not in {variant.casefold() for variant in variants}:
+                variants.append(option)
+            if len(variants) >= prompts.CLARIFY_MAX_OPTIONS:
+                break
+        if text and len(variants) >= 2:
+            questions.append({'id': f'q{len(questions) + 1}', 'question': text, 'options': variants})
+        if len(questions) >= prompts.CLARIFY_MAX_QUESTIONS:
+            break
+    ready = _as_bool(data.get('ready'), True) or not questions
+    return {'ready': ready, 'questions': [] if ready else questions}
+
+
 def _answer_problems(data, mode, options):
     if mode == Discussion.Mode.OPEN or _answer(data.get('answer'), mode, options):
         return []
@@ -384,7 +421,19 @@ def _summary_problems(data, mode, options):
     return problems + _answer_problems(data, mode, options)
 
 
+def _clarify_problems(data, mode, options):
+    if not isinstance(data, dict):
+        return ['відповідь не є JSON-об’єктом']
+    ready = _as_bool(data.get('ready'), None)
+    if ready is None:
+        return ['поле "ready" має бути true або false']
+    if not ready and not normalize_clarify(data)['questions']:
+        return ['при ready: false потрібні запитання з 2+ варіантами відповіді']
+    return []
+
+
 PROBLEM_CHECKS = {
+    'clarify': _clarify_problems,
     'solution': _solution_problems,
     'review': _review_problems,
     'summary': _summary_problems,
@@ -1012,6 +1061,9 @@ def _prepare_step(discussion):
         )
     messages = _list_messages(discussion)
     mode, options = _mode_ctx(discussion)
+    question = prompts.question_with_clarifications(
+        discussion.question, discussion.clarifications
+    )
     phase = discussion.phase
     sources = discussion.sources if discussion.web_search else None
     can_search = _search_budget(discussion) > 0
@@ -1029,7 +1081,7 @@ def _prepare_step(discussion):
                 persona,
                 phase,
                 prompts.opening_prompt(
-                    discussion.question, persona, personas, can_search=can_search, **common
+                    question, persona, personas, can_search=can_search, **common
                 ),
                 can_search=can_search,
             )
@@ -1054,7 +1106,7 @@ def _prepare_step(discussion):
                 persona,
                 phase,
                 prompts.debate_prompt(
-                    discussion.question,
+                    question,
                     persona,
                     personas,
                     messages,
@@ -1087,7 +1139,7 @@ def _prepare_step(discussion):
                     persona,
                     phase,
                     prompts.rebuttal_prompt(
-                        discussion.question,
+                        question,
                         persona,
                         personas,
                         messages,
@@ -1111,7 +1163,7 @@ def _prepare_step(discussion):
                 persona=MODERATOR,
                 system=prompts.MODERATOR_SYSTEM,
                 prompt=prompts.synthesis_prompt(
-                    discussion.question,
+                    question,
                     personas,
                     messages,
                     early_stop=discussion.early_stop,
@@ -1132,7 +1184,7 @@ def _prepare_step(discussion):
                 persona=DEVIL,
                 system=prompts.DEVIL_SYSTEM,
                 prompt=prompts.devil_prompt(
-                    discussion.question,
+                    question,
                     personas,
                     discussion.best_solution or {},
                     messages,
@@ -1155,7 +1207,7 @@ def _prepare_step(discussion):
                 persona=MODERATOR,
                 system=prompts.MODERATOR_SYSTEM,
                 prompt=prompts.final_prompt(
-                    discussion.question,
+                    question,
                     personas,
                     discussion.best_solution or {},
                     discussion.devil_review or {},
@@ -1233,6 +1285,11 @@ def describe_step(discussion):
         return []
     messages = _list_messages(discussion)
     phase = discussion.phase
+
+    if phase == Discussion.Phase.CLARIFY:
+        if discussion.clarify_questions:
+            return []
+        return [_focus(MODERATOR, 'перевіряє, чи вистачає контексту для відповіді')]
 
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)
@@ -1733,6 +1790,11 @@ def advance(discussion, provider_factory=None):
     heartbeat = _Heartbeat(discussion_id, token)
     heartbeat.start()
     try:
+        if claimed.phase == Discussion.Phase.CLARIFY:
+            if not _clarify_step(claimed, token, provider_factory):
+                return []
+            # контексту досить — у тому ж кроці починаємо вступ
+            claimed.phase = Discussion.Phase.OPENING
         plans = _prepare_step(claimed)
         results = _run_plans(plans, provider_factory, claimed) if plans else []
         succeeded = [(plan, payload) for plan, payload, error in results if error is None]
@@ -1806,6 +1868,13 @@ def add_user_message(discussion_id, author_name, content):
                 public='Дискусію не знайдено.',
                 retryable=False,
             )
+        if discussion.awaiting_clarification:
+            raise EngineError(
+                'Модератор чекає відповідей на уточнення.',
+                code='clarify_pending',
+                public='Спершу дайте відповідь на питання модератора або пропустіть їх.',
+                retryable=False,
+            )
         reopened = discussion.phase == Discussion.Phase.DONE
         if reopened:
             limit = int(settings.DISCUSSION_MAX_FOLLOWUPS)
@@ -1840,3 +1909,100 @@ def add_user_message(discussion_id, author_name, content):
         )
         discussion.save()
         return message, reopened
+
+
+# ---------------------------------------------------------------------------
+# Перевірка контексту перед стартом
+# ---------------------------------------------------------------------------
+
+
+def clarify(discussion, provider_factory=None):
+    """Модератор вирішує, чи досить контексту, або ставить уточнювальні питання.
+
+    Якщо жодна модель модератора не відповіла, піднімається EngineError.
+    """
+    personas = _resolved_personas(discussion)
+    mode, options = _mode_ctx(discussion)
+    plan = StepPlan(
+        phase=Discussion.Phase.OPENING,
+        role=Message.Role.MODERATOR,
+        persona=MODERATOR,
+        model_id='',
+        system=prompts.CLARIFY_SYSTEM,
+        prompt=prompts.clarify_prompt(discussion.question, mode, options),
+        temperature=JSON_TEMPERATURE,
+        json_kind='clarify',
+    )
+    last_error = None
+    for model_id in _judge_models(discussion, personas, 'moderator')[:2]:
+        try:
+            data = _complete_json(provider_factory, plan, model_id, mode, options)
+        except EngineError as exc:
+            last_error = exc
+            continue
+        return normalize_clarify(data)
+    raise last_error or EngineError('Немає доступної моделі модератора.', code='provider_config')
+
+
+def _release(discussion_id, token, **changes):
+    """Знімає lease кроку, зберігаючи зміни, якщо крок досі наш."""
+    return Discussion.objects.filter(pk=discussion_id, advance_token=token).update(
+        advance_token=None, advance_started_at=None, updated_at=timezone.now(), **changes
+    )
+
+
+def _clarify_step(discussion, token, provider_factory=None):
+    """Крок перевірки контексту. True — можна починати вступ (lease лишається
+    за кроком), False — чекаємо відповідей користувача (lease знято).
+
+    Збій модератора не блокує дискусію: тоді просто стартуємо без питань.
+    """
+    if discussion.clarify_questions:
+        _release(discussion.pk, token)
+        return False
+    try:
+        result = clarify(discussion, provider_factory)
+    except EngineError:
+        logger.warning('Context check failed', extra={'discussion': str(discussion.pk)}, exc_info=True)
+        result = {'ready': True, 'questions': []}
+    else:
+        usage.record(discussion.user_id, replies=1)
+    if result['ready']:
+        updated = Discussion.objects.filter(pk=discussion.pk, advance_token=token).update(
+            phase=Discussion.Phase.OPENING
+        )
+        if not updated:
+            raise EngineConflict('Дискусію вже оновив інший запит.', code='conflict')
+        return True
+    if not _release(discussion.pk, token, clarify_questions=result['questions']):
+        raise EngineConflict('Дискусію вже оновив інший запит.', code='conflict')
+    return False
+
+
+def answer_clarification(discussion_id, clarifications):
+    """Зберігає відповіді на питання модератора й відкриває вступ.
+
+    Порожній список — користувач пропустив питання. Повертає дискусію.
+    """
+    with transaction.atomic():
+        discussion = (
+            Discussion.objects.select_for_update().filter(pk=discussion_id).first()
+        )
+        if discussion is None:
+            raise EngineError(
+                'Дискусію не знайдено.', code='not_found', public='Дискусію не знайдено.',
+                retryable=False,
+            )
+        if not discussion.awaiting_clarification:
+            raise EngineError(
+                'Модератор не чекає уточнень.',
+                code='no_clarify',
+                public='Модератор уже не чекає уточнень — дискусія триває.',
+                retryable=False,
+            )
+        discussion.clarifications = clarifications
+        discussion.clarify_questions = []
+        discussion.phase = Discussion.Phase.OPENING
+        discussion.stop_requested = False
+        discussion.save()
+        return discussion

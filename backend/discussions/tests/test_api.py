@@ -8,7 +8,7 @@ from rest_framework.throttling import SimpleRateThrottle
 
 from discussions import serializers
 from discussions.models import Discussion, Message
-from discussions.services import engine, usage
+from discussions.services import engine, runner, usage
 
 from .fakes import FakeProvider
 
@@ -518,7 +518,8 @@ class DiscussionApiTests(TestCase):
         first = self.client.post('/api/discussions/', payload, format='json')
         step = self.client.post(f'/api/discussions/{first.data["id"]}/advance/')
         self.assertEqual(step.status_code, 200)
-        self.assertEqual(usage.today(self.user).replies, len(step.data['messages']))
+        # + 1 — перевірка контексту модератором перед вступом
+        self.assertEqual(usage.today(self.user).replies, len(step.data['messages']) + 1)
         self.client.delete(f'/api/discussions/{first.data["id"]}/')
 
         second = self.client.post('/api/discussions/', payload, format='json')
@@ -833,3 +834,102 @@ class DiscussionThrottleTests(TestCase):
         self.assertEqual(
             self.client.post('/api/discussions/', payload, format='json').status_code, 429
         )
+
+
+class ClarifyApiTests(TestCase):
+    """Дискусія стартує одразу, а модератор першим кроком перевіряє контекст."""
+
+    setUp = DiscussionApiTests.setUp
+    login = DiscussionApiTests.login
+    auth = DiscussionApiTests.auth
+
+    PAYLOAD = {
+        'question': 'Чи варто купувати авто зараз?',
+        'personas': ['logician', 'skeptic'],
+    }
+
+    def create(self):
+        self.auth()
+        response = self.client.post('/api/discussions/', self.PAYLOAD, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['phase'], 'clarify')
+        return Discussion.objects.get(pk=response.data['id'])
+
+    def test_enough_context_goes_straight_to_opening(self):
+        discussion = self.create()
+        created = engine.advance(discussion)
+        self.assertEqual(len(created), 2)
+        self.assertIn('"ready"', self.provider.calls[0]['prompt'])
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.phase, Discussion.Phase.DEBATE)
+        self.assertEqual(discussion.clarify_questions, [])
+
+    def test_questions_pause_discussion_until_answered(self):
+        self.provider.clarify_questions = [
+            {'question': 'Який у вас **бюджет**?', 'options': ['*До 10 000 $*', '10–20 тис. $', '10–20 тис. $']},
+            {'question': 'Питання без варіантів', 'options': ['лише один']},
+        ]
+        discussion = self.create()
+        runner.run(discussion.pk)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.phase, Discussion.Phase.CLARIFY)
+        self.assertEqual(
+            discussion.clarify_questions,
+            [{'id': 'q1', 'question': 'Який у вас бюджет?', 'options': ['До 10 000 $', '10–20 тис. $']}],
+        )
+        self.assertFalse(discussion.messages.filter(role=Message.Role.AI).exists())
+        self.assertEqual(len(self.provider.calls), 1)
+        # повторний запуск не питає модератора вдруге
+        runner.run(discussion.pk)
+        self.assertEqual(len(self.provider.calls), 1)
+        self.assertEqual(engine.describe_step(discussion), [])
+
+        note = self.client.post(
+            f'/api/discussions/{discussion.id}/messages/', {'content': 'Ще деталь'}, format='json'
+        )
+        self.assertEqual(note.status_code, 400)
+
+        with mock.patch('discussions.views.runner.start') as start:
+            response = self.client.post(
+                f'/api/discussions/{discussion.id}/clarify/',
+                {
+                    'answers': [
+                        {'question': 'Який у вас бюджет?', 'answer': '  До 10 000 $ '},
+                        {'question': 'Пропущене питання', 'answer': ''},
+                    ]
+                },
+                format='json',
+            )
+        self.assertEqual(response.status_code, 200)
+        start.assert_called_once()
+        self.assertEqual(response.data['phase'], 'opening')
+        self.assertEqual(response.data['clarify_questions'], [])
+        self.assertEqual(
+            response.data['clarifications'],
+            [{'question': 'Який у вас бюджет?', 'answer': 'До 10 000 $'}],
+        )
+
+        discussion.refresh_from_db()
+        engine.advance(discussion)
+        prompt = self.provider.calls[-1]['prompt']
+        self.assertIn('Уточнення від користувача:', prompt)
+        self.assertIn('- Який у вас бюджет? — До 10 000 $', prompt)
+        self.assertNotIn('Пропущене питання', prompt)
+
+    def test_answers_rejected_when_not_awaiting(self):
+        discussion = self.create()
+        response = self.client.post(
+            f'/api/discussions/{discussion.id}/clarify/', {'answers': []}, format='json'
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_moderator_failure_does_not_block_start(self):
+        discussion = self.create()
+        with mock.patch(
+            'discussions.services.engine.clarify',
+            side_effect=engine.EngineError('збій', code='provider_error'),
+        ):
+            created = engine.advance(discussion)
+        self.assertEqual(len(created), 2)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.status, Discussion.Status.IN_PROGRESS)

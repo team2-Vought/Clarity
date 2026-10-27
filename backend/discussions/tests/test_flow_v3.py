@@ -528,9 +528,10 @@ class ApiV3Tests(TestCase):
         self.assertEqual(bad.status_code, 400)
 
     @override_settings(SEARCH_PROVIDER='wikipedia')
-    def test_web_search_discussion_starts_with_opening(self):
+    def test_web_search_discussion_starts_with_context_check(self):
+        # окремого кроку пошуку немає: спершу модератор перевіряє контекст, далі вступ
         created = self.create(web_search=True)
-        self.assertEqual(created['phase'], 'opening')
+        self.assertEqual(created['phase'], 'clarify')
         self.assertTrue(created['search']['available'])
 
     @override_settings(SEARCH_PROVIDER='off')

@@ -46,6 +46,8 @@ PERSONA_NOT_IN_DISCUSSION = 'Учасника «{slug}» немає в цій д
 TEAM_NAME_EMPTY = 'Назвіть команду'
 TEAM_NAME_TOO_LONG = 'Назва команди задовга (максимум 64 символи)'
 SHARED_AUTHOR = 'Автор питання'
+CLARIFICATIONS_TYPE = 'Уточнення мають бути списком пар «питання — відповідь»'
+CLARIFICATION_TOO_LONG = 'Відповідь на уточнення задовга (максимум 500 символів)'
 
 # Помилки, які не минуть від повтору: потрібно змінити модель чи налаштування.
 NON_RETRYABLE_CODES = {
@@ -63,6 +65,9 @@ _SENTENCE_END = re.compile(r'(?<=[.!?…])\s')
 OPTION_MAX = 8
 TRAITS_MAX = 20
 TRAIT_LENGTH_MAX = 40
+CLARIFICATIONS_MAX = 6
+CLARIFICATION_QUESTION_MAX = 300
+CLARIFICATION_ANSWER_MAX = 500
 
 
 def validate_model_id(value):
@@ -105,7 +110,6 @@ class CreateDiscussionSerializer(serializers.Serializer):
     web_search = serializers.BooleanField(required=False, default=False)
     moderator_model = serializers.CharField(required=False, allow_blank=True, default='')
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
-
     def validate_web_search(self, value):
         if value and not search.is_available():
             raise serializers.ValidationError(SEARCH_UNAVAILABLE)
@@ -365,6 +369,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'question',
             'mode',
             'options',
+            'clarifications',
+            'clarify_questions',
             'personas',
             'rounds',
             'web_search',
@@ -482,6 +488,7 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             'question',
             'mode',
             'options',
+            'clarifications',
             'personas',
             'rounds',
             'status',
@@ -545,3 +552,25 @@ class TeamSerializer(serializers.ModelSerializer):
 
     def validate_devil_model(self, value):
         return validate_model_id(value)
+
+
+class ClarifyAnswersSerializer(serializers.Serializer):
+    """Відповіді на питання модератора: [{question, answer}]; порожньо — пропустити."""
+
+    answers = serializers.ListField(required=False, default=list)
+
+    def validate_answers(self, value):
+        """Порожні відповіді (користувач пропустив питання) відкидаємо."""
+        cleaned = []
+        for item in value[:CLARIFICATIONS_MAX]:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError(CLARIFICATIONS_TYPE)
+            question = ' '.join(str(item.get('question') or '').split())
+            answer = ' '.join(str(item.get('answer') or '').split())
+            if len(answer) > CLARIFICATION_ANSWER_MAX:
+                raise serializers.ValidationError(CLARIFICATION_TOO_LONG)
+            if question and answer:
+                cleaned.append(
+                    {'question': question[:CLARIFICATION_QUESTION_MAX], 'answer': answer}
+                )
+        return cleaned

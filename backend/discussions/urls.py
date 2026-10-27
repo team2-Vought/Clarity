@@ -3,6 +3,7 @@ from django.urls import path
 from .account_settings import ProviderKeyView, SettingsView
 from .views import (
     DiscussionAdvanceView,
+    DiscussionClarifyView,
     DiscussionDetailView,
     DiscussionListCreateView,
     DiscussionMessageView,
@@ -35,6 +36,11 @@ urlpatterns = [
         name='discussion-advance',
     ),
     path('discussions/<uuid:pk>/run/', DiscussionRunView.as_view(), name='discussion-run'),
+    path(
+        'discussions/<uuid:pk>/clarify/',
+        DiscussionClarifyView.as_view(),
+        name='discussion-clarify',
+    ),
     path('discussions/<uuid:pk>/stop/', DiscussionStopView.as_view(), name='discussion-stop'),
     path(
         'discussions/<uuid:pk>/messages/',

@@ -24,6 +24,7 @@ from .personas import (
 )
 from .serializers import (
     NON_RETRYABLE_CODES,
+    ClarifyAnswersSerializer,
     CreateDiscussionSerializer,
     DiscussionListSerializer,
     DiscussionSerializer,
@@ -103,6 +104,7 @@ def _discussion_state(discussion):
         'is_finished': discussion.is_finished,
         'rounds': discussion.rounds,
         'stop_requested': discussion.stop_requested,
+        'clarify_questions': discussion.clarify_questions,
         'is_running': engine.is_running(discussion) or runner.is_active(discussion.pk),
         'error_code': discussion.error_code,
         'error_public': discussion.error_public,
@@ -242,9 +244,9 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             web_search=data.get('web_search', False),
             moderator_model=data.get('moderator_model', ''),
             devil_model=data.get('devil_model', ''),
-            # навіть з пошуком дискусія одразу починається з вступу:
-            # учасники шукають самі, коли їм бракує фактів
-            phase=Discussion.Phase.OPENING,
+            # спершу модератор перевіряє, чи досить контексту; пошуку окремим
+            # кроком немає — учасники шукають самі, коли їм бракує фактів
+            phase=Discussion.Phase.CLARIFY,
         )
         # одразу створюємо повідомлення користувача як початок чату
         discussion.messages.create(
@@ -427,6 +429,33 @@ class DiscussionMessageView(OwnedDiscussionView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class DiscussionClarifyView(OwnedDiscussionView):
+    """Відповіді на уточнювальні питання модератора; після них стартує вступ."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'discussion_clarify'
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        serializer = ClarifyAnswersSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            discussion = engine.answer_clarification(
+                discussion.pk, serializer.validated_data['answers']
+            )
+        except engine.EngineError as exc:
+            return Response(
+                {'detail': exc.public or engine.GENERIC_PUBLIC_ERROR, 'code': exc.code},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if not runner.over_daily_limit(request.user):
+            runner.start(discussion.pk)
+        discussion.refresh_from_db()
+        return Response(DiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
 
 
 class DiscussionShareView(OwnedDiscussionView):

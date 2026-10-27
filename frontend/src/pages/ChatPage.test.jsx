@@ -5,9 +5,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import ChatPage from './ChatPage';
-import { fetchDiscussion, fetchModels, fetchPersonas, updateDiscussion } from '../api/discussions';
+import {
+  answerClarify,
+  fetchDiscussion,
+  fetchModels,
+  fetchPersonas,
+  runDiscussion,
+  updateDiscussion,
+} from '../api/discussions';
 
 vi.mock('../api/discussions', () => ({
+  answerClarify: vi.fn(),
   fetchDiscussion: vi.fn(),
   fetchModels: vi.fn(),
   fetchPersonas: vi.fn(),
@@ -197,5 +205,75 @@ describe('ChatPage', () => {
       expect(avatar.textContent).not.toMatch(/🧠|⚖️|❤️/u);
       expect(avatar.querySelector('svg')).not.toBeNull();
     });
+  });
+
+  it('модератор питає в чаті: варіант і своя відповідь ідуть на сервер, раннер не підштовхується', async () => {
+    const user = userEvent.setup();
+    const questions = [
+      { id: 'q1', question: 'Який у вас досвід?', options: ['До року', 'Понад три роки'] },
+      { id: 'q2', question: 'Що найважливіше?', options: ['Гроші', 'Розвиток'] },
+      { id: 'q3', question: 'Є запасний план?', options: ['Так', 'Ні'] },
+    ];
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'clarify',
+      is_finished: false,
+      clarify_questions: questions,
+      messages: [structuredClone(DISCUSSION.messages[0])],
+    });
+    vi.mocked(answerClarify).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'opening',
+      is_finished: false,
+      is_running: true,
+      clarify_questions: [],
+      clarifications: [{ question: 'Який у вас досвід?', answer: 'Понад три роки' }],
+      messages: [],
+    });
+    renderPage();
+
+    const card = await screen.findByRole('form', { name: /Уточніть кілька деталей/ });
+    expect(runDiscussion).not.toHaveBeenCalled();
+    await user.click(within(card).getByRole('radio', { name: 'Понад три роки' }));
+    await user.click(within(card).getByRole('radio', { name: 'Гроші' }));
+    // свій текст замінює обраний варіант
+    await user.type(within(card).getByRole('textbox', { name: 'Своя відповідь: Що найважливіше?' }), 'Команда');
+    expect(within(card).getByRole('radio', { name: 'Гроші' })).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(card).getByRole('button', { name: 'Почати дискусію' }));
+
+    expect(answerClarify).toHaveBeenCalledWith('d1', [
+      { question: 'Який у вас досвід?', answer: 'Понад три роки' },
+      { question: 'Що найважливіше?', answer: 'Команда' },
+      { question: 'Є запасний план?', answer: '' },
+    ]);
+    expect(screen.queryByRole('form', { name: /Уточніть кілька деталей/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Понад три роки')).toBeInTheDocument();
+  });
+
+  it('«Пропустити» надсилає порожні відповіді', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'clarify',
+      is_finished: false,
+      clarify_questions: [{ id: 'q1', question: 'Який у вас досвід?', options: ['До року', 'Понад три роки'] }],
+      messages: [structuredClone(DISCUSSION.messages[0])],
+    });
+    vi.mocked(answerClarify).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      phase: 'opening',
+      is_finished: false,
+      clarify_questions: [],
+      messages: [],
+    });
+    renderPage();
+
+    const card = await screen.findByRole('form', { name: /Уточніть кілька деталей/ });
+    await user.click(within(card).getByRole('radio', { name: 'До року' }));
+    await user.click(within(card).getByRole('button', { name: 'Пропустити' }));
+    expect(answerClarify).toHaveBeenCalledWith('d1', []);
   });
 });

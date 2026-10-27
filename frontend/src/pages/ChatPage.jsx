@@ -23,6 +23,7 @@ import {
   fetchModels,
   fetchPersonas,
   postNote,
+  answerClarify,
   runDiscussion,
   shareDiscussion,
   stopDiscussion,
@@ -41,6 +42,8 @@ import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
+import ClarifyCard from '../components/ClarifyCard';
+import { answerOf } from '../utils/clarify';
 import ParagraphReveal from '../components/ParagraphReveal';
 import SummaryDetails from '../components/SummaryDetails';
 import { uk } from '../copy/uk';
@@ -49,6 +52,7 @@ import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 import { describeSummary, summaryDetailSteps } from '../utils/summary';
 import {
+  MODERATOR_COLOR,
   USER_COLOR,
   buildSpeakers,
   duplicateFinalId,
@@ -230,6 +234,17 @@ const thinkingStep = (item) =>
 
 
 
+// Модератор поставив питання й чекає відповідей — раннер навмисно стоїть
+const awaitsClarify = (data) => data?.phase === 'clarify' && data?.clarify_questions?.length > 0;
+
+// Дискусія ще не завершена, але сервер нічого не виконує — треба запустити раннер
+const isIdle = (data) =>
+  !data.is_running
+  && !data.is_finished
+  && !data.stop_requested
+  && data.status !== 'failed'
+  && !awaitsClarify(data);
+
 export default function ChatPage() {
   const { id } = useParams();
   const [discussion, setDiscussion] = useState(null);
@@ -244,6 +259,11 @@ export default function ChatPage() {
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [note, setNote] = useState('');
   const [isSending, setIsSending] = useState(false);
+  // відповіді на уточнювальні питання модератора: { [id]: { option, custom } }
+  const [clarifyAnswers, setClarifyAnswers] = useState({});
+  const [isAnswering, setIsAnswering] = useState(false);
+  // коли надіслано відповіді: час очікування на них не рахуємо як аналіз
+  const [clarifiedAt, setClarifiedAt] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [pollTick, setPollTick] = useState(0);
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
@@ -340,8 +360,7 @@ export default function ChatPage() {
       setLoadError('');
       kicksRef.current = 0;
       progressRef.current = lastSeqOf(data);
-      const idle = !data.is_running && !data.is_finished && !data.stop_requested;
-      if (idle && data.status !== 'failed') startRunner(data.id);
+      if (isIdle(data)) startRunner(data.id);
     } catch (err) {
       setLoadError(err.message || t.loadError);
     }
@@ -356,8 +375,11 @@ export default function ChatPage() {
   const isRunning = Boolean(discussion?.is_running);
   const isFailed = discussion?.status === 'failed';
   const isStopped = Boolean(discussion?.stop_requested);
+  const isAwaitingClarify = awaitsClarify(discussion);
   // Опитуємо, доки сервер працює або має працювати (раннер ще стартує).
-  const shouldPoll = Boolean(discussion) && (isRunning || (!isFinished && !isFailed && !isStopped));
+  // Поки модератор чекає відповідей на уточнення, раннер стоїть навмисно.
+  const shouldPoll = Boolean(discussion)
+    && (isRunning || (!isFinished && !isFailed && !isStopped && !isAwaitingClarify));
   const discussionId = discussion?.id;
 
   useEffect(() => {
@@ -381,8 +403,7 @@ export default function ChatPage() {
           kicksRef.current = 0;
         }
         // Сервер втратив раннер (перезапуск) — підштовхуємо, але не нескінченно.
-        const idle = !data.is_running && !data.is_finished && !data.stop_requested;
-        if (idle && data.status !== 'failed') {
+        if (isIdle(data)) {
           if (kicksRef.current < MAX_KICKS) {
             kicksRef.current += 1;
             await startRunner(discussionId);
@@ -506,7 +527,8 @@ export default function ChatPage() {
     () => [...(currentRun?.items || []).map(doneStep), ...(thinking || []).map(thinkingStep)],
     [currentRun, thinking]
   );
-  const runStartedAt = Date.parse(currentRun?.start.created_at) || undefined;
+  const runStartedAt =
+    Math.max(Date.parse(currentRun?.start.created_at) || 0, clarifiedAt) || undefined;
   const pendingMessage =
     revealedCount < visibleMessages.length ? visibleMessages[revealedCount] : null;
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
@@ -878,15 +900,21 @@ export default function ChatPage() {
   // ліміт уточнень вичерпано — поле вимкнене, і підказка в ньому пояснює чому
   // повна підказка довга навіть для широкого поля — вона лишається назвою поля,
   // а в самому полі коротший варіант (на телефоні — найкоротший)
-  const noteHint = isFinished
-    ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
-    : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
-  const noteHintMid = isFinished
-    ? followupsLeft > 0 ? t.followupPlaceholderMid : t.followupsDoneMid
-    : t.notePlaceholderByPhaseMid[discussion?.phase] || t.notePlaceholderMid;
-  const noteHintShort = isFinished
-    ? followupsLeft > 0 ? t.followupPlaceholderShort : t.followupsDoneShort
-    : t.notePlaceholderShort;
+  const noteHint = isAwaitingClarify
+    ? t.clarifyNoteHint
+    : isFinished
+      ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
+      : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
+  const noteHintMid = isAwaitingClarify
+    ? t.clarifyNoteHint
+    : isFinished
+      ? followupsLeft > 0 ? t.followupPlaceholderMid : t.followupsDoneMid
+      : t.notePlaceholderByPhaseMid[discussion?.phase] || t.notePlaceholderMid;
+  const noteHintShort = isAwaitingClarify
+    ? t.clarifyNoteHintShort
+    : isFinished
+      ? followupsLeft > 0 ? t.followupPlaceholderShort : t.followupsDoneShort
+      : t.notePlaceholderShort;
   // з трьох варіантів беремо найдовший, що вміщається в поле цілим
   const notePlaceholder = useMemo(
     () => [noteHint, noteHintMid].find((text) => fitsField(noteBox, text)) || noteHintShort,
@@ -896,6 +924,7 @@ export default function ChatPage() {
     Boolean(discussion)
     && !isSending
     && !isFinalWriting
+    && !isAwaitingClarify
     && note.trim().length > 0
     && (!isFinished || followupsLeft > 0);
   const showStop = isRunning && !isSending && note.trim().length === 0;
@@ -915,6 +944,30 @@ export default function ChatPage() {
       setActionError(err.message || t.noteError);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // відповіді модератору: після них сервер одразу запускає вступ учасників
+  const submitClarify = async ({ skip = false } = {}) => {
+    if (!isAwaitingClarify || isAnswering) return;
+    setIsAnswering(true);
+    try {
+      const answers = skip
+        ? []
+        : discussion.clarify_questions.map((item) => ({
+            question: item.question,
+            answer: answerOf(clarifyAnswers[item.id]),
+          }));
+      const data = await answerClarify(discussion.id, answers);
+      setClarifiedAt(Date.now());
+      applyState(data);
+      kicksRef.current = 0;
+      setActionError('');
+      stickToBottomRef.current = true;
+    } catch (err) {
+      setActionError(err.message || t.clarifyError);
+    } finally {
+      setIsAnswering(false);
     }
   };
 
@@ -1334,6 +1387,17 @@ export default function ChatPage() {
                 </div>
                 <div className="chat__bubble" style={{ '--bubble': USER_COLOR }}>
                   <MessageMarkdown blocks={parseBlocks(discussion.question)} sources={sourcesById} />
+                  {discussion.clarifications?.length > 0 && (
+                    // відповіді на уточнення модератора перед стартом — частина запитання
+                    <dl className="chat__clarifications" aria-label={t.clarifications}>
+                      {discussion.clarifications.map((item) => (
+                        <div key={item.question} className="chat__clarification">
+                          <dt>{item.question}</dt>
+                          <dd>{item.answer}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
                 </div>
               </div>
             </header>
@@ -1646,6 +1710,34 @@ export default function ChatPage() {
             </section>
           )}
 
+
+          {isAwaitingClarify && (
+            // питання модератора — рядок чату від його імені, а не окреме вікно
+            <div className="chat__row chat__row--left chat__row--moderator chat__row--clarify">
+              <span className="chat__avatar" style={{ '--avatar': MODERATOR_COLOR }} aria-hidden="true">
+                <HugeiconsIcon
+                  icon={roleIcon('moderator')}
+                  className="chat__avatar-role"
+                  strokeWidth={1.8}
+                />
+              </span>
+              <div className="chat__body">
+                <div className="chat__head">
+                  <span className="chat__name">{uk.debate.moderator}</span>
+                </div>
+                <ClarifyCard
+                  questions={discussion.clarify_questions}
+                  answers={clarifyAnswers}
+                  onChange={(questionId, answer) =>
+                    setClarifyAnswers((current) => ({ ...current, [questionId]: answer }))
+                  }
+                  onSubmit={() => submitClarify()}
+                  onSkip={() => submitClarify({ skip: true })}
+                  disabled={isAnswering}
+                />
+              </div>
+            </div>
+          )}
 
           {showThoughtLine && (
             <ThoughtLine

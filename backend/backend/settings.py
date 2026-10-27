@@ -198,6 +198,7 @@ REST_FRAMEWORK = {
         'discussion_create': '10/min',
         'discussion_advance': '60/min',
         'discussion_note': '20/min',
+        'discussion_clarify': '10/min',
         # перевірка ключа — запит до провайдера; не даємо перебирати ключі
         'api_keys': '20/min',
     },

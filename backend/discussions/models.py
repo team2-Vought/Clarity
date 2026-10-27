@@ -12,6 +12,7 @@ class Discussion(models.Model):
         FAILED = 'failed', 'Помилка'
 
     class Phase(models.TextChoices):
+        CLARIFY = 'clarify', 'Уточнення контексту'
         RESEARCH = 'research', 'Пошук джерел'
         OPENING = 'opening', 'Вступні слова'
         DEBATE = 'debate', 'Дискусія'
@@ -41,6 +42,10 @@ class Discussion(models.Model):
         verbose_name='режим відповіді',
     )
     options = models.JSONField('варіанти відповіді', default=list, blank=True)
+    # Відповіді на уточнювальні питання модератора перед стартом: [{question, answer}]
+    clarifications = models.JSONField('уточнення перед стартом', default=list, blank=True)
+    # Питання модератора, на які ще чекаємо відповіді: [{id, question, options}]
+    clarify_questions = models.JSONField('питання модератора', default=list, blank=True)
     personas = models.JSONField('персони', default=list)
     rounds = models.PositiveSmallIntegerField('раундів дискусії', default=2)
     web_search = models.BooleanField('пошук в інтернеті', default=False)
@@ -100,6 +105,11 @@ class Discussion(models.Model):
     @property
     def is_finished(self):
         return self.phase == self.Phase.DONE
+
+    @property
+    def awaiting_clarification(self):
+        """Модератор поставив питання й чекає відповідей — раннер стоїть."""
+        return self.phase == self.Phase.CLARIFY and bool(self.clarify_questions)
 
 
 class Message(models.Model):

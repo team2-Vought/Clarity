@@ -601,6 +601,7 @@ export default function DebatePage() {
     try {
       const selectedPersonas = personasPayload();
 
+      // модератор перевірить, чи вистачає контексту, вже в чаті
       const data = await createDiscussion({
         question,
         mode,
@@ -619,6 +620,7 @@ export default function DebatePage() {
       setIsCreating(false);
     }
   };
+
 
   return (
     <form

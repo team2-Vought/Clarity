@@ -4693,3 +4693,236 @@ ol.chat__reveal {
   color: inherit;
   overflow-wrap: anywhere;
 }
+
+/* ---------- Уточнення модератора перед стартом ----------
+   Проста картка в рядку модератора в чаті: питання й варіанти-пігулки.
+   З'являється так само, як репліка ШІ в чаті: картка виїжджає (chat-row-in),
+   а заголовок, питання й кнопки проявляються з розмиття каскадом (chat-reveal) */
+
+.clarify {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: min(760px, 100%);
+  padding: 22px 24px 18px;
+  border-radius: 28px;
+  background: var(--card);
+  box-shadow: 0 6px 20px rgba(18, 18, 18, 0.05);
+  outline: none;
+  animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:root[data-theme='dark'] .clarify {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* та сама поява, що в абзаців репліки: з розмиття, «змиваючись» згори донизу */
+.clarify__reveal {
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+  -webkit-mask-size: 100% 250%;
+  mask-size: 100% 250%;
+  animation: chat-reveal 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.12s + var(--item, 0) * 0.14s);
+}
+
+.clarify__title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.clarify__list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clarify__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clarify__question {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* варіанти й поле своєї відповіді — один ряд пігулок, що переноситься */
+.clarify__options,
+.clarify__radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.clarify__option,
+.clarify__custom {
+  height: 34px;
+  padding: 0 14px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.clarify__option {
+  background: var(--soft);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.clarify__option:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 9%, var(--card));
+}
+
+.clarify__option--active,
+.clarify__option--active:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.clarify__custom {
+  flex: 1 1 160px;
+  min-width: 0;
+  border-color: color-mix(in srgb, var(--ink) 14%, transparent);
+  background: transparent;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.clarify__custom::placeholder {
+  color: var(--muted);
+}
+
+.clarify__custom:focus {
+  border-color: var(--focus);
+  outline: none;
+}
+
+/* своя відповідь — теж вибір, тож виглядає як обрана пігулка, лише світліша */
+.clarify__custom--filled {
+  border-color: var(--ink);
+}
+
+.clarify__option:active:not(:disabled),
+.clarify__skip:active:not(:disabled),
+.clarify__start:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.clarify__option:focus-visible,
+.clarify__skip:focus-visible,
+.clarify__start:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.clarify__option:disabled,
+.clarify__custom:disabled,
+.clarify__skip:disabled,
+.clarify__start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clarify__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.clarify__skip,
+.clarify__start {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, opacity 0.18s, var(--press);
+}
+
+/* «Пропустити» — тихе текстове посилання, головна дія лише одна */
+.clarify__skip {
+  background: transparent;
+  color: var(--muted);
+}
+
+.clarify__skip:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.clarify__start {
+  background: var(--btn-bg, #121212);
+  color: var(--btn-text, #ffffff);
+}
+
+@media (max-width: 640px) {
+  .clarify {
+    padding: 18px 16px 14px;
+    border-radius: 24px;
+    /* при автопрокрутці до картки її верх не ховається під плаваючими кнопками */
+    scroll-margin-top: 96px;
+  }
+
+  .clarify__option {
+    white-space: normal;
+    height: auto;
+    min-height: 34px;
+    padding-block: 6px;
+    border-radius: 17px;
+    text-align: left;
+  }
+
+  .clarify__custom {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clarify,
+  .clarify__reveal {
+    animation: none;
+  }
+}
+
+/* відповіді на уточнення модератора в бульбашці запитання: питання дрібно, відповідь звичайно */
+.chat__clarifications {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.chat__clarification dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.chat__clarification dd {
+  margin: 1px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* картка уточнень займає всю ширину колонки, як репліка-стаття */
+.chat__row--clarify .chat__body {
+  flex: 1;
+}

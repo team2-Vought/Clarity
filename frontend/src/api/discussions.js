@@ -57,6 +57,15 @@ export function runDiscussion(id) {
   return request(`/api/discussions/${id}/run/`, { method: 'POST', auth: true });
 }
 
+/** Відповіді на питання модератора: [{ question, answer }]; порожньо — пропустити. */
+export function answerClarify(id, answers) {
+  return request(`/api/discussions/${id}/clarify/`, {
+    method: 'POST',
+    auth: true,
+    body: { answers },
+  });
+}
+
 /** Зупинка після поточного кроку. */
 export function stopDiscussion(id) {
   return request(`/api/discussions/${id}/stop/`, { method: 'POST', auth: true });
