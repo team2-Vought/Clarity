@@ -136,6 +136,16 @@
   font-size: 1rem; /* 16px — без автозуму на iOS */
 }
 .field input::placeholder { color: var(--muted); opacity: 0.8; }
+/* автозаповнення: браузер фарбує сам input прямокутником поверх капсули —
+   прибираємо його фон (затримка transition) і тримаємо форму капсули */
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus {
+  border-radius: 999px;
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
 /* у стані помилки текст помилки живе в placeholder — він має бути читабельним на червоному */
 .field__box[data-invalid='true'] input::placeholder {
   color: #fff;
