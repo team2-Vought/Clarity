@@ -3306,14 +3306,20 @@ ol.chat__reveal {
   transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Під бульбашкою: копіювання й джерела репліки */
+/* Під бульбашкою: копіювання й джерела репліки. Вирівнюємо за верхом:
+   розгорнуті джерела ростуть донизу, а кнопка копіювання й напис «Джерела»
+   лишаються на своєму рядку */
+/* Рядок не переноситься й не ширший за репліку — ні під час розгортання
+   джерел, ні під час згортання, коли [open] уже знято, а список ще видно */
 .chat__actions {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  max-width: 100%;
   gap: 2px 6px;
   min-height: 28px;
   margin: -2px 0 -22px -4px;
+  transition: margin-bottom var(--sources-time) var(--sources-ease);
 }
 
 .chat__row--right .chat__actions {
@@ -3321,12 +3327,19 @@ ol.chat__reveal {
   margin: -2px -4px -22px 0;
 }
 
+/* напис «пошук без джерел» нижчий за кнопку копіювання — по центру рядка */
+.chat__actions .chat__search {
+  align-self: center;
+}
+
 /* розгорнуті джерела займають місце в потоці, а не наїжджають на наступне */
+/* наступна репліка зсувається плавно, разом із розгортанням списку */
 .chat__actions:has(.chat__sources[open]) {
   margin-bottom: 4px;
 }
 
 .chat__actions .chat__copy {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   opacity: 0;
@@ -4374,16 +4387,32 @@ ol.chat__reveal {
 }
 
 .chat__sources--compact {
+  /* поки список згортається, він не ширший, ніж був розгорнутим */
+  max-width: 520px;
+  min-width: 0;
   margin-top: 0;
   font-size: 0.8125rem;
 }
 
 .chat__sources--compact summary {
+  /* заввишки як кнопка копіювання поруч — обидві на одному рядку */
+  min-height: 28px;
   padding: 2px 8px 2px 4px;
 }
 
+/* ширина — фіксована, а не відсоток від рядка, що сам підлаштовується під
+   вміст: так список стоїть поруч із кнопкою копіювання й не переноситься
+   під неї, а на вузькому екрані просто стискається */
 .chat__sources--compact[open] {
-  width: min(520px, 100%);
+  width: 520px;
+}
+
+/* у правих репліках список ширшає вліво, а напис «Джерела» лишається біля
+   копіювання — і під час розгортання, і під час згортання */
+.chat__row--right .chat__sources--compact summary {
+  display: flex;
+  width: fit-content;
+  margin-left: auto;
 }
 
 /* під підсумком кнопка джерел стоїть праворуч у рядку дій, а список
@@ -4400,8 +4429,60 @@ ol.chat__reveal {
   white-space: nowrap;
 }
 
+/* Список плавно розгортається по висоті й проявляється. Під реплікою це
+   <details>: його вміст анімуємо через ::details-content (де браузер його
+   не знає, список просто з'являється одразу) */
+/* ширину не анімуємо: поки вона росла, рядок дій на мить переносив
+   список під кнопку копіювання */
+.chat__sources--compact {
+  interpolate-size: allow-keywords;
+}
+
+.chat__sources--compact::details-content {
+  height: 0;
+  opacity: 0;
+  overflow: clip;
+  transition:
+    height var(--sources-time) var(--sources-ease),
+    opacity 0.24s ease,
+    content-visibility var(--sources-time) allow-discrete;
+}
+
+.chat__sources--compact[open]::details-content {
+  height: auto;
+  opacity: 1;
+}
+
+/* під підсумком список завжди в розмітці: згорнутий — нульової висоти й
+   без проміжку над собою, тож нічого під ним не зсуває */
 .chat__sources--summary {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -18px;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--sources-time) var(--sources-ease),
+    margin-top var(--sources-time) var(--sources-ease),
+    opacity 0.24s ease;
+}
+
+.chat__sources--summary[data-open] {
+  grid-template-rows: 1fr;
   margin-top: -10px;
+  opacity: 1;
+}
+
+.chat__sources-fold {
+  min-height: 0;
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__actions,
+  .chat__sources--compact::details-content,
+  .chat__sources--summary {
+    transition: none;
+  }
 }
 
 .chat__sources-query {
@@ -4481,6 +4562,9 @@ ol.chat__reveal {
    нього внизу. Поле не входить у потік прокрутки, тож не зсувається,
    коли список доходить до кінця. */
 .chat__column {
+  /* розгортання джерел: і сам список, і зсув вмісту під ним */
+  --sources-time: 0.36s;
+  --sources-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --chat-pad-l: clamp(20px, 4vw, 44px);
   --chat-pad-r: clamp(20px, 4vw, 44px);
   position: relative;
@@ -4494,7 +4578,7 @@ ol.chat__reveal {
   flex: 1;
   /* останні репліки прокручуються вище за поле з запасом, тож унизу
      сторінки текст, що з'являється, не ховається за полем вводу */
-  padding-bottom: calc(var(--composer-h, 0px) + 40px);
+  padding-bottom: calc(var(--composer-h, 0px) + 40px + var(--reveal-hold, 0px));
 }
 
 .chat__composer {

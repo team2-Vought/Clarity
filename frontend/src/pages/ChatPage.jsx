@@ -93,6 +93,10 @@ const JUMP_THRESHOLD = 400;
 // частка відстані до низу, яку чат проходить за кадр: великий стрибок висоти
 // стає м'яким доїздом (~0,3 с), а рівний ріст тексту — майже без відставання
 const FOLLOW_EASE = 0.16;
+// скільки триває розгортання кроків чи джерел — стільки чат доганяє їхній низ
+const REVEAL_MS = 600;
+// відступ розгорнутого блока від поля вводу й від верху чату
+const REVEAL_GAP = 16;
 
 const prefersReducedMotion = () =>
   document.documentElement.dataset.motion === 'reduced'
@@ -694,6 +698,102 @@ export default function ChatPage() {
     },
     []
   );
+
+  // Розгорнуті кроки «Аналізуємо…» чи джерела плавно доїжджають у поле зору:
+  // чат гортає донизу, поки низ блока не стане над полем вводу. Блок росте
+  // анімовано, тож відстань перераховується щокадру до кінця розгортання.
+  // Верх блока не ховаємо — довгий список лишається видно з початку.
+  const revealFrameRef = useRef(0);
+  const revealOpened = useCallback((block) => {
+    cancelAnimationFrame(revealFrameRef.current);
+    // згортання, перерване новим розгортанням, не лишає запасу знизу
+    mainRef.current?.style.removeProperty('--reveal-hold');
+    const until = performance.now() + REVEAL_MS;
+    const step = () => {
+      const el = mainRef.current;
+      if (!el || !block.isConnected) return;
+      const box = el.getBoundingClientRect();
+      const rect = block.getBoundingClientRect();
+      const below = rect.bottom - (box.bottom - composerHeight - REVEAL_GAP);
+      const distance = Math.min(below, rect.top - box.top - REVEAL_GAP);
+      const before = el.scrollTop;
+      if (distance > 1) {
+        el.scrollTop += prefersReducedMotion() ? distance : Math.max(1, Math.ceil(distance * FOLLOW_EASE));
+      }
+      // після розгортання доганяємо, лише поки чат ще має куди гортати
+      if (performance.now() < until || (distance > 1 && el.scrollTop !== before)) {
+        revealFrameRef.current = requestAnimationFrame(step);
+      }
+    };
+    revealFrameRef.current = requestAnimationFrame(step);
+  }, [composerHeight]);
+
+  // Згортання — дзеркально: чат плавно піднімається туди, де опиниться після
+  // згортання, замість стрибка, коли вміст раптом стає коротшим. Поки чат
+  // їде вгору, знизу тримаємо запас висоти (--reveal-hold), і він тане рівно
+  // настільки, наскільки чат уже піднявся.
+  const settleClosed = useCallback((lost) => {
+    const el = mainRef.current;
+    if (!el || lost <= 0) return;
+    cancelAnimationFrame(revealFrameRef.current);
+    const start = el.scrollTop;
+    const target = Math.max(0, Math.min(start, el.scrollHeight - lost - el.clientHeight));
+    if (target >= start) return;
+    el.style.setProperty('--reveal-hold', `${lost}px`);
+    const step = () => {
+      const distance = el.scrollTop - target;
+      if (distance > 1 && !prefersReducedMotion()) {
+        el.scrollTop -= Math.max(1, Math.ceil(distance * FOLLOW_EASE));
+      } else {
+        el.scrollTop = target;
+      }
+      if (el.scrollTop > target) {
+        el.style.setProperty('--reveal-hold', `${Math.max(0, lost - (start - el.scrollTop))}px`);
+        revealFrameRef.current = requestAnimationFrame(step);
+      } else {
+        el.style.removeProperty('--reveal-hold');
+      }
+    };
+    revealFrameRef.current = requestAnimationFrame(step);
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(revealFrameRef.current), []);
+
+  // Кроки «Аналізуємо…», джерела підсумку й джерела під реплікою (<details>).
+  // Обробник спрацьовує до того, як React чи браузер змінять розмітку, тож
+  // тут іще видно, розгорнутий блок чи ні, і яка в нього висота.
+  const handleMainClick = (e) => {
+    const toggle = e.target.closest?.(
+      '.thought-line__head[data-toggle], .chat__sources-toggle, details.chat__sources > summary'
+    );
+    if (!toggle) return;
+    let block;
+    let open;
+    let lost = 0;
+    if (toggle.tagName === 'SUMMARY') {
+      block = toggle.parentElement;
+      open = block.open;
+      if (open) lost = block.offsetHeight - toggle.offsetHeight;
+    } else if (toggle.classList.contains('chat__sources-toggle')) {
+      open = toggle.getAttribute('aria-expanded') === 'true';
+      const id = toggle.getAttribute('aria-controls');
+      if (open) lost = document.getElementById(id)?.offsetHeight || 0;
+      block = id;
+    } else {
+      block = toggle.closest('.thought-line');
+      open = toggle.getAttribute('aria-expanded') === 'true';
+      if (open) lost = block.querySelector('.thought-line__trace')?.offsetHeight || 0;
+    }
+    if (open) {
+      settleClosed(lost);
+      return;
+    }
+    // розгортання з'явиться в наступному рендері — доганяємо його за кадр
+    requestAnimationFrame(() => {
+      const opened = typeof block === 'string' ? document.getElementById(block) : block;
+      if (opened) revealOpened(opened);
+    });
+  };
 
   // Відкриваючи дискусію, одразу стаємо внизу — історію не прокручуємо на очах
   const openedAtBottomRef = useRef(null);
@@ -1390,6 +1490,7 @@ export default function ChatPage() {
           onTouchMove={handleMainTouchMove}
           onKeyDown={handleMainKeyDown}
           onPointerDown={handleMainPointerDown}
+          onClick={handleMainClick}
           aria-busy={isRunning}
         >
           {discussion && (
@@ -1714,9 +1815,17 @@ export default function ChatPage() {
                   </button>
                 )}
               </div>
-              {discussion?.sources?.length > 0 && isSourcesOpen && (
-                <div id="chat-summary-sources" className="chat__sources chat__sources--summary">
-                  <SourceItems sources={discussion.sources} />
+              {discussion?.sources?.length > 0 && (
+                // список є завжди й плавно розгортається; згорнутий — поза фокусом
+                <div
+                  id="chat-summary-sources"
+                  className="chat__sources chat__sources--summary"
+                  data-open={isSourcesOpen ? '' : undefined}
+                  inert={!isSourcesOpen}
+                >
+                  <div className="chat__sources-fold">
+                    <SourceItems sources={discussion.sources} />
+                  </div>
                 </div>
               )}
               {(copyState === 'error' || pdfState === 'error') && (
