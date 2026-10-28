@@ -1,16 +1,34 @@
 import { useNavigate } from 'react-router-dom';
 import Landing from '../components/Landing';
 import { Background } from './AuthLayout';
+import { getToken } from '../api/client';
+
+// Той самий ключ, що й чернетка питання на головній застосунку:
+// введене на лендингу питання чекатиме в полі після входу
+const DRAFT_KEY = 'clarity:draft-question';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const signedIn = Boolean(getToken());
+
+  const start = (question) => {
+    try {
+      if (question) localStorage.setItem(DRAFT_KEY, question);
+    } catch {
+      // без сховища просто відкриємо реєстрацію
+    }
+    navigate(signedIn ? '/home' : '/register');
+  };
+
   return (
     <div className="page page--landing">
       <Background />
       <Landing
+        signedIn={signedIn}
         onLogin={() => navigate('/login')}
         onRegister={() => navigate('/register')}
-        onHome={() => navigate('/')}
+        onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onStart={start}
       />
     </div>
   );
