@@ -38,7 +38,11 @@ def is_active(discussion_id):
 
 def is_working(discussion):
     """Чи виконується крок. Після «Зупинити» потік, що ще чекає на модель,
-    не рахується: lease з нього знято, тож його результат буде відкинуто."""
+    не рахується: lease з нього знято, тож його результат буде відкинуто.
+    Питання модератора вже збережені, поки потік ще завершується, — тоді
+    дискусія чекає на людину, а не працює."""
+    if discussion.awaiting_clarification:
+        return False
     if engine.is_running(discussion):
         return True
     return not discussion.stop_requested and is_active(discussion.pk)

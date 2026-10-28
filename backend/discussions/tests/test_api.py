@@ -883,6 +883,9 @@ class ClarifyApiTests(TestCase):
         runner.run(discussion.pk)
         self.assertEqual(len(self.provider.calls), 1)
         self.assertEqual(engine.describe_step(discussion), [])
+        # потік раннера ще завершується, але дискусія вже чекає на людину
+        with mock.patch('discussions.services.runner.is_active', return_value=True):
+            self.assertFalse(runner.is_working(discussion))
 
         note = self.client.post(
             f'/api/discussions/{discussion.id}/messages/', {'content': 'Ще деталь'}, format='json'

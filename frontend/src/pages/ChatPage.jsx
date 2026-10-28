@@ -554,7 +554,9 @@ export default function ChatPage() {
       : '';
   // поки репліка друкується, індикатор «Аналізуємо…» лише відволікав би
   // після завершення рядок «Готово» не потрібен — підсумок говорить сам за себе
-  const showThoughtLine = participantNames.length > 0 && !isRevealing && isRunning && !isFinished;
+  // поки модератор чекає відповідей, секундомір не йде — працює людина, а не AI
+  const showThoughtLine = participantNames.length > 0 && !isRevealing && isRunning && !isFinished
+    && !isAwaitingClarify;
   // що саме зараз роблять AI: пошук → рядок, який написала модель → етап,
   // поки модель ще не встигла описати крок
   const live = discussion?.live;
