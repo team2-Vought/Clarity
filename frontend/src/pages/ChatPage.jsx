@@ -1790,7 +1790,6 @@ export default function ChatPage() {
                 disabled={isAnswering}
               />
             )}
-            {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}
             <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
               {/* режим видно, але після старту дискусії його вже не змінити */}
               <ModePicker value={discussion.mode} locked />

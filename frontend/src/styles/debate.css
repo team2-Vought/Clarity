@@ -4589,20 +4589,6 @@ ol.chat__reveal {
   display: none;
 }
 
-/* власний фон: напис лежить поверх тексту повідомлень, що прокручуються */
-.chat__composer-hint {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0;
-  padding: 3px 4px 3px 10px;
-  border-radius: 999px;
-  background: var(--main-bg);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
 /* ---------- Публічне посилання на дискусію ---------- */
 
 .shared {
