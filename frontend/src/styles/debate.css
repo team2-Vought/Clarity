@@ -3342,19 +3342,7 @@ ol.chat__reveal {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  opacity: 0;
-  transition: opacity 0.18s, background 0.18s, color 0.18s, var(--press);
-}
-
-.chat__row:hover .chat__copy,
-.chat__row:focus-within .chat__copy {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .chat__actions .chat__copy {
-    opacity: 1;
-  }
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
 /* Поява нової репліки: м'який виїзд, далі текст «друкується» */
@@ -3388,10 +3376,11 @@ ol.chat__reveal {
   }
 }
 
+/* ширина й відступ як у .chat__row: рядок починається на рівні бульбашки */
 .chat__thought {
   width: 100%;
-  max-width: 820px;
-  padding: 2px 0 2px 48px;
+  max-width: 880px;
+  padding: 2px 0 2px 44px;
   color: var(--muted);
 }
 
