@@ -2866,6 +2866,16 @@ span.debate__tag {
   border-top-right-radius: 6px;
 }
 
+/* репліки AI — великі блоки тексту, їм пасують м'якші кути */
+.chat__row:not(.chat__row--user) .chat__bubble {
+  --ai-radius: 28px;
+  border-radius: var(--ai-radius);
+}
+
+.chat__row--left:not(.chat__row--user) .chat__bubble {
+  border-top-left-radius: 6px;
+}
+
 .chat__row--flash .chat__bubble {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--bubble) 70%, var(--ink) 20%);
 }
@@ -4289,6 +4299,11 @@ ol.chat__reveal {
     padding: 8px 12px 9px;
     border-radius: 18px;
     font-size: 0.875rem;
+  }
+
+  /* лише змінна: гострий кут біля аватара лишається */
+  .chat__row:not(.chat__row--user) .chat__bubble {
+    --ai-radius: 22px;
   }
 
   .chat__quote-text {
