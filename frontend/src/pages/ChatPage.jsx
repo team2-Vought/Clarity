@@ -26,6 +26,7 @@ import {
   answerClarify,
   runDiscussion,
   shareDiscussion,
+  finishDiscussion,
   stopDiscussion,
   unshareDiscussion,
   updateDiscussion,
@@ -875,8 +876,8 @@ export default function ChatPage() {
   // Згортаємо лише від жестів самої людини (палець, колесо), а не від
   // автопрокрутки за новими репліками. Поле з текстом чи у фокусі не чіпаємо.
   const swipeComposer = (delta) => {
-    // поки модератор питає, поле з картою питань не згортається
-    if (!isPhone || isAwaitingClarify) return;
+    // поки модератор питає чи висить помилка, поле з карткою над ним не згортається
+    if (!isPhone || isAwaitingClarify || notice) return;
     swipeRef.current = Math.sign(delta) === Math.sign(swipeRef.current)
       ? swipeRef.current + delta
       : delta;
@@ -1000,6 +1001,18 @@ export default function ChatPage() {
     if (!discussion) return;
     kicksRef.current = 0;
     startRunner(discussion.id);
+  };
+
+  // «Завершити»: без решти раундів — модератор одразу пише висновок
+  const handleFinish = async () => {
+    if (!discussion) return;
+    kicksRef.current = 0;
+    try {
+      applyState(await finishDiscussion(discussion.id));
+      setActionError('');
+    } catch (err) {
+      setActionError(actionFailure(err, t.finishError));
+    }
   };
 
   const saveModels = async (changes) => {
@@ -1246,6 +1259,9 @@ export default function ChatPage() {
   const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
   const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
 
+  // «Завершити» має сенс, лише коли учасникам уже є що підсумувати
+  const hasSpoken = Boolean(discussion?.messages?.some((message) => message.role === 'ai'));
+
   const notice = (() => {
     if (actionError) return actionError;
     if (isFailed) {
@@ -1260,10 +1276,14 @@ export default function ChatPage() {
       };
     }
     if (isStopped && isRunning) return { kind: 'stopped', text: t.stopping };
-    if (isStopped && !isFinished) return { kind: 'stopped', text: t.stoppedByUser };
+    if (isStopped && !isFinished) {
+      return { kind: 'stopped', text: hasSpoken ? t.stoppedByUser : t.stoppedBeforeStart };
+    }
     return null;
   })();
   const canResume = !isFinished && !isRunning && (isFailed || isStopped || Boolean(actionError));
+  // з карткою помилки поле не згортається в кнопку — інакше картка висить без поля
+  const isComposerSmall = isPhone && isComposerMin && !notice;
 
   // панель із моделями відкриваємо, лише коли її не видно
   const openModelPanel = () => {
@@ -1281,6 +1301,8 @@ export default function ChatPage() {
     // квоту чи ключ повтор не виправить — спершу пропонуємо іншу модель
     if (canPickModel && kind !== 'provider') buttons.push('model');
     if (canResume && !['limit', 'followups'].includes(kind)) buttons.push('resume');
+    // зупинену дискусію можна й завершити, якщо учасникам уже є що підсумувати
+    if (kind === 'stopped' && canResume && hasSpoken) buttons.push('finish');
     if (canPickModel && kind === 'provider') buttons.push('model');
     return buttons;
   })();
@@ -1561,7 +1583,7 @@ export default function ChatPage() {
                 kind={loadError.kind}
                 text={loadError.text}
                 actions={[{ label: t.retry, onClick: loadDiscussion }]}
-                className="chat__notice"
+                className="chat__error-card"
               />
             ) : (
               <div className="chat__empty" role="status">
@@ -1584,7 +1606,9 @@ export default function ChatPage() {
               && message.role !== 'user'
               && (!previous || phaseLabel(previous) !== divider);
             const showEarlyStop =
-              showDivider && message.phase === 'synthesis' && discussion?.early_stop;
+              showDivider
+              && message.phase === 'synthesis'
+              && (discussion?.early_stop || discussion?.finished_early);
             // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
             const grouped =
               !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
@@ -1645,7 +1669,9 @@ export default function ChatPage() {
             return (
               <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
                 {showEarlyStop && (
-                  <p className="chat__notice">{t.earlyStop(discussion.current_round)}</p>
+                  <p className="chat__notice">
+                    {discussion.finished_early ? t.finishedEarly : t.earlyStop(discussion.current_round)}
+                  </p>
                 )}
                 {showDivider && (
                   <div className="chat__divider" role="separator">
@@ -1894,7 +1920,7 @@ export default function ChatPage() {
 
         {discussion && (
           <div
-            className={`chat__composer ${isPhone && isComposerMin ? 'chat__composer--min' : ''}`}
+            className={`chat__composer ${isComposerSmall ? 'chat__composer--min' : ''}`}
             ref={composerRef}
           >
             <p className="sr-only" aria-live="polite">
@@ -1924,79 +1950,85 @@ export default function ChatPage() {
                 disabled={isAnswering}
               />
             )}
-            {notice && (
-              // помилка чи зупинка — над полем вводу, як питання модератора
-              <ErrorNotice
-                kind={notice.kind}
-                text={notice.text}
-                who={notice.who}
-                actions={noticeButtons.map((button) =>
-                  button === 'model'
-                    ? { label: uk.errors.changeModel, onClick: openModelPanel }
-                    : { label: retryLabel, onClick: handleResume }
-                )}
-                className="chat__notice chat__notice--docked"
-              />
-            )}
-            <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
-              {/* режим видно, але після старту дискусії його вже не змінити */}
-              <ModePicker value={discussion.mode} locked />
-              <div className="debate__composer" inert={isPhone && isComposerMin}>
-                <textarea
-                  ref={noteRef}
-                  className="debate__composer-input"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  onKeyDown={handleNoteKeyDown}
-                  maxLength={MAX_NOTE}
-                  rows={1}
-                  placeholder={notePlaceholder}
-                  disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
-                  aria-label={noteHint}
-                />
-                <div className="debate__composer-bar">
-                  <span className="debate__composer-count">
-                    {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
-                  </span>
-                  {showStop ? (
-                    // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
-                    // щойно користувач почне писати — знову можна надіслати уточнення
-                    <button
-                      type="button"
-                      className="debate__send debate__send--stop"
-                      onClick={handleStop}
-                      disabled={isStopped}
-                      aria-label={isStopped ? t.stopping : t.stop}
-                      title={isStopped ? t.stopping : t.stop}
-                    >
-                      {isStopped ? <span className="debate__send-spinner" /> : <StopIcon />}
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      className="debate__send"
-                      disabled={!canSendNote}
-                      aria-label={isSending ? t.noteSending : t.noteSend}
-                      title={isSending ? t.noteSending : t.noteSend}
-                    >
-                      {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
-                    </button>
-                  )}
+            {/* картка помилки виростає з-під поля вводу й зливається з ним в одне ціле */}
+            <div className="chat__dock">
+              {notice && (
+                <div className="chat__dock-slot">
+                  <ErrorNotice
+                    kind={notice.kind}
+                    text={notice.text}
+                    who={notice.who}
+                    actions={noticeButtons.map((button) =>
+                      button === 'model'
+                        ? { label: uk.errors.changeModel, onClick: openModelPanel }
+                        : button === 'finish'
+                          ? { label: t.finish, onClick: handleFinish }
+                          : { label: retryLabel, onClick: handleResume }
+                    )}
+                    className="chat__error-card chat__error-card--docked"
+                  />
                 </div>
-              </div>
-              {/* згорнуте поле — кругла кнопка; тап повертає поле */}
-              <button
-                type="button"
-                className="chat__composer-expand"
-                onClick={expandComposer}
-                aria-label={t.noteExpand}
-                title={t.noteExpand}
-                tabIndex={isPhone && isComposerMin ? 0 : -1}
-                aria-hidden={!(isPhone && isComposerMin)}
-              >
-                <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
-              </button>
-            </form>
+              )}
+              <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
+                {/* режим видно, але після старту дискусії його вже не змінити */}
+                <ModePicker value={discussion.mode} locked />
+                <div className="debate__composer" inert={isComposerSmall}>
+                  <textarea
+                    ref={noteRef}
+                    className="debate__composer-input"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    onKeyDown={handleNoteKeyDown}
+                    maxLength={MAX_NOTE}
+                    rows={1}
+                    placeholder={notePlaceholder}
+                    disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
+                    aria-label={noteHint}
+                  />
+                  <div className="debate__composer-bar">
+                    <span className="debate__composer-count">
+                      {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
+                    </span>
+                    {showStop ? (
+                      // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
+                      // щойно користувач почне писати — знову можна надіслати уточнення
+                      <button
+                        type="button"
+                        className="debate__send debate__send--stop"
+                        onClick={handleStop}
+                        disabled={isStopped}
+                        aria-label={isStopped ? t.stopping : t.stop}
+                        title={isStopped ? t.stopping : t.stop}
+                      >
+                        {isStopped ? <span className="debate__send-spinner" /> : <StopIcon />}
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="debate__send"
+                        disabled={!canSendNote}
+                        aria-label={isSending ? t.noteSending : t.noteSend}
+                        title={isSending ? t.noteSending : t.noteSend}
+                      >
+                        {isSending ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* згорнуте поле — кругла кнопка; тап повертає поле */}
+                <button
+                  type="button"
+                  className="chat__composer-expand"
+                  onClick={expandComposer}
+                  aria-label={t.noteExpand}
+                  title={t.noteExpand}
+                  tabIndex={isComposerSmall ? 0 : -1}
+                  aria-hidden={!isComposerSmall}
+                >
+                  <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>

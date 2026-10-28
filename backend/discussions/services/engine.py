@@ -1179,6 +1179,7 @@ def _prepare_step(discussion):
                     personas,
                     messages,
                     early_stop=discussion.early_stop,
+                    cut_short=discussion.finished_early,
                     **common,
                 ),
                 json_kind='solution',
@@ -1224,6 +1225,7 @@ def _prepare_step(discussion):
                     discussion.best_solution or {},
                     discussion.devil_review or {},
                     messages,
+                    cut_short=discussion.finished_early,
                     **common,
                 ),
                 json_kind='summary',
@@ -1827,7 +1829,11 @@ def _transition(discussion, personas):
     elif phase == Discussion.Phase.DEBATE:
         _next_speaker_transition(discussion, personas)
     elif phase == Discussion.Phase.SYNTHESIS:
-        discussion.phase = Discussion.Phase.DEVIL
+        # дострокове завершення обходить перевірку Devil і відповіді на неї
+        if discussion.finished_early:
+            discussion.phase = Discussion.Phase.FINAL
+        else:
+            discussion.phase = Discussion.Phase.DEVIL
     elif phase == Discussion.Phase.DEVIL:
         discussion.phase = Discussion.Phase.REBUTTAL
     elif phase == Discussion.Phase.REBUTTAL:
@@ -2001,6 +2007,7 @@ def add_user_message(discussion_id, author_name, content):
             discussion.rounds = discussion.current_round
             discussion.speaker_index = 0
             discussion.early_stop = False
+            discussion.finished_early = False
             discussion.phase = Discussion.Phase.DEBATE
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.finished_at = None
@@ -2087,6 +2094,51 @@ def _clarify_step(discussion, token, provider_factory=None):
     if not _release(discussion.pk, token, clarify_questions=result['questions']):
         raise EngineConflict('Дискусію вже оновив інший запит.', code='conflict')
     return False
+
+
+def finish_early(discussion_id):
+    """Завершує дискусію за проханням користувача, не чекаючи решти раундів.
+
+    Модератор одразу зводить сказане в рішення й пише фінал — перевірку
+    AI Devil і відповіді на неї пропускаємо. Крок, що ще виконується,
+    відкидається (як під час зупинки). Повертає дискусію.
+    """
+    with transaction.atomic():
+        discussion = (
+            Discussion.objects.select_for_update().filter(pk=discussion_id).first()
+        )
+        if discussion is None:
+            raise EngineError(
+                'Дискусію не знайдено.', code='not_found', public='Дискусію не знайдено.',
+                retryable=False,
+            )
+        if discussion.phase == Discussion.Phase.DONE:
+            raise EngineError(
+                'Дискусію вже завершено.',
+                code='bad_state',
+                public='Дискусію вже завершено.',
+                retryable=False,
+            )
+        spoke = Message.objects.filter(discussion=discussion, role=Message.Role.AI).exists()
+        if not spoke or discussion.awaiting_clarification:
+            raise EngineError(
+                'Учасники ще не висловились.',
+                code='nothing_to_finish',
+                public='Учасники ще не висловились — висновок робити ні з чого. '
+                'Натисніть «Продовжити».',
+                retryable=False,
+            )
+        if discussion.phase in {Discussion.Phase.OPENING, Discussion.Phase.DEBATE}:
+            discussion.phase = Discussion.Phase.SYNTHESIS
+        elif discussion.phase in {Discussion.Phase.DEVIL, Discussion.Phase.REBUTTAL}:
+            discussion.phase = Discussion.Phase.FINAL
+        discussion.finished_early = True
+        discussion.stop_requested = False
+        discussion.advance_token = None
+        discussion.advance_started_at = None
+        discussion.live_token = None
+        discussion.save()
+        return discussion
 
 
 def answer_clarification(discussion_id, clarifications):

@@ -71,6 +71,11 @@ export function stopDiscussion(id) {
   return request(`/api/discussions/${id}/stop/`, { method: 'POST', auth: true });
 }
 
+/** «Завершити»: зупинена дискусія одразу переходить до висновку модератора. */
+export function finishDiscussion(id) {
+  return request(`/api/discussions/${id}/finish/`, { method: 'POST', auth: true });
+}
+
 /** Уточнення користувача: під час дискусії або після фіналу. */
 export function postNote(id, content) {
   return request(`/api/discussions/${id}/messages/`, {

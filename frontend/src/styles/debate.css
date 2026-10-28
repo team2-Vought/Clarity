@@ -3391,17 +3391,122 @@ ol.chat__reveal {
   overflow-wrap: anywhere;
 }
 
-.chat__notice {
+.chat__error-card {
   max-width: 880px;
 }
 
-/* закріплена над полем вводу, як питання модератора: тієї ж ширини й форми */
-.chat__composer .chat__notice--docked {
+/* Картка помилки над полем вводу не висить окремо: спільна підкладка
+   обіймає поле, а картка плавно виростає з-під нього вгору — поле
+   й помилка читаються як одне ціле. */
+.chat__dock {
+  --tone: var(--error);
+  --dock-wrap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* висота однорядкового поля вводу разом з облямівкою підкладки */
+  --dock-bar: calc(57px + var(--dock-wrap));
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: min(760px, 100%);
-  padding: 18px 20px;
-  border-radius: 28px;
-  /* лежить поверх тексту чату, як і поле вводу */
-  box-shadow: 0 8px 28px rgba(18, 18, 18, 0.08);
+  transition:
+    width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chat__dock:has(> .chat__dock-slot) {
+  width: min(760px + 2 * var(--dock-wrap), 100% + 2 * var(--dock-wrap));
+  /* поле вводу лишається на місці: підкладка розростається навколо нього */
+  margin-bottom: calc(-1 * var(--dock-wrap));
+  padding: 0 var(--dock-wrap) var(--dock-wrap);
+}
+
+/* Тло й тінь — окремими шарами під вмістом: тло тане вже до середини поля
+   вводу, тож нижніх меж картки не видно (і на темному тлі теж), а саме поле
+   лишається чітким. */
+.chat__dock:has(> .chat__dock-slot)::before,
+.chat__dock:has(> .chat__dock-slot)::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: calc(28.5px + var(--dock-wrap));
+  pointer-events: none;
+  animation: dock-fade 0.3s ease both;
+}
+
+.chat__dock:has(> .chat__dock-slot)::before {
+  inset: 0;
+  background: color-mix(in srgb, var(--tone) 9%, var(--card));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--dock-bar) - 12px),
+    transparent calc(100% - var(--dock-bar) + 26px)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--dock-bar) - 12px),
+    transparent calc(100% - var(--dock-bar) + 26px)
+  );
+}
+
+/* тінь лише над карткою: лежить поверх тексту чату, як і поле вводу */
+.chat__dock:has(> .chat__dock-slot)::after {
+  inset: 0 0 var(--dock-bar);
+  z-index: -2;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: 0 -10px 28px -10px rgba(18, 18, 18, 0.14);
+}
+
+@keyframes dock-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* висота картки росте від нуля (рядок 0fr → 1fr), тож поле вводу
+   лишається на місці, а картка ніби висувається з-під нього */
+.chat__dock-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  width: 100%;
+  animation: dock-open 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dock-open {
+  from {
+    grid-template-rows: 0fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+
+.chat__dock .chat__error-card--docked {
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 12px 14px;
+  border-radius: 0;
+  background: transparent;
+  animation: dock-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dock-rise {
+  /* відступи теж з нуля — інакше картка не стиснеться повністю */
+  from {
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Картка помилки чи стану: іконка й колір підказують суть ще до тексту.
@@ -3420,23 +3525,29 @@ ol.chat__reveal {
   animation: notice-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.notice--warn {
+.notice--warn,
+.chat__dock:has(.notice--warn) {
   --tone: #d98516;
 }
 
-.notice--info {
+.notice--info,
+.chat__dock:has(.notice--info) {
   --tone: #4f63d8;
 }
 
-.notice--neutral {
-  --tone: color-mix(in srgb, var(--ink) 55%, transparent);
+.notice--neutral,
+.chat__dock:has(.notice--neutral) {
+  /* непрозорий: картка лежить поверх тексту чату */
+  --tone: color-mix(in srgb, var(--ink) 55%, var(--card));
 }
 
-:root[data-theme='dark'] .notice--warn {
+:root[data-theme='dark'] .notice--warn,
+:root[data-theme='dark'] .chat__dock:has(.notice--warn) {
   --tone: #f2b25c;
 }
 
-:root[data-theme='dark'] .notice--info {
+:root[data-theme='dark'] .notice--info,
+:root[data-theme='dark'] .chat__dock:has(.notice--info) {
   --tone: #9aa9ff;
 }
 
@@ -3544,8 +3655,16 @@ ol.chat__reveal {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .notice {
+  .notice,
+  .chat__dock-slot,
+  .chat__dock::before,
+  .chat__dock::after,
+  .chat__dock .chat__error-card--docked {
     animation: none;
+  }
+
+  .chat__dock {
+    transition: none;
   }
 }
 
@@ -3561,9 +3680,12 @@ ol.chat__reveal {
     height: 30px;
   }
 
-  .chat__composer .chat__notice--docked {
-    padding: 14px 16px;
-    border-radius: 22px;
+  .chat__dock {
+    --dock-wrap: 8px;
+  }
+
+  .chat__dock .chat__error-card--docked {
+    padding: 14px 8px 12px;
   }
 
   .notice__title {

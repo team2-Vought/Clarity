@@ -10,6 +10,7 @@ import {
   fetchDiscussion,
   fetchModels,
   fetchPersonas,
+  finishDiscussion,
   runDiscussion,
   updateDiscussion,
 } from '../api/discussions';
@@ -19,6 +20,7 @@ vi.mock('../api/discussions', () => ({
   fetchDiscussion: vi.fn(),
   fetchModels: vi.fn(),
   fetchPersonas: vi.fn(),
+  finishDiscussion: vi.fn(),
   postNote: vi.fn(),
   runDiscussion: vi.fn(),
   shareDiscussion: vi.fn(),
@@ -318,5 +320,41 @@ describe('ChatPage', () => {
     await user.click(within(card).getByRole('radio', { name: /До року/ }));
     await user.click(within(card).getByRole('button', { name: 'Пропустити все' }));
     expect(answerClarify).toHaveBeenCalledWith('d1', []);
+  });
+
+  it('зупинену дискусію можна продовжити або одразу завершити', async () => {
+    const user = userEvent.setup();
+    const stopped = {
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'debate',
+      is_finished: false,
+      stop_requested: true,
+      messages: structuredClone(DISCUSSION.messages.slice(0, 3)),
+    };
+    vi.mocked(fetchDiscussion).mockResolvedValue(stopped);
+    vi.mocked(finishDiscussion).mockResolvedValue({ ...stopped, phase: 'synthesis', stop_requested: false });
+    renderPage();
+
+    const card = (await screen.findByText('Дискусію зупинено')).closest('.notice');
+    expect(within(card).getByRole('button', { name: 'Продовжити' })).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Завершити' }));
+    expect(finishDiscussion).toHaveBeenCalledWith('d1');
+  });
+
+  it('поки учасники мовчать, зупинену дискусію можна лише продовжити', async () => {
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'opening',
+      is_finished: false,
+      stop_requested: true,
+      messages: [structuredClone(DISCUSSION.messages[0])],
+    });
+    renderPage();
+
+    expect(await screen.findByText('Дискусію зупинено')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Продовжити' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Завершити' })).not.toBeInTheDocument();
   });
 });

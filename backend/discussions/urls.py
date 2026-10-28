@@ -5,6 +5,7 @@ from .views import (
     DiscussionAdvanceView,
     DiscussionClarifyView,
     DiscussionDetailView,
+    DiscussionFinishView,
     DiscussionListCreateView,
     DiscussionMessageView,
     DiscussionRunView,
@@ -42,6 +43,11 @@ urlpatterns = [
         name='discussion-clarify',
     ),
     path('discussions/<uuid:pk>/stop/', DiscussionStopView.as_view(), name='discussion-stop'),
+    path(
+        'discussions/<uuid:pk>/finish/',
+        DiscussionFinishView.as_view(),
+        name='discussion-finish',
+    ),
     path(
         'discussions/<uuid:pk>/messages/',
         DiscussionMessageView.as_view(),

@@ -440,6 +440,48 @@ class RunnerTests(Base):
         self.assertEqual(len(calls), 2)  # один крок вступу, без повторів
 
 
+class FinishEarlyTests(Base):
+    def test_finish_skips_rounds_and_devil(self):
+        discussion = self.make(rounds=3)
+        self.step(discussion)
+        self.assertEqual(discussion.phase, Discussion.Phase.DEBATE)
+
+        engine.finish_early(discussion.pk)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.phase, Discussion.Phase.SYNTHESIS)
+        self.finish(discussion)
+
+        self.assertTrue(discussion.finished_early)
+        self.assertTrue(discussion.final_summary)
+        self.assertFalse(discussion.messages.filter(role=Message.Role.DEVIL).exists())
+        self.assertFalse(discussion.messages.filter(phase=Discussion.Phase.REBUTTAL).exists())
+        self.assertTrue(self.judge_calls('Користувач завершив дискусію достроково'))
+
+    def test_finish_after_devil_goes_straight_to_final(self):
+        discussion = self.make(rounds=1)
+        while discussion.phase != Discussion.Phase.REBUTTAL:
+            self.step(discussion)
+        engine.finish_early(discussion.pk)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.phase, Discussion.Phase.FINAL)
+
+    def test_cannot_finish_before_anyone_spoke(self):
+        discussion = self.make()
+        with self.assertRaises(engine.EngineError) as ctx:
+            engine.finish_early(discussion.pk)
+        self.assertEqual(ctx.exception.code, 'nothing_to_finish')
+
+    def test_followup_after_early_finish_runs_full_flow_again(self):
+        discussion = self.make(rounds=2)
+        self.step(discussion)
+        engine.finish_early(discussion.pk)
+        discussion.refresh_from_db()
+        self.finish(discussion)
+        engine.add_user_message(discussion.pk, 'Оксана', 'А якщо зарплата вдвічі більша?')
+        discussion.refresh_from_db()
+        self.assertFalse(discussion.finished_early)
+
+
 @override_settings(DISCUSSION_RUNNER_SYNC=True)
 class ApiV3Tests(TestCase):
     def setUp(self):
@@ -490,6 +532,20 @@ class ApiV3Tests(TestCase):
         run = self.client.post(f'/api/discussions/{created["id"]}/run/')
         self.assertFalse(run.data['stop_requested'])
         self.assertTrue(run.data['is_finished'])
+
+    def test_stop_then_finish(self):
+        created = self.create(rounds=3)
+        early = self.client.post(f'/api/discussions/{created["id"]}/finish/')
+        self.assertEqual(early.status_code, 400)
+        self.assertEqual(early.data['code'], 'nothing_to_finish')
+
+        discussion = Discussion.objects.get(pk=created['id'])
+        engine.advance(discussion, provider_factory=lambda m: self.provider)
+        self.client.post(f'/api/discussions/{created["id"]}/stop/')
+        finish = self.client.post(f'/api/discussions/{created["id"]}/finish/')
+        self.assertEqual(finish.status_code, 202)
+        self.assertTrue(finish.data['finished_early'])
+        self.assertTrue(finish.data['is_finished'])
 
     def test_stop_discards_reply_still_being_written(self):
         created = self.create()
