@@ -52,6 +52,7 @@ CLARIFICATION_TOO_LONG = 'Відповідь на уточнення задов�
 # Помилки, які не минуть від повтору: потрібно змінити модель чи налаштування.
 NON_RETRYABLE_CODES = {
     'provider_config',
+    'provider_quota',
     'no_personas',
     'bad_state',
     'not_found',

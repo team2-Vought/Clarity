@@ -568,24 +568,6 @@ body:has(.app-shell) {
   cursor: not-allowed;
 }
 
-.debate__error-block {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.debate__retry {
-  padding: 7px 14px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--main-bg);
-  font: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
 .debate__hint--error {
   color: #c93a62;
 }
@@ -776,21 +758,6 @@ body:has(.app-shell) {
   font-size: 0.75rem;
   line-height: 1.35;
   color: var(--muted);
-}
-
-.debate__error {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #fdeaea;
-  color: #c93a62;
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-:root[data-theme='dark'] .debate__error {
-  background: rgba(255, 147, 174, 0.12);
-  color: var(--error);
 }
 
 /* Основна область: заголовок і поле промпту по центру */
@@ -1020,8 +987,7 @@ body:has(.app-shell) {
   }
 }
 
-.debate__main .debate__error-block {
-  align-items: center;
+.debate__main .debate__notice {
   width: min(760px, 100%);
 }
 
@@ -3425,31 +3391,188 @@ ol.chat__reveal {
   overflow-wrap: anywhere;
 }
 
-.chat__error-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  max-width: 820px;
+.chat__notice {
+  max-width: 880px;
 }
 
-.chat__advance {
-  align-self: center;
-  padding: 11px 26px;
+/* закріплена над полем вводу, як питання модератора: тієї ж ширини й форми */
+.chat__composer .chat__notice--docked {
+  width: min(760px, 100%);
+  padding: 18px 20px;
+  border-radius: 28px;
+  /* лежить поверх тексту чату, як і поле вводу */
+  box-shadow: 0 8px 28px rgba(18, 18, 18, 0.08);
+}
+
+/* Картка помилки чи стану: іконка й колір підказують суть ще до тексту.
+   Тло — ледь підфарбована картка, як бульбашки реплік. */
+.notice {
+  --tone: var(--error);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--tone) 9%, var(--card));
+  color: var(--ink);
+  text-align: left;
+  animation: notice-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.notice--warn {
+  --tone: #d98516;
+}
+
+.notice--info {
+  --tone: #4f63d8;
+}
+
+.notice--neutral {
+  --tone: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+:root[data-theme='dark'] .notice--warn {
+  --tone: #f2b25c;
+}
+
+:root[data-theme='dark'] .notice--info {
+  --tone: #9aa9ff;
+}
+
+.notice__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 22%, var(--card));
+  color: var(--tone);
+}
+
+.notice__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.notice__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* учасник, у якого сталася помилка */
+.notice__who {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.notice__text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.notice__text strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.notice__button {
+  padding: 9px 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--ink);
-  color: var(--main-bg);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.18s, var(--press);
+  transition: background 0.18s, opacity 0.18s, var(--press);
 }
 
-.chat__advance:hover {
-  opacity: 0.8;
+.notice__button:hover {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.notice__button--primary {
+  background: var(--ink);
+  color: var(--main-bg);
+}
+
+.notice__button--primary:hover {
+  background: var(--ink);
+  opacity: 0.85;
+}
+
+.notice__button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .notice {
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 18px;
+  }
+
+  .notice__icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .chat__composer .chat__notice--docked {
+    padding: 14px 16px;
+    border-radius: 22px;
+  }
+
+  .notice__title {
+    font-size: 1rem;
+  }
+
+  .notice__text {
+    font-size: 0.9375rem;
+  }
 }
 
 /* Підсумок — як відповідь Siri: без рамки й картки, один розмір шрифту
@@ -3978,7 +4101,7 @@ ol.chat__reveal {
     order: 4;
   }
 
-  .debate__main .debate__error-block {
+  .debate__main .debate__notice {
     order: 5;
   }
 

@@ -761,7 +761,7 @@ def _provider_failure(model_id, exc):
         return EngineError(
             'Квоту моделі вичерпано.',
             detail=f'{model_id}: {exc}',
-            code='provider_config',
+            code='provider_quota',
             public=(
                 f'У моделі «{label}» вичерпано квоту або ліміт тарифу. '
                 'Оберіть іншу модель або поповніть баланс у провайдера.'
@@ -896,7 +896,12 @@ def _run_json_plan(plan, provider_factory, discussion):
         try:
             data = _complete_json(provider_factory, plan, model_id, mode, options)
         except EngineError as exc:
-            if exc.code not in {'provider_error', 'provider_config', 'empty_response'}:
+            if exc.code not in {
+                'provider_error',
+                'provider_config',
+                'provider_quota',
+                'empty_response',
+            }:
                 raise
             last_error = exc
             logger.warning(

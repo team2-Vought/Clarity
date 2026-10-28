@@ -276,6 +276,18 @@ class JudgeModelTests(Base):
         self.assertIn('OpenAI — GPT-6 Luna', discussion.error_public)
         self.assertNotIn('secret-key-123', discussion.error_public)
 
+    def test_quota_error_has_own_code(self):
+        def factory(model_id):
+            raise ProviderError('You exceeded your current quota', status=429, quota=True)
+
+        discussion = self.make(personas=[{'slug': 'logician', 'model': 'openai:gpt-6-luna'}, 'skeptic'])
+        with self.assertRaises(engine.EngineError) as ctx:
+            self.step(discussion, factory)
+        self.assertFalse(ctx.exception.retryable)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.error_code, 'provider_quota')
+        self.assertIn('вичерпано квоту', discussion.error_public)
+
 
 @override_settings(SEARCH_PROVIDER='wikipedia', SEARCH_MAX_QUERIES=5)
 class WebSearchTests(Base):

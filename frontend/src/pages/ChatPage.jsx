@@ -43,6 +43,8 @@ import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
 import ClarifyCard from '../components/ClarifyCard';
+import ErrorNotice from '../components/ErrorNotice';
+import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
 import ParagraphReveal from '../components/ParagraphReveal';
 import SummaryDetails from '../components/SummaryDetails';
@@ -68,6 +70,12 @@ import logoThinking from '../assets/logo-thinking.svg';
 
 const t = uk.chat;
 const d = uk.debate;
+
+// помилка дії — текст і вид картки; мережеву пояснюємо своїми словами
+function actionFailure(err, fallback) {
+  const kind = requestErrorKind(err);
+  return { kind, text: kind === 'network' ? uk.errors.network : err?.message || fallback };
+}
 
 // сталі елементи: ThoughtLine перезапускає анімації гліфа, коли той змінюється
 const THINKING_GLYPH = <img className="chat__thought-logo" src={logoThinking} alt="" />;
@@ -279,7 +287,7 @@ export default function ChatPage() {
   const [pollTick, setPollTick] = useState(0);
   // на телефоні бічна панель — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+  const { panelCollapsed = false, registerPanelToggle, togglePanel } = useOutletContext() ?? {};
   const isPhone = useIsPhone();
 
   // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
@@ -340,7 +348,7 @@ export default function ChatPage() {
         applyState(state);
         setActionError('');
       } catch (err) {
-        setActionError(err.message || t.errorAdvance);
+        setActionError(actionFailure(err, t.errorAdvance));
       }
     },
     [applyState]
@@ -373,7 +381,7 @@ export default function ChatPage() {
       progressRef.current = lastSeqOf(data);
       if (isIdle(data)) startRunner(data.id);
     } catch (err) {
-      setLoadError(err.message || t.loadError);
+      setLoadError(actionFailure(err, t.loadError));
     }
   }, [id, startRunner]);
 
@@ -419,11 +427,11 @@ export default function ChatPage() {
             kicksRef.current += 1;
             await startRunner(discussionId);
           } else {
-            setActionError(t.stopped);
+            setActionError({ kind: 'stopped', text: t.stopped });
           }
         }
       } catch (err) {
-        if (err?.name !== 'AbortError') setActionError(err.message || t.errorAdvance);
+        if (err?.name !== 'AbortError') setActionError(actionFailure(err, t.errorAdvance));
       } finally {
         if (!controller.signal.aborted) setPollTick((tick) => tick + 1);
       }
@@ -984,7 +992,7 @@ export default function ChatPage() {
     try {
       applyState(await stopDiscussion(discussion.id));
     } catch (err) {
-      setActionError(err.message || t.errorAdvance);
+      setActionError(actionFailure(err, t.errorAdvance));
     }
   };
 
@@ -1002,7 +1010,7 @@ export default function ChatPage() {
       applyState(data);
       setActionError('');
     } catch (err) {
-      setActionError(err.message || t.modelChangeError);
+      setActionError(actionFailure(err, t.modelChangeError));
     } finally {
       setIsSaving(false);
     }
@@ -1058,7 +1066,7 @@ export default function ChatPage() {
       setActionError('');
       stickToBottomRef.current = true;
     } catch (err) {
-      setActionError(err.message || t.noteError);
+      setActionError(actionFailure(err, t.noteError));
     } finally {
       setIsSending(false);
     }
@@ -1082,7 +1090,7 @@ export default function ChatPage() {
       setActionError('');
       stickToBottomRef.current = true;
     } catch (err) {
-      setActionError(err.message || t.clarifyError);
+      setActionError(actionFailure(err, t.clarifyError));
     } finally {
       setIsAnswering(false);
     }
@@ -1197,7 +1205,7 @@ export default function ChatPage() {
       setDiscussion((current) => (current ? { ...current, share_token: data.share_token } : current));
       await copyLink(`${window.location.origin}/shared/${data.share_token}`);
     } catch (err) {
-      setActionError(err.message || t.shareError);
+      setActionError(actionFailure(err, t.shareError));
     } finally {
       setIsSharing(false);
     }
@@ -1211,7 +1219,7 @@ export default function ChatPage() {
       setDiscussion((current) => (current ? { ...current, share_token: null } : current));
       pushToast(t.shareClosed);
     } catch (err) {
-      setActionError(err.message || t.shareError);
+      setActionError(actionFailure(err, t.shareError));
     } finally {
       setIsSharing(false);
     }
@@ -1238,19 +1246,45 @@ export default function ChatPage() {
   const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
   const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
 
-  const statusText = (() => {
+  const notice = (() => {
     if (actionError) return actionError;
     if (isFailed) {
       // помилку прибирає сервер, коли користувач змінив модель
-      if (!discussion.error_public && !discussion.error_code) return t.modelChanged;
-      const base = discussion.error_public || t.errorAdvance;
-      return discussion.retryable === false ? `${base} ${t.errorFixModel}` : base;
+      if (!discussion.error_public && !discussion.error_code) {
+        return { kind: 'modelChanged', text: t.modelChanged };
+      }
+      return {
+        kind: discussionErrorKind(discussion.error_code),
+        text: discussion.error_public || t.errorAdvance,
+        who: true,
+      };
     }
-    if (isStopped && isRunning) return t.stopping;
-    if (isStopped && !isFinished) return t.stoppedByUser;
-    return '';
+    if (isStopped && isRunning) return { kind: 'stopped', text: t.stopping };
+    if (isStopped && !isFinished) return { kind: 'stopped', text: t.stoppedByUser };
+    return null;
   })();
   const canResume = !isFinished && !isRunning && (isFailed || isStopped || Boolean(actionError));
+
+  // панель із моделями відкриваємо, лише коли її не видно
+  const openModelPanel = () => {
+    if (isPhone) setIsPanelOpen(true);
+    else if (panelCollapsed) togglePanel?.();
+  };
+
+  // кнопки картки: 'model' — відкрити панель із моделями, 'resume' — продовжити
+  const noticeButtons = (() => {
+    if (!notice) return [];
+    const { kind } = notice;
+    const buttons = [];
+    const canPickModel =
+      isFailed && ['quota', 'config', 'provider'].includes(kind) && (isPhone || panelCollapsed);
+    // квоту чи ключ повтор не виправить — спершу пропонуємо іншу модель
+    if (canPickModel && kind !== 'provider') buttons.push('model');
+    if (canResume && !['limit', 'followups'].includes(kind)) buttons.push('resume');
+    if (canPickModel && kind === 'provider') buttons.push('model');
+    return buttons;
+  })();
+  const retryLabel = notice && ['provider', 'network', 'server', 'generic'].includes(notice.kind) ? t.retry : t.resume;
   const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
   // Додаткові налаштування — окремий екран панелі, як на сторінці нової дискусії
@@ -1521,16 +1555,19 @@ export default function ChatPage() {
             </header>
           )}
 
-          {!discussion && (
-            <div className="chat__empty" role="status">
-              {loadError || t.loading}
-              {loadError && (
-                <button type="button" className="chat__advance" onClick={loadDiscussion}>
-                  {t.retry}
-                </button>
-              )}
-            </div>
-          )}
+          {!discussion &&
+            (loadError ? (
+              <ErrorNotice
+                kind={loadError.kind}
+                text={loadError.text}
+                actions={[{ label: t.retry, onClick: loadDiscussion }]}
+                className="chat__notice"
+              />
+            ) : (
+              <div className="chat__empty" role="status">
+                {t.loading}
+              </div>
+            ))}
 
           {shownMessages.map((message, index) => {
             const speakerKey = speakerKeyOf(message);
@@ -1853,18 +1890,6 @@ export default function ChatPage() {
             />
           )}
 
-          {statusText && (
-            <div className="chat__error-block" role="alert" aria-live="polite">
-              <p className="debate__error">{statusText}</p>
-              {canResume && (
-                <button type="button" className="chat__advance" onClick={handleResume}>
-                  {t.resume}
-                </button>
-              )}
-            </div>
-          )}
-
-
         </section>
 
         {discussion && (
@@ -1897,6 +1922,20 @@ export default function ChatPage() {
                 onSubmit={() => submitClarify()}
                 onSkip={() => submitClarify({ skip: true })}
                 disabled={isAnswering}
+              />
+            )}
+            {notice && (
+              // помилка чи зупинка — над полем вводу, як питання модератора
+              <ErrorNotice
+                kind={notice.kind}
+                text={notice.text}
+                who={notice.who}
+                actions={noticeButtons.map((button) =>
+                  button === 'model'
+                    ? { label: uk.errors.changeModel, onClick: openModelPanel }
+                    : { label: retryLabel, onClick: handleResume }
+                )}
+                className="chat__notice chat__notice--docked"
               />
             )}
             <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>

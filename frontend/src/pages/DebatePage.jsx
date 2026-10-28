@@ -28,12 +28,14 @@ import {
   CloseIcon,
   PlusIcon,
 } from '../components/DebateIcons';
+import ErrorNotice from '../components/ErrorNotice';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import RolePicker from '../components/RolePicker';
 import TraitPicker from '../components/TraitPicker';
 import { uk } from '../copy/uk';
+import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
@@ -181,6 +183,8 @@ export default function DebatePage() {
   const { pushToast } = useToasts();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  // вид картки для помилки запиту; решта помилок — перевірка введених даних
+  const [failure, setFailure] = useState(null);
 
   const allTraits = [...TRAITS, ...customTraits];
   const advancedRef = useRef(null);
@@ -206,6 +210,14 @@ export default function DebatePage() {
   const showSuggestions = !description.trim() && !isCreating;
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
+
+  // мережеву помилку пояснюємо своїми словами, решту — текстом сервера
+  const failRequest = useCallback((err, fallback) => {
+    const kind = requestErrorKind(err);
+    const text = kind === 'network' ? uk.errors.network : err?.message || fallback;
+    setFailure({ kind, text });
+    setError(text);
+  }, []);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -280,11 +292,11 @@ export default function DebatePage() {
       setDefaultModel(selectedDefault);
       setError('');
     } catch (err) {
-      setError(err?.message || t.loadError);
+      failRequest(err, t.loadError);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [failRequest]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -537,7 +549,7 @@ export default function DebatePage() {
       setIsTeamFormOpen(false);
       pushToast(t.teamSaved(team.name));
     } catch (err) {
-      setError(err.message || t.teamSaveError);
+      failRequest(err, t.teamSaveError);
     } finally {
       setIsSavingTeam(false);
     }
@@ -549,7 +561,7 @@ export default function DebatePage() {
       await deleteTeam(team.id);
     } catch (err) {
       setTeams((current) => [team, ...current]);
-      setError(err.message);
+      failRequest(err, t.teamSaveError);
     }
   };
 
@@ -615,7 +627,7 @@ export default function DebatePage() {
       saveDraft('');
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
-      setError(err.message || t.errorCreate);
+      failRequest(err, t.errorCreate);
     } finally {
       setIsCreating(false);
     }
@@ -1129,16 +1141,14 @@ export default function DebatePage() {
         </div>
 
         {error && (
-          <div className="debate__error-block">
-            <p className="debate__error" role="alert">
-              {error}
-            </p>
-            {!isLoading && participants.length === 0 && (
-              <button type="button" className="debate__retry" onClick={loadData}>
-                {t.retry}
-              </button>
-            )}
-          </div>
+          <ErrorNotice
+            kind={failure?.text === error ? failure.kind : 'input'}
+            text={error}
+            actions={
+              !isLoading && participants.length === 0 ? [{ label: t.retry, onClick: loadData }] : []
+            }
+            className="debate__notice"
+          />
         )}
       </main>
     </form>
