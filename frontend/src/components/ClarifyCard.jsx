@@ -6,8 +6,6 @@ import { uk } from '../copy/uk';
 
 const t = uk.debate;
 const MAX_ANSWER = 500;
-// пауза після вибору варіанта: людина встигає побачити позначку, і картка гортає далі
-const ADVANCE_MS = 220;
 
 /**
  * Уточнювальні питання модератора, як у ChatGPT чи Claude: по одному питанню
@@ -21,19 +19,15 @@ const ADVANCE_MS = 220;
 export default function ClarifyCard({ questions, answers, onChange, onSubmit, onSkip, disabled }) {
   const [step, setStep] = useState(0);
   const cardRef = useRef(null);
-  const advanceRef = useRef(null);
   const question = questions[Math.min(step, questions.length - 1)];
   const answer = answers[question.id] || {};
   const isLast = step >= questions.length - 1;
 
-  // картка з'являється внизу чату — прокручуємо до неї, а фокус ставимо
-  // на саму картку: так цифри й Tab працюють одразу, але жоден варіант не виглядає обраним
+  // картка стоїть над полем вводу й завжди на виду; фокус ставимо на саму
+  // картку: так цифри й Tab працюють одразу, але жоден варіант не виглядає обраним
   useEffect(() => {
     cardRef.current?.focus({ preventScroll: true });
-    cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, []);
-
-  useEffect(() => () => clearTimeout(advanceRef.current), []);
 
   // попереднє питання зникло разом із кнопкою у фокусі — повертаємо фокус
   // картці, щоб цифри й Tab працювали й на новому питанні
@@ -43,15 +37,14 @@ export default function ClarifyCard({ questions, answers, onChange, onSubmit, on
   }, [step]);
 
   const goTo = (next) => {
-    clearTimeout(advanceRef.current);
     setStep(Math.max(0, Math.min(questions.length - 1, next)));
   };
 
   const choose = (option) => {
     const active = answer.option === option && !answer.custom;
     onChange(question.id, { option: active ? '' : option, custom: '' });
-    clearTimeout(advanceRef.current);
-    if (!active && !isLast) advanceRef.current = setTimeout(() => goTo(step + 1), ADVANCE_MS);
+    // одразу до наступного питання — без паузи після вибору
+    if (!active && !isLast) goTo(step + 1);
   };
 
   const handleKeyDown = (e) => {

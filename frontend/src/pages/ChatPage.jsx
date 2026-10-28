@@ -52,7 +52,6 @@ import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown
 import { downloadSummaryPdf } from '../utils/summaryPdf';
 import { describeSummary, summaryDetailSteps } from '../utils/summary';
 import {
-  MODERATOR_COLOR,
   USER_COLOR,
   buildSpeakers,
   duplicateFinalId,
@@ -766,7 +765,8 @@ export default function ChatPage() {
   // Згортаємо лише від жестів самої людини (палець, колесо), а не від
   // автопрокрутки за новими репліками. Поле з текстом чи у фокусі не чіпаємо.
   const swipeComposer = (delta) => {
-    if (!isPhone) return;
+    // поки модератор питає, поле з картою питань не згортається
+    if (!isPhone || isAwaitingClarify) return;
     swipeRef.current = Math.sign(delta) === Math.sign(swipeRef.current)
       ? swipeRef.current + delta
       : delta;
@@ -1726,34 +1726,6 @@ export default function ChatPage() {
           )}
 
 
-          {isAwaitingClarify && (
-            // питання модератора — рядок чату від його імені, а не окреме вікно
-            <div className="chat__row chat__row--left chat__row--moderator chat__row--clarify">
-              <span className="chat__avatar" style={{ '--avatar': MODERATOR_COLOR }} aria-hidden="true">
-                <HugeiconsIcon
-                  icon={roleIcon('moderator')}
-                  className="chat__avatar-role"
-                  strokeWidth={1.8}
-                />
-              </span>
-              <div className="chat__body">
-                <div className="chat__head">
-                  <span className="chat__name">{uk.debate.moderator}</span>
-                </div>
-                <ClarifyCard
-                  questions={discussion.clarify_questions}
-                  answers={clarifyAnswers}
-                  onChange={(questionId, answer) =>
-                    setClarifyAnswers((current) => ({ ...current, [questionId]: answer }))
-                  }
-                  onSubmit={() => submitClarify()}
-                  onSkip={() => submitClarify({ skip: true })}
-                  disabled={isAnswering}
-                />
-              </div>
-            </div>
-          )}
-
           {showThoughtLine && (
             <ThoughtLine
               working={isRunning}
@@ -1785,10 +1757,9 @@ export default function ChatPage() {
         </section>
 
         {discussion && (
-          <form
+          <div
             className={`chat__composer ${isPhone && isComposerMin ? 'chat__composer--min' : ''}`}
             ref={composerRef}
-            onSubmit={handleSendNote}
           >
             <p className="sr-only" aria-live="polite">
               {liveText}
@@ -1804,8 +1775,21 @@ export default function ChatPage() {
                 <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
               </button>
             )}
+            {isAwaitingClarify && (
+              // питання модератора — просто над полем вводу, як у Claude
+              <ClarifyCard
+                questions={discussion.clarify_questions}
+                answers={clarifyAnswers}
+                onChange={(questionId, answer) =>
+                  setClarifyAnswers((current) => ({ ...current, [questionId]: answer }))
+                }
+                onSubmit={() => submitClarify()}
+                onSkip={() => submitClarify({ skip: true })}
+                disabled={isAnswering}
+              />
+            )}
             {isFinalWriting && <p className="chat__composer-hint">{t.noteWaitFinal}</p>}
-            <div className="debate__prompt chat__composer-box">
+            <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
               {/* режим видно, але після старту дискусії його вже не змінити */}
               <ModePicker value={discussion.mode} locked />
               <div className="debate__composer" inert={isPhone && isComposerMin}>
@@ -1863,8 +1847,8 @@ export default function ChatPage() {
               >
                 <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         )}
       </div>
     </div>

@@ -4719,11 +4719,16 @@ ol.chat__reveal {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(620px, 100%);
-  padding: 14px 14px 12px;
+  width: min(760px, 100%);
+  /* на телефоні з довгими варіантами картка не витісняє чат цілком */
+  max-height: min(70dvh, 560px);
+  overflow-y: auto;
+  padding: 18px 16px 14px;
   border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-  border-radius: 20px;
+  border-radius: 28px;
   background: var(--card);
+  /* лежить поверх тексту чату, як і поле вводу */
+  box-shadow: 0 8px 28px rgba(18, 18, 18, 0.08);
   outline: none;
   animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -4793,7 +4798,7 @@ ol.chat__reveal {
 .clarify__question {
   margin: 0;
   padding-top: 2px;
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -4809,15 +4814,15 @@ ol.chat__reveal {
 .clarify__other {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 8px 10px;
+  gap: 14px;
+  min-height: 46px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 18px;
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.35;
   text-align: left;
   transition: background 0.16s;
@@ -4846,10 +4851,10 @@ ol.chat__reveal {
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
-  border-radius: 7px;
+  border-radius: 50%;
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
@@ -4914,7 +4919,7 @@ ol.chat__reveal {
 
 .clarify__skip,
 .clarify__start {
-  height: 36px;
+  height: 38px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -4948,9 +4953,8 @@ ol.chat__reveal {
 
 @media (max-width: 640px) {
   .clarify {
-    padding: 12px 10px 10px;
-    /* при автопрокрутці до картки її верх не ховається під плаваючими кнопками */
-    scroll-margin-top: 96px;
+    padding: 14px 10px 10px;
+    border-radius: 24px;
   }
 }
 
@@ -4982,9 +4986,4 @@ ol.chat__reveal {
   font-size: 0.9375rem;
   font-weight: 500;
   line-height: 1.45;
-}
-
-/* картка уточнень займає всю ширину колонки, як репліка-стаття */
-.chat__row--clarify .chat__body {
-  flex: 1;
 }
