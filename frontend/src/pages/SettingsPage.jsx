@@ -12,10 +12,12 @@ import {
   SlidersHorizontalIcon,
   StarIcon,
   Sun03Icon,
+  UserIcon,
   ViewIcon,
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import ModelPicker from '../components/ModelPicker';
+import ProfileSettings from '../components/ProfileSettings';
 import { getToken } from '../api/client';
 import {
   deleteProviderKey,
@@ -36,6 +38,7 @@ import {
 const t = uk.settings;
 
 const TABS = [
+  { key: 'profile', icon: UserIcon },
   { key: 'models', icon: Key01Icon },
   { key: 'debate', icon: SlidersHorizontalIcon },
   { key: 'appearance', icon: PaintBoardIcon },
@@ -373,7 +376,7 @@ export default function SettingsPage() {
   const { pushToast } = useToasts();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('tab');
-  const tab = TABS.some((item) => item.key === requested) ? requested : 'models';
+  const tab = TABS.some((item) => item.key === requested) ? requested : TABS[0].key;
 
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -405,7 +408,7 @@ export default function SettingsPage() {
   }, [load, navigate]);
 
   const selectTab = (key) => {
-    setSearchParams(key === 'models' ? {} : { tab: key }, { replace: true });
+    setSearchParams(key === TABS[0].key ? {} : { tab: key }, { replace: true });
   };
 
   // стрілки перемикають розділи, як у звичайних вкладках
@@ -616,7 +619,8 @@ export default function SettingsPage() {
     );
   };
 
-  const needsData = tab !== 'appearance';
+  // профіль і інтерфейс не залежать від /api/settings/
+  const needsData = tab !== 'appearance' && tab !== 'profile';
   let content;
   if (needsData && isLoading && !data) content = <SettingsSkeleton />;
   else if (needsData && error && !data) {
@@ -628,7 +632,8 @@ export default function SettingsPage() {
         </button>
       </div>
     );
-  } else if (tab === 'debate') content = renderDebate();
+  } else if (tab === 'profile') content = <ProfileSettings />;
+  else if (tab === 'debate') content = renderDebate();
   else if (tab === 'appearance') content = renderAppearance();
   else if (tab === 'usage') content = renderUsage();
   else content = renderModels();

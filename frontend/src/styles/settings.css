@@ -801,6 +801,107 @@
   border-left: 0;
 }
 
+/* ---- профіль ---- */
+
+.settings__identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 28px;
+  background: var(--s-sheet);
+}
+
+.settings__avatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--peach);
+  color: #121212;
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.settings__identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings__identity-name {
+  margin: 0 0 2px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.settings__identity-meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.settings__edit + .settings__edit {
+  border-top: 1px solid var(--s-line);
+}
+
+.settings__edit-value {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.settings__edit-form {
+  padding: 0;
+}
+
+.settings__key--open .settings__edit-form {
+  padding-bottom: 16px;
+}
+
+.settings__edit .settings__key-form {
+  max-width: 420px;
+}
+
+.settings__input {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings__input-label {
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.settings__input .settings__key-field {
+  margin-top: 0;
+}
+
+.settings__key-input--plain {
+  font-family: inherit;
+}
+
+.settings__input-error {
+  padding-left: 16px;
+  color: var(--s-error);
+  font-size: 0.75rem;
+}
+
+.settings__edit--danger .settings__row-title {
+  color: var(--s-error);
+}
+
+.settings__button--danger-solid,
+.settings__button--danger-solid:hover:not(:disabled) {
+  background: var(--s-error);
+  color: #fff;
+}
+
 /* ---- завантаження й помилка ---- */
 
 .settings__skeleton {
@@ -931,6 +1032,14 @@
 
   .settings__key-form {
     padding: 0 14px;
+  }
+
+  .settings__edit-form {
+    padding: 0;
+  }
+
+  .settings__identity {
+    padding: 16px;
   }
 
   .settings__models {

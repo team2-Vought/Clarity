@@ -128,3 +128,107 @@ class LoginLockoutTests(TestCase):
 
         response = self.attempt_login('ghost@test.com')
         self.assertEqual(response.status_code, 429)
+
+
+class ProfileApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='me@test.com', name='Тест', password='pass123!A'
+        )
+        self.other = User.objects.create_user(
+            email='taken@test.com', name='Інший', password='pass123!A'
+        )
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': 'me@test.com', 'password': 'pass123!A'},
+            format='json',
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+
+    def test_me_has_join_date(self):
+        response = self.client.get('/api/auth/me/')
+        self.assertIn('date_joined', response.data)
+
+    def test_rename(self):
+        response = self.client.patch('/api/auth/me/', {'name': '  Нове   ім’я '}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['name'], 'Нове ім’я')
+
+    def test_rename_invalid(self):
+        response = self.client.patch('/api/auth/me/', {'name': 'X'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('name', response.data)
+
+    def test_email_change_needs_password(self):
+        response = self.client.patch('/api/auth/me/', {'email': 'new@test.com'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('current_password', response.data)
+
+        response = self.client.patch(
+            '/api/auth/me/',
+            {'email': 'new@test.com', 'current_password': 'wrong-pass1!'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('current_password', response.data)
+
+    def test_email_change(self):
+        response = self.client.patch(
+            '/api/auth/me/',
+            {'email': 'New@Test.com', 'current_password': 'pass123!A'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], 'new@test.com')
+
+    def test_email_taken(self):
+        response = self.client.patch(
+            '/api/auth/me/',
+            {'email': 'taken@test.com', 'current_password': 'pass123!A'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email', response.data)
+
+    def test_password_change_rotates_token(self):
+        response = self.client.post(
+            '/api/auth/password/',
+            {'current_password': 'pass123!A', 'password': 'newPass9!x', 'confirm_password': 'newPass9!x'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('newPass9!x'))
+
+        # старий токен більше не діє, новий — діє
+        self.assertEqual(self.client.get('/api/auth/me/').status_code, 401)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+        self.assertEqual(self.client.get('/api/auth/me/').status_code, 200)
+
+    def test_password_change_wrong_current(self):
+        response = self.client.post(
+            '/api/auth/password/',
+            {'current_password': 'nope123!A', 'password': 'newPass9!x', 'confirm_password': 'newPass9!x'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('current_password', response.data)
+
+    def test_password_change_weak(self):
+        response = self.client.post(
+            '/api/auth/password/',
+            {'current_password': 'pass123!A', 'password': 'short', 'confirm_password': 'short'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', response.data)
+
+    def test_delete_account(self):
+        response = self.client.delete('/api/auth/me/', {'password': 'wrong-pass1!'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+        response = self.client.delete('/api/auth/me/', {'password': 'pass123!A'}, format='json')
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())

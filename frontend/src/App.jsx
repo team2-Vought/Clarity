@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import './styles/tokens.css';
@@ -44,7 +44,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />
               <Route path="/chat/:id" element={<ChatPage />} />
-              <Route path="/account" element={<AccountPage />} />
+              <Route path="/account" element={<Navigate to="/settings" replace />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/help" element={<AccountPage />} />
