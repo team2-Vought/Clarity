@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { GlobalSearchIcon } from '@hugeicons/core-free-icons';
 import Shot from './Shot';
-import { prefersReducedMotion, toneOf } from './personaTones';
+import { prefersReducedMotion } from './personaTones';
 import { ArrowUpIcon } from '../DebateIcons';
-import { roleIcon } from '../../utils/debateOptions';
 import { uk } from '../../copy/uk';
 
 const t = uk.landing;
@@ -48,8 +45,6 @@ function useTypedPlaceholder(phrases, paused) {
   return text;
 }
 
-const FLOATING = ['logician', 'emotional', 'skeptic', 'pragmatist', 'creative'];
-
 export default function Hero({ onStart, question, onQuestionChange }) {
   const [focused, setFocused] = useState(false);
   const placeholder = useTypedPlaceholder(t.askPlaceholders, focused || question.length > 0);
@@ -83,10 +78,6 @@ export default function Hero({ onStart, question, onQuestionChange }) {
 
   return (
     <section className="lp-hero" aria-labelledby="landing-title">
-      <p className="lp-badge" data-reveal>
-        <span className="lp-badge__dot" aria-hidden="true" />
-        {t.badge}
-      </p>
       <h1 id="landing-title" className="lp-hero__title" data-reveal>
         {t.titleStart} <span className="lp-gradient-text">{t.titleAccent}</span> {t.titleEnd}
       </h1>
@@ -95,13 +86,6 @@ export default function Hero({ onStart, question, onQuestionChange }) {
       </p>
 
       <form className="lp-ask" onSubmit={submit} data-reveal>
-        <span className="lp-ask__team" aria-hidden="true">
-          {FLOATING.slice(0, 3).map((slug) => (
-            <span key={slug} className="lp-ask__avatar" style={{ '--tone': toneOf(slug) }}>
-              <HugeiconsIcon icon={roleIcon(slug)} size={15} strokeWidth={1.8} />
-            </span>
-          ))}
-        </span>
         <label className="sr-only" htmlFor="lp-ask-input">
           {t.askLabel}
         </label>
@@ -120,34 +104,11 @@ export default function Hero({ onStart, question, onQuestionChange }) {
           <ArrowUpIcon />
         </button>
       </form>
-      <p className="lp-hero__hint" data-reveal>
-        {t.askHint}
-      </p>
 
       <div className="lp-stage" ref={stageRef} data-reveal>
         <div className="lp-frame">
-          <div className="lp-frame__bar" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <em>clarity</em>
-          </div>
           <Shot name="debate" alt={t.heroShot} eager />
         </div>
-
-        <ul className="lp-orbit" aria-hidden="true">
-          {FLOATING.map((slug, i) => {
-            const persona = t.personas.find((p) => p.slug === slug);
-            return (
-              <li key={slug} className={`lp-orbit__chip lp-orbit__chip--${i + 1}`} style={{ '--tone': toneOf(slug) }}>
-                <span className="lp-orbit__icon">
-                  <HugeiconsIcon icon={roleIcon(slug)} size={16} strokeWidth={1.8} />
-                </span>
-                {persona.name}
-              </li>
-            );
-          })}
-        </ul>
 
         <div className="lp-float lp-float--consensus" aria-hidden="true">
           <span className="lp-float__label">{t.floatConsensus}</span>
@@ -155,16 +116,6 @@ export default function Hero({ onStart, question, onQuestionChange }) {
           <span className="lp-meter">
             <span style={{ width: '88%' }} />
           </span>
-        </div>
-        <div className="lp-float lp-float--devil" aria-hidden="true">
-          <span className="lp-float__devil">
-            <HugeiconsIcon icon={roleIcon('devil')} size={15} strokeWidth={2} />
-          </span>
-          {t.floatDevil}
-        </div>
-        <div className="lp-float lp-float--sources" aria-hidden="true">
-          <HugeiconsIcon icon={GlobalSearchIcon} size={16} strokeWidth={1.8} />
-          {t.floatSources}
         </div>
       </div>
     </section>

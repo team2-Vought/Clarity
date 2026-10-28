@@ -13,7 +13,6 @@ export default function Team() {
   return (
     <section className="lp-section lp-team" id="team" aria-labelledby="team-title">
       <header className="lp-section__head" data-reveal>
-        <p className="lp-eyebrow">{t.teamEyebrow}</p>
         <h2 id="team-title" className="lp-section__title">
           {t.teamTitle}
         </h2>
@@ -52,7 +51,6 @@ export default function Team() {
       </ul>
 
       <div className="lp-judges" data-reveal>
-        <p className="lp-judges__label">{t.judgesLabel}</p>
         {t.judges.map((j) => (
           <div key={j.slug} className={`lp-judge lp-judge--${j.slug}`} style={{ '--tone': toneOf(j.slug) }}>
             <span className="lp-judge__icon">

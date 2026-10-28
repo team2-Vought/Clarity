@@ -26,7 +26,6 @@ export default function HowItWorks() {
   return (
     <section className="lp-section lp-how" id="how" aria-labelledby="how-title">
       <header className="lp-section__head" data-reveal>
-        <p className="lp-eyebrow">{t.howEyebrow}</p>
         <h2 id="how-title" className="lp-section__title">
           {t.howTitle}
         </h2>
@@ -59,12 +58,6 @@ export default function HowItWorks() {
 
         <div className="lp-how__sticky" aria-hidden="true">
           <div className="lp-frame lp-how__frame">
-            <div className="lp-frame__bar">
-              <span />
-              <span />
-              <span />
-              <em>{t.steps[active].title}</em>
-            </div>
             <div className="lp-how__shots">
               {t.steps.map((step, i) => (
                 <div key={step.shot} className={`lp-how__shot${active === i ? ' lp-how__shot--active' : ''}`}>
@@ -72,11 +65,6 @@ export default function HowItWorks() {
                 </div>
               ))}
             </div>
-          </div>
-          <div className="lp-how__progress">
-            {t.steps.map((step, i) => (
-              <span key={step.shot} className={i <= active ? 'is-done' : ''} />
-            ))}
           </div>
         </div>
       </div>

@@ -1,28 +1,167 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Refresh01Icon } from '@hugeicons/core-free-icons';
-import { prefersReducedMotion, toneOf } from './personaTones';
+import { prefersReducedMotion } from './personaTones';
+import ThoughtLine from '../ThoughtLine';
+import ParagraphReveal from '../ParagraphReveal';
+import MessageMarkdown from '../MessageMarkdown';
+import SummaryDetails from '../SummaryDetails';
 import { AvatarIcon } from '../DebateIcons';
+import { USER_COLOR, buildSpeakers, phaseLabel } from '../../utils/chatView';
+import { describeSummary } from '../../utils/summary';
+import { parseBlocks } from '../../utils/markdown';
 import { roleIcon } from '../../utils/debateOptions';
+import logoThinking from '../../assets/logo-thinking.svg';
+import logoStill from '../../assets/Clarity_logo_8.svg';
 import { uk } from '../../copy/uk';
 
 const t = uk.landing;
-const MESSAGES = t.demoMessages;
-const CONSENSUS = 88;
+const tc = uk.chat;
 
-// Стан демо: скільки реплік уже видно, чи хтось «друкує», чи з'явився вердикт
-const FINAL = { shown: MESSAGES.length, typing: false, verdict: true, consensus: CONSENSUS };
-const EMPTY = { shown: 0, typing: false, verdict: false, consensus: 0 };
+// Репліки демо в тому ж вигляді, що приходять із сервера, — тож кольори,
+// сторони, роздільники фаз і анімації беруться з тих самих функцій, що в чаті
+const MESSAGES = t.demoMessages.map((m, i) => ({
+  id: `demo-${i}`,
+  role: m.role,
+  persona_slug: m.slug,
+  persona_name: m.name,
+  phase: m.phase || 'opening',
+  content: m.text,
+  model: m.model,
+}));
+const SPEAKERS = buildSpeakers(MESSAGES, new Map());
+const SUMMARY = t.demoSummary;
+const SUMMARY_VIEW = describeSummary(SUMMARY);
+const NO_SOURCES = new Map();
+const THINK_MS = 1500;
+
+const THINKING_GLYPH = <img className="chat__thought-logo" src={logoThinking} alt="" />;
+const STILL_GLYPH = <img className="chat__thought-logo chat__thought-logo--still" src={logoStill} alt="" />;
+
+// Один «прогін» дискусії: думає → репліка проявляється абзацами → наступна…
+// Ключ ззовні перезапускає його з початку.
+function DemoRun({ reduced }) {
+  // shown — скільки реплік уже показано повністю; typing — чи друкується наступна
+  const [shown, setShown] = useState(reduced ? MESSAGES.length : 0);
+  const [typing, setTyping] = useState(false);
+  const [summary, setSummary] = useState(reduced);
+  const finished = shown >= MESSAGES.length;
+
+  // пауза «думання» перед кожною реплікою і перед підсумком
+  useEffect(() => {
+    if (typing || summary) return undefined;
+    const timer = setTimeout(() => (finished ? setSummary(true) : setTyping(true)), THINK_MS);
+    return () => clearTimeout(timer);
+  }, [typing, finished, summary]);
+
+  const thinkingPhase = finished ? 'final' : MESSAGES[shown].phase;
+  const visible = MESSAGES.slice(0, typing ? shown + 1 : shown);
+
+  return (
+    <>
+      {visible.map((message, index) => {
+        const { color, side } = SPEAKERS.get(message.persona_name);
+        const isTyping = typing && index === shown;
+        const divider = phaseLabel(message);
+        const previous = visible[index - 1];
+        const showDivider = !previous || phaseLabel(previous) !== divider;
+        return (
+          <Fragment key={message.id}>
+            {showDivider && (
+              <div className="chat__divider" role="separator">
+                <span>{divider}</span>
+              </div>
+            )}
+            <div
+              className={[
+                'chat__row',
+                `chat__row--${side}`,
+                `chat__row--${message.role}`,
+                isTyping && 'chat__row--enter',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <span className="chat__avatar" style={{ '--avatar': color }} aria-hidden="true">
+                <HugeiconsIcon
+                  icon={roleIcon(message.persona_slug)}
+                  className="chat__avatar-role"
+                  strokeWidth={1.8}
+                />
+              </span>
+              <div className="chat__body">
+                <div className="chat__head">
+                  <span className="chat__name">{message.persona_name}</span>
+                  <span className="chat__model">{message.model}</span>
+                </div>
+                <div
+                  className={`chat__bubble chat__bubble--wide${isTyping ? ' chat__bubble--typing' : ''}`}
+                  style={{ '--bubble': color }}
+                >
+                  {isTyping ? (
+                    <ParagraphReveal
+                      content={message.content}
+                      onDone={() => {
+                        setShown((n) => n + 1);
+                        setTyping(false);
+                      }}
+                    >
+                      {(blocks, pending) => (
+                        <MessageMarkdown blocks={blocks} sources={NO_SOURCES} animate>
+                          {pending && (
+                            <span className="chat__pending" aria-hidden="true">
+                              <span />
+                              <span />
+                            </span>
+                          )}
+                        </MessageMarkdown>
+                      )}
+                    </ParagraphReveal>
+                  ) : (
+                    <MessageMarkdown blocks={parseBlocks(message.content)} sources={NO_SOURCES} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </Fragment>
+        );
+      })}
+
+      {!typing && !summary && (
+        <ThoughtLine
+          working
+          label={tc.phaseStatus[thinkingPhase]}
+          doneLabel={tc.thoughtDone}
+          glyph={reduced ? STILL_GLYPH : THINKING_GLYPH}
+          glyphBreath={false}
+          openOnWork={false}
+          fontSize={16}
+          className="chat__thought"
+        />
+      )}
+
+      {summary && (
+        <section className={`chat__summary${reduced ? '' : ' chat__summary--enter'}`} aria-label={tc.summary}>
+          <SummaryDetails summary={SUMMARY} view={SUMMARY_VIEW} sources={NO_SOURCES} animate={!reduced} />
+        </section>
+      )}
+    </>
+  );
+}
+
+DemoRun.propTypes = {
+  reduced: PropTypes.bool.isRequired,
+};
 
 export default function LiveDemo() {
   const rootRef = useRef(null);
+  // 0 — ще не почалося; кожне «Ще раз» збільшує номер і перезапускає прогін
   const [run, setRun] = useState(0);
-  const [state, setState] = useState(EMPTY);
-  // без анімації демо одразу показує всю розмову
   const [reduced] = useState(prefersReducedMotion);
-  const view = reduced ? FINAL : state;
+  const question = useMemo(() => parseBlocks(t.demoQuestion), []);
 
-  // стартує, коли блок уперше з'являється на екрані
+  // стартує, коли вікно демо вперше з'являється на екрані
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return undefined;
@@ -33,129 +172,48 @@ export default function LiveDemo() {
           observer.disconnect();
         }
       },
-      { threshold: 0.35 }
+      { threshold: 0.3 }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!run || reduced) return undefined;
-    const timers = [];
-    let at = 600;
-    const at_ = (delay, fn) => {
-      at += delay;
-      timers.push(setTimeout(fn, at));
-    };
-    MESSAGES.forEach((_, i) => {
-      at_(i === 0 ? 300 : 900, () => setState((s) => ({ ...s, typing: true })));
-      at_(1100, () => setState((s) => ({ ...s, typing: false, shown: i + 1 })));
-    });
-    at_(900, () => setState((s) => ({ ...s, typing: true })));
-    at_(1200, () => setState((s) => ({ ...s, typing: false, verdict: true })));
-    // лічильник згоди «набігає» до кінцевого значення
-    for (let v = 4; v <= CONSENSUS; v += 4) {
-      at_(22, () => setState((s) => ({ ...s, consensus: Math.min(v, CONSENSUS) })));
-    }
-    at_(22, () => setState((s) => ({ ...s, consensus: CONSENSUS })));
-    return () => timers.forEach(clearTimeout);
-  }, [run, reduced]);
-
-  const nextSpeaker = view.shown < MESSAGES.length ? MESSAGES[view.shown].slug : 'moderator';
-
   return (
     <section className="lp-section lp-demo" id="demo" aria-labelledby="demo-title">
       <header className="lp-section__head" data-reveal>
-        <p className="lp-eyebrow">{t.demoEyebrow}</p>
         <h2 id="demo-title" className="lp-section__title">
           {t.demoTitle}
         </h2>
         <p className="lp-section__text">{t.demoText}</p>
       </header>
 
-      <div className="lp-demo__window" ref={rootRef} data-reveal>
-        <div className="lp-demo__head">
-          <span className="lp-demo__team" aria-hidden="true">
-            {MESSAGES.map((m, i) => (
-              <span
-                key={m.slug}
-                className={`lp-demo__dot${i < view.shown ? ' is-on' : ''}${m.slug === 'devil' ? ' lp-demo__dot--devil' : ''}`}
-                style={{ '--tone': toneOf(m.slug) }}
-              >
-                <HugeiconsIcon icon={roleIcon(m.slug)} size={13} strokeWidth={1.9} />
-              </span>
-            ))}
-          </span>
-          <button type="button" className="lp-demo__replay" onClick={() => {
-              setState(EMPTY);
-              setRun((r) => r + 1);
-            }}>
-            <HugeiconsIcon icon={Refresh01Icon} size={16} strokeWidth={1.9} />
-            {t.demoReplay}
-          </button>
-        </div>
+      <div className="lp-demo__window lp-chat" ref={rootRef} data-reveal>
+        <button
+          type="button"
+          className="lp-demo__replay"
+          onClick={() => setRun((r) => r + 1)}
+          aria-label={t.demoReplay}
+          title={t.demoReplay}
+        >
+          <HugeiconsIcon icon={Refresh01Icon} size={17} strokeWidth={1.9} />
+        </button>
 
-        <div className="lp-demo__chat" aria-live="polite">
-          <div className="lp-msg lp-msg--user">
-            <span className="lp-msg__avatar lp-msg__avatar--user" aria-hidden="true">
+        <div className="chat__main lp-demo__chat">
+          <header className="chat__row chat__row--right chat__row--user">
+            <span className="chat__avatar" style={{ '--avatar': USER_COLOR }} aria-hidden="true">
               <AvatarIcon />
             </span>
-            <div className="lp-msg__body">
-              <span className="lp-msg__name">{t.demoAsker}</span>
-              <p className="lp-msg__bubble">{t.demoQuestion}</p>
+            <div className="chat__body">
+              <div className="chat__head">
+                <span className="chat__name">{tc.you}</span>
+              </div>
+              <div className="chat__bubble" style={{ '--bubble': USER_COLOR }}>
+                <MessageMarkdown blocks={question} sources={NO_SOURCES} />
+              </div>
             </div>
-          </div>
+          </header>
 
-          {MESSAGES.slice(0, view.shown).map((m) => (
-            <div
-              key={m.slug}
-              className={`lp-msg lp-msg--in${m.slug === 'devil' ? ' lp-msg--devil' : ''}`}
-              style={{ '--tone': toneOf(m.slug) }}
-            >
-              <span className="lp-msg__avatar" aria-hidden="true">
-                <HugeiconsIcon icon={roleIcon(m.slug)} size={17} strokeWidth={1.8} />
-              </span>
-              <div className="lp-msg__body">
-                <span className="lp-msg__name">{m.name}</span>
-                <p className="lp-msg__bubble">{m.text}</p>
-              </div>
-            </div>
-          ))}
-
-          {view.typing && (
-            <div className="lp-msg lp-msg--in lp-msg--typing" style={{ '--tone': toneOf(nextSpeaker) }} aria-hidden="true">
-              <span className="lp-msg__avatar">
-                <HugeiconsIcon icon={roleIcon(nextSpeaker)} size={17} strokeWidth={1.8} />
-              </span>
-              <div className="lp-msg__body">
-                <p className="lp-msg__bubble lp-typing">
-                  <span />
-                  <span />
-                  <span />
-                </p>
-              </div>
-            </div>
-          )}
-
-          {view.verdict && (
-            <div className="lp-verdict lp-msg--in">
-              <div className="lp-verdict__head">
-                <span className="lp-msg__avatar" style={{ '--tone': toneOf('moderator') }} aria-hidden="true">
-                  <HugeiconsIcon icon={roleIcon('moderator')} size={17} strokeWidth={1.8} />
-                </span>
-                <span className="lp-msg__name">{t.demoVerdictLabel}</span>
-              </div>
-              <p className="lp-verdict__text">{t.demoVerdict}</p>
-              <div className="lp-verdict__meter">
-                <span>{t.demoConsensus}</span>
-                <strong>{view.consensus}%</strong>
-                <span className="lp-meter lp-meter--wide">
-                  <span style={{ width: `${view.consensus}%` }} />
-                </span>
-              </div>
-              <p className="lp-verdict__next">{t.demoNext}</p>
-            </div>
-          )}
+          {run > 0 && <DemoRun key={run} reduced={reduced} />}
         </div>
       </div>
     </section>
