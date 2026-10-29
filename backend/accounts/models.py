@@ -10,6 +10,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    # аватарка — data URL квадратного зображення, стиснутого в браузері
+    avatar = models.TextField('аватарка', blank=True, default='')
     # налаштування, що йдуть за акаунтом: модель і параметри нової дискусії
     preferences = models.JSONField('налаштування', default=dict, blank=True)
 

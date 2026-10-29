@@ -1,3 +1,5 @@
+import base64
+import binascii
 import re
 
 from django.db import IntegrityError
@@ -19,6 +21,8 @@ PASSWORD_NO_LETTER = 'Пароль має містити латинські лі
 PASSWORD_NO_DIGIT = 'Додайте цифри'
 PASSWORD_NO_SPECIAL = 'Додайте спец. символи'
 PASSWORDS_MISMATCH = 'Паролі не збігаються'
+AVATAR_INVALID = 'Не вдалося прочитати зображення'
+AVATAR_TOO_LARGE = 'Зображення завелике'
 
 WRONG_EMAIL = 'Неправильна пошта'
 WRONG_PASSWORD = 'Невірний пароль'
@@ -26,6 +30,8 @@ PASSWORD_SAME = 'Новий пароль збігається з поточни�
 
 NAME_MIN, NAME_MAX = 2, 40
 PASSWORD_MIN = 8
+# 256×256 у WebP/JPEG важить десятки КБ; запас — для PNG
+AVATAR_MAX_BYTES = 300 * 1024
 
 EMAIL_RE = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]{2,}')
 # дозволені символи пароля — друкована ASCII без пробілу
@@ -34,6 +40,7 @@ LETTER_RE = re.compile(r'[A-Za-z]')
 DIGIT_RE = re.compile(r'[0-9]')
 SPECIAL_RE = re.compile(r'[^A-Za-z0-9]')
 NAME_SPECIALS = " -'’"
+AVATAR_RE = re.compile(r'data:image/(?:png|jpeg|webp);base64,([A-Za-z0-9+/]+=*)')
 
 
 def clean_name(value):
@@ -58,6 +65,22 @@ def clean_email(value, exclude_user=None):
     if taken.exists():
         raise serializers.ValidationError(EMAIL_TAKEN)
     return email
+
+
+def clean_avatar(value):
+    """Порожній рядок — прибрати аватарку; інакше data URL PNG/JPEG/WebP."""
+    if not value:
+        return ''
+    match = AVATAR_RE.fullmatch(value)
+    if not match:
+        raise serializers.ValidationError(AVATAR_INVALID)
+    try:
+        data = base64.b64decode(match.group(1), validate=True)
+    except (binascii.Error, ValueError):
+        raise serializers.ValidationError(AVATAR_INVALID)
+    if len(data) > AVATAR_MAX_BYTES:
+        raise serializers.ValidationError(AVATAR_TOO_LARGE)
+    return value
 
 
 def check_new_password(password, confirm_password):
@@ -172,10 +195,11 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.Serializer):
-    """Зміна імені або пошти; нова пошта — лише з поточним паролем."""
+    """Зміна імені, пошти чи аватарки; нова пошта — лише з поточним паролем."""
 
     name = serializers.CharField(required=False, max_length=200, error_messages={'blank': REQUIRED})
     email = serializers.CharField(required=False, max_length=254, error_messages={'blank': REQUIRED})
+    avatar = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False, max_length=500_000)
     current_password = serializers.CharField(
         required=False, allow_blank=True, write_only=True, max_length=128
     )
@@ -185,6 +209,9 @@ class ProfileSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return clean_email(value, exclude_user=self.context['user'])
+
+    def validate_avatar(self, value):
+        return clean_avatar(value)
 
     def validate(self, attrs):
         user = self.context['user']

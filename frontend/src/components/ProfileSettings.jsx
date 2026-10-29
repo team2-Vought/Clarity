@@ -2,8 +2,9 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Delete02Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
+import { Camera01Icon, Delete02Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { changePassword, deleteAccount, me, updateProfile } from '../api/auth';
+import { setMyAvatar } from '../hooks/useMyAvatar';
 import { useToasts } from '../hooks/useToasts';
 import { validateEmail, validatePassword } from '../utils/validate';
 import { uk } from '../copy/uk';
@@ -17,6 +18,41 @@ const EMPTY = {
   password: '',
   confirm_password: '',
 };
+
+const AVATAR_SIZE = 256;
+const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const AVATAR_MAX_FILE = 10 * 1024 * 1024;
+
+/** Обрізає по центру в квадрат і стискає до 256×256 — сервер зберігає вже готовий data URL. */
+async function toAvatar(file) {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = AVATAR_SIZE;
+  canvas.height = AVATAR_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  const draw = () =>
+    ctx.drawImage(
+      bitmap,
+      (bitmap.width - side) / 2,
+      (bitmap.height - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      AVATAR_SIZE,
+      AVATAR_SIZE,
+    );
+  draw();
+  const webp = canvas.toDataURL('image/webp', 0.86);
+  if (webp.startsWith('data:image/webp')) return webp;
+  // без WebP (старий Safari) — JPEG на білому, бо прозорість він не тримає
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, AVATAR_SIZE, AVATAR_SIZE);
+  draw();
+  return canvas.toDataURL('image/jpeg', 0.86);
+}
 
 const formatJoined = (value) => {
   const date = new Date(value);
@@ -84,7 +120,7 @@ function EditRow({ title, value, hint, open, onOpen, onClose, onSubmit, busy, su
     <div className={`settings__edit ${danger ? 'settings__edit--danger' : ''}`}>
       <div className="settings__row">
         <div className="settings__row-text">
-          <span className="settings__row-title">{title}</span>
+          <span className="settings__edit-label">{title}</span>
           {value && <span className="settings__edit-value">{value}</span>}
           {hint && <span className="settings__row-hint">{hint}</span>}
         </div>
@@ -92,7 +128,7 @@ function EditRow({ title, value, hint, open, onOpen, onClose, onSubmit, busy, su
           <div className="settings__row-control">
             <button
               type="button"
-              className={`settings__button ${danger ? 'settings__button--danger' : 'settings__button--soft'}`}
+              className={`settings__button ${danger ? 'settings__button--danger' : ''}`}
               onClick={onOpen}
               aria-label={danger ? undefined : t.editNamed(title)}
             >
@@ -156,6 +192,8 @@ export default function ProfileSettings() {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [isBusy, setIsBusy] = useState(false);
+  const [isAvatarBusy, setIsAvatarBusy] = useState(false);
+  const fileRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoadError('');
@@ -170,6 +208,10 @@ export default function ProfileSettings() {
     const timer = setTimeout(load, 0);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    if (user) setMyAvatar(user.avatar);
+  }, [user]);
 
   const open = (key) => {
     setEditing(key);
@@ -210,6 +252,33 @@ export default function ProfileSettings() {
     } finally {
       setIsBusy(false);
     }
+  };
+
+  const saveAvatar = async (avatar, message) => {
+    setIsAvatarBusy(true);
+    try {
+      setUser(await updateProfile({ avatar }));
+      pushToast(message);
+    } catch (err) {
+      pushToast(err?.fieldErrors?.().avatar || err?.message || uk.settings.saveError);
+    } finally {
+      setIsAvatarBusy(false);
+    }
+  };
+
+  const pickAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!AVATAR_TYPES.includes(file.type)) return pushToast(t.avatarType);
+    if (file.size > AVATAR_MAX_FILE) return pushToast(t.avatarTooBig);
+    let avatar;
+    try {
+      avatar = await toAvatar(file);
+    } catch {
+      return pushToast(t.avatarUnreadable);
+    }
+    await saveAvatar(avatar, t.avatarSaved);
   };
 
   const submitName = run(
@@ -300,13 +369,52 @@ export default function ProfileSettings() {
   return (
     <>
       <div className="settings__identity">
-        <span className="settings__avatar" aria-hidden="true">
-          {user.name.trim().charAt(0).toUpperCase()}
-        </span>
+        <button
+          type="button"
+          className={`settings__avatar ${isAvatarBusy ? 'settings__avatar--busy' : ''}`}
+          onClick={() => fileRef.current?.click()}
+          disabled={isAvatarBusy}
+          aria-label={user.avatar ? t.avatarChange : t.avatarUpload}
+        >
+          {user.avatar ? (
+            <img className="settings__avatar-image" src={user.avatar} alt="" />
+          ) : (
+            <span aria-hidden="true">{user.name.trim().charAt(0).toUpperCase()}</span>
+          )}
+          <span className="settings__avatar-badge" aria-hidden="true">
+            <HugeiconsIcon icon={Camera01Icon} size={14} />
+          </span>
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept={AVATAR_TYPES.join(',')}
+          onChange={pickAvatar}
+          hidden
+        />
         <div className="settings__identity-text">
           <h2 className="settings__identity-name">{user.name}</h2>
-          <span className="settings__identity-meta">{user.email}</span>
           {joined && <span className="settings__identity-meta">{t.joined(joined)}</span>}
+        </div>
+        <div className="settings__identity-actions">
+          <button
+            type="button"
+            className="settings__button settings__button--soft"
+            onClick={() => fileRef.current?.click()}
+            disabled={isAvatarBusy}
+          >
+            {user.avatar ? t.avatarChange : t.avatarUpload}
+          </button>
+          {user.avatar && (
+            <button
+              type="button"
+              className="settings__button"
+              onClick={() => saveAvatar('', t.avatarRemoved)}
+              disabled={isAvatarBusy}
+            >
+              {t.avatarRemove}
+            </button>
+          )}
         </div>
       </div>
 
@@ -343,7 +451,6 @@ export default function ProfileSettings() {
           {...rowProps('password')}
           title={t.passwordLabel}
           value="••••••••"
-          hint={t.passwordHint}
           onSubmit={submitPassword}
           submitLabel={isBusy ? t.saving : t.save}
         >
@@ -368,11 +475,13 @@ export default function ProfileSettings() {
             error={errors.confirm_password}
             {...bind('confirm_password')}
           />
-          <p className="settings__key-hint">{t.passwordRules}</p>
+          <p className="settings__key-hint">
+            {t.passwordRules} {t.passwordHint}
+          </p>
         </EditRow>
       </div>
 
-      <div className="settings__sheet">
+      <div className="settings__sheet settings__sheet--quiet">
         <EditRow
           {...rowProps('delete')}
           danger

@@ -160,6 +160,23 @@ class ProfileApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('name', response.data)
 
+    def test_avatar_set_and_remove(self):
+        avatar = 'data:image/png;base64,iVBORw0KGgo='
+        response = self.client.patch('/api/auth/me/', {'avatar': avatar}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['avatar'], avatar)
+        self.assertEqual(response.data['name'], 'Тест')
+
+        response = self.client.patch('/api/auth/me/', {'avatar': ''}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['avatar'], '')
+
+    def test_avatar_invalid(self):
+        for avatar in ('https://example.com/a.png', 'data:image/svg+xml;base64,PHN2Zz4=', 'data:image/png;base64,@@'):
+            response = self.client.patch('/api/auth/me/', {'avatar': avatar}, format='json')
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('avatar', response.data)
+
     def test_email_change_needs_password(self):
         response = self.client.patch('/api/auth/me/', {'email': 'new@test.com'}, format='json')
         self.assertEqual(response.status_code, 400)

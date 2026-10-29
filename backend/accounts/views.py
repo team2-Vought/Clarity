@@ -23,6 +23,7 @@ def user_payload(user):
         'name': user.name,
         'email': user.email,
         'date_joined': user.date_joined,
+        'avatar': user.avatar,
     }
 
 
@@ -85,11 +86,11 @@ class MeView(APIView):
         serializer = ProfileSerializer(data=request.data, context={'user': user})
         serializer.is_valid(raise_exception=True)
 
-        for field in ('name', 'email'):
-            if field in serializer.validated_data:
-                setattr(user, field, serializer.validated_data[field])
+        changed = [field for field in ('name', 'email', 'avatar') if field in serializer.validated_data]
+        for field in changed:
+            setattr(user, field, serializer.validated_data[field])
         try:
-            user.save(update_fields=['name', 'email'])
+            user.save(update_fields=changed)
         except IntegrityError:
             raise ValidationError({'email': [EMAIL_TAKEN]})
         return Response(user_payload(user), status=status.HTTP_200_OK)

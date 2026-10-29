@@ -805,37 +805,86 @@
 
 .settings__identity {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 28px;
-  background: var(--s-sheet);
+  gap: 16px 20px;
+  padding: 8px 4px 20px;
 }
 
+/* аватарка — кнопка: клік відкриває вибір файлу */
 .settings__avatar {
+  position: relative;
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: var(--peach);
   color: #121212;
-  font-size: 1.375rem;
-  font-weight: 700;
+  font: inherit;
+  font-size: 1.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--press);
+}
+
+.settings__avatar:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.settings__avatar:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.settings__avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.settings__avatar--busy .settings__avatar-image,
+.settings__avatar--busy > span:first-child {
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+
+.settings__avatar-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--card);
+  box-shadow: 0 0 0 3px var(--main-bg);
+  transition: scale 0.18s var(--s-ease);
+}
+
+.settings__avatar:hover:not(:disabled) .settings__avatar-badge {
+  scale: 1.08;
 }
 
 .settings__identity-text {
   display: flex;
+  flex: 1 1 160px;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
 .settings__identity-name {
-  margin: 0 0 2px;
-  font-size: 1.0625rem;
+  margin: 0;
+  font-size: 1.375rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
@@ -845,12 +894,41 @@
   overflow-wrap: anywhere;
 }
 
+.settings__identity-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* поле профілю: дрібна назва над значенням */
+.settings__edit-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.settings__edit .settings__row-text {
+  gap: 2px;
+}
+
+.settings__edit .settings__button:not([class*='--']) {
+  color: var(--muted);
+}
+
+.settings__edit .settings__button:not([class*='--']):hover:not(:disabled) {
+  color: var(--ink);
+}
+
+/* небезпечна дія — без картки, лише тонка рамка */
+.settings__sheet--quiet {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--s-line);
+}
+
 .settings__edit + .settings__edit {
   border-top: 1px solid var(--s-line);
 }
 
 .settings__edit-value {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   overflow-wrap: anywhere;
 }
 
@@ -892,8 +970,10 @@
   font-size: 0.75rem;
 }
 
-.settings__edit--danger .settings__row-title {
+.settings__edit--danger .settings__edit-label {
   color: var(--s-error);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .settings__button--danger-solid,
@@ -1010,6 +1090,19 @@
 
   .settings__row--switch .settings__row-text {
     flex-basis: auto;
+  }
+
+  /* поля профілю: «Змінити» лишається праворуч від значення */
+  .settings__edit:not(.settings__edit--danger) .settings__row {
+    flex-wrap: nowrap;
+  }
+
+  .settings__edit:not(.settings__edit--danger) .settings__row-text {
+    flex-basis: auto;
+  }
+
+  .settings__edit:not(.settings__edit--danger) .settings__row-control {
+    flex: 0 0 auto;
   }
 
   .settings .debate__model-card {

@@ -32,6 +32,7 @@ import {
   updateDiscussion,
 } from '../api/discussions';
 import { useIsPhone } from '../hooks/useIsPhone';
+import { useMyAvatar } from '../hooks/useMyAvatar';
 import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
@@ -328,6 +329,8 @@ export default function ChatPage() {
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const navigate = useNavigate();
   const { pushToast } = useToasts();
+  const myAvatar = useMyAvatar();
+  const userAvatar = myAvatar ? <img className="chat__avatar-photo" src={myAvatar} alt="" /> : <AvatarIcon />;
   const [isSharing, setIsSharing] = useState(false);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
@@ -1553,7 +1556,7 @@ export default function ChatPage() {
             // запитання — перше повідомлення користувача, а не заголовок сторінки
             <header className="chat__row chat__row--right chat__row--user">
               <span className="chat__avatar" style={{ '--avatar': USER_COLOR }} aria-hidden="true">
-                <AvatarIcon />
+                {userAvatar}
               </span>
               <div className="chat__body">
                 <div className="chat__head">
@@ -1705,7 +1708,7 @@ export default function ChatPage() {
                     >
                       {/* іконка ролі розрізняє учасників не лише кольором — та сама, що в складі команди */}
                       {message.role === 'user' ? (
-                        <AvatarIcon />
+                        userAvatar
                       ) : (
                         <HugeiconsIcon
                           icon={roleIcon(message.persona_slug || message.role)}
