@@ -1014,7 +1014,7 @@ export default function ChatPage() {
     startRunner(discussion.id);
   };
 
-  // «Завершити»: без решти раундів — модератор одразу пише висновок
+  // «Завершити»: дискусія обривається одразу — без решти раундів і висновку модератора
   const handleFinish = async () => {
     if (!discussion) return;
     kicksRef.current = 0;
@@ -1619,7 +1619,7 @@ export default function ChatPage() {
             const showEarlyStop =
               showDivider
               && message.phase === 'synthesis'
-              && (discussion?.early_stop || discussion?.finished_early);
+              && discussion?.early_stop;
             // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
             const grouped =
               !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
@@ -1681,7 +1681,7 @@ export default function ChatPage() {
               <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
                 {showEarlyStop && (
                   <p className="chat__notice">
-                    {discussion.finished_early ? t.finishedEarly : t.earlyStop(discussion.current_round)}
+                    {t.earlyStop(discussion.current_round)}
                   </p>
                 )}
                 {showDivider && (
@@ -1811,6 +1811,10 @@ export default function ChatPage() {
               </Fragment>
             );
           })}
+
+          {discussion?.finished_early && isFinished && !isRevealing && (
+            <p className="chat__notice">{t.finishedEarly}</p>
+          )}
 
           {summaryDecision && isFinished && !isRevealing && (
             <section

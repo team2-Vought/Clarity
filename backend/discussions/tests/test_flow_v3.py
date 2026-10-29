@@ -441,29 +441,38 @@ class RunnerTests(Base):
 
 
 class FinishEarlyTests(Base):
-    def test_finish_skips_rounds_and_devil(self):
+    def test_finish_ends_at_once_without_moderator(self):
         discussion = self.make(rounds=3)
         self.step(discussion)
         self.assertEqual(discussion.phase, Discussion.Phase.DEBATE)
+        before = discussion.messages.count()
 
         engine.finish_early(discussion.pk)
         discussion.refresh_from_db()
-        self.assertEqual(discussion.phase, Discussion.Phase.SYNTHESIS)
-        self.finish(discussion)
-
+        self.assertEqual(discussion.phase, Discussion.Phase.DONE)
+        self.assertEqual(discussion.status, Discussion.Status.DONE)
+        self.assertIsNotNone(discussion.finished_at)
         self.assertTrue(discussion.finished_early)
-        self.assertTrue(discussion.final_summary)
-        self.assertFalse(discussion.messages.filter(role=Message.Role.DEVIL).exists())
-        self.assertFalse(discussion.messages.filter(phase=Discussion.Phase.REBUTTAL).exists())
-        self.assertTrue(self.judge_calls('Користувач завершив дискусію достроково'))
+        self.assertIsNone(discussion.final_summary)
+        self.assertEqual(discussion.messages.count(), before)
+        self.assertFalse(discussion.messages.filter(role=Message.Role.MODERATOR).exists())
 
-    def test_finish_after_devil_goes_straight_to_final(self):
+    def test_finish_during_rebuttal_skips_final(self):
         discussion = self.make(rounds=1)
         while discussion.phase != Discussion.Phase.REBUTTAL:
             self.step(discussion)
         engine.finish_early(discussion.pk)
         discussion.refresh_from_db()
-        self.assertEqual(discussion.phase, Discussion.Phase.FINAL)
+        self.assertEqual(discussion.phase, Discussion.Phase.DONE)
+        self.assertIsNone(discussion.final_summary)
+
+    def test_finish_twice_is_rejected(self):
+        discussion = self.make(rounds=2)
+        self.step(discussion)
+        engine.finish_early(discussion.pk)
+        with self.assertRaises(engine.EngineError) as ctx:
+            engine.finish_early(discussion.pk)
+        self.assertEqual(ctx.exception.code, 'bad_state')
 
     def test_cannot_finish_before_anyone_spoke(self):
         discussion = self.make()
@@ -476,7 +485,6 @@ class FinishEarlyTests(Base):
         self.step(discussion)
         engine.finish_early(discussion.pk)
         discussion.refresh_from_db()
-        self.finish(discussion)
         engine.add_user_message(discussion.pk, 'Оксана', 'А якщо зарплата вдвічі більша?')
         discussion.refresh_from_db()
         self.assertFalse(discussion.finished_early)
@@ -542,10 +550,13 @@ class ApiV3Tests(TestCase):
         discussion = Discussion.objects.get(pk=created['id'])
         engine.advance(discussion, provider_factory=lambda m: self.provider)
         self.client.post(f'/api/discussions/{created["id"]}/stop/')
+        before = Message.objects.filter(discussion_id=created['id']).count()
         finish = self.client.post(f'/api/discussions/{created["id"]}/finish/')
-        self.assertEqual(finish.status_code, 202)
+        self.assertEqual(finish.status_code, 200)
         self.assertTrue(finish.data['finished_early'])
         self.assertTrue(finish.data['is_finished'])
+        self.assertIsNone(finish.data['final_summary'])
+        self.assertEqual(Message.objects.filter(discussion_id=created['id']).count(), before)
 
     def test_stop_discards_reply_still_being_written(self):
         created = self.create()

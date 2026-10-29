@@ -401,7 +401,7 @@ class DiscussionStopView(OwnedDiscussionView):
 
 
 class DiscussionFinishView(OwnedDiscussionView):
-    """«Завершити»: зупинена дискусія одразу переходить до висновку модератора."""
+    """«Завершити»: дискусія обривається одразу, без висновку модератора."""
 
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'discussion_advance'
@@ -410,8 +410,6 @@ class DiscussionFinishView(OwnedDiscussionView):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
-        if runner.over_daily_limit(request.user):
-            return _daily_limit_response()
         try:
             engine.finish_early(discussion.pk)
         except engine.EngineError as exc:
@@ -419,9 +417,8 @@ class DiscussionFinishView(OwnedDiscussionView):
                 {'detail': exc.public or engine.GENERIC_PUBLIC_ERROR, 'code': exc.code},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        runner.start(discussion.pk)
         discussion.refresh_from_db()
-        return Response(_discussion_state(discussion), status=status.HTTP_202_ACCEPTED)
+        return Response(_discussion_state(discussion), status=status.HTTP_200_OK)
 
 
 class DiscussionMessageView(OwnedDiscussionView):

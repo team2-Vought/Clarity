@@ -1179,7 +1179,6 @@ def _prepare_step(discussion):
                     personas,
                     messages,
                     early_stop=discussion.early_stop,
-                    cut_short=discussion.finished_early,
                     **common,
                 ),
                 json_kind='solution',
@@ -1225,7 +1224,6 @@ def _prepare_step(discussion):
                     discussion.best_solution or {},
                     discussion.devil_review or {},
                     messages,
-                    cut_short=discussion.finished_early,
                     **common,
                 ),
                 json_kind='summary',
@@ -1829,11 +1827,7 @@ def _transition(discussion, personas):
     elif phase == Discussion.Phase.DEBATE:
         _next_speaker_transition(discussion, personas)
     elif phase == Discussion.Phase.SYNTHESIS:
-        # дострокове завершення обходить перевірку Devil і відповіді на неї
-        if discussion.finished_early:
-            discussion.phase = Discussion.Phase.FINAL
-        else:
-            discussion.phase = Discussion.Phase.DEVIL
+        discussion.phase = Discussion.Phase.DEVIL
     elif phase == Discussion.Phase.DEVIL:
         discussion.phase = Discussion.Phase.REBUTTAL
     elif phase == Discussion.Phase.REBUTTAL:
@@ -2097,11 +2091,11 @@ def _clarify_step(discussion, token, provider_factory=None):
 
 
 def finish_early(discussion_id):
-    """Завершує дискусію за проханням користувача, не чекаючи решти раундів.
+    """Обриває дискусію за проханням користувача — одразу й без висновку.
 
-    Модератор одразу зводить сказане в рішення й пише фінал — перевірку
-    AI Devil і відповіді на неї пропускаємо. Крок, що ще виконується,
-    відкидається (як під час зупинки). Повертає дискусію.
+    Модератор нічого не підсумовує: решту раундів, перевірку AI Devil і фінал
+    пропускаємо. Крок, що ще виконується, відкидається (як під час зупинки).
+    Повертає дискусію.
     """
     with transaction.atomic():
         discussion = (
@@ -2128,10 +2122,11 @@ def finish_early(discussion_id):
                 'Натисніть «Продовжити».',
                 retryable=False,
             )
-        if discussion.phase in {Discussion.Phase.OPENING, Discussion.Phase.DEBATE}:
-            discussion.phase = Discussion.Phase.SYNTHESIS
-        elif discussion.phase in {Discussion.Phase.DEVIL, Discussion.Phase.REBUTTAL}:
-            discussion.phase = Discussion.Phase.FINAL
+        discussion.phase = Discussion.Phase.DONE
+        discussion.status = Discussion.Status.DONE
+        discussion.finished_at = timezone.now()
+        # висновок попереднього раунду (до уточнення) цієї розмови вже не підсумовує
+        discussion.final_summary = None
         discussion.finished_early = True
         discussion.stop_requested = False
         discussion.advance_token = None

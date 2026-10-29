@@ -772,18 +772,12 @@ def synthesis_prompt(
     rounds=2,
     early_stop=False,
     sources=None,
-    cut_short=False,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
     )
-    if cut_short:
-        early = (
-            'Користувач завершив дискусію достроково — зведи в рішення те, '
-            'що учасники встигли сказати.\n'
-        )
-    elif early_stop:
+    if early_stop:
         early = (
             'Учасники дійшли згоди раніше запланованого, тому дискусію завершено '
             'достроково.\n'
@@ -863,37 +857,25 @@ def final_prompt(
     options=None,
     rounds=2,
     sources=None,
-    cut_short=False,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
-    if cut_short:
-        # користувач завершив дискусію сам — перевірки Devil не було
-        review_block = ''
-        check = (
-            'Користувач завершив дискусію достроково, тож перевірки AI Devil не було. '
-            'Сформулюй фінальний висновок на основі рішення й аргументів учасників. '
-            'У decision згадуй учасників за іменами, які дав користувач, '
-            'якщо їхні аргументи вплинули на висновок. '
-            'Постав confirmed: true, revision — порожній рядок. '
-        )
-    else:
-        review = json.dumps(devil_review or {}, ensure_ascii=False)
-        review_block = f'Критика AI Devil (JSON): {review}\n'
-        check = (
-            'Учасники вже відповіли на критику AI Devil (див. кінець історії). '
-            'Зваж критику та їхні відповіді і виріши, чи витримує висновок перевірку. '
-            'У decision та revision згадуй учасників за іменами, які дав користувач, '
-            'якщо їхні аргументи вплинули на висновок. '
-            'Якщо аргументи Devil незначні або учасники їх переконливо спростували — '
-            'підтверди висновок (confirmed: true). '
-            'Якщо Devil знайшов серйозні слабкі місця — перегляни висновок '
-            '(confirmed: false, у decision — виправлений варіант, '
-            'у revision — що саме змінилось). Поле confirmed обов’язкове. '
-        )
+    review = json.dumps(devil_review or {}, ensure_ascii=False)
+    review_block = f'Критика AI Devil (JSON): {review}\n'
+    check = (
+        'Учасники вже відповіли на критику AI Devil (див. кінець історії). '
+        'Зваж критику та їхні відповіді і виріши, чи витримує висновок перевірку. '
+        'У decision та revision згадуй учасників за іменами, які дав користувач, '
+        'якщо їхні аргументи вплинули на висновок. '
+        'Якщо аргументи Devil незначні або учасники їх переконливо спростували — '
+        'підтверди висновок (confirmed: true). '
+        'Якщо Devil знайшов серйозні слабкі місця — перегляни висновок '
+        '(confirmed: false, у decision — виправлений варіант, '
+        'у revision — що саме змінилось). Поле confirmed обов’язкове. '
+    )
     return (
         f'{ctx}\n\n'
         f'Рішення після дискусії (JSON): {solution}\n'

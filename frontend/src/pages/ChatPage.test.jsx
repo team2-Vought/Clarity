@@ -322,7 +322,7 @@ describe('ChatPage', () => {
     expect(answerClarify).toHaveBeenCalledWith('d1', []);
   });
 
-  it('зупинену дискусію можна продовжити або одразу завершити', async () => {
+  it('зупинену дискусію можна продовжити або одразу обірвати без висновку', async () => {
     const user = userEvent.setup();
     const stopped = {
       ...structuredClone(DISCUSSION),
@@ -333,13 +333,26 @@ describe('ChatPage', () => {
       messages: structuredClone(DISCUSSION.messages.slice(0, 3)),
     };
     vi.mocked(fetchDiscussion).mockResolvedValue(stopped);
-    vi.mocked(finishDiscussion).mockResolvedValue({ ...stopped, phase: 'synthesis', stop_requested: false });
+    vi.mocked(finishDiscussion).mockResolvedValue({
+      ...stopped,
+      status: 'done',
+      phase: 'done',
+      is_finished: true,
+      stop_requested: false,
+      finished_early: true,
+      final_summary: null,
+    });
     renderPage();
 
     const card = (await screen.findByText('Дискусію зупинено')).closest('.notice');
     expect(within(card).getByRole('button', { name: 'Продовжити' })).toBeInTheDocument();
     await user.click(within(card).getByRole('button', { name: 'Завершити' }));
     expect(finishDiscussion).toHaveBeenCalledWith('d1');
+    expect(
+      await screen.findByText('Ви завершили дискусію достроково — без висновку модератора')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Дискусію зупинено')).not.toBeInTheDocument();
+    expect(runDiscussion).not.toHaveBeenCalled();
   });
 
   it('поки учасники мовчать, зупинену дискусію можна лише продовжити', async () => {
