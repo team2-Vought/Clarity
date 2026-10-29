@@ -111,7 +111,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -120,7 +120,7 @@
 .settings__tab-aside {
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -219,16 +219,14 @@
 }
 
 .settings__row-title {
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
-/* підказка — з рискою зліва, як примітки на панелі нового чату */
+/* підказка — дрібніший сірий текст під назвою */
 .settings__row-hint {
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--ink) 15%, transparent);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 
@@ -272,7 +270,7 @@
   background: var(--s-control);
   color: var(--ink);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -339,7 +337,7 @@
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -403,7 +401,7 @@
   gap: 4px;
   margin-left: auto;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-decoration: underline;
   text-underline-offset: 3px;
   transition: color 0.18s;
@@ -427,7 +425,7 @@
 
 .settings__count {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
 .settings__toolbar .settings__pill:not(.settings__pill--active) {
@@ -464,7 +462,7 @@
   height: 36px;
   border-radius: 50%;
   color: #121212;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -500,7 +498,7 @@
 
 .settings__provider-name {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -511,7 +509,7 @@
   gap: 0 6px;
   min-width: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .settings__status-text {
@@ -607,7 +605,7 @@
   color: var(--ink);
   font: inherit;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
 .settings__key-input::placeholder {
@@ -624,15 +622,12 @@
 
 .settings__key-hint {
   margin: 0;
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--ink) 15%, transparent);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 
 .settings__key-hint[role='alert'] {
-  border-left-color: var(--s-error);
   color: var(--s-error);
 }
 
@@ -672,13 +667,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
 .settings__model-notes {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 
@@ -687,7 +682,7 @@
   border-radius: 999px;
   background: var(--peach);
   color: #121212;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -734,7 +729,7 @@
 .settings__footnote {
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
@@ -766,7 +761,7 @@
 }
 
 .settings__meter-value {
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -793,12 +788,6 @@
 
 .settings__meter-track--full .settings__meter-fill {
   background: var(--s-error);
-}
-
-/* лічильник під смужкою — без риски, це не підказка */
-.settings__meter .settings__row-hint {
-  padding-left: 0;
-  border-left: 0;
 }
 
 /* ---- профіль ---- */
@@ -890,7 +879,7 @@
 
 .settings__identity-meta {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   overflow-wrap: anywhere;
 }
 
@@ -902,7 +891,7 @@
 /* поле профілю: дрібна назва над значенням */
 .settings__edit-label {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .settings__edit .settings__row-text {
@@ -928,7 +917,7 @@
 }
 
 .settings__edit-value {
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   overflow-wrap: anywhere;
 }
 
@@ -953,7 +942,7 @@
 .settings__input-label {
   padding-left: 16px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .settings__input .settings__key-field {
@@ -967,12 +956,12 @@
 .settings__input-error {
   padding-left: 16px;
   color: var(--s-error);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .settings__edit--danger .settings__edit-label {
   color: var(--s-error);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 
@@ -1014,7 +1003,7 @@
   align-items: flex-start;
   gap: 12px;
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .settings__error p {
