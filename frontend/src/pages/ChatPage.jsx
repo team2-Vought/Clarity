@@ -32,7 +32,7 @@ import {
   updateDiscussion,
 } from '../api/discussions';
 import { useIsPhone } from '../hooks/useIsPhone';
-import { useMyAvatar } from '../hooks/useMyAvatar';
+import { useMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import {
   ArrowUpIcon,
@@ -329,8 +329,16 @@ export default function ChatPage() {
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const navigate = useNavigate();
   const { pushToast } = useToasts();
-  const myAvatar = useMyAvatar();
-  const userAvatar = myAvatar ? <img className="chat__avatar-photo" src={myAvatar} alt="" /> : <AvatarIcon />;
+  const myProfile = useMyProfile();
+  // як у профілі: фото, а без нього — перша літера імені; іконка — поки профіль не завантажився
+  const myInitial = myProfile.name.trim().charAt(0).toUpperCase();
+  const userAvatar = myProfile.avatar ? (
+    <img className="chat__avatar-photo" src={myProfile.avatar} alt="" />
+  ) : myInitial ? (
+    <span className="chat__avatar-letter">{myInitial}</span>
+  ) : (
+    <AvatarIcon />
+  );
   const [isSharing, setIsSharing] = useState(false);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Camera01Icon, Delete02Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { changePassword, deleteAccount, me, updateProfile } from '../api/auth';
-import { setMyAvatar } from '../hooks/useMyAvatar';
+import { setMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import { validateEmail, validatePassword } from '../utils/validate';
 import { uk } from '../copy/uk';
@@ -210,7 +210,7 @@ export default function ProfileSettings() {
   }, [load]);
 
   useEffect(() => {
-    if (user) setMyAvatar(user.avatar);
+    if (user) setMyProfile(user);
   }, [user]);
 
   const open = (key) => {

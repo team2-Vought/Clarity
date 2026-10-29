@@ -2789,6 +2789,19 @@ span.debate__tag {
   object-fit: cover;
 }
 
+/* без фото — літера, як в аватарці профілю */
+.chat__avatar-letter {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--peach);
+  color: #121212;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .chat__body {
   display: flex;
   flex-direction: column;
