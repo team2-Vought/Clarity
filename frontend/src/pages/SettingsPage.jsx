@@ -18,6 +18,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import ModelPicker from '../components/ModelPicker';
 import ProfileSettings from '../components/ProfileSettings';
+import ProviderLogo from '../components/ProviderLogo';
 import { getToken } from '../api/client';
 import {
   deleteProviderKey,
@@ -57,7 +58,7 @@ const KEY_URLS = {
   openrouter: 'https://openrouter.ai/keys',
 };
 
-// кольорова «печатка» провайдера — з палітри застосунку, по колу
+// кольорова «печатка» провайдера без логотипа — з палітри застосунку, по колу
 const MARK_TONES = ['peach', 'sky', 'lilac', 'pink'];
 
 const MODE_LABELS = {
@@ -194,9 +195,15 @@ function ProviderCard({ provider, models, tone, defaultModel, onSaveKey, onRemov
   return (
     <li className={`settings__provider ${provider.available ? 'settings__provider--on' : ''}`}>
       <div className="settings__provider-head">
-        <span className={`settings__mark settings__mark--${tone}`} aria-hidden="true">
-          {provider.label.charAt(0)}
-        </span>
+        <ProviderLogo
+          provider={provider.id}
+          className="settings__mark settings__mark--logo"
+          fallback={
+            <span className={`settings__mark settings__mark--${tone}`} aria-hidden="true">
+              {provider.label.charAt(0)}
+            </span>
+          }
+        />
         <div className="settings__provider-title">
           <h3 className="settings__provider-name">{provider.label}</h3>
           <span className={`settings__status settings__status--${status.kind}`}>

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { AiModelIcon, ChevronIcon } from './DebateIcons';
+import ProviderLogo from './ProviderLogo';
 import { uk } from '../copy/uk';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
 
@@ -12,6 +13,9 @@ const t = uk.debate;
 const OptionCheck = () => (
   <HugeiconsIcon icon={Tick02Icon} size={16} className="debate__model-option-check" aria-hidden="true" />
 );
+
+// логотип провайдера моделі; для «автоматично» й провайдерів без логотипа — загальна іскра
+const ModelIcon = ({ model }) => <ProviderLogo provider={model?.provider_id} fallback={<AiModelIcon />} />;
 
 const modelLabel = (model) =>
   model ? `${model.provider} — ${model.label || model.model}` : '';
@@ -96,7 +100,7 @@ export default function ModelPicker({
         aria-expanded={isOpen}
         aria-label={label}
       >
-        <AiModelIcon />
+        <ModelIcon model={selected} />
         <span className="debate__model-row">
           <span className={`debate__model-value ${text ? '' : 'debate__model-value--placeholder'}`}>
             {text || t.chooseModel}
@@ -128,7 +132,10 @@ export default function ModelPicker({
                 aria-selected={!value}
                 onClick={() => choose('')}
               >
-                <span>{autoLabel}</span>
+                <span className="debate__model-option-icon">
+                  <AiModelIcon />
+                </span>
+                <span className="debate__model-option-label">{autoLabel}</span>
                 {!value && <OptionCheck />}
               </button>
             </li>
@@ -146,7 +153,10 @@ export default function ModelPicker({
                   title={model.available ? model.notes : `${t.modelUnavailable}: ${model.key_env}`}
                   onClick={() => choose(model.id)}
                 >
-                  <span>{modelLabel(model)}</span>
+                  <span className="debate__model-option-icon">
+                    <ModelIcon model={model} />
+                  </span>
+                  <span className="debate__model-option-label">{modelLabel(model)}</span>
                   {!model.available && (
                     <span className="debate__model-option-note">{t.modelUnavailable}</span>
                   )}

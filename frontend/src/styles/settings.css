@@ -482,6 +482,15 @@
   background: var(--pink);
 }
 
+/* логотип провайдера — на нейтральному кружку, щоб фірмові кольори не сперечалися з палітрою */
+.settings__mark--logo {
+  box-sizing: border-box;
+  padding: 8px;
+  background: var(--s-control);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
 /* без ключа печатка бліда — одразу видно, що провайдер ще не підключений */
 .settings__provider:not(.settings__provider--on) .settings__mark {
   filter: saturate(0.2);
