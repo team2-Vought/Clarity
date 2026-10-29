@@ -424,6 +424,7 @@ export const uk = {
     unarchivedToast: 'Дискусію повернуто з архіву',
     updateError: 'Не вдалося оновити дискусію',
     progressRound: (round, total) => `Раунд ${round} з ${total}`,
+    progressRoundConsensus: (round) => `Раунд ${round} · до згоди`,
     phases: {
       research: 'Пошук джерел',
       opening: 'Вступні позиції',
@@ -537,6 +538,10 @@ export const uk = {
     rounds: 'Кількість раундів',
     roundsHint: 'Більше раундів — глибша дискусія, але довше очікування.',
     roundsSub: (count) => `кожен — ${count} ${count === 1 ? 'раз' : count < 5 ? 'рази' : 'разів'}`,
+    roundsConsensus: 'До згоди',
+    roundsConsensusSub: (max) => `до ${max} раундів`,
+    roundsConsensusHint: (max) =>
+      `Учасники сперечаються, доки всі не дійдуть одного висновку. Якщо за ${max} раундів згоди немає, модератор підсумує сказане.`,
     moderatorSub: 'підсумовує',
     devilSub: 'шукає слабкі місця',
     removeParticipant: (name) => `Прибрати учасника «${name}»`,
@@ -732,6 +737,8 @@ export const uk = {
     phaseRebuttal: 'Відповіді на критику',
     phaseFinal: 'Фінальний висновок',
     earlyStop: (round) => `Учасники дійшли згоди після раунду ${round} — решту раундів пропущено`,
+    consensusReached: (round) => `Усі учасники дійшли згоди після раунду ${round}`,
+    consensusMissed: (round) => `Повної згоди не досягнуто за ${round} раундів — модератор підсумовує сказане`,
   },
 
   field: {

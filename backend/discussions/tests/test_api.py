@@ -129,7 +129,7 @@ class DiscussionApiTests(TestCase):
             {
                 'question': 'Чи варто купувати авто зараз?',
                 'personas': ['logician', 'skeptic'],
-                'rounds': 1,
+                'rounds': 2,
             },
             format='json',
         )
@@ -175,6 +175,14 @@ class DiscussionApiTests(TestCase):
                     'question': 'достатньо довге запитання?',
                     'personas': ['logician', 'skeptic'],
                     'rounds': 99,
+                },
+                400,
+            ),
+            (
+                {
+                    'question': 'достатньо довге запитання?',
+                    'personas': ['logician', 'skeptic'],
+                    'rounds': 1,
                 },
                 400,
             ),
@@ -228,7 +236,7 @@ class DiscussionApiTests(TestCase):
                 'question': 'Чи варто погоджуватися на цю пропозицію?',
                 'mode': 'yes_no',
                 'personas': ['logician', 'skeptic'],
-                'rounds': 1,
+                'rounds': 2,
             },
             format='json',
         )

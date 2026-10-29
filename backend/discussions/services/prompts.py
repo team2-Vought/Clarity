@@ -546,6 +546,7 @@ def _context_block(
     current_round=None,
     full_tail=None,
     sources=None,
+    consensus=False,
 ):
     lines = [
         'Опис проблеми / запитання користувача:',
@@ -558,7 +559,12 @@ def _context_block(
             '',
             _today_line(),
             mode_block(mode, options or []),
-            f'Заплановано раундів дискусії: {rounds}',
+            (
+                'Дискусія триває, доки всі учасники не дійдуть одного висновку '
+                f'(не більше {rounds} раундів).'
+                if consensus
+                else f'Заплановано раундів дискусії: {rounds}'
+            ),
         ]
     )
     if current_round is not None:
@@ -609,6 +615,7 @@ def opening_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     sources=None,
     can_search=False,
 ):
@@ -616,6 +623,7 @@ def opening_prompt(
     ctx = _context_block(
         question, personas, None, mode, options or [], rounds,
         sources=sources,
+        consensus=consensus,
     )
     return (
         f'{ctx}\n\n'
@@ -641,6 +649,7 @@ def debate_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     reply_to=None,
     reply_reason='',
     sources=None,
@@ -657,12 +666,20 @@ def debate_prompt(
         debate_round,
         full_tail=len(personas),
         sources=sources,
+        consensus=consensus,
     )
     reply_block = _reply_block(reply_to, reply_reason) or (
         'Обери одну конкретну тезу іншого учасника, звернись до нього або до '
         'неї на ім’я і відреагуй саме на неї.'
     )
     notes = _user_notes_block(user_notes)
+    goal = (
+        'Мета цієї дискусії — дійти спільного висновку всіма учасниками: шукай, '
+        'на чому можна зійтися, і прямо називай умови, за яких ти погодишся. '
+        'Але не поступайся без переконливих аргументів — згода має бути чесною.'
+        if consensus
+        else ''
+    )
     if debate_round >= rounds:
         closing = (
             'Це останній раунд: не відкривай нових тем. Чітко сформулюй, на чому '
@@ -677,6 +694,8 @@ def debate_prompt(
     parts = [ctx, _speaker_line(persona)]
     if notes:
         parts.append(notes)
+    if goal:
+        parts.append(goal)
     parts.extend(
         [
             reply_block,
@@ -703,6 +722,7 @@ def rebuttal_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     sources=None,
     user_notes=None,
 ):
@@ -715,6 +735,7 @@ def rebuttal_prompt(
         rounds,
         full_tail=len(personas),
         sources=sources,
+        consensus=consensus,
     )
     parts = [ctx, _speaker_line(persona)]
     notes = _user_notes_block(user_notes)
@@ -770,12 +791,14 @@ def synthesis_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     early_stop=False,
     sources=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        consensus=consensus,
     )
     if early_stop:
         early = (
@@ -813,12 +836,14 @@ def devil_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     sources=None,
     can_search=False,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
     search_rule = ''
@@ -856,11 +881,13 @@ def final_prompt(
     mode='open',
     options=None,
     rounds=2,
+    consensus=False,
     sources=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
     review = json.dumps(devil_review or {}, ensure_ascii=False)

@@ -20,7 +20,7 @@ from accounts.models import ProviderKey
 from accounts.secrets import encrypt, mask
 
 from .models import Discussion
-from .personas import MAX_AI, MAX_ROUNDS, MIN_AI
+from .personas import MAX_AI, MAX_ROUNDS, MIN_AI, MIN_ROUNDS
 from .services import usage
 from .services.catalog import (
     ANTHROPIC,
@@ -49,7 +49,11 @@ DEFAULT_PREFERENCES = {
 def preferences_of(user):
     """Збережені налаштування поверх значень за замовчуванням (без зайвих ключів)."""
     stored = user.preferences if isinstance(user.preferences, dict) else {}
-    return {key: stored.get(key, default) for key, default in DEFAULT_PREFERENCES.items()}
+    prefs = {key: stored.get(key, default) for key, default in DEFAULT_PREFERENCES.items()}
+    # збережений колись «1 раунд» більше не доступний — піднімаємо до мінімуму
+    if isinstance(prefs['default_rounds'], int):
+        prefs['default_rounds'] = max(MIN_ROUNDS, prefs['default_rounds'])
+    return prefs
 
 
 class PreferencesSerializer(serializers.Serializer):
@@ -59,7 +63,9 @@ class PreferencesSerializer(serializers.Serializer):
         choices=Discussion.Mode.choices,
         error_messages={'invalid_choice': 'Невідомий формат відповіді'},
     )
-    default_rounds = serializers.IntegerField(required=False, min_value=1, max_value=MAX_ROUNDS)
+    default_rounds = serializers.IntegerField(
+        required=False, min_value=MIN_ROUNDS, max_value=MAX_ROUNDS
+    )
     default_participants = serializers.IntegerField(
         required=False, min_value=MIN_AI, max_value=MAX_AI
     )
@@ -160,7 +166,12 @@ def settings_payload(user):
         'models': models['models'],
         'default_model': models['default_model'],
         'usage': _usage_payload(user),
-        'limits': {'min_ai': MIN_AI, 'max_ai': MAX_AI, 'max_rounds': MAX_ROUNDS},
+        'limits': {
+            'min_ai': MIN_AI,
+            'max_ai': MAX_AI,
+            'min_rounds': MIN_ROUNDS,
+            'max_rounds': MAX_ROUNDS,
+        },
         'modes': [{'value': value, 'label': label} for value, label in Discussion.Mode.choices],
     }
 

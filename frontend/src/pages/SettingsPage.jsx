@@ -474,7 +474,7 @@ export default function SettingsPage() {
   const chosenDefault = availableModels.some((model) => model.id === prefs.default_model)
     ? prefs.default_model
     : '';
-  const limits = data?.limits || { min_ai: 2, max_ai: 5, max_rounds: 3 };
+  const limits = data?.limits || { min_ai: 2, max_ai: 5, min_rounds: 2, max_rounds: 3 };
   // провайдери без жодної моделі (Ollama й custom без налаштувань) — лише приміткою внизу
   const providers = (data?.providers || []).filter((provider) => provider.models > 0);
   const shownProviders =
@@ -550,7 +550,7 @@ export default function SettingsPage() {
             label={t.roundsLabel}
             value={prefs.default_rounds}
             onChange={(value) => savePreference({ default_rounds: value })}
-            options={range(1, limits.max_rounds).map((value) => ({ value, label: String(value) }))}
+            options={range(limits.min_rounds || 2, limits.max_rounds).map((value) => ({ value, label: String(value) }))}
           />
         </Row>
         <Row title={t.participantsLabel} hint={t.participantsHint}>

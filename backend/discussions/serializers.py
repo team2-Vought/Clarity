@@ -8,6 +8,7 @@ from .personas import (
     DEFAULT_ROUNDS,
     MAX_AI,
     MAX_ROUNDS,
+    MIN_ROUNDS,
     MIN_AI,
     PERSONA_BY_SLUG,
     QUESTION_MAX,
@@ -24,7 +25,7 @@ PERSONAS_COUNT = f'Оберіть від {MIN_AI} до {MAX_AI} AI-учасни�
 PERSONAS_UNKNOWN = 'Невідома персона: {slug}'
 PERSONAS_DUPLICATE = 'Персона «{slug}» обрана двічі'
 DEVIL_NOT_ALLOWED = 'AI Devil не є звичайним учасником дискусії'
-ROUNDS_RANGE = f'Кількість раундів: від 1 до {MAX_ROUNDS}'
+ROUNDS_RANGE = f'Кількість раундів: від {MIN_ROUNDS} до {MAX_ROUNDS}'
 MODE_UNKNOWN = 'Невідомий режим відповіді'
 OPTIONS_RANGE = 'Потрібно від 2 до 8 варіантів'
 OPTION_TOO_LONG = 'Варіант задовгий (максимум 100 символів)'
@@ -108,6 +109,8 @@ class CreateDiscussionSerializer(serializers.Serializer):
         error_messages={'required': REQUIRED},
     )
     rounds = serializers.IntegerField(required=False, default=DEFAULT_ROUNDS)
+    # раунди тривають, доки всі не зійдуться (до CONSENSUS_MAX_ROUNDS); rounds тоді ігнорується
+    until_consensus = serializers.BooleanField(required=False, default=False)
     web_search = serializers.BooleanField(required=False, default=False)
     moderator_model = serializers.CharField(required=False, allow_blank=True, default='')
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
@@ -218,7 +221,7 @@ class CreateDiscussionSerializer(serializers.Serializer):
         return normalized
 
     def validate_rounds(self, value):
-        if not (1 <= value <= MAX_ROUNDS):
+        if not (MIN_ROUNDS <= value <= MAX_ROUNDS):
             raise serializers.ValidationError(ROUNDS_RANGE)
         return value
 
@@ -381,6 +384,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'clarify_questions',
             'personas',
             'rounds',
+            'until_consensus',
             'web_search',
             'sources',
             'moderator_model',
@@ -441,6 +445,7 @@ class DiscussionListSerializer(serializers.ModelSerializer):
             'question',
             'mode',
             'rounds',
+            'until_consensus',
             'current_round',
             'status',
             'phase',
@@ -501,6 +506,7 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             'clarifications',
             'personas',
             'rounds',
+            'until_consensus',
             'status',
             'phase',
             'early_stop',

@@ -143,6 +143,17 @@ class SettingsApiTests(TestCase):
         self.assertFalse(models['preferences']['web_search'])
 
     def test_invalid_preferences(self):
-        for bad in ({'default_rounds': 9}, {'default_model': 'nope:model'}, {'default_mode': 'x'}):
+        for bad in (
+            {'default_rounds': 9},
+            {'default_rounds': 1},
+            {'default_model': 'nope:model'},
+            {'default_mode': 'x'},
+        ):
             response = self.client.patch('/api/settings/', {'preferences': bad}, format='json')
             self.assertEqual(response.status_code, 400, bad)
+
+    def test_stored_single_round_is_raised_to_minimum(self):
+        self.user.preferences = {'default_rounds': 1}
+        self.user.save(update_fields=['preferences'])
+        response = self.client.get('/api/settings/')
+        self.assertEqual(response.data['preferences']['default_rounds'], 2)

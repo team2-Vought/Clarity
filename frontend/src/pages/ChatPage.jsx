@@ -1198,6 +1198,7 @@ export default function ChatPage() {
           mode: discussion.mode,
           options: discussion.options,
           rounds: discussion.rounds,
+          untilConsensus: discussion.until_consensus,
           webSearch: discussion.web_search,
           moderatorModel: discussion.moderator_model,
           devilModel: discussion.devil_model,
@@ -1619,7 +1620,7 @@ export default function ChatPage() {
             const showEarlyStop =
               showDivider
               && message.phase === 'synthesis'
-              && discussion?.early_stop;
+              && (discussion?.early_stop || discussion?.until_consensus);
             // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
             const grouped =
               !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
@@ -1681,7 +1682,11 @@ export default function ChatPage() {
               <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
                 {showEarlyStop && (
                   <p className="chat__notice">
-                    {t.earlyStop(discussion.current_round)}
+                    {!discussion.until_consensus
+                      ? t.earlyStop(discussion.current_round)
+                      : discussion.early_stop
+                        ? t.consensusReached(discussion.current_round)
+                        : t.consensusMissed(discussion.current_round)}
                   </p>
                 )}
                 {showDivider && (

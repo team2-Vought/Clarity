@@ -74,6 +74,7 @@ class Discussion(models.Model):
     )
     current_round = models.PositiveSmallIntegerField(default=1)
     speaker_index = models.PositiveSmallIntegerField(default=0)
+    until_consensus = models.BooleanField('до повної згоди', default=False)
     early_stop = models.BooleanField('завершено раніше через консенсус', default=False)
     finished_early = models.BooleanField('користувач завершив достроково', default=False)
     advance_count = models.PositiveIntegerField('кроків виконано', default=0)

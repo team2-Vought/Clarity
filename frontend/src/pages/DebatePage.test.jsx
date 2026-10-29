@@ -114,6 +114,8 @@ describe('DebatePage', () => {
 
     await user.click(screen.getByRole('button', { name: /^Додатково/ }));
     expect(screen.getByRole('switch', { name: 'Пошук в інтернеті' })).toBeChecked();
+    // одного раунду замало для дискусії — такого варіанта немає
+    expect(screen.queryByRole('radio', { name: '1 раунд' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: '3 раунди' }));
     expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
 
@@ -121,6 +123,23 @@ describe('DebatePage', () => {
     // вибір зберігається, коли повертаємося на екран знову
     await user.click(screen.getByRole('button', { name: 'Додатково' }));
     expect(screen.getByRole('radio', { name: '3 раунди' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('«До згоди» замінює кількість раундів і йде в запит на створення', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    await user.click(screen.getByRole('button', { name: /^Додатково/ }));
+    await user.click(screen.getByRole('radio', { name: 'До згоди' }));
+    expect(screen.getByRole('radio', { name: 'До згоди' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '2 раунди' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText(/доки всі не дійдуть одного висновку/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
+    expect(vi.mocked(createDiscussion).mock.calls[0][0].untilConsensus).toBe(true);
   });
 
   it('картка-підказка підставляє питання в поле, і підказки ховаються', async () => {

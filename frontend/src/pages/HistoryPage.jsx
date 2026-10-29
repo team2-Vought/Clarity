@@ -41,7 +41,11 @@ const REFRESH_MS = 5000;
 // «Раунд 2 з 3», «Перевірка AI Devil»… — що відбувається з дискусією зараз
 const progressOf = (item) => {
   if (item.status !== 'in_progress') return '';
-  if (item.phase === 'debate') return t.progressRound(item.current_round || 1, item.rounds || 1);
+  if (item.phase === 'debate') {
+    return item.until_consensus
+      ? t.progressRoundConsensus(item.current_round || 1)
+      : t.progressRound(item.current_round || 1, item.rounds || 1);
+  }
   return t.phases[item.phase] || '';
 };
 

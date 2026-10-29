@@ -164,7 +164,11 @@ export default function DebatePage() {
   const [options, setOptions] = useState([]);
   const [optionDraft, setOptionDraft] = useState('');
   const [rounds, setRounds] = useState(DEFAULT_ROUNDS);
+  const [minRounds, setMinRounds] = useState(DEFAULT_ROUNDS);
   const [maxRounds, setMaxRounds] = useState(3);
+  // «До згоди»: раунди тривають, доки всі не зійдуться (сервер обмежує їх consensusMax)
+  const [untilConsensus, setUntilConsensus] = useState(false);
+  const [consensusMax, setConsensusMax] = useState(6);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -231,6 +235,9 @@ export default function DebatePage() {
       ]);
       setTeams(teamData?.results || []);
       const personaList = orderRoles(pData.personas || []);
+      // шаблон чи старе налаштування можуть мати «1 раунд», якого вже немає
+      const clampRounds = (value) =>
+        Math.min(Math.max(value, pData.min_rounds || DEFAULT_ROUNDS), pData.max_rounds || 3);
       const modelList = mData.models || [];
       const availableModels = modelList.filter((m) => m.available);
       const selectedDefault =
@@ -266,7 +273,8 @@ export default function DebatePage() {
         setCustomTraits(customTraitsOf(initial));
         if (template.mode) setMode(template.mode);
         if (template.mode === 'choose_one') setOptions(template.options || []);
-        if (template.rounds) setRounds(template.rounds);
+        if (template.untilConsensus) setUntilConsensus(true);
+        else if (template.rounds) setRounds(clampRounds(template.rounds));
         setModeratorModel(template.moderatorModel || '');
         setDevilModel(template.devilModel || '');
         // шаблон застосовуємо один раз: після перезавантаження діє звичайна чернетка
@@ -274,8 +282,7 @@ export default function DebatePage() {
         window.history.replaceState({ ...window.history.state, usr: null }, '');
       } else {
         if (prefs.default_mode) setMode(prefs.default_mode);
-        const maxRoundsAllowed = pData.max_rounds || 3;
-        if (prefs.default_rounds) setRounds(Math.min(prefs.default_rounds, maxRoundsAllowed));
+        if (prefs.default_rounds) setRounds(clampRounds(prefs.default_rounds));
       }
       const search = pData.search || { available: false };
       setSearchStatus(search);
@@ -285,7 +292,9 @@ export default function DebatePage() {
       setModelOrder(pool);
       setPersonas(personaList);
       setMaxParticipants(pData.max_ai || DEFAULT_MAX_PARTICIPANTS);
+      setMinRounds(pData.min_rounds || DEFAULT_ROUNDS);
       setMaxRounds(pData.max_rounds || 3);
+      if (pData.consensus_max_rounds) setConsensusMax(pData.consensus_max_rounds);
       setParticipants(initial);
       setActiveSlug(initial[0]?.slug || '');
       setModels(modelList);
@@ -620,6 +629,7 @@ export default function DebatePage() {
         options: mode === 'choose_one' ? options : [],
         personas: selectedPersonas,
         rounds,
+        untilConsensus,
         webSearch,
         moderatorModel,
         devilModel,
@@ -666,24 +676,44 @@ export default function DebatePage() {
                 <div className="debate__field debate__field--first">
                   <h3 className="debate__field-title">
                     {t.rounds}
-                    <span className="debate__field-aside">{t.roundsSub(rounds)}</span>
+                    <span className="debate__field-aside">
+                      {untilConsensus ? t.roundsConsensusSub(consensusMax) : t.roundsSub(rounds)}
+                    </span>
                   </h3>
                   <div className="debate__pills" role="radiogroup" aria-label={t.rounds}>
-                    {Array.from({ length: maxRounds }, (_, i) => i + 1).map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        role="radio"
-                        aria-checked={rounds === value}
-                        className={`debate__pill ${rounds === value ? 'debate__pill--active' : ''}`}
-                        onClick={() => setRounds(value)}
-                        disabled={isCreating}
-                      >
-                        {t.advancedRounds(value)}
-                      </button>
-                    ))}
+                    {Array.from({ length: maxRounds - minRounds + 1 }, (_, i) => minRounds + i).map((value) => {
+                      const active = !untilConsensus && rounds === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          className={`debate__pill ${active ? 'debate__pill--active' : ''}`}
+                          onClick={() => {
+                            setRounds(value);
+                            setUntilConsensus(false);
+                          }}
+                          disabled={isCreating}
+                        >
+                          {t.advancedRounds(value)}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={untilConsensus}
+                      className={`debate__pill ${untilConsensus ? 'debate__pill--active' : ''}`}
+                      onClick={() => setUntilConsensus(true)}
+                      disabled={isCreating}
+                    >
+                      {t.roundsConsensus}
+                    </button>
                   </div>
-                  <p className="debate__note">{t.roundsHint}</p>
+                  <p className="debate__note">
+                    {untilConsensus ? t.roundsConsensusHint(consensusMax) : t.roundsHint}
+                  </p>
                 </div>
 
                 <div className="debate__field">

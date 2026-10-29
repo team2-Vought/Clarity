@@ -15,10 +15,12 @@ from rest_framework.views import APIView
 from .account_settings import preferences_of
 from .models import Discussion, Message, Team
 from .personas import (
+    CONSENSUS_MAX_ROUNDS,
     DEVIL,
     MAX_AI,
     MAX_ROUNDS,
     MIN_AI,
+    MIN_ROUNDS,
     PERSONAS,
     persona_public,
 )
@@ -104,6 +106,7 @@ def _discussion_state(discussion):
         'finished_early': discussion.finished_early,
         'is_finished': discussion.is_finished,
         'rounds': discussion.rounds,
+        'until_consensus': discussion.until_consensus,
         'stop_requested': discussion.stop_requested,
         'clarify_questions': discussion.clarify_questions,
         'is_running': runner.is_working(discussion),
@@ -159,7 +162,9 @@ class PersonaListView(APIView):
             {
                 'min_ai': MIN_AI,
                 'max_ai': MAX_AI,
+                'min_rounds': MIN_ROUNDS,
                 'max_rounds': MAX_ROUNDS,
+                'consensus_max_rounds': CONSENSUS_MAX_ROUNDS,
                 'personas': [persona_public(p) for p in PERSONAS],
                 'devil': persona_public(DEVIL),
                 'search': search.status(),
@@ -241,7 +246,8 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             mode=data.get('mode', Discussion.Mode.OPEN),
             options=data.get('options') or [],
             personas=data['personas'],
-            rounds=data['rounds'],
+            rounds=CONSENSUS_MAX_ROUNDS if data['until_consensus'] else data['rounds'],
+            until_consensus=data['until_consensus'],
             web_search=data.get('web_search', False),
             moderator_model=data.get('moderator_model', ''),
             devil_model=data.get('devil_model', ''),

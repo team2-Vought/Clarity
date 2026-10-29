@@ -1083,6 +1083,7 @@ def _prepare_step(discussion):
         'mode': mode,
         'options': options,
         'rounds': discussion.rounds,
+        'consensus': discussion.until_consensus,
         'sources': sources,
     }
 
@@ -1768,12 +1769,15 @@ def _next_speaker_transition(discussion, personas):
         discussion.speaker_index = next_index
         return
     discussion.speaker_index = 0
-    if discussion.current_round < discussion.rounds and not _should_stop_early(
-        discussion, personas
-    ):
+    agreed = _should_stop_early(discussion, personas)
+    if discussion.current_round < discussion.rounds and not agreed:
         discussion.current_round += 1
         return
-    discussion.early_stop = discussion.current_round < discussion.rounds
+    # у режимі «до повної згоди» згода в останньому дозволеному раунді — теж згода;
+    # без неї early_stop лишається false, і видно, що до згоди не дійшли
+    discussion.early_stop = discussion.current_round < discussion.rounds or (
+        discussion.until_consensus and agreed
+    )
     discussion.phase = Discussion.Phase.SYNTHESIS
 
 

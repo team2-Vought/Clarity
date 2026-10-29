@@ -2038,8 +2038,6 @@ body:has(.app-shell) {
 
 .debate__note {
   margin: 0;
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--chip, #f4c1cf) 75%, var(--ink));
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.45;
@@ -2487,11 +2485,6 @@ body:has(.app-shell) {
   outline-offset: 2px;
 }
 
-/* пояснення в загальних картках — нейтральна риска замість кольору учасника */
-.debate__more .debate__note {
-  border-left-color: color-mix(in srgb, var(--ink) 15%, transparent);
-}
-
 /* у вузькій панелі підпис праворуч переходить на новий рядок, а не вилазить */
 .debate__more .debate__field-title {
   flex-wrap: wrap;
@@ -2689,11 +2682,6 @@ span.debate__tag {
   padding-block: 6px;
   white-space: normal;
   text-align: left;
-}
-
-/* загальна картка без кольору учасника — нейтральна риска біля пояснень */
-.debate__sheet--plain .debate__note {
-  border-left-color: color-mix(in srgb, var(--ink) 15%, transparent);
 }
 
 /* текстова дія в панелі чату («Створити посилання», «Закрити доступ») */

@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from discussions.models import Discussion, Message
+from discussions.personas import CONSENSUS_MAX_ROUNDS
 from discussions.services import engine, runner
 from discussions.services.providers import ProviderError
 
@@ -443,6 +444,56 @@ class RunnerTests(Base):
         self.assertEqual(len(calls), 2)  # один крок вступу, без повторів
 
 
+class UntilConsensusTests(Base):
+    def debate_rounds(self, discussion):
+        return set(
+            discussion.messages.filter(phase=Discussion.Phase.DEBATE).values_list('round', flat=True)
+        )
+
+    def test_without_agreement_debates_up_to_the_cap(self):
+        discussion = self.make(rounds=CONSENSUS_MAX_ROUNDS, until_consensus=True)
+        self.finish(discussion)
+        self.assertEqual(self.debate_rounds(discussion), set(range(1, CONSENSUS_MAX_ROUNDS + 1)))
+        self.assertFalse(discussion.early_stop)
+        self.assertTrue(discussion.final_summary)
+
+    def test_stops_as_soon_as_everyone_agrees(self):
+        self.provider = FakeProvider(stance='так')
+        discussion = self.make(
+            mode=Discussion.Mode.YES_NO, rounds=CONSENSUS_MAX_ROUNDS, until_consensus=True
+        )
+        self.finish(discussion)
+        self.assertEqual(self.debate_rounds(discussion), {1})
+        self.assertTrue(discussion.early_stop)
+
+    def test_agreement_in_the_last_allowed_round_counts(self):
+        class AgreeLate(FakeProvider):
+            def complete(inner, **kwargs):
+                # вступ і перший раунд — без позиції, далі всі кажуть «так»
+                if inner.counter >= 6:
+                    inner.stance = 'так'
+                return super().complete(**kwargs)
+
+        self.provider = AgreeLate()
+        discussion = self.make(mode=Discussion.Mode.YES_NO, rounds=3, until_consensus=True)
+        self.finish(discussion)
+        self.assertEqual(self.debate_rounds(discussion), {1, 2, 3})
+        self.assertTrue(discussion.early_stop)
+
+    def test_participants_are_told_to_seek_agreement(self):
+        discussion = self.make(rounds=CONSENSUS_MAX_ROUNDS, until_consensus=True)
+        while discussion.phase != Discussion.Phase.SYNTHESIS:
+            self.step(discussion)
+        debate_calls = self.judge_calls('Мета цієї дискусії — дійти спільного висновку')
+        self.assertTrue(debate_calls)
+        self.assertIn('доки всі учасники не дійдуть одного висновку', debate_calls[0]['prompt'])
+
+    def test_regular_rounds_do_not_push_for_agreement(self):
+        discussion = self.make(rounds=2)
+        self.finish(discussion)
+        self.assertFalse(self.judge_calls('Мета цієї дискусії — дійти спільного висновку'))
+
+
 class FinishEarlyTests(Base):
     def test_finish_ends_at_once_without_moderator(self):
         discussion = self.make(rounds=3)
@@ -519,7 +570,7 @@ class ApiV3Tests(TestCase):
         payload = {
             'question': 'Чи варто запускати власний продукт?',
             'personas': ['logician', 'skeptic'],
-            'rounds': 1,
+            'rounds': 2,
             **extra,
         }
         response = self.client.post('/api/discussions/', payload, format='json')
@@ -543,6 +594,13 @@ class ApiV3Tests(TestCase):
         run = self.client.post(f'/api/discussions/{created["id"]}/run/')
         self.assertFalse(run.data['stop_requested'])
         self.assertTrue(run.data['is_finished'])
+
+    def test_create_until_consensus_uses_the_round_cap(self):
+        created = self.create(until_consensus=True, rounds=3)
+        self.assertTrue(created['until_consensus'])
+        self.assertEqual(created['rounds'], CONSENSUS_MAX_ROUNDS)
+        limits = self.client.get('/api/personas/')
+        self.assertEqual(limits.data['consensus_max_rounds'], CONSENSUS_MAX_ROUNDS)
 
     def test_stop_then_finish(self):
         created = self.create(rounds=3)
