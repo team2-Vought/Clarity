@@ -74,9 +74,9 @@ h1::after {
   isolation: isolate;
 }
 
-/* Auth-сторінка: картка строго по центру екрана */
+/* Auth-сторінка: картка строго по центру екрана — без футера, що з'їдав би низ */
 .page--auth {
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
 }
 
 .main {
@@ -89,13 +89,9 @@ h1::after {
 
 .main--auth {
   width: 100%;
-  min-height: calc(100dvh - 40px);
+  min-height: 100dvh;
   align-content: center;
   justify-items: center;
-}
-
-.footer {
-  min-height: clamp(16px, 4vw, 40px); /* поки порожній */
 }
 
 /* ---------- Background blobs ---------- */

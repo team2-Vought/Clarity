@@ -35,7 +35,6 @@ export function AuthPage({ title, form, variant }) {
           </p>
         </section>
       </main>
-      <footer className="footer" />
     </div>
   );
 }
