@@ -3740,14 +3740,17 @@ ol.chat__reveal {
   }
 }
 
-/* Підсумок — як відповідь Siri: без рамки й картки, один розмір шрифту
-   для тексту, розділи підписані світло-сірими підписами великими
-   літерами, списки — мінімалістична таблиця з тонкими лініями. */
+/* Підсумок — без рамок, карток і фонів, як відповідь асистента. Головна
+   відповідь виглядає по-своєму в кожному форматі: велике «ТАК»/«НІ», варіанти
+   з голосами й виділеним переможцем або рішення-стаття. Решта однакова для
+   всіх форматів: тихий рядок згоди й оцінки та розділи під тонкими лініями. */
 .chat__summary {
   --summary-rule: color-mix(in srgb, var(--ink) 10%, transparent);
+  --summary-yes: #17895a;
+  --summary-no: #cf3a5b;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
   width: 100%;
   max-width: 880px;
   /* тонка лінія відділяє рішення від дебатів */
@@ -3758,18 +3761,17 @@ ol.chat__reveal {
   line-height: 1.6;
 }
 
+:root[data-theme='dark'] .chat__summary {
+  --summary-yes: #5fd39a;
+  --summary-no: #ff8fa6;
+}
+
 .chat__summary p {
   margin: 0;
 }
 
 .chat__summary strong {
   font-weight: 700;
-}
-
-.chat__summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 /* підпис розділу: дрібний, великими літерами, світло-сірий */
@@ -3782,10 +3784,242 @@ ol.chat__reveal {
   text-transform: uppercase;
 }
 
-.chat__summary-meta {
+.chat__summary-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- головна відповідь ---- */
+
+.chat__summary-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+/* «так/ні»: вердикт одним великим словом */
+.chat__summary-word {
+  font-size: clamp(3.25rem, 7vw, 5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.chat__summary .chat__summary-word {
+  margin: 2px 0 2px -0.04em;
+}
+
+.chat__summary-word--yes {
+  color: var(--summary-yes);
+}
+
+.chat__summary-word--no {
+  color: var(--summary-no);
+}
+
+/* «один із варіантів»: рядки без фону; переможець — жирний, з галочкою й темною смужкою */
+.chat__summary-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__summary-option {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 12px;
+  color: var(--muted);
+}
+
+.chat__summary-option-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 18%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat__summary-option-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat__summary-option-votes {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chat__summary-option-bar {
+  grid-column: 2 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.chat__summary-option-bar > span {
+  display: block;
+  width: calc(var(--share, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+.chat__summary-option--winner {
+  color: var(--ink);
+}
+
+.chat__summary-option--winner .chat__summary-option-mark {
+  background: var(--ink);
+  box-shadow: none;
+  color: var(--main-bg, #fff);
+}
+
+.chat__summary-option--winner .chat__summary-option-label {
+  font-size: 1.125em;
+  font-weight: 700;
+}
+
+.chat__summary-option--winner .chat__summary-option-bar > span {
+  background: var(--ink);
+}
+
+/* текст рішення під вердиктом */
+.chat__summary-decision {
+  max-width: 68ch;
+}
+
+.chat__summary-verdict--yes_no .chat__summary-decision,
+.chat__summary-verdict--choice .chat__summary-decision {
+  font-size: 1.125em;
+  line-height: 1.55;
+}
+
+/* вільна відповідь: рішення — вступ статті, великим шрифтом */
+.chat__summary-headline {
+  margin: 0;
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.chat__summary-verdict--open .chat__summary-decision {
+  font-size: 1.3em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+}
+
+/* ---- згода й оцінка: тихий рядок під рішенням ---- */
+
+.chat__summary-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 40px;
+  gap: 10px 40px;
+}
+
+.chat__summary-stat {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: start;
+  gap: 2px 12px;
+}
+
+.chat__summary-stat .chat__summary-label {
+  grid-column: 1 / -1;
+}
+
+.chat__summary-stat-value {
+  font-size: 1.25em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.chat__summary-stat-value small {
+  color: var(--muted);
+  font-size: 0.7em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.chat__summary-meter {
+  width: 96px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.chat__summary-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+}
+
+/* ---- розділи: перегляд, аргументи, наступний крок — однаково в усіх форматах ---- */
+
+.chat__summary-sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat__summary-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--summary-rule);
+}
+
+.chat__summary-group:last-child {
+  padding-bottom: 4px;
+}
+
+/* заголовки розділів — той самий сірий підпис, але крупніший */
+.chat__summary-group .chat__summary-label {
+  margin: 0;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+}
+
+/* «Вердикт» / «Висновок» над головною відповіддю — найбільший із підписів */
+.chat__summary-verdict > .chat__summary-label {
+  font-size: 1.0625rem;
+  letter-spacing: 0.06em;
+}
+
+.chat__summary-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.chat__summary-group li::marker {
+  color: var(--muted);
 }
 
 /* дії під підсумком, як під відповіддю асистента; іконка вирівняна з текстом */
@@ -3843,8 +4077,7 @@ ol.chat__reveal {
   animation: chat-summary-rule 0.8s ease-out both;
 }
 
-.chat__summary--enter > *,
-.chat__summary--enter tr {
+.chat__summary--enter > * {
   animation: chat-reveal-item 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(0.15s + var(--i, 0) * 0.28s);
 }
@@ -3857,52 +4090,9 @@ ol.chat__reveal {
 
 @media (prefers-reduced-motion: reduce) {
   .chat__summary--enter,
-  .chat__summary--enter > *,
-  .chat__summary--enter tr {
+  .chat__summary--enter > * {
     animation: none;
   }
-}
-
-.chat__summary-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: inherit;
-}
-
-.chat__summary-table th,
-.chat__summary-table td {
-  padding: 12px 0;
-  border-top: 1px solid var(--summary-rule);
-  text-align: left;
-  vertical-align: top;
-}
-
-.chat__summary-table tr:last-child th,
-.chat__summary-table tr:last-child td {
-  border-bottom: 1px solid var(--summary-rule);
-}
-
-.chat__summary-table th {
-  width: 10rem;
-  padding-right: 24px;
-  font-weight: inherit;
-}
-
-.chat__summary-table th .chat__summary-label {
-  display: block;
-  padding-top: 0.25em;
-}
-
-.chat__summary-table ul {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 1.1em;
-}
-
-.chat__summary-table li::marker {
-  color: var(--muted);
 }
 
 /* ---------- Адаптив ---------- */
@@ -4350,25 +4540,6 @@ ol.chat__reveal {
 
   .chat__summary {
     font-size: 0.875rem;
-  }
-
-  .chat__summary-table th,
-  .chat__summary-table td {
-    display: block;
-    width: auto;
-  }
-
-  .chat__summary-table th {
-    padding: 12px 0 4px;
-  }
-
-  .chat__summary-table td {
-    padding: 0 0 12px;
-    border-top: 0;
-  }
-
-  .chat__summary-table tr:last-child th {
-    border-bottom: 0;
   }
 
   /* базове правило стоїть нижче у файлі, тому тут потрібна вища специфічність */

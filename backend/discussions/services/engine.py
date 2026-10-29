@@ -1567,10 +1567,14 @@ def _merge_sources(discussion, found, added_by):
 
 
 def _agreement(discussion, personas, answer):
-    """Скільки учасників наприкінці підтримують висновок — за їхніми позиціями."""
+    """Скільки учасників наприкінці підтримують висновок — за їхніми позиціями.
+
+    `votes` — остання позиція кожного учасника: з неї підсумок малює, хто за що.
+    """
     messages = list(discussion.messages.order_by('seq'))
     devil_seq = _phase_start_seq(messages, Discussion.Phase.REBUTTAL)
     agree = disagree = unknown = 0
+    votes = []
     for persona in personas:
         mine = [
             m for m in messages
@@ -1578,6 +1582,7 @@ def _agreement(discussion, personas, answer):
         ]
         after_devil = [m for m in mine if m.seq > devil_seq]
         stance = (after_devil or mine)[-1].stance if (after_devil or mine) else ''
+        votes.append({'name': persona.get('name') or '', 'stance': stance or ''})
         if not stance:
             unknown += 1
         elif discussion.mode == Discussion.Mode.OPEN:
@@ -1592,7 +1597,13 @@ def _agreement(discussion, personas, answer):
                 disagree += 1
         else:
             unknown += 1
-    return {'agree': agree, 'disagree': disagree, 'unknown': unknown, 'total': len(personas)}
+    return {
+        'agree': agree,
+        'disagree': disagree,
+        'unknown': unknown,
+        'total': len(personas),
+        'votes': votes,
+    }
 
 
 # ---------------------------------------------------------------------------

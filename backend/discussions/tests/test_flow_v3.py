@@ -205,10 +205,13 @@ class ConsensusAndOrderTests(Base):
         self.provider = FakeProvider(stance='так')
         discussion = self.make(mode=Discussion.Mode.YES_NO, rounds=1)
         self.finish(discussion)
+        agreement = discussion.final_summary['agreement']
         self.assertEqual(
-            discussion.final_summary['agreement'],
+            {key: agreement[key] for key in ('agree', 'disagree', 'unknown', 'total')},
             {'agree': 3, 'disagree': 0, 'unknown': 0, 'total': 3},
         )
+        self.assertEqual(len(agreement['votes']), 3)
+        self.assertTrue(all(vote['stance'] == 'так' and vote['name'] for vote in agreement['votes']))
 
 
 @override_settings(**KEYS)

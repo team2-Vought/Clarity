@@ -143,7 +143,13 @@ function DemoRun({ reduced }) {
 
       {summary && (
         <section className={`chat__summary${reduced ? '' : ' chat__summary--enter'}`} aria-label={tc.summary}>
-          <SummaryDetails summary={SUMMARY} view={SUMMARY_VIEW} sources={NO_SOURCES} animate={!reduced} />
+          <SummaryDetails
+            summary={SUMMARY}
+            view={SUMMARY_VIEW}
+            sources={NO_SOURCES}
+            mode="yes_no"
+            animate={!reduced}
+          />
         </section>
       )}
     </>

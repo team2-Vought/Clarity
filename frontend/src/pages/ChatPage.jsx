@@ -1826,6 +1826,8 @@ export default function ChatPage() {
                 summary={summary}
                 view={summaryView}
                 sources={sourcesById}
+                mode={discussion.mode}
+                options={discussion.options}
                 animate={animateSummary}
               />
               <div className="chat__summary-actions" style={summaryStep()}>

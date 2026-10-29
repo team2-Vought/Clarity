@@ -1,85 +1,139 @@
 import PropTypes from 'prop-types';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { InlineText } from './MessageMarkdown';
+import { describeVerdict } from '../utils/summary';
 import { uk } from '../copy/uk';
 
 const t = uk.chat;
 
 /**
- * Зміст підсумку дискусії: відповідь, рішення, перегляд, згода, списки й
- * наступний крок. Спільний для чату й публічного посилання.
- * `animate` — частини проявляються по черзі (CSS-змінна --i).
+ * Зміст підсумку дискусії. Головна відповідь виглядає по-різному залежно від
+ * формату: велике «ТАК»/«НІ», усі варіанти з голосами й виділеним переможцем
+ * або рішення-стаття для вільної відповіді. Далі однаково для всіх форматів:
+ * рядок згоди й оцінки та розділи, розділені тонкими лініями, — перегляд після
+ * AI Devil, аргументи й наступний крок. Спільний для чату, публічного
+ * посилання й демо на лендингу.
+ * `animate` — блоки проявляються по черзі (CSS-змінна --i).
  */
-export default function SummaryDetails({ summary, view, sources, animate = false }) {
+export default function SummaryDetails({ summary, view, sources, mode = 'open', options = [], animate = false }) {
   let index = 0;
   const step = () => (animate ? { '--i': index++ } : undefined);
+  const verdict = describeVerdict(summary, mode, options);
+  const isArticle = verdict.kind === 'open';
+  const revision = view.confirmed === false && summary?.revision ? String(summary.revision) : '';
+
   return (
     <>
-      {summary?.answer && (
-        <div className="chat__summary-item" style={step()}>
-          <span className="chat__summary-label">{t.summaryAnswer}</span>
-          <p>
-            <InlineText text={String(summary.answer)} sources={sources} />
+      <div className={`chat__summary-verdict chat__summary-verdict--${verdict.kind}`} style={step()}>
+        <span className="chat__summary-label">
+          {isArticle ? t.summaryConclusion : t.summaryVerdict}
+        </span>
+
+        {verdict.kind === 'yes_no' && (
+          <p className={`chat__summary-word chat__summary-word--${verdict.yes ? 'yes' : 'no'}`}>
+            {verdict.yes ? t.summaryYes : t.summaryNo}
           </p>
-        </div>
-      )}
-      <div className="chat__summary-item" style={step()}>
-        <span className="chat__summary-label">{t.view.decision}</span>
-        <p>
+        )}
+
+        {verdict.kind === 'choice' && (
+          <ul className="chat__summary-options">
+            {verdict.options.map((option, optionIndex) => {
+              const share = verdict.total ? option.votes / verdict.total : 0;
+              return (
+                <li
+                  key={option.label}
+                  className={`chat__summary-option ${option.winner ? 'chat__summary-option--winner' : ''}`}
+                  style={{ '--share': share }}
+                >
+                  <span className="chat__summary-option-mark" aria-hidden="true">
+                    {option.winner ? <HugeiconsIcon icon={Tick02Icon} size={16} /> : optionIndex + 1}
+                  </span>
+                  <span className="chat__summary-option-label">
+                    {option.label}
+                    {option.winner && <span className="chat__summary-sr">{` — ${t.summaryWinner}`}</span>}
+                  </span>
+                  {verdict.hasVotes && (
+                    <>
+                      <span className="chat__summary-option-votes">{t.summaryVotes(option.votes)}</span>
+                      <span className="chat__summary-option-bar" aria-hidden="true">
+                        <span />
+                      </span>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {isArticle && summary?.answer && (
+          <h3 className="chat__summary-headline">
+            <InlineText text={String(summary.answer)} sources={sources} />
+          </h3>
+        )}
+
+        <p className="chat__summary-decision">
           <InlineText text={view.decision} sources={sources} />
         </p>
       </div>
-      {view.confirmed === false && summary?.revision && (
-        <div className="chat__summary-item" style={step()}>
-          <span className="chat__summary-label">{t.summaryRevision}</span>
-          <p>
-            <InlineText text={String(summary.revision)} sources={sources} />
-          </p>
-        </div>
-      )}
+
       {(view.agreement || view.confidence !== null) && (
-        <div className="chat__summary-meta" style={step()}>
+        <div className="chat__summary-stats" style={step()}>
           {view.agreement && (
-            <div className="chat__summary-item">
+            <div className="chat__summary-stat">
               <span className="chat__summary-label">{t.summaryAgreement}</span>
-              <p>{t.summaryAgreementValue(view.agreement.agree, view.agreement.total)}</p>
+              <span className="chat__summary-stat-value">
+                {view.agreement.agree}
+                <small>{` з ${view.agreement.total}`}</small>
+              </span>
             </div>
           )}
           {view.confidence !== null && (
-            <div className="chat__summary-item" title={t.view.confidenceHint}>
-              <span className="chat__summary-label">{t.view.confidence}</span>
-              <p>{view.confidence}%</p>
+            <div className="chat__summary-stat" title={t.summaryConfidenceHint}>
+              <span className="chat__summary-label">{t.summaryConfidence}</span>
+              <span className="chat__summary-stat-value">
+                {view.confidence}
+                <small>%</small>
+              </span>
+              <span className="chat__summary-meter" aria-hidden="true">
+                <span style={{ width: `${view.confidence}%` }} />
+              </span>
             </div>
           )}
         </div>
       )}
-      {view.lists.length > 0 && (
-        <table className="chat__summary-table">
-          <tbody>
-            {view.lists.map(({ key, title, items }) => (
-              <tr key={key} style={step()}>
-                <th scope="row">
-                  <span className="chat__summary-label">{title}</span>
-                </th>
-                <td>
-                  <ul>
-                    {items.map((item, itemIndex) => (
-                      <li key={`${key}-${itemIndex}`}>
-                        <InlineText text={item} sources={sources} />
-                      </li>
-                    ))}
-                  </ul>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {summary?.recommendation && (
-        <div className="chat__summary-item" style={step()}>
-          <span className="chat__summary-label">{t.summaryNextStep}</span>
-          <p>
-            <InlineText text={String(summary.recommendation)} sources={sources} />
-          </p>
+
+      {(revision || view.lists.length > 0 || summary?.recommendation) && (
+        <div className="chat__summary-sections" style={step()}>
+          {revision && (
+            <section className="chat__summary-group chat__summary-group--revision">
+              <h4 className="chat__summary-label">{t.summaryRevision}</h4>
+              <p>
+                <InlineText text={revision} sources={sources} />
+              </p>
+            </section>
+          )}
+          {view.lists.map(({ key, title, items }) => (
+            <section key={key} className={`chat__summary-group chat__summary-group--${key}`}>
+              <h4 className="chat__summary-label">{title}</h4>
+              <ul>
+                {items.map((item, itemIndex) => (
+                  <li key={`${key}-${itemIndex}`}>
+                    <InlineText text={item} sources={sources} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+          {summary?.recommendation && (
+            <section className="chat__summary-group chat__summary-group--next">
+              <h4 className="chat__summary-label">{t.summaryNextStep}</h4>
+              <p>
+                <InlineText text={String(summary.recommendation)} sources={sources} />
+              </p>
+            </section>
+          )}
         </div>
       )}
     </>
@@ -96,5 +150,7 @@ SummaryDetails.propTypes = {
     lists: PropTypes.array.isRequired,
   }).isRequired,
   sources: PropTypes.instanceOf(Map).isRequired,
+  mode: PropTypes.oneOf(['open', 'yes_no', 'choose_one']),
+  options: PropTypes.arrayOf(PropTypes.string),
   animate: PropTypes.bool,
 };

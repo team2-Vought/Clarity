@@ -180,7 +180,13 @@ export default function SharedPage() {
 
             {summaryView.decision ? (
               <section className="chat__summary" aria-label={c.summary}>
-                <SummaryDetails summary={summary} view={summaryView} sources={sourcesById} />
+                <SummaryDetails
+                  summary={summary}
+                  view={summaryView}
+                  sources={sourcesById}
+                  mode={discussion.mode}
+                  options={discussion.options}
+                />
                 {discussion.sources?.length > 0 && (
                   <div className="shared__sources">
                     <span className="chat__summary-label">{c.sources}</span>
