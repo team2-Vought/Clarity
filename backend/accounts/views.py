@@ -1,10 +1,14 @@
 from django.db import IntegrityError, transaction
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
+from . import google
 
 from .serializers import (
     EMAIL_TAKEN,
@@ -14,7 +18,15 @@ from .serializers import (
     ProfileSerializer,
     RegisterSerializer,
     create_user,
+    name_from_google,
 )
+
+GOOGLE_ERRORS = {
+    'not_configured': ('Вхід через Google не налаштовано.', status.HTTP_503_SERVICE_UNAVAILABLE),
+    'invalid': ('Не вдалося підтвердити вхід через Google. Спробуйте ще раз.', status.HTTP_400_BAD_REQUEST),
+    'unverified': ('Пошта в Google-акаунті не підтверджена.', status.HTTP_400_BAD_REQUEST),
+    'unavailable': ('Google зараз недоступний. Спробуйте трохи пізніше.', status.HTTP_502_BAD_GATEWAY),
+}
 
 
 def user_payload(user):
@@ -24,6 +36,8 @@ def user_payload(user):
         'email': user.email,
         'date_joined': user.date_joined,
         'avatar': user.avatar,
+        # акаунт із Google може не мати пароля — тоді профіль не питає поточний
+        'has_password': user.has_usable_password(),
     }
 
 
@@ -61,6 +75,51 @@ class LoginView(APIView):
                 'user': user_payload(user),
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class GoogleLoginView(APIView):
+    """GET — чи налаштовано вхід через Google (client_id для кнопки).
+    POST {access_token} — вхід в акаунт із цією поштою або реєстрація нового."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'google_login'
+
+    def get(self, request):
+        return Response({'client_id': google.client_id()}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        try:
+            profile = google.verify(request.data.get('access_token'))
+        except google.GoogleAuthError as exc:
+            detail, code = GOOGLE_ERRORS[exc.code]
+            return Response({'detail': detail, 'code': exc.code}, status=code)
+
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=profile['email']).first()
+        created = user is None
+        if created:
+            try:
+                user = User.objects.create_user(
+                    email=profile['email'],
+                    name=name_from_google(profile['name'], profile['email']),
+                    password=None,
+                )
+            except IntegrityError:
+                # той самий акаунт щойно створив паралельний запит
+                user = User.objects.get(email__iexact=profile['email'])
+                created = False
+        if not user.is_active:
+            return Response(
+                {'detail': 'Акаунт вимкнено.', 'code': 'inactive'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response(
+            {'token': token.key, 'user': user_payload(user), 'created': created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 

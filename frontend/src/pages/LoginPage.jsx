@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { AuthPage } from './AuthLayout';
 import LoginForm from '../components/LoginForm';
+import GoogleButton from '../components/GoogleButton';
 import { login } from '../api/auth';
 import { uk } from '../copy/uk';
 
@@ -17,6 +18,7 @@ export default function LoginPage() {
             navigate('/home');
           }}
           onSwitch={() => navigate('/register')}
+          alternative={<GoogleButton onSignedIn={() => navigate('/home')} />}
         />
       }
     />

@@ -11,7 +11,7 @@ const validate = {
   password: (v) => (v ? '' : 'Введіть пароль'),
 };
 
-export default function LoginForm({ onSubmit, onSwitch }) {
+export default function LoginForm({ onSubmit, onSwitch, alternative = null }) {
   // ліміт спроб тримається на бекенді per-акаунт (429 показується тостом)
   const { values, errors, loading, handleChange, handleSubmit } = useForm({
     initialValues: { email: '', password: '' },
@@ -47,6 +47,7 @@ export default function LoginForm({ onSubmit, onSwitch }) {
       <button className="btn" type="submit" disabled={loading}>
         {loading ? t.submitting : t.submit}
       </button>
+      {alternative}
       <p className="form__alt">
         <button type="button" className="link link--alt" onClick={() => onSwitch?.()}>
           {t.switchToRegister}
@@ -59,4 +60,6 @@ export default function LoginForm({ onSubmit, onSwitch }) {
 LoginForm.propTypes = {
   onSubmit: PropTypes.func,
   onSwitch: PropTypes.func,
+  // інший спосіб входу під кнопкою форми (Google)
+  alternative: PropTypes.node,
 };

@@ -293,6 +293,9 @@ export default function ProfileSettings() {
     },
   );
 
+  // акаунт, створений через Google, пароля не має: поточний пароль не питаємо
+  const hasPassword = user?.has_password !== false;
+
   const submitEmail = run(
     () => {
       const email = form.email.trim();
@@ -304,7 +307,7 @@ export default function ProfileSettings() {
             : email.toLowerCase() === user.email
               ? t.sameEmail
               : '',
-        current_password: form.current_password ? '' : t.required,
+        current_password: !hasPassword || form.current_password ? '' : t.required,
       };
     },
     async () => {
@@ -316,7 +319,7 @@ export default function ProfileSettings() {
 
   const submitPassword = run(
     () => ({
-      current_password: form.current_password ? '' : t.required,
+      current_password: !hasPassword || form.current_password ? '' : t.required,
       password: validatePassword(form.password) || '',
       confirm_password: !form.confirm_password
         ? t.required
@@ -326,13 +329,14 @@ export default function ProfileSettings() {
     }),
     async () => {
       await changePassword(form);
+      setUser((current) => ({ ...current, has_password: true }));
       close();
       pushToast(t.passwordSaved);
     },
   );
 
   const submitDelete = run(
-    () => ({ password: form.password ? '' : t.required }),
+    () => ({ password: !hasPassword || form.password ? '' : t.required }),
     async () => {
       await deleteAccount(form.password);
       navigate('/', { replace: true });
@@ -437,30 +441,36 @@ export default function ProfileSettings() {
           submitLabel={isBusy ? t.saving : t.save}
         >
           <Input label={t.newEmailLabel} type="email" autoComplete="email" error={errors.email} {...bind('email')} />
-          <Input
-            label={t.currentPasswordLabel}
-            type="password"
-            autoComplete="current-password"
-            error={errors.current_password}
-            {...bind('current_password')}
-          />
-          <p className="settings__key-hint">{t.emailConfirmHint}</p>
+          {hasPassword && (
+            <>
+              <Input
+                label={t.currentPasswordLabel}
+                type="password"
+                autoComplete="current-password"
+                error={errors.current_password}
+                {...bind('current_password')}
+              />
+              <p className="settings__key-hint">{t.emailConfirmHint}</p>
+            </>
+          )}
         </EditRow>
 
         <EditRow
           {...rowProps('password')}
           title={t.passwordLabel}
-          value="••••••••"
+          value={hasPassword ? '••••••••' : t.passwordNone}
           onSubmit={submitPassword}
           submitLabel={isBusy ? t.saving : t.save}
         >
-          <Input
-            label={t.currentPasswordLabel}
-            type="password"
-            autoComplete="current-password"
-            error={errors.current_password}
-            {...bind('current_password')}
-          />
+          {hasPassword && (
+            <Input
+              label={t.currentPasswordLabel}
+              type="password"
+              autoComplete="current-password"
+              error={errors.current_password}
+              {...bind('current_password')}
+            />
+          )}
           <Input
             label={t.newPasswordLabel}
             type="password"
@@ -476,7 +486,7 @@ export default function ProfileSettings() {
             {...bind('confirm_password')}
           />
           <p className="settings__key-hint">
-            {t.passwordRules} {t.passwordHint}
+            {t.passwordRules} {hasPassword ? t.passwordHint : t.passwordSetHint}
           </p>
         </EditRow>
       </div>
@@ -491,14 +501,18 @@ export default function ProfileSettings() {
           onSubmit={submitDelete}
           submitLabel={isBusy ? t.deleting : t.deleteSubmit}
         >
-          <Input
-            label={t.currentPasswordLabel}
-            type="password"
-            autoComplete="current-password"
-            error={errors.password}
-            {...bind('password')}
-          />
-          <p className="settings__key-hint">{t.deleteConfirmHint}</p>
+          {hasPassword && (
+            <Input
+              label={t.currentPasswordLabel}
+              type="password"
+              autoComplete="current-password"
+              error={errors.password}
+              {...bind('password')}
+            />
+          )}
+          <p className="settings__key-hint">
+            {hasPassword ? t.deleteConfirmHint : t.deleteConfirmNoPassword}
+          </p>
         </EditRow>
       </div>
     </>

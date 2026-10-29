@@ -363,6 +363,9 @@ export const uk = {
       deleteHint: 'Усі дискусії, команди й ключі буде видалено назавжди. Скасувати це не вийде.',
       deleteOpen: 'Видалити…',
       deleteConfirmHint: 'Введіть пароль, щоб підтвердити видалення.',
+      deleteConfirmNoPassword: 'Натисніть «Видалити назавжди», щоб підтвердити.',
+      passwordNone: 'Не задано — вхід через Google',
+      passwordSetHint: 'Задайте пароль, щоб входити й без Google.',
       deleteSubmit: 'Видалити назавжди',
       deleting: 'Видаляємо…',
     },
@@ -766,6 +769,14 @@ export const uk = {
     },
     network: 'Не вдалося зв’язатися із сервером. Перевірте інтернет і спробуйте ще раз.',
     changeModel: 'Змінити модель',
+  },
+
+  google: {
+    button: 'Продовжити з Google',
+    busy: 'Входимо через Google…',
+    divider: 'або',
+    error: 'Не вдалося увійти через Google',
+    popupClosed: 'Вікно Google закрилося до входу',
   },
 
   common: {

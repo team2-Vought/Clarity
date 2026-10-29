@@ -193,6 +193,42 @@
 .btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .btn:disabled { opacity: 0.6; cursor: progress; }
 
+/* «або» між формою й кнопкою Google — тонкі лінії з обох боків */
+.form__google {
+  display: grid;
+  gap: 18px;
+}
+.form__divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.form__divider::before,
+.form__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--input-border);
+}
+/* другорядна кнопка: світла, з фірмовою «G» */
+.btn--google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 0;
+  background: var(--input-bg);
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--input-border);
+}
+.btn--google:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--input-bg) 85%, var(--text));
+}
+.btn--google svg { flex-shrink: 0; }
+
 .form__alt { margin: 0; text-align: center; font-size: 0.9375rem; }
 .form__alt .link--alt {
   color: var(--text);
@@ -275,6 +311,7 @@
   }
 
   .card--register .form .btn,
+  .card--register .form .form__google,
   .card--register .form .form__alt {
     grid-column: 1 / -1;
   }

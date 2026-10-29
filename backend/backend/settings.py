@@ -202,8 +202,13 @@ REST_FRAMEWORK = {
         'discussion_clarify': '10/min',
         # перевірка ключа — запит до провайдера; не даємо перебирати ключі
         'api_keys': '20/min',
+        'google_login': '20/min',
     },
 }
+
+# Вхід через Google: OAuth Client ID (тип «Web application») з Google Cloud Console.
+# Порожньо — кнопки «Продовжити з Google» немає.
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '').strip()
 
 # LLM providers. Ключі читаються лише на бекенді з backend/.env.
 LLM_DEFAULT_MODEL = os.getenv('LLM_DEFAULT_MODEL', 'groq:qwen/qwen3.8-27b').strip()
@@ -255,7 +260,7 @@ SEARCH_MAX_QUERIES = int(os.getenv('SEARCH_MAX_QUERIES', '10'))
 SEARCH_MAX_SOURCES = int(os.getenv('SEARCH_MAX_SOURCES', '30'))
 SEARCH_MAX_SOURCES_IN_PROMPT = int(os.getenv('SEARCH_MAX_SOURCES_IN_PROMPT', '16'))
 DISCUSSION_DAILY_ADVANCE_LIMIT = int(
-    os.getenv('DISCUSSION_DAILY_ADVANCE_LIMIT', '500')
+    os.getenv('DISCUSSION_DAILY_ADVANCE_LIMIT', '200')
 )
 
 LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()

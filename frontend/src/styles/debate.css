@@ -210,6 +210,17 @@ body:has(.app-shell) {
   height: var(--ctrl-icon);
 }
 
+/* згорнута смуга на ПК: іконки трохи крупніші, щоб їх легше було влучити й розгледіти */
+.sidebar--rail {
+  --item-icon: clamp(32px, 2.6vw, 40px);
+  --ctrl-icon: clamp(24px, 1.9vw, 27px);
+}
+
+.sidebar--rail .sidebar__item,
+.sidebar--rail .sidebar__control {
+  height: clamp(36px, 4.8vh, 42px);
+}
+
 .sidebar__item:hover,
 .sidebar__control:hover {
   background: rgba(18, 18, 18, 0.07);
@@ -4704,8 +4715,8 @@ ol.chat__reveal {
 
 @media (max-height: 720px) {
   .sidebar--rail {
-    --item-icon: 26px;
-    --ctrl-icon: 20px;
+    --item-icon: 29px;
+    --ctrl-icon: 22px;
     padding: 8px 0;
   }
 
@@ -4715,7 +4726,7 @@ ol.chat__reveal {
 
   .sidebar--rail .sidebar__item,
   .sidebar--rail .sidebar__control {
-    height: 30px;
+    height: 33px;
   }
 
   .sidebar--rail .sidebar__nav,

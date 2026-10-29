@@ -13,7 +13,7 @@ const validate = {
   repeat: (v, all) => (v && v === all.password ? '' : 'Паролі не збігаються'),
 };
 
-export default function RegisterForm({ onSubmit, onSwitch }) {
+export default function RegisterForm({ onSubmit, onSwitch, alternative = null }) {
   const { values, errors, loading, handleChange, handleSubmit } = useForm({
     initialValues: { name: '', email: '', password: '', repeat: '' },
     validate,
@@ -74,6 +74,7 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
       <button className="btn" type="submit" disabled={loading}>
         {loading ? t.submitting : t.submit}
       </button>
+      {alternative}
       <p className="form__alt">
         <button type="button" className="link link--alt" onClick={() => onSwitch?.()}>
           {t.switchToLogin}
@@ -86,4 +87,6 @@ export default function RegisterForm({ onSubmit, onSwitch }) {
 RegisterForm.propTypes = {
   onSubmit: PropTypes.func,
   onSwitch: PropTypes.func,
+  // інший спосіб входу під кнопкою форми (Google)
+  alternative: PropTypes.node,
 };

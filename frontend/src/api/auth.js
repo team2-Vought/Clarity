@@ -24,6 +24,22 @@ export async function login({ email, password }) {
   return data;
 }
 
+/** `client_id` для кнопки Google; порожній — вхід через Google не налаштовано. */
+export function googleConfig() {
+  return request('/api/auth/google/');
+}
+
+/** Вхід або реєстрація за access-токеном від Google. */
+export async function googleLogin(accessToken) {
+  const data = await request('/api/auth/google/', {
+    method: 'POST',
+    body: { access_token: accessToken },
+  });
+  const token = pickToken(data);
+  if (token) setToken(token);
+  return data;
+}
+
 export async function logout() {
   try {
     await request('/api/auth/logout/', { method: 'POST', auth: true });

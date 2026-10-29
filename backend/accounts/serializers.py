@@ -54,6 +54,16 @@ def clean_name(value):
     return name
 
 
+def name_from_google(name, email):
+    """Ім'я з профілю Google за нашими правилами; інакше — з пошти або «Користувач»."""
+    for candidate in (name, email.split('@')[0].replace('.', ' ').replace('_', ' ')):
+        kept = ''.join(ch for ch in candidate if ch.isalpha() or ch in NAME_SPECIALS)
+        kept = ' '.join(kept.split())[:NAME_MAX].strip()
+        if len(kept) >= NAME_MIN:
+            return kept
+    return 'Користувач'
+
+
 def clean_email(value, exclude_user=None):
     email = value.strip()
     if not EMAIL_RE.fullmatch(email):
@@ -215,7 +225,8 @@ class ProfileSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         user = self.context['user']
-        if 'email' in attrs and attrs['email'] != user.email:
+        # акаунт, створений через Google, пароля не має — нічого підтверджувати
+        if 'email' in attrs and attrs['email'] != user.email and user.has_usable_password():
             password = attrs.get('current_password') or ''
             if not password:
                 raise ValidationError({'current_password': REQUIRED})
@@ -225,26 +236,41 @@ class ProfileSerializer(serializers.Serializer):
 
 
 class PasswordChangeSerializer(serializers.Serializer):
-    current_password = password_field()
+    """Зміна пароля; акаунт із Google без пароля задає перший пароль без поточного."""
+
+    current_password = serializers.CharField(
+        required=False, allow_blank=True, write_only=True, max_length=128
+    )
     password = password_field()
     confirm_password = password_field()
 
-    def validate_current_password(self, value):
-        if not self.context['user'].check_password(value):
-            raise serializers.ValidationError(WRONG_PASSWORD)
-        return value
-
     def validate(self, attrs):
+        user = self.context['user']
+        current = attrs.get('current_password') or ''
+        if user.has_usable_password():
+            if not current:
+                raise ValidationError({'current_password': REQUIRED})
+            if not user.check_password(current):
+                raise ValidationError({'current_password': WRONG_PASSWORD})
         check_new_password(attrs['password'], attrs['confirm_password'])
-        if attrs['password'] == attrs['current_password']:
+        if current and attrs['password'] == current:
             raise ValidationError({'password': PASSWORD_SAME})
         return attrs
 
 
 class DeleteAccountSerializer(serializers.Serializer):
-    password = password_field()
+    """Видалення з паролем; акаунт із Google без пароля — без підтвердження паролем."""
 
-    def validate_password(self, value):
-        if not self.context['user'].check_password(value):
-            raise serializers.ValidationError(WRONG_PASSWORD)
-        return value
+    password = serializers.CharField(
+        required=False, allow_blank=True, write_only=True, max_length=128
+    )
+
+    def validate(self, attrs):
+        user = self.context['user']
+        if user.has_usable_password():
+            password = attrs.get('password') or ''
+            if not password:
+                raise ValidationError({'password': REQUIRED})
+            if not user.check_password(password):
+                raise ValidationError({'password': WRONG_PASSWORD})
+        return attrs
