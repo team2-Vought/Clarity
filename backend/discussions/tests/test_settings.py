@@ -152,6 +152,18 @@ class SettingsApiTests(TestCase):
             response = self.client.patch('/api/settings/', {'preferences': bad}, format='json')
             self.assertEqual(response.status_code, 400, bad)
 
+    def test_until_consensus_preference(self):
+        response = self.client.get('/api/settings/')
+        self.assertFalse(response.data['preferences']['default_until_consensus'])
+        self.assertEqual(response.data['limits']['consensus_max_rounds'], 6)
+        response = self.client.patch(
+            '/api/settings/', {'preferences': {'default_until_consensus': True}}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['preferences']['default_until_consensus'])
+        models = self.client.get('/api/models/').data
+        self.assertTrue(models['preferences']['default_until_consensus'])
+
     def test_stored_single_round_is_raised_to_minimum(self):
         self.user.preferences = {'default_rounds': 1}
         self.user.save(update_fields=['preferences'])

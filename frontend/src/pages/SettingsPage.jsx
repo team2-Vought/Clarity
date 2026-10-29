@@ -67,6 +67,9 @@ const MODE_LABELS = {
   choose_one: uk.debate.modeChooseOne,
 };
 
+// значення пігулки «До згоди» поряд із числами раундів
+const CONSENSUS = 'consensus';
+
 const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 function statusOf(provider) {
@@ -545,12 +548,28 @@ export default function SettingsPage() {
             }))}
           />
         </Row>
-        <Row title={t.roundsLabel} hint={t.roundsHint}>
+        <Row
+          title={t.roundsLabel}
+          hint={
+            prefs.default_until_consensus
+              ? t.roundsConsensusHint(limits.consensus_max_rounds || 6)
+              : t.roundsHint
+          }
+        >
           <Pills
             label={t.roundsLabel}
-            value={prefs.default_rounds}
-            onChange={(value) => savePreference({ default_rounds: value })}
-            options={range(limits.min_rounds || 2, limits.max_rounds).map((value) => ({ value, label: String(value) }))}
+            value={prefs.default_until_consensus ? CONSENSUS : prefs.default_rounds}
+            onChange={(value) =>
+              savePreference(
+                value === CONSENSUS
+                  ? { default_until_consensus: true }
+                  : { default_rounds: value, default_until_consensus: false }
+              )
+            }
+            options={[
+              ...range(limits.min_rounds || 2, limits.max_rounds).map((value) => ({ value, label: String(value) })),
+              { value: CONSENSUS, label: t.roundsConsensus },
+            ]}
           />
         </Row>
         <Row title={t.participantsLabel} hint={t.participantsHint}>

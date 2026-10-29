@@ -20,7 +20,7 @@ from accounts.models import ProviderKey
 from accounts.secrets import encrypt, mask
 
 from .models import Discussion
-from .personas import MAX_AI, MAX_ROUNDS, MIN_AI, MIN_ROUNDS
+from .personas import CONSENSUS_MAX_ROUNDS, MAX_AI, MAX_ROUNDS, MIN_AI, MIN_ROUNDS
 from .services import usage
 from .services.catalog import (
     ANTHROPIC,
@@ -41,6 +41,8 @@ DEFAULT_PREFERENCES = {
     'default_model': '',
     'default_mode': Discussion.Mode.OPEN.value,
     'default_rounds': 2,
+    # «До згоди» за замовчуванням; тоді default_rounds не діє
+    'default_until_consensus': False,
     'default_participants': MIN_AI,
     'web_search': True,
 }
@@ -66,6 +68,7 @@ class PreferencesSerializer(serializers.Serializer):
     default_rounds = serializers.IntegerField(
         required=False, min_value=MIN_ROUNDS, max_value=MAX_ROUNDS
     )
+    default_until_consensus = serializers.BooleanField(required=False)
     default_participants = serializers.IntegerField(
         required=False, min_value=MIN_AI, max_value=MAX_AI
     )
@@ -171,6 +174,7 @@ def settings_payload(user):
             'max_ai': MAX_AI,
             'min_rounds': MIN_ROUNDS,
             'max_rounds': MAX_ROUNDS,
+            'consensus_max_rounds': CONSENSUS_MAX_ROUNDS,
         },
         'modes': [{'value': value, 'label': label} for value, label in Discussion.Mode.choices],
     }

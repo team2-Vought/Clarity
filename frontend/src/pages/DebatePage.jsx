@@ -283,6 +283,7 @@ export default function DebatePage() {
       } else {
         if (prefs.default_mode) setMode(prefs.default_mode);
         if (prefs.default_rounds) setRounds(clampRounds(prefs.default_rounds));
+        if (prefs.default_until_consensus) setUntilConsensus(true);
       }
       const search = pData.search || { available: false };
       setSearchStatus(search);

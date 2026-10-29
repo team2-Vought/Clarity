@@ -142,6 +142,21 @@ describe('DebatePage', () => {
     expect(vi.mocked(createDiscussion).mock.calls[0][0].untilConsensus).toBe(true);
   });
 
+  it('налаштування «До згоди» за замовчуванням одразу вибране', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchModels).mockResolvedValue({
+      models: MODELS,
+      default_model: 'm1',
+      recommended: [],
+      preferences: { default_until_consensus: true },
+    });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    await user.click(screen.getByRole('button', { name: /^Додатково/ }));
+    expect(screen.getByRole('radio', { name: 'До згоди' })).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('картка-підказка підставляє питання в поле, і підказки ховаються', async () => {
     const user = userEvent.setup();
     renderPage();

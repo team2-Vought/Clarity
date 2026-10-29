@@ -296,6 +296,9 @@ export const uk = {
     modeLabel: 'Формат відповіді',
     roundsLabel: 'Кількість раундів',
     roundsHint: 'Більше раундів — глибша дискусія, але довше очікування.',
+    roundsConsensus: 'До згоди',
+    roundsConsensusHint: (max) =>
+      `Учасники сперечаються, доки всі не дійдуть одного висновку — до ${max} раундів.`,
     participantsLabel: 'Учасників на старті',
     participantsHint: 'Скільки AI-учасників одразу буде в команді. Додати чи прибрати можна й у формі.',
     webSearchLabel: 'Пошук в інтернеті',
