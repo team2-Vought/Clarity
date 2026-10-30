@@ -445,7 +445,7 @@ body:has(.app-shell) {
   width: 52px;
 }
 
-/* великі пункти під палець: 52px заввишки, іконка 30px */
+/* великі пункти під палець: 52px заввишки, іконка 34px */
 .sidebar--drawer .sidebar__nav {
   gap: 4px;
   padding: 0 12px;
@@ -454,14 +454,14 @@ body:has(.app-shell) {
 .sidebar--drawer .sidebar__item {
   gap: 12px;
   height: 52px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 16px;
   font-size: 1.0625rem;
 }
 
 .sidebar--drawer .sidebar__item svg {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
 }
 
 .sidebar--drawer .sidebar__controls {
@@ -472,14 +472,14 @@ body:has(.app-shell) {
 .sidebar--drawer .sidebar__control {
   gap: 14px;
   height: 46px;
-  padding: 0 15px;
+  padding: 0 13px;
   border-radius: 14px;
   font-size: 1rem;
 }
 
 .sidebar--drawer .sidebar__control svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
 }
 
 .sidebar--drawer .sidebar__control--logout {
