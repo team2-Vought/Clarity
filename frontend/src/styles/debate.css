@@ -3657,24 +3657,34 @@ span.debate__tag {
 
 .chat__bubble--typing {
   cursor: pointer;
-  animation: chat-bubble-glow 2.6s ease-in-out infinite;
 }
 
-/* модель ще пише репліку: текст росте наживо, бульбашка так само підсвічена */
+/* Поки репліка «пишеться» (або модель ще пише чернетку), бульбашку ледь
+   підсвічує колір автора. Пульсує не сама тінь — її анімація перемальовувала б
+   бульбашку з текстом щокадру, — а прозорість шару з яскравішою тінню поверх
+   тихої: таку анімацію браузер веде на відеокарті. */
+.chat__bubble--typing,
 .chat__bubble--draft {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 35%, transparent),
+    0 6px 22px -14px color-mix(in srgb, var(--bubble) 80%, transparent);
+}
+
+.chat__bubble--typing::after,
+.chat__bubble--draft::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 75%, transparent),
+    0 10px 30px -12px var(--bubble);
+  opacity: 0;
+  pointer-events: none;
   animation: chat-bubble-glow 2.6s ease-in-out infinite;
 }
 
-/* поки репліка «пишеться», бульбашку ледь підсвічує колір автора */
 @keyframes chat-bubble-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 35%, transparent),
-      0 6px 22px -14px color-mix(in srgb, var(--bubble) 80%, transparent);
-  }
   50% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--bubble) 75%, transparent),
-      0 10px 30px -12px var(--bubble);
+    opacity: 1;
   }
 }
 
@@ -5517,13 +5527,6 @@ ol.chat__reveal {
     padding: 20px 14px calc(14px + 12px) calc(14px + var(--sheet-spare));
     background: var(--panel);
     clip-path: inset(var(--sheet-top) 0 var(--sheet-bottom) var(--sheet-left) round var(--sheet-r));
-    --sheet-w: min(360px, calc(100vw - 72px));
-    --sheet-spare: 24px;
-    --sheet-top: 4px;
-    --sheet-left: calc(var(--sheet-spare) + var(--sheet-w) - 50px);
-    --sheet-bottom: calc(100vh - 66px);
-    --sheet-bottom: calc(100dvh - 66px);
-    --sheet-r: 25px;
     visibility: hidden;
     /* закриття: низ підтягується вгору, ширина стискається, кути округлюються
        до кола — і панель зникає саме там, де лишається кнопка */
@@ -5535,7 +5538,12 @@ ol.chat__reveal {
       visibility 0s linear 0.26s;
   }
 
+  /* відкриття: спершу розтягується вліво з легким перельотом, далі «стікає» вниз */
   .debate-page--panel-open .debate__form-panel {
+    --sheet-top: 0px;
+    --sheet-left: var(--sheet-spare);
+    --sheet-bottom: 12px;
+    --sheet-r: 28px;
     visibility: visible;
     transition:
       --sheet-left 0.3s cubic-bezier(0.34, 1.36, 0.5, 1),
@@ -5576,12 +5584,7 @@ ol.chat__reveal {
     display: block;
     position: fixed;
     inset: 0;
-  /* відкриття: спершу розтягується вліво з легким перельотом, далі «стікає» вниз */
     z-index: 90;
-    --sheet-top: 0px;
-    --sheet-left: var(--sheet-spare);
-    --sheet-bottom: 12px;
-    --sheet-r: 28px;
     background: rgba(0, 0, 0, 0.25);
     animation: debate-view-in 0.22s ease-out;
   }

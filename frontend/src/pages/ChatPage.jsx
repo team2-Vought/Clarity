@@ -53,6 +53,7 @@ import {
   USER_COLOR,
   buildSpeakers,
   duplicateFinalId,
+  findReplyTarget,
   phaseLabel,
   speakerKeyOf,
 } from '../utils/chatView';
@@ -213,12 +214,18 @@ export default function ChatPage() {
   const myProfile = useMyProfile();
   // як у профілі: фото, а без нього — перша літера імені; іконка — поки профіль не завантажився
   const myInitial = myProfile.name.trim().charAt(0).toUpperCase();
-  const userAvatar = myProfile.avatar ? (
-    <img className="chat__avatar-photo" src={myProfile.avatar} alt="" />
-  ) : myInitial ? (
-    <span className="chat__avatar-letter">{myInitial}</span>
-  ) : (
-    <AvatarIcon />
+  const myAvatar = myProfile.avatar;
+  // той самий елемент між рендерами — інакше memo реплік щоразу бачив би новий проп
+  const userAvatar = useMemo(
+    () =>
+      myAvatar ? (
+        <img className="chat__avatar-photo" src={myAvatar} alt="" />
+      ) : myInitial ? (
+        <span className="chat__avatar-letter">{myInitial}</span>
+      ) : (
+        <AvatarIcon />
+      ),
+    [myAvatar, myInitial]
   );
   const [isSharing, setIsSharing] = useState(false);
 
