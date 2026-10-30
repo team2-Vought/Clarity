@@ -401,12 +401,45 @@
 }
 
 /* ---------- Кому адресоване питання після висновку ---------- */
+/* схований, доки фокус не в полі вводу: рядок плавно розгортається по висоті */
+.chat__ask-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  opacity: 0;
+  padding-bottom: 0;
+  transform: translateY(6px);
+  transition:
+    grid-template-rows 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease,
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.24s;
+}
+
+.chat__dock:focus-within .chat__ask-reveal {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  opacity: 1;
+  padding-bottom: 8px;
+  transform: none;
+  transition:
+    grid-template-rows 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease 0.04s,
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 .chat__ask {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin: 0 0 8px 50px;
+  min-height: 0;
+  /* overflow: clip, а не hidden — інакше обрізало б і контур фокусу пігулок */
+  overflow: clip;
+  overflow-clip-margin: 4px;
+  margin-left: 50px;
 }
 
 .chat__ask-label {
@@ -445,6 +478,13 @@
 @media (max-width: 639px) {
   .chat__ask {
     margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__ask-reveal,
+  .chat__dock:focus-within .chat__ask-reveal {
+    transition: none;
   }
 }
 

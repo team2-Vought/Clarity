@@ -6,6 +6,7 @@ import {
   ArrowRight01Icon,
   Attachment01Icon,
   FlashIcon,
+  GlobalSearchIcon,
   IdentityCardIcon,
   BeachIcon,
   BookmarkAdd01Icon,
@@ -28,7 +29,7 @@ import {
 import { getToken } from '../api/client';
 import { updatePreferences } from '../api/settings';
 import { removeAttachment, uploadAttachment } from '../api/attachments';
-import AttachmentChip from '../components/AttachmentChip';
+import AttachmentCard from '../components/AttachmentCard';
 import CriteriaEditor from '../components/CriteriaEditor';
 import CustomRoleDialog from '../components/CustomRoleDialog';
 import { CrisisHelp } from '../components/SafetyNotice';
@@ -232,7 +233,8 @@ export default function DebatePage() {
   // файли до питання: сервер одразу читає з них текст; поки читає — старт чекає
   const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
+  // поле вибору файлу відкривається з меню формату — тримаємо сам елемент
+  const [fileInput, setFileInput] = useState(null);
   const filesReading = files.some((item) => item.status === 'reading');
   // швидкий режим: одна коротка відповідь замість дебатів
   const [quick, setQuick] = useState(false);
@@ -249,7 +251,15 @@ export default function DebatePage() {
     if ((list?.length || 0) > room) pushToast(t.attachMax);
     picked.forEach(async (file) => {
       const key = `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`;
-      setFiles((current) => [...current, { key, name: file.name, status: 'reading' }]);
+      // сервер зберігає лише текст — мініатюру й перегляд показуємо з самого файлу
+      const isImage = file.type.startsWith('image/');
+      const url = (isImage || file.type === 'application/pdf') && URL.createObjectURL
+        ? URL.createObjectURL(file)
+        : '';
+      setFiles((current) => [
+        ...current,
+        { key, name: file.name, status: 'reading', kind: isImage ? 'image' : '', url, source: file },
+      ]);
       try {
         const data = await uploadAttachment(file);
         setFiles((current) =>
@@ -257,6 +267,7 @@ export default function DebatePage() {
         );
       } catch (err) {
         setFiles((current) => current.filter((item) => item.key !== key));
+        if (url) URL.revokeObjectURL(url);
         pushToast(err?.message || t.attachError);
       }
     });
@@ -264,8 +275,19 @@ export default function DebatePage() {
 
   const removeFile = (file) => {
     setFiles((current) => current.filter((item) => item.key !== file.key));
+    if (file.url) URL.revokeObjectURL(file.url);
     if (file.id) removeAttachment(file.id).catch(() => {});
   };
+
+  // локальні адреси файлів звільняємо, коли сторінку закрито
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+  useEffect(
+    () => () => filesRef.current.forEach((item) => item.url && URL.revokeObjectURL(item.url)),
+    []
+  );
 
   const canStart =
     !isCreating
@@ -275,6 +297,52 @@ export default function DebatePage() {
     && participants.length >= MIN_PARTICIPANTS
     && allParticipantsHaveModels;
   const showSuggestions = !description.trim() && !isCreating;
+
+  // те, що раніше було пігулками під полем і скріпкою в ньому, — тепер у меню формату
+  const composerExtras = [
+    {
+      key: 'attach',
+      icon: Attachment01Icon,
+      label: t.attach,
+      hint: t.attachMenuHint,
+      disabled: files.length >= MAX_FILES,
+      onSelect: () => fileInput?.click(),
+    },
+    {
+      key: 'quick',
+      icon: FlashIcon,
+      label: t.quick,
+      hint: t.quickMenuHint,
+      checked: quick,
+      onSelect: () => setQuick((value) => !value),
+    },
+    // поки профіль не завантажився, пункту «Про мене» немає
+    about && (aboutFilled
+      ? {
+          key: 'profile',
+          icon: IdentityCardIcon,
+          label: t.profileMenu,
+          hint: t.profileMenuHint,
+          checked: useProfile,
+          onSelect: () => setUseProfileChoice(!useProfile),
+        }
+      : {
+          key: 'profile',
+          icon: IdentityCardIcon,
+          label: t.profileMenuEmpty,
+          hint: t.profileEmpty,
+          onSelect: () => navigate('/settings?tab=about'),
+        }),
+    {
+      key: 'search',
+      icon: GlobalSearchIcon,
+      label: t.webSearch,
+      hint: searchStatus.available ? t.webSearchMenuHint : t.webSearchUnavailable,
+      checked: webSearch,
+      disabled: !searchStatus.available,
+      onSelect: () => setWebSearch((value) => !value),
+    },
+  ].filter(Boolean);
 
   // запам'ятовуємо в акаунті: на іншому пристрої підказки теж не повторяться
   const finishOnboarding = useCallback(() => {
@@ -798,23 +866,6 @@ export default function DebatePage() {
                     {untilConsensus ? t.roundsConsensusHint(consensusMax) : t.roundsHint}
                   </p>
                 </div>
-
-                <div className="debate__field">
-                  <label className={`debate__switch-row ${searchStatus.available ? '' : 'debate__switch-row--off'}`}>
-                    <span className="debate__field-title">{t.webSearch}</span>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      className="debate__switch-input"
-                      checked={webSearch}
-                      onChange={(e) => setWebSearch(e.target.checked)}
-                      disabled={isCreating || !searchStatus.available}
-                    />
-                  </label>
-                  {!searchStatus.available && (
-                    <p className="debate__note">{t.webSearchUnavailable}</p>
-                  )}
-                </div>
               </div>
 
               <div className="debate__sheet">
@@ -1130,6 +1181,7 @@ export default function DebatePage() {
             onChange={handleModeChange}
             onChosen={() => questionRef.current?.focus()}
             disabled={isCreating}
+            extras={composerExtras}
           />
           <div
             className={[
@@ -1156,6 +1208,20 @@ export default function DebatePage() {
               addFiles(e.dataTransfer.files);
             }}
           >
+            {/* додані файли — угорі всередині поля, над текстом питання */}
+            {files.length > 0 && (
+              <div className="debate__files" aria-live="polite">
+                {files.map((file) => (
+                  <AttachmentCard
+                    key={file.key}
+                    file={file}
+                    title={file.status === 'reading' ? t.attachReading : file.truncated ? t.attachTruncated : file.name}
+                    onRemove={isCreating ? undefined : () => removeFile(file)}
+                    removeLabel={t.attachRemove(file.name)}
+                  />
+                ))}
+              </div>
+            )}
             <textarea
               ref={questionRef}
               className="debate__composer-input"
@@ -1177,18 +1243,8 @@ export default function DebatePage() {
               >
                 {description.length > 0 ? `${description.length} / ${MAX_QUESTION}` : ''}
               </span>
-              <button
-                type="button"
-                className="debate__attach"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isCreating || files.length >= MAX_FILES}
-                aria-label={t.attach}
-                title={`${t.attach} — ${t.attachHint}`}
-              >
-                <HugeiconsIcon icon={Attachment01Icon} size={19} aria-hidden="true" />
-              </button>
               <input
-                ref={fileInputRef}
+                ref={setFileInput}
                 type="file"
                 accept={FILE_TYPES}
                 multiple
@@ -1223,62 +1279,6 @@ export default function DebatePage() {
             }}
           />
         )}
-
-        {files.length > 0 && (
-          <div className="debate__files" aria-live="polite">
-            {files.map((file) => (
-              <AttachmentChip
-                key={file.key}
-                name={file.name}
-                kind={file.kind}
-                status={file.status}
-                title={file.status === 'reading' ? t.attachReading : file.truncated ? t.attachTruncated : file.name}
-                onRemove={isCreating ? undefined : () => removeFile(file)}
-                removeLabel={t.attachRemove(file.name)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* швидка відповідь і профіль «Про мене» — тихі пігулки під полем питання */}
-        <div className="debate__profile">
-          <button
-            type="button"
-            className={`debate__profile-chip ${quick ? 'debate__profile-chip--on' : ''}`}
-            onClick={() => setQuick((value) => !value)}
-            aria-pressed={quick}
-            title={t.quickHint}
-            disabled={isCreating}
-          >
-            <HugeiconsIcon icon={FlashIcon} size={15} aria-hidden="true" />
-            {t.quick}
-          </button>
-          {about && (
-            aboutFilled ? (
-              <button
-                type="button"
-                className={`debate__profile-chip ${useProfile ? 'debate__profile-chip--on' : ''}`}
-                onClick={() => setUseProfileChoice(!useProfile)}
-                aria-pressed={useProfile}
-                title={t.profileToggle}
-                disabled={isCreating}
-              >
-                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
-                {useProfile ? t.profileOn : t.profileOff}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="debate__profile-chip"
-                onClick={() => navigate('/settings?tab=about')}
-              >
-                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
-                {t.profileEmpty}
-                <HugeiconsIcon icon={ArrowRight01Icon} size={14} aria-hidden="true" />
-              </button>
-            )
-          )}
-        </div>
 
         <div className="debate__mode-bar">
           {mode === 'choose_one' && (
