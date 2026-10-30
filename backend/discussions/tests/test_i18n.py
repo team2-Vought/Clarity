@@ -29,7 +29,7 @@ class EnglishApiTests(TestCase):
 
         self.provider = FakeProvider()
         provider_patcher = mock.patch(
-            'discussions.services.engine.get_provider',
+            'discussions.services.engine.calls.get_provider',
             side_effect=lambda model_id: self.provider,
         )
         provider_patcher.start()

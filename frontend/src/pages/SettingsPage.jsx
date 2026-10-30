@@ -6,6 +6,7 @@ import {
   ArrowUpRight01Icon,
   ComputerIcon,
   Delete02Icon,
+  IdentityCardIcon,
   Key01Icon,
   Moon02Icon,
   PaintBoardIcon,
@@ -18,6 +19,8 @@ import {
 } from '@hugeicons/core-free-icons';
 import ModelPicker from '../components/ModelPicker';
 import ProfileSettings from '../components/ProfileSettings';
+import AboutSettings from '../components/AboutSettings';
+import { Pills, Row, SwitchRow } from '../components/SettingsControls';
 import ProviderLogo from '../components/ProviderLogo';
 import { getToken } from '../api/client';
 import {
@@ -26,6 +29,7 @@ import {
   saveProviderKey,
   updatePreferences,
 } from '../api/settings';
+import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
 import { useToasts } from '../hooks/useToasts';
 import { LANGUAGES, copy, readLanguagePref, setLanguagePref } from '../copy';
 import {
@@ -40,6 +44,7 @@ const t = copy.settings;
 
 const TABS = [
   { key: 'profile', icon: UserIcon },
+  { key: 'about', icon: IdentityCardIcon },
   { key: 'models', icon: Key01Icon },
   { key: 'debate', icon: SlidersHorizontalIcon },
   { key: 'appearance', icon: PaintBoardIcon },
@@ -78,71 +83,6 @@ function statusOf(provider) {
   if (provider.server_key) return { kind: 'on', text: t.status.server };
   if (!provider.accepts_key && provider.available) return { kind: 'on', text: t.status.local };
   return { kind: 'off', text: t.status.none };
-}
-
-/** Пігулки-перемикачі — як раунди й вигляд чату на панелі нового чату. */
-function Pills({ label, value, options, onChange, disabled = false, fill = false }) {
-  return (
-    <div
-      className={`settings__pills ${fill ? 'settings__pills--fill' : ''}`}
-      role="radiogroup"
-      aria-label={label}
-    >
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            className={`settings__pill ${active ? 'settings__pill--active' : ''}`}
-            onClick={() => !active && onChange(option.value)}
-            disabled={disabled}
-          >
-            {option.icon && <HugeiconsIcon icon={option.icon} size={16} aria-hidden="true" />}
-            <span>{option.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// `wide` — елемент керування переноситься під підпис, коли не вміщається;
-// `stacked` — завжди під підписом на всю ширину картки
-function Row({ title, hint, children, wide = false, stacked = false }) {
-  const modifier = stacked ? 'settings__row--stacked' : wide ? 'settings__row--wide' : '';
-  return (
-    <div className={`settings__row ${modifier}`}>
-      <div className="settings__row-text">
-        <span className="settings__row-title">{title}</span>
-        {hint && <span className="settings__row-hint">{hint}</span>}
-      </div>
-      <div className="settings__row-control">{children}</div>
-    </div>
-  );
-}
-
-function SwitchRow({ title, hint, checked, onChange, disabled = false }) {
-  const id = useId();
-  return (
-    <label className="settings__row settings__row--switch" htmlFor={id}>
-      <span className="settings__row-text">
-        <span className="settings__row-title">{title}</span>
-        {hint && <span className="settings__row-hint">{hint}</span>}
-      </span>
-      <input
-        id={id}
-        type="checkbox"
-        role="switch"
-        className="debate__switch-input"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
-  );
 }
 
 function ProviderCard({ provider, models, tone, defaultModel, onSaveKey, onRemoveKey, onMakeDefault }) {
@@ -381,6 +321,7 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
+  const notify = useNotifyPrefs();
   const navigate = useNavigate();
   const { themeMode, setThemeMode } = useOutletContext();
   const { pushToast } = useToasts();
@@ -647,6 +588,25 @@ export default function SettingsPage() {
           checked={reducedMotion}
           onChange={changeMotion}
         />
+        <SwitchRow
+          title={t.soundLabel}
+          hint={t.soundHint}
+          checked={notify.sound}
+          onChange={notify.setSound}
+        />
+        <SwitchRow
+          title={t.notifyLabel}
+          hint={
+            notify.permission === 'unsupported'
+              ? t.notifyUnsupported
+              : notify.permission === 'denied'
+                ? t.notifyDenied
+                : t.notifyHint
+          }
+          checked={notify.system}
+          onChange={notify.setSystem}
+          disabled={notify.permission === 'unsupported' || notify.permission === 'denied'}
+        />
       </div>
       <p className="settings__footnote">{t.appearanceLead}</p>
     </>
@@ -666,7 +626,8 @@ export default function SettingsPage() {
   };
 
   // профіль і інтерфейс не залежать від /api/settings/
-  const needsData = tab !== 'appearance' && tab !== 'profile';
+  // профіль і «Про мене» завантажують дані самі
+  const needsData = !['appearance', 'profile', 'about'].includes(tab);
   let content;
   if (needsData && isLoading && !data) content = <SettingsSkeleton />;
   else if (needsData && error && !data) {
@@ -679,6 +640,7 @@ export default function SettingsPage() {
       </div>
     );
   } else if (tab === 'profile') content = <ProfileSettings />;
+  else if (tab === 'about') content = <AboutSettings />;
   else if (tab === 'debate') content = renderDebate();
   else if (tab === 'appearance') content = renderAppearance();
   else if (tab === 'usage') content = renderUsage();

@@ -12,10 +12,12 @@ from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from accounts.about import about_of
+from accounts.about import snapshot as about_snapshot
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
-from .models import Discussion, Message, Team
+from .models import Attachment, Discussion, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
@@ -242,9 +244,12 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        about = about_of(request.user)
+        use_profile = data.get('use_profile', about['enabled'])
         discussion = Discussion.objects.create(
             user=request.user,
             question=data['question'],
+            profile=about_snapshot(about) if use_profile else {},
             mode=data.get('mode', Discussion.Mode.OPEN),
             options=data.get('options') or [],
             personas=data['personas'],
@@ -259,6 +264,10 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             # мова інтерфейсу автора: нею відповідатимуть AI
             language=current(),
         )
+        # вкладення людини, що ще ні до чого не прив'язані, стають частиною питання
+        Attachment.objects.filter(
+            user=request.user, pk__in=data['attachments'], discussion__isnull=True
+        ).update(discussion=discussion)
         # одразу створюємо повідомлення користувача як початок чату
         discussion.messages.create(
             seq=1,
@@ -416,7 +425,11 @@ class DiscussionStopView(OwnedDiscussionView):
         if discussion is None:
             return _not_found()
         Discussion.objects.filter(pk=discussion.pk).update(
-            stop_requested=True, advance_token=None, advance_started_at=None, live_token=None
+            stop_requested=True,
+            advance_token=None,
+            advance_started_at=None,
+            live_token=None,
+            run_requested_at=None,
         )
         discussion.refresh_from_db()
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)

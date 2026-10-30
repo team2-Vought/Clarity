@@ -14,6 +14,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     avatar = models.TextField('аватарка', blank=True, default='')
     # налаштування, що йдуть за акаунтом: модель і параметри нової дискусії
     preferences = models.JSONField('налаштування', default=dict, blank=True)
+    # «Про мене»: вік, сім'я, гроші, цінності — щоб поради були персональними (accounts.about)
+    about = models.JSONField('про мене', default=dict, blank=True)
 
     objects = UserManager()
 

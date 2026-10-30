@@ -13,6 +13,7 @@ import { MenuIcon } from './DebateIcons';
 import { UNAUTHORIZED_EVENT } from '../api/client';
 import { useToasts } from '../hooks/useToasts';
 import { copy } from '../copy';
+import { refreshJournalDue } from '../hooks/useJournalDue';
 import { readThemeMode, writeThemeMode } from '../utils/devicePrefs';
 import { morphSidebar } from '../utils/sidebarMorph';
 
@@ -35,6 +36,11 @@ export default function Layout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { pushToast } = useToasts();
+
+  // рішення, що чекають на «Як воно?», могли з'явитися, поки людина була деінде
+  useEffect(() => {
+    refreshJournalDue();
+  }, [pathname]);
 
   // прострочена сесія з будь-якого запиту веде на вхід, а не лишає сторінку з помилкою
   useEffect(() => {

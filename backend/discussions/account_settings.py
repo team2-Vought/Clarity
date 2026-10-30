@@ -46,6 +46,10 @@ DEFAULT_PREFERENCES = {
     'default_until_consensus': False,
     'default_participants': MIN_AI,
     'web_search': True,
+    # підказки першого запуску на сторінці нового чату вже закрито
+    'onboarding_done': False,
+    # лист «Як ваше рішення?», коли настав час підбити підсумок
+    'journal_emails': True,
 }
 
 
@@ -74,6 +78,8 @@ class PreferencesSerializer(serializers.Serializer):
         required=False, min_value=MIN_AI, max_value=MAX_AI
     )
     web_search = serializers.BooleanField(required=False)
+    onboarding_done = serializers.BooleanField(required=False)
+    journal_emails = serializers.BooleanField(required=False)
 
     def validate_default_model(self, value):
         # модель може тимчасово стати недоступною (ключ видалено) — тоді

@@ -248,3 +248,110 @@ class QuotaTests(SimpleTestCase):
             'discussions.services.providers.httpx.post', side_effect=[limited, ok]
         ), mock.patch('discussions.services.providers.time.sleep'):
             self.assertEqual(provider.complete(system='s', prompt='p'), 'Готово')
+
+
+class FakeStream:
+    def __init__(self, lines, status_code=200, text=''):
+        self.lines = lines
+        self.status_code = status_code
+        self.text = text
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return self.text
+
+    def iter_lines(self):
+        yield from self.lines
+
+
+class StreamingProviderTests(SimpleTestCase):
+    @override_settings(LLM_OPENAI_API_KEY='sk-test')
+    def test_openai_compatible_stream_reports_growing_text(self):
+        provider = get_provider('openai:gpt-6-luna')
+        lines = [
+            'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+            '',
+            'data: {"choices":[{"delta":{"content":"Пер"}}]}',
+            'data: {"choices":[{"delta":{"content":"ший"}}]}',
+            'data: {"choices":[]}',
+            'data: [DONE]',
+        ]
+        seen = []
+        with mock.patch(
+            'discussions.services.providers.httpx.stream', return_value=FakeStream(lines)
+        ) as stream:
+            result = provider.complete(system='s', prompt='p', on_text=seen.append)
+        self.assertEqual(result, 'Перший')
+        self.assertEqual(seen, ['Пер', 'Перший'])
+        self.assertTrue(stream.call_args.kwargs['json']['stream'])
+
+    @override_settings(LLM_ANTHROPIC_API_KEY='sk-ant-test')
+    def test_anthropic_stream_reports_text_deltas(self):
+        provider = get_provider('anthropic:claude-sonnet-5-5')
+        lines = [
+            'event: message_start',
+            'data: {"type":"message_start","message":{}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"…"}}',
+            'data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"При"}}',
+            'data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"віт"}}',
+            'data: {"type":"message_stop"}',
+        ]
+        seen = []
+        with mock.patch(
+            'discussions.services.providers.httpx.stream', return_value=FakeStream(lines)
+        ):
+            result = provider.complete(system='s', prompt='p', on_text=seen.append)
+        self.assertEqual(result, 'Привіт')
+        self.assertEqual(seen, ['При', 'Привіт'])
+
+    @override_settings(LLM_OPENAI_API_KEY='sk-test', LLM_RETRY_DELAY_SECONDS=0)
+    def test_failed_stream_falls_back_to_a_plain_request(self):
+        provider = get_provider('openai:gpt-6-luna')
+        seen = []
+        with (
+            mock.patch(
+                'discussions.services.providers.httpx.stream',
+                return_value=FakeStream([], status_code=503, text='overloaded'),
+            ),
+            mock.patch(
+                'discussions.services.providers.httpx.post',
+                return_value=fake_response({'choices': [{'message': {'content': 'Готово'}}]}),
+            ) as post,
+        ):
+            result = provider.complete(system='s', prompt='p', on_text=seen.append)
+        self.assertEqual(result, 'Готово')
+        self.assertEqual(seen, [''])
+        self.assertNotIn('stream', post.call_args.kwargs['json'])
+
+    @override_settings(LLM_OPENAI_API_KEY='sk-test')
+    def test_bad_key_is_not_retried_without_stream(self):
+        provider = get_provider('openai:gpt-6-luna')
+        with (
+            mock.patch(
+                'discussions.services.providers.httpx.stream',
+                return_value=FakeStream([], status_code=401, text='bad key'),
+            ),
+            mock.patch('discussions.services.providers.httpx.post') as post,
+        ):
+            with self.assertRaises(ProviderError) as ctx:
+                provider.complete(system='s', prompt='p', on_text=lambda text: None)
+        self.assertTrue(ctx.exception.config)
+        post.assert_not_called()
+
+    @override_settings(LLM_OPENAI_API_KEY='sk-test')
+    def test_json_mode_never_streams(self):
+        provider = get_provider('openai:gpt-6-luna')
+        with (
+            mock.patch('discussions.services.providers.httpx.stream') as stream,
+            mock.patch(
+                'discussions.services.providers.httpx.post',
+                return_value=fake_response({'choices': [{'message': {'content': '{}'}}]}),
+            ),
+        ):
+            provider.complete(system='s', prompt='p', json_mode=True, on_text=lambda text: None)
+        stream.assert_not_called()

@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from backend.i18n import L, lazy_L
 
+from .about import AboutSerializer
 from .login_limit import check_login_allowed, register_failed_login, reset_login_attempts
 from .models import User
 
@@ -26,6 +27,10 @@ PASSWORDS_MISMATCH = lazy_L('Паролі не збігаються', 'The passw
 AVATAR_INVALID = lazy_L('Не вдалося прочитати зображення', 'Could not read the image')
 AVATAR_TOO_LARGE = lazy_L('Зображення завелике', 'The image is too large')
 
+RESET_LINK_INVALID = lazy_L(
+    'Посилання недійсне або застаріле. Попросіть новий лист.',
+    'The link is invalid or has expired. Request a new email.',
+)
 WRONG_EMAIL = lazy_L('Неправильна пошта', 'Wrong email')
 WRONG_PASSWORD = lazy_L('Невірний пароль', 'Wrong password')
 PASSWORD_SAME = lazy_L('Новий пароль збігається з поточним', 'The new password is the same as the current one')
@@ -207,7 +212,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.Serializer):
-    """Зміна імені, пошти чи аватарки; нова пошта — лише з поточним паролем."""
+    """Зміна імені, пошти, аватарки чи «Про мене»; нова пошта — лише з поточним паролем."""
 
     name = serializers.CharField(required=False, max_length=200, error_messages={'blank': REQUIRED})
     email = serializers.CharField(required=False, max_length=254, error_messages={'blank': REQUIRED})
@@ -215,6 +220,7 @@ class ProfileSerializer(serializers.Serializer):
     current_password = serializers.CharField(
         required=False, allow_blank=True, write_only=True, max_length=128
     )
+    about = AboutSerializer(required=False)
 
     def validate_name(self, value):
         return clean_name(value)
@@ -275,4 +281,32 @@ class DeleteAccountSerializer(serializers.Serializer):
                 raise ValidationError({'password': REQUIRED})
             if not user.check_password(password):
                 raise ValidationError({'password': WRONG_PASSWORD})
+        return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=254,
+        error_messages={'required': REQUIRED, 'blank': REQUIRED},
+    )
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if not EMAIL_RE.fullmatch(email):
+            raise serializers.ValidationError(EMAIL_INVALID)
+        return email
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Новий пароль за посиланням з листа; правила ті самі, що й при реєстрації."""
+
+    uid = serializers.CharField(max_length=64)
+    token = serializers.CharField(max_length=128)
+    password = password_field()
+    confirm_password = password_field()
+
+    def validate(self, attrs):
+        check_new_password(attrs['password'], attrs['confirm_password'])
         return attrs

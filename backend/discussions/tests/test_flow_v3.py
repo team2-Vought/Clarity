@@ -555,7 +555,7 @@ class ApiV3Tests(TestCase):
         self.addCleanup(patcher.stop)
         self.provider = FakeProvider()
         provider_patcher = mock.patch(
-            'discussions.services.engine.get_provider',
+            'discussions.services.engine.calls.get_provider',
             side_effect=lambda model_id: self.provider,
         )
         provider_patcher.start()
@@ -713,7 +713,7 @@ class ApiV3Tests(TestCase):
     def test_failed_step_exposes_public_error(self):
         created = self.create()
         with mock.patch(
-            'discussions.services.engine.get_provider',
+            'discussions.services.engine.calls.get_provider',
             side_effect=ProviderError('401 sk-secret', status=401),
         ):
             self.client.post(f'/api/discussions/{created["id"]}/run/')
@@ -733,3 +733,33 @@ class ApiV3Tests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 400)
+
+
+class ActionPlanTests(TestCase):
+    def test_final_summary_keeps_the_plan_and_triggers(self):
+        summary = engine.parsing.normalize_summary(
+            {
+                'decision': 'Переїжджати',
+                'confirmed': True,
+                'next_steps': ['  Порахувати бюджет ', '', 'Подзвонити рієлтору'] + ['Крок'] * 5,
+                'change_triggers': 'Якщо ціни зростуть — переглянути',
+            },
+            {},
+            Discussion.Mode.OPEN,
+            [],
+        )
+        self.assertEqual(summary['next_steps'][:2], ['Порахувати бюджет', 'Подзвонити рієлтору'])
+        self.assertLessEqual(len(summary['next_steps']), 5)
+        # модель повернула рядок замість списку — це один сигнал
+        self.assertEqual(summary['change_triggers'], ['Якщо ціни зростуть — переглянути'])
+
+    def test_final_message_shows_the_plan_instead_of_a_single_step(self):
+        text = engine.texts._final_text({
+            'decision': 'Переїжджати',
+            'recommendation': 'Порахувати бюджет',
+            'next_steps': ['Порахувати бюджет', 'Подзвонити рієлтору'],
+            'change_triggers': ['Якщо оренда дорожча за 15 000 — переглянути'],
+        })
+        self.assertIn('1. Порахувати бюджет\n2. Подзвонити рієлтору', text)
+        self.assertIn('Коли варто передумати', text)
+        self.assertNotIn('Що робити далі', text)

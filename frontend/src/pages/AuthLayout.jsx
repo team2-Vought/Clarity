@@ -14,7 +14,7 @@ export function Background() {
   );
 }
 
-export function AuthPage({ title, form, variant }) {
+export function AuthPage({ title, form, variant, lead = '' }) {
   const navigate = useNavigate();
   return (
     <div className="page page--auth">
@@ -26,6 +26,7 @@ export function AuthPage({ title, form, variant }) {
           </div>
           <div className="auth-view">
             <h1 id="title">{title}</h1>
+            {lead && <p className="auth-lead">{lead}</p>}
             {form}
           </div>
           <p className="card__back">
@@ -43,4 +44,5 @@ AuthPage.propTypes = {
   title: PropTypes.string.isRequired,
   form: PropTypes.node.isRequired,
   variant: PropTypes.oneOf(['login', 'register']).isRequired,
+  lead: PropTypes.string,
 };

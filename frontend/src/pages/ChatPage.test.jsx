@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
@@ -165,6 +165,44 @@ describe('ChatPage', () => {
     expect(
       await screen.findByText('Шукаємо в інтернеті «медіанна зарплата в стартапах 2026»…')
     ).toBeInTheDocument();
+  });
+
+  it('показує репліку, поки модель її пише, і не «друкує» її вдруге', async () => {
+    const running = {
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'opening',
+      is_finished: false,
+      is_running: true,
+      messages: DISCUSSION.messages.slice(0, 2),
+      thinking: [],
+      live: {
+        status: '',
+        search: '',
+        drafts: [{ slug: 'emotional', name: 'Марта', phase: 'opening', round: 1, text: 'Залежить від' }],
+      },
+    };
+    vi.mocked(fetchDiscussion)
+      .mockResolvedValueOnce(running)
+      .mockResolvedValueOnce({
+        ...running,
+        phase: 'debate',
+        messages: [DISCUSSION.messages[2]],
+        live: { status: '', search: '', drafts: [] },
+      })
+      .mockResolvedValue({ ...running, phase: 'debate', messages: [], live: { status: '', search: '', drafts: [] } });
+    renderPage();
+
+    expect(await screen.findByText('Залежить від')).toBeInTheDocument();
+    expect(document.querySelector('.chat__bubble--draft')).not.toBeNull();
+
+    // крок завершився: збережена репліка заміняє чернетку одразу, без анімації друку
+    await waitFor(
+      () => expect(screen.getByText('Залежить від людей.')).toBeInTheDocument(),
+      { timeout: 3000 }
+    );
+    expect(document.querySelector('.chat__bubble--draft')).toBeNull();
+    expect(document.querySelector('.chat__bubble--typing')).toBeNull();
   });
 
   it('після аналізу лишає згорнутий рядок «Аналізовано за …» з кроками', async () => {

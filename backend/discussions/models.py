@@ -46,6 +46,8 @@ class Discussion(models.Model):
     clarifications = models.JSONField('уточнення перед стартом', default=list, blank=True)
     # Питання модератора, на які ще чекаємо відповіді: [{id, question, options}]
     clarify_questions = models.JSONField('питання модератора', default=list, blank=True)
+    # «Про мене» автора на момент створення: зміни профілю не переписують старих дискусій
+    profile = models.JSONField('профіль автора', default=dict, blank=True)
     personas = models.JSONField('персони', default=list)
     rounds = models.PositiveSmallIntegerField('раундів дискусії', default=2)
     web_search = models.BooleanField('пошук в інтернеті', default=False)
@@ -55,6 +57,11 @@ class Discussion(models.Model):
     devil_model = models.CharField('модель AI Devil', max_length=120, blank=True, default='')
     followups = models.PositiveSmallIntegerField('уточнень після фіналу', default=0)
     stop_requested = models.BooleanField('зупинку запитано', default=False)
+    # Черга воркера (DISCUSSION_RUNNER=worker): коли попросили виконувати кроки.
+    # Скидається, коли дискусія завершилась, зупинилась чи чекає на людину.
+    run_requested_at = models.DateTimeField(
+        'запуск запитано', null=True, blank=True, editable=False, db_index=True
+    )
     pinned = models.BooleanField('закріплено', default=False)
     archived = models.BooleanField('в архіві', default=False)
     # мова, якою створено дискусію: нею пишуть AI і рушій (uk | en)
@@ -87,6 +94,8 @@ class Discussion(models.Model):
     live_token = models.UUIDField(null=True, blank=True, editable=False)
     live_status = models.CharField(max_length=120, blank=True, default='', editable=False)
     live_search = models.CharField(max_length=300, blank=True, default='', editable=False)
+    # Репліки, які моделі ще пишуть: [{slug, name, phase, round, reply_to, reply_to_slug, text}]
+    live_drafts = models.JSONField(default=list, blank=True, editable=False)
 
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)
@@ -229,6 +238,109 @@ class Team(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['user', 'name'], name='unique_team_name_per_user'),
         ]
+
+    def __str__(self):
+        return self.name
+
+
+class Decision(models.Model):
+    """Запис журналу рішень: що людина вирішила й як воно вийшло.
+
+    Через обраний час Clarity питає «Як воно?» — у застосунку й листом.
+    Питання, рішення, кроки й тригери скопійовано з дискусії: запис лишається
+    осмисленим, навіть якщо дискусію потім видалили.
+    """
+
+    class Outcome(models.TextChoices):
+        GOOD = 'good', 'Добре'
+        MIXED = 'mixed', 'По-різному'
+        BAD = 'bad', 'Погано'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='decisions',
+        verbose_name='користувач',
+    )
+    discussion = models.OneToOneField(
+        Discussion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='journal_entry',
+        verbose_name='дискусія',
+    )
+    question = models.TextField('запитання', max_length=6000)
+    decision = models.TextField('рішення', max_length=2000)
+    # план на тиждень із висновку й номери вже зроблених кроків
+    steps = models.JSONField('кроки', default=list, blank=True)
+    done_steps = models.JSONField('зроблені кроки', default=list, blank=True)
+    triggers = models.JSONField('коли передумати', default=list, blank=True)
+    # мова листа-нагадування — та, якою йшла дискусія
+    language = models.CharField('мова', max_length=5, default='uk')
+    check_at = models.DateTimeField('коли спитати «Як воно?»')
+    reminded_at = models.DateTimeField('лист надіслано', null=True, blank=True)
+    outcome = models.CharField('як вийшло', max_length=8, choices=Outcome.choices, blank=True)
+    reflection = models.TextField('що зрозумів', max_length=1000, blank=True)
+    reviewed_at = models.DateTimeField('підсумовано', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'рішення'
+        verbose_name_plural = 'журнал рішень'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'check_at']),
+            models.Index(fields=['reviewed_at', 'reminded_at', 'check_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.decision[:50]} ({self.user})'
+
+
+class Attachment(models.Model):
+    """Документ, доданий до питання: оффер, договір, резюме, оголошення.
+
+    Зберігається лише витягнутий текст — самого файлу сервер не тримає. До
+    створення дискусії вкладення ні до чого не прив'язане; такі «сироти»
+    прибираються через добу.
+    """
+
+    class Kind(models.TextChoices):
+        PDF = 'pdf', 'PDF'
+        DOCX = 'docx', 'Word'
+        TEXT = 'text', 'Текст'
+        IMAGE = 'image', 'Фото'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='користувач',
+    )
+    discussion = models.ForeignKey(
+        Discussion,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='attachments',
+        verbose_name='дискусія',
+    )
+    name = models.CharField('назва файлу', max_length=200)
+    kind = models.CharField('тип', max_length=8, choices=Kind.choices)
+    size = models.PositiveIntegerField('розмір, байт')
+    text = models.TextField('текст документа')
+    # текст обрізано до ліміту — моделі бачать не весь документ
+    truncated = models.BooleanField('обрізано', default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'вкладення'
+        verbose_name_plural = 'вкладення'
+        ordering = ['created_at']
 
     def __str__(self):
         return self.name

@@ -99,42 +99,49 @@ MODELS = [
     {
         'provider_id': 'openai',
         'model': 'gpt-6-luna',
+        'vision': True,
         'label': 'GPT-6 Luna',
         'notes': 'Найекономніша актуальна модель OpenAI для частих викликів.',
     },
     {
         'provider_id': 'openai',
         'model': 'gpt-6-sol',
+        'vision': True,
         'label': 'GPT-6 Sol',
         'notes': 'Сильна модель OpenAI для складних міркувань.',
     },
     {
         'provider_id': 'anthropic',
         'model': 'claude-sonnet-5-5',
+        'vision': True,
         'label': 'Claude Sonnet 5.5',
         'notes': 'Баланс швидкості та якості для дебатів.',
     },
     {
         'provider_id': 'anthropic',
         'model': 'claude-haiku-5-5',
+        'vision': True,
         'label': 'Claude Haiku 5.5',
         'notes': 'Швидка й дешева модель для великої кількості реплік.',
     },
     {
         'provider_id': 'anthropic',
         'model': 'claude-opus-5-5',
+        'vision': True,
         'label': 'Claude Opus 5.5',
         'notes': 'Найсильніша актуальна модель Anthropic для складних рішень.',
     },
     {
         'provider_id': 'gemini',
         'model': 'gemini-3.8-flash',
+        'vision': True,
         'label': 'Gemini 3.8 Flash',
         'notes': 'Швидка модель Gemini з великим контекстом.',
     },
     {
         'provider_id': 'gemini',
         'model': 'gemini-3.5-flash-lite',
+        'vision': True,
         'label': 'Gemini 3.5 Flash-Lite',
         'notes': 'Найдешевша актуальна модель Gemini.',
     },
@@ -153,6 +160,7 @@ MODELS = [
     {
         'provider_id': 'groq',
         'model': 'qwen/qwen3.8-27b',
+        'vision': True,
         'label': 'Qwen 3.8 27B',
         'notes': 'Швидка мультимодальна модель Qwen на Groq.',
     },
@@ -201,12 +209,14 @@ MODELS = [
     {
         'provider_id': 'openrouter',
         'model': 'openai/gpt-6-luna',
+        'vision': True,
         'label': 'GPT-6 Luna',
         'notes': 'Модель OpenAI через OpenRouter.',
     },
     {
         'provider_id': 'openrouter',
         'model': 'anthropic/claude-sonnet-5-5',
+        'vision': True,
         'label': 'Claude Sonnet 5.5',
         'notes': 'Модель Anthropic через OpenRouter.',
     },
@@ -382,6 +392,8 @@ def _public_spec(spec):
         'requires_key': provider['requires_key'],
         'key_env': provider.get('key_env', ''),
         'local': spec['provider_id'] in {'ollama', 'custom'},
+        # бачить зображення — може прочитати фото документа
+        'vision': bool(spec.get('vision')),
     }
 
 
@@ -469,3 +481,10 @@ def available_model_ids():
     available = [spec['id'] for spec in _all_specs() if _is_available(spec)]
     preferred = [model_id for model_id in RECOMMENDED if model_id in available]
     return preferred + [model_id for model_id in available if model_id not in preferred]
+
+
+def vision_model_ids():
+    """Доступні моделі, що бачать зображення; модель за замовчуванням — першою."""
+    default = default_model_id()
+    ids = [spec['id'] for spec in _all_specs() if spec.get('vision') and _is_available(spec)]
+    return sorted(ids, key=lambda model_id: model_id != default)

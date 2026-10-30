@@ -141,7 +141,9 @@
 .settings__main {
   min-width: 0;
   min-height: 0;
-  padding: clamp(24px, 4vh, 44px) clamp(20px, 4vw, 56px) 48px;
+  /* нижній відступ — змінна: липка кнопка «Зберегти» опускається на всю його висоту */
+  --main-pad-bottom: 48px;
+  padding: clamp(24px, 4vh, 44px) clamp(20px, 4vw, 56px) var(--main-pad-bottom);
   overflow-y: auto;
   overscroll-behavior-y: none;
   background: var(--main-bg);
@@ -962,6 +964,101 @@
   font-family: inherit;
 }
 
+/* багаторядкове поле — та сама «пігулка», але зі скругленням картки */
+.settings__key-field--area {
+  align-items: stretch;
+  padding: 10px 16px;
+  border-radius: 20px;
+}
+
+.settings__textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 3lh;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.settings__textarea::placeholder,
+.settings__key-input--plain::placeholder {
+  color: var(--muted);
+}
+
+/* аркуш «Про мене»: поля вводу йдуть одне за одним із повітрям між ними */
+.settings__sheet--form {
+  gap: 14px;
+  padding-top: 16px;
+  padding-bottom: 18px;
+}
+
+.settings__sheet--form .settings__row {
+  padding: 0;
+}
+
+/* підписи полів — як назви рядків із пігулками, щоб аркуш читався однаково */
+.settings__sheet--form .settings__input-label {
+  padding-left: 0;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.settings__sheet--form .settings__input {
+  gap: 8px;
+}
+
+.settings__sheet--form .settings__row + .settings__row {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* вибір кількох варіантів: вибраний знімається повторним кліком */
+.settings__pill--toggle.settings__pill--active {
+  cursor: pointer;
+}
+
+.settings__footnote--lead {
+  padding-top: 0;
+  padding-bottom: 4px;
+  font-size: 0.9375rem;
+}
+
+.settings__save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 4px -8px 0;
+  padding: 12px 8px;
+}
+
+/* кнопка збереження лишається видимою, поки людина заповнює довгу форму.
+   Липкий елемент зупиняється над нижнім відступом області прокрутки, тож
+   опускаємо його на цей відступ — інакше під кнопкою видно форму */
+.settings__save-bar--sticky {
+  position: sticky;
+  bottom: calc(-1 * var(--main-pad-bottom, 0px));
+  /* під кнопкою — звичайний відступ, а на телефоні ще й місце під смугу жестів */
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 1;
+  background: linear-gradient(to bottom, transparent, var(--main-bg) 30%);
+}
+
+.settings__save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .settings__input-error {
   padding-left: 16px;
   color: var(--s-error);
@@ -1065,7 +1162,8 @@
   }
 
   .settings__main {
-    padding: 12px 12px max(32px, env(safe-area-inset-bottom));
+    --main-pad-bottom: max(32px, env(safe-area-inset-bottom));
+    padding: 12px 12px var(--main-pad-bottom);
   }
 
   .settings__sheet {

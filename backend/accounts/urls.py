@@ -1,6 +1,15 @@
 from django.urls import path
 
-from .views import GoogleLoginView, LoginView, LogoutView, MeView, PasswordView, RegisterView
+from .views import (
+    GoogleLoginView,
+    LoginView,
+    LogoutView,
+    MeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    PasswordView,
+    RegisterView,
+)
 
 app_name = 'accounts'
 
@@ -11,4 +20,10 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('me/', MeView.as_view(), name='me'),
     path('password/', PasswordView.as_view(), name='password'),
+    path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
+    path(
+        'password-reset/confirm/',
+        PasswordResetConfirmView.as_view(),
+        name='password-reset-confirm',
+    ),
 ]

@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { draftMessagesOf, isIdle, lastSeqOf, mergeMessages } from './chatMessages';
+
+describe('mergeMessages', () => {
+  it('додає лише нові репліки й тримає їх за порядком', () => {
+    const current = [{ id: 'a', seq: 1 }, { id: 'b', seq: 2 }];
+    const merged = mergeMessages(current, [{ id: 'b', seq: 2 }, { id: 'c', seq: 3 }]);
+    expect(merged.map((message) => message.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('без нових реплік повертає той самий масив — React не перемальовує чат', () => {
+    const current = [{ id: 'a', seq: 1 }];
+    expect(mergeMessages(current, [{ id: 'a', seq: 1 }])).toBe(current);
+  });
+});
+
+describe('draftMessagesOf', () => {
+  it('перетворює чернетки з сервера на репліки для спільного рендеру', () => {
+    const [draft] = draftMessagesOf({
+      live: {
+        drafts: [{ slug: 'skeptic', name: 'Скептик', phase: 'debate', round: 2, text: 'Пишу…' }],
+      },
+    });
+    expect(draft).toMatchObject({
+      id: 'draft-skeptic',
+      draft: true,
+      role: 'ai',
+      persona_slug: 'skeptic',
+      persona_name: 'Скептик',
+      round: 2,
+      content: 'Пишу…',
+    });
+  });
+
+  it('без живого стану чернеток немає', () => {
+    expect(draftMessagesOf({})).toEqual([]);
+  });
+});
+
+describe('isIdle', () => {
+  const base = { is_running: false, is_finished: false, stop_requested: false, status: 'in_progress' };
+
+  it('незавершена дискусія без раннера — його треба запустити', () => {
+    expect(isIdle(base)).toBe(true);
+  });
+
+  it('чекає на людину, зупинена чи впала — не запускаємо', () => {
+    expect(isIdle({ ...base, phase: 'clarify', clarify_questions: [{ id: 'q' }] })).toBe(false);
+    expect(isIdle({ ...base, stop_requested: true })).toBe(false);
+    expect(isIdle({ ...base, status: 'failed' })).toBe(false);
+  });
+});
+
+describe('lastSeqOf', () => {
+  it('найбільший номер репліки або 0', () => {
+    expect(lastSeqOf({ messages: [{ seq: 3 }, { seq: 7 }] })).toBe(7);
+    expect(lastSeqOf(null)).toBe(0);
+  });
+});

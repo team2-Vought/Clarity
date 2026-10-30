@@ -22,6 +22,10 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
   const verdict = describeVerdict(summary, mode, options);
   const isArticle = verdict.kind === 'open';
   const revision = view.confirmed === false && summary?.revision ? String(summary.revision) : '';
+  const plan = view.plan || [];
+  const triggers = view.triggers || [];
+  // старі підсумки не мають плану — тоді лишається один «наступний крок»
+  const nextStep = plan.length === 0 && summary?.recommendation ? String(summary.recommendation) : '';
 
   return (
     <>
@@ -104,7 +108,7 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
         </div>
       )}
 
-      {(revision || view.lists.length > 0 || summary?.recommendation) && (
+      {(revision || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
         <div className="chat__summary-sections" style={step()}>
           {revision && (
             <section className="chat__summary-group chat__summary-group--revision">
@@ -126,12 +130,39 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
               </ul>
             </section>
           ))}
-          {summary?.recommendation && (
+          {plan.length > 0 && (
+            <section className="chat__summary-group chat__summary-group--plan">
+              <h4 className="chat__summary-label">{t.summaryPlan}</h4>
+              <ol className="chat__summary-plan">
+                {plan.map((item, itemIndex) => (
+                  <li key={`plan-${itemIndex}`}>
+                    <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 1}</span>
+                    <span>
+                      <InlineText text={item} sources={sources} />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          {nextStep && (
             <section className="chat__summary-group chat__summary-group--next">
               <h4 className="chat__summary-label">{t.summaryNextStep}</h4>
               <p>
-                <InlineText text={String(summary.recommendation)} sources={sources} />
+                <InlineText text={nextStep} sources={sources} />
               </p>
+            </section>
+          )}
+          {triggers.length > 0 && (
+            <section className="chat__summary-group chat__summary-group--triggers">
+              <h4 className="chat__summary-label">{t.summaryTriggers}</h4>
+              <ul>
+                {triggers.map((item, itemIndex) => (
+                  <li key={`trigger-${itemIndex}`}>
+                    <InlineText text={item} sources={sources} />
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </div>
@@ -148,6 +179,8 @@ SummaryDetails.propTypes = {
     confidence: PropTypes.number,
     agreement: PropTypes.object,
     lists: PropTypes.array.isRequired,
+    plan: PropTypes.arrayOf(PropTypes.string),
+    triggers: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   sources: PropTypes.instanceOf(Map).isRequired,
   mode: PropTypes.oneOf(['open', 'yes_no', 'choose_one']),

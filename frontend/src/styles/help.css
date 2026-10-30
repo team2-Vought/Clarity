@@ -1,0 +1,245 @@
+/* «Допомога»: одна колонка тексту з картками, як «Налаштування» */
+
+.help {
+  --h-sheet: var(--soft);
+  --h-line: color-mix(in srgb, var(--ink) 8%, transparent);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  padding: clamp(28px, 5vh, 56px) clamp(16px, 4vw, 56px) 64px;
+  background: var(--main-bg);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion='reduced']) .help {
+    scroll-behavior: smooth;
+  }
+}
+
+.help__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 760px;
+  margin: 0 auto;
+  animation: help-in 0.22s ease-out;
+}
+
+@keyframes help-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.help__head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.help__title {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.help__lead {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+/* зміст — рядок «пігулок», що переносяться */
+.help__toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.help__toc-link {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--h-sheet);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.18s, var(--press);
+}
+
+.help__toc-link:hover {
+  background: color-mix(in srgb, var(--ink) 8%, var(--h-sheet));
+}
+
+.help__toc-link:active {
+  scale: var(--press-scale);
+}
+
+.help__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-margin-top: 24px;
+}
+
+.help__section-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.help__section-lead {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.help__item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.help__item-text {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* етапи дискусії — нумерований список на одному аркуші */
+.help__steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 6px 20px;
+  border-radius: 28px;
+  background: var(--h-sheet);
+  list-style: none;
+}
+
+.help__step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+}
+
+.help__step + .help__step {
+  border-top: 1px solid var(--h-line);
+}
+
+.help__step-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.help__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help__card {
+  padding: 16px 18px 18px;
+  border-radius: 22px;
+  background: var(--h-sheet);
+}
+
+.help__card-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--card);
+  flex: none;
+}
+
+.help__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid var(--h-line);
+}
+
+.help__disclaimer {
+  flex: 1 1 320px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.help__start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s, var(--press);
+}
+
+.help__start:hover {
+  opacity: 0.88;
+}
+
+.help__start:active {
+  scale: var(--press-scale);
+}
+
+.help a:focus-visible,
+.help button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* на телефоні над вмістом — кнопка меню, тож відступ зверху більший */
+@media (max-width: 639px) {
+  .help {
+    padding-top: 72px;
+  }
+
+  .help__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help__inner {
+    animation: none;
+  }
+}
+
+:root[data-motion='reduced'] .help__inner {
+  animation: none;
+}

@@ -1,22 +1,14 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  ArrowDown01Icon,
   ArrowDown02Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  ArrowTurnBackwardIcon,
   Copy01Icon,
-  Download04Icon,
-  FileExportIcon,
+  IdentityCardIcon,
   Link01Icon,
-  Loading03Icon,
   PencilEdit02Icon,
-  RepeatIcon,
-  Share08Icon,
-  Search01Icon,
-  Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import {
   fetchDiscussion,
@@ -43,32 +35,40 @@ import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import ThoughtLine from '../components/ThoughtLine';
-import MessageMarkdown, { InlineText } from '../components/MessageMarkdown';
+import MessageMarkdown from '../components/MessageMarkdown';
 import ClarifyCard from '../components/ClarifyCard';
 import ErrorNotice from '../components/ErrorNotice';
 import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
-import ParagraphReveal from '../components/ParagraphReveal';
-import SummaryDetails from '../components/SummaryDetails';
 import { copy } from '../copy';
 import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
-import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
-import { downloadSummaryPdf } from '../utils/summaryPdf';
-import { describeSummary, summaryDetailSteps } from '../utils/summary';
+import { parseBlocks, plainText } from '../utils/markdown';
+import { describeSummary } from '../utils/summary';
 import {
   USER_COLOR,
   buildSpeakers,
   duplicateFinalId,
-  findReplyTarget,
   phaseLabel,
   speakerKeyOf,
-  stanceLabel,
-  stanceTone,
 } from '../utils/chatView';
 import { discussionMarkdown, downloadText, markdownFileName } from '../utils/exportMarkdown';
+import {
+  awaitsClarify,
+  doneStep,
+  draftMessagesOf,
+  isIdle,
+  lastSeqOf,
+  mergeMessages,
+  snippetOf,
+  thinkingStep,
+} from '../utils/chatMessages';
+import ChatMessage from '../components/chat/ChatMessage';
+import ChatSummary from '../components/chat/ChatSummary';
+import NotifyOffer from '../components/chat/NotifyOffer';
+import AttachmentChip from '../components/AttachmentChip';
+import { useRunAlerts } from '../hooks/useRunAlerts';
+import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
-import logoStill from '../assets/Clarity_logo_8.svg';
-import logoThinking from '../assets/logo-thinking.svg';
 
 const t = copy.chat;
 const d = copy.debate;
@@ -79,11 +79,6 @@ function actionFailure(err, fallback) {
   return { kind, text: kind === 'network' ? copy.errors.network : err?.message || fallback };
 }
 
-// сталі елементи: ThoughtLine перезапускає анімації гліфа, коли той змінюється
-const THINKING_GLYPH = <img className="chat__thought-logo" src={logoThinking} alt="" />;
-// завершений аналіз, а також «Менше анімації» в налаштуваннях: туди не дістає
-// до анімації всередині <img>
-const STILL_GLYPH = <img className="chat__thought-logo chat__thought-logo--still" src={logoStill} alt="" />;
 
 // Чи вміщається текст підказки в поле цілим. Без вимірювань (тести, ще не
 // змонтоване поле) вважаємо, що ні, — тоді береться коротший варіант.
@@ -97,8 +92,6 @@ const fitsField = ({ width, font }, text) => {
 };
 
 const STICK_THRESHOLD = 96;
-// довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
-const WIDE_MESSAGE = 160;
 const JUMP_THRESHOLD = 400;
 // частка відстані до низу, яку чат проходить за кадр: великий стрибок висоти
 // стає м'яким доїздом (~0,3 с), а рівний ріст тексту — майже без відставання
@@ -113,91 +106,14 @@ const prefersReducedMotion = () =>
   || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 // Дискусію виконує сервер; сторінка лише опитує стан.
 const POLL_MS = 2000;
+// поки модель пише репліку, опитуємо частіше — текст росте майже наживо
+const STREAM_POLL_MS = 700;
 // Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
 // (перезапуск процесу), перш ніж показати помилку.
 const MAX_KICKS = 3;
 const MAX_NOTE = 1000;
-const CITATION_RE = /(\[\d+\])/g;
 const COMPACT_KEY = 'clarity:chat-compact';
 
-const domainOf = (url) => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
-};
-
-const faviconOf = (url) => {
-  const domain = domainOf(url);
-  return domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : '';
-};
-
-function SourceFavicon({ url }) {
-  const [failed, setFailed] = useState(false);
-  const src = faviconOf(url);
-  if (!src || failed) {
-    return (
-      <span className="chat__source-icon chat__source-icon--letter" aria-hidden="true">
-        {(domainOf(url)[0] || '?').toUpperCase()}
-      </span>
-    );
-  }
-  return (
-    <img
-      className="chat__source-icon"
-      src={src}
-      alt=""
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-// Згорнутий вигляд джерел: кілька логотипів і кількість
-function SourcesLabel({ sources }) {
-  return (
-    <>
-      <span className="chat__sources-icons" aria-hidden="true">
-        {sources.slice(0, 4).map((source) => (
-          <SourceFavicon key={source.id} url={source.url} />
-        ))}
-      </span>
-      {`${t.sources} · ${sources.length}`}
-      <HugeiconsIcon icon={ArrowDown01Icon} size={14} className="chat__sources-chevron" />
-    </>
-  );
-}
-
-function SourceItems({ sources, query = '' }) {
-  return (
-    <ol>
-      {query && <li className="chat__sources-query">{t.searchedFor(query)}</li>}
-      {sources.map((source) => (
-        <li key={source.id}>
-          <a href={source.url} target="_blank" rel="noopener noreferrer" title={source.title}>
-            <SourceFavicon url={source.url} />
-            <span className="chat__source-title">{source.title || domainOf(source.url)}</span>
-            <span className="chat__source-domain">{domainOf(source.url)}</span>
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-// Згорнуто — рядок із кількома логотипами, розгорнуто — список посилань
-function SourceList({ sources, query = '', compact = false }) {
-  return (
-    <details className={`chat__sources ${compact ? 'chat__sources--compact' : ''}`}>
-      <summary>
-        <SourcesLabel sources={sources} />
-      </summary>
-      <SourceItems sources={sources} query={query} />
-    </details>
-  );
-}
 
 const readCompact = () => {
   try {
@@ -207,64 +123,6 @@ const readCompact = () => {
   }
 };
 
-const modelNameOf = (models, id) => {
-  const model = models.find((item) => item.id === id);
-  return model ? model.label || model.model : '';
-};
-
-// Колонка карти позицій: вступ, раунд або відповідь на Devil (після
-// уточнення синтез і Devil проходять ще раз, тож відповідей може бути кілька).
-const snippetOf = (content) =>
-  plainText(content).replace(CITATION_RE, '').replace(/\s+/g, ' ').trim().slice(0, 220);
-
-// Джерела, які стосуються репліки: додані її пошуком і процитовані в тексті
-const messageSources = (message, sourcesById) => {
-  const ids = [...(message.source_ids || []), ...citedIds(message.content)];
-  return [...new Set(ids)].map((sourceId) => sourcesById.get(sourceId)).filter(Boolean);
-};
-
-const mergeMessages = (current, incoming) => {
-  if (!incoming?.length) return current || [];
-  const known = new Set((current || []).map((message) => message.id));
-  const fresh = incoming.filter((message) => !known.has(message.id));
-  if (fresh.length === 0) return current;
-  return [...(current || []), ...fresh].sort((a, b) => a.seq - b.seq);
-};
-
-const lastSeqOf = (discussion) =>
-  (discussion?.messages || []).reduce((max, message) => Math.max(max, message.seq || 0), 0);
-
-// Коротка цитата тези в кроці індикатора — обрізана по слову
-const shortQuote = (text, limit = 60) => {
-  const clean = (text || '').replace(/\s+/g, ' ').trim();
-  if (!clean) return '';
-  const cut = clean.length > limit ? `${clean.slice(0, limit - 1).replace(/\s+\S*$/, '')}…` : clean;
-  return `«${cut}»`;
-};
-
-// Зроблений крок: хто говорив, кому відповідав і з якою тезою
-const doneStep = (message) => {
-  const who = message.reply_to ? `${message.persona_name} → ${message.reply_to}` : message.persona_name;
-  const thesis = shortQuote(message.thesis);
-  return thesis ? `${who} · ${thesis}` : who;
-};
-
-// Поточний крок із сервера: над чим саме зараз думає кожен AI
-const thinkingStep = (item) =>
-  item.text.startsWith('→') ? `${item.name} ${item.text}` : `${item.name} · ${item.text}`;
-
-
-
-// Модератор поставив питання й чекає відповідей — раннер навмисно стоїть
-const awaitsClarify = (data) => data?.phase === 'clarify' && data?.clarify_questions?.length > 0;
-
-// Дискусія ще не завершена, але сервер нічого не виконує — треба запустити раннер
-const isIdle = (data) =>
-  !data.is_running
-  && !data.is_finished
-  && !data.stop_requested
-  && data.status !== 'failed'
-  && !awaitsClarify(data);
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -275,9 +133,6 @@ export default function ChatPage() {
   const [activeSlug, setActiveSlug] = useState('');
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
-  const [copyState, setCopyState] = useState('');
-  const [pdfState, setPdfState] = useState('');
-  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [note, setNote] = useState('');
   const [isSending, setIsSending] = useState(false);
   // відповіді на уточнювальні питання модератора: { [id]: { option, custom } }
@@ -302,6 +157,8 @@ export default function ChatPage() {
   const [revealedCount, setRevealedCount] = useState(0);
   const [skipTyping, setSkipTyping] = useState(false);
   const discussionRef = useRef(null);
+  // репліки, які людина вже бачила чернеткою, з'являються одразу, без повторного «друку»
+  const [streamedIds, setStreamedIds] = useState(() => new Set());
   const kicksRef = useRef(0);
   const progressRef = useRef(0);
   const mainRef = useRef(null);
@@ -343,6 +200,15 @@ export default function ChatPage() {
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
+    const drafted = new Set(
+      (discussionRef.current?.live?.drafts || []).map((draft) => draft.slug)
+    );
+    const streamed = (data.messages || []).filter(
+      (message) => message.role === 'ai' && drafted.has(message.persona_slug)
+    );
+    if (streamed.length) {
+      setStreamedIds((ids) => new Set([...ids, ...streamed.map((message) => message.id)]));
+    }
     setDiscussion((previous) => {
       if (!previous || replaceMessages) return data;
       return {
@@ -420,6 +286,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!discussionId || !shouldPoll) return undefined;
     const controller = new AbortController();
+    const delay = discussionRef.current?.live?.drafts?.length ? STREAM_POLL_MS : POLL_MS;
     const timer = setTimeout(async () => {
       try {
         const known = lastSeqOf(discussionRef.current);
@@ -447,21 +314,25 @@ export default function ChatPage() {
       } finally {
         if (!controller.signal.aborted) setPollTick((tick) => tick + 1);
       }
-    }, POLL_MS);
+    }, delay);
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
   }, [discussionId, shouldPoll, pollTick, applyState, startRunner]);
 
+  // людина пішла з вкладки, поки AI думали, — кличемо назад, коли вони закінчать
+  const alertBadge = useRunAlerts(discussion);
+
   useEffect(() => {
     if (!discussion?.title) return undefined;
     const previous = document.title;
-    document.title = `${discussion.title} · ${copy.appName}`;
+    const badge = alertBadge ? `${alertBadge} ` : '';
+    document.title = `${badge}${discussion.title} · ${copy.appName}`;
     return () => {
       document.title = previous;
     };
-  }, [discussion?.title]);
+  }, [discussion?.title, alertBadge]);
 
   const messages = discussion?.messages;
   const questionMessage = useMemo(
@@ -470,13 +341,7 @@ export default function ChatPage() {
   );
   const summary = discussion?.final_summary || null;
   const summaryView = describeSummary(summary);
-  const {
-    decision: summaryDecision,
-    confirmed: summaryConfirmed,
-    confidence: summaryConfidence,
-    agreement,
-    lists: summaryLists,
-  } = summaryView;
+  const { decision: summaryDecision } = summaryView;
   // картка підсумку видна — фінальну репліку модератора, що її дублює, ховаємо
   const hiddenFinalId = duplicateFinalId(messages || [], Boolean(summaryDecision) && isFinished);
   const visibleMessages = useMemo(
@@ -565,6 +430,14 @@ export default function ChatPage() {
   const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
   const isRevealing = Boolean(typingMessage);
   const shownMessages = visibleMessages.slice(0, revealedCount + 1);
+  // чернетки — після всіх показаних реплік; поки щось «друкується», вони чекають
+  const draftMessages = useMemo(
+    () => (isRevealing || !isRunning ? [] : draftMessagesOf(discussion)),
+    [discussion, isRevealing, isRunning]
+  );
+  const renderedMessages = draftMessages.length
+    ? [...shownMessages, ...draftMessages]
+    : shownMessages;
   // «Зупинити» показує вже отримані репліки цілком, не чекаючи, доки вони допишуться
   const revealAll = () => {
     setRevealedCount(visibleMessages.length);
@@ -1128,58 +1001,10 @@ export default function ChatPage() {
 
 
   const speakers = useMemo(
-    () => buildSpeakers(messages, participantColors),
-    [messages, participantColors]
+    () => buildSpeakers([...(messages || []), ...draftMessages], participantColors),
+    [messages, draftMessages, participantColors]
   );
 
-
-  const handleCopySummary = async () => {
-    const lines = [discussion.question, ''];
-    if (summary?.answer) lines.push(`${t.summaryAnswer}: ${inlinePlain(summary.answer)}`);
-    lines.push(`${t.summaryDecision}: ${inlinePlain(summaryDecision)}`);
-    if (summaryConfirmed === false && summary?.revision) {
-      lines.push(`${t.summaryRevision}: ${inlinePlain(summary.revision)}`);
-    }
-    if (agreement) {
-      lines.push(`${t.summaryAgreement}: ${t.summaryAgreementValue(agreement.agree, agreement.total)}`);
-    }
-    if (summaryConfidence !== null) lines.push(`${t.summaryConfidence}: ${summaryConfidence}%`);
-    summaryLists.forEach(({ title, items }) => {
-      lines.push('', `${title}:`, ...items.map((item) => `• ${inlinePlain(item)}`));
-    });
-    if (summary?.recommendation) {
-      lines.push('', `${t.summaryNextStep}: ${inlinePlain(summary.recommendation)}`);
-    }
-    if (discussion.sources?.length) {
-      lines.push('', `${t.sources}:`);
-      discussion.sources.forEach((source) => lines.push(`[${source.id}] ${source.title} — ${source.url}`));
-    }
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      setCopyState('done');
-    } catch {
-      setCopyState('error');
-    }
-    window.setTimeout(() => setCopyState(''), 2000);
-  };
-
-  const handleDownloadPdf = async () => {
-    if (pdfState === 'busy') return;
-    setPdfState('busy');
-    try {
-      await downloadSummaryPdf({
-        question: discussion.question,
-        summary: { ...summary, decision: summaryDecision, confirmed: summaryConfirmed, confidence: summaryConfidence },
-        lists: summaryLists,
-        sources: discussion.sources,
-        t,
-      });
-      setPdfState('');
-    } catch {
-      setPdfState('error');
-      window.setTimeout(() => setPdfState(''), 2500);
-    }
-  };
 
   const authorOf = (message) =>
     (message.role === 'ai' && customNames.get(message.persona_slug)) || message.persona_name;
@@ -1263,13 +1088,6 @@ export default function ChatPage() {
     setExpandedIds((current) => new Set(current).add(messageId));
   };
 
-  // Частини результату проявляються по черзі, як абзаци реплік
-  // дії й джерела проявляються після частин SummaryDetails
-  let summaryIndex = summaryDetailSteps(summary, summaryView);
-  const summaryStep = () => (animateSummary ? { '--i': summaryIndex++ } : undefined);
-
-  const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
-  const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
 
   // «Завершити» має сенс, лише коли учасникам уже є що підсумувати
   const hasSpoken = Boolean(discussion?.messages?.some((message) => message.role === 'ai'));
@@ -1585,6 +1403,22 @@ export default function ChatPage() {
                     </dl>
                   )}
                 </div>
+                {discussion.attachments?.length > 0 && (
+                  <div className="chat__attachments" role="list" aria-label={t.attachments}>
+                    {discussion.attachments.map((file) => (
+                      <span key={file.id} role="listitem">
+                        <AttachmentChip name={file.name} kind={file.kind} title={file.preview || file.name} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {discussion.profile_used && (
+                  // модератор і учасники знають про людину з «Про мене» — показуємо, що це враховано
+                  <p className="chat__profile-note">
+                    <HugeiconsIcon icon={IdentityCardIcon} size={14} aria-hidden="true" />
+                    {t.profileUsed}
+                  </p>
+                )}
               </div>
             </header>
           )}
@@ -1603,322 +1437,50 @@ export default function ChatPage() {
               </div>
             ))}
 
-          {shownMessages.map((message, index) => {
-            const speakerKey = speakerKeyOf(message);
-            const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
-            const typing = message === typingMessage;
-            const authorName = authorOf(message);
-            const messageModel =
-              message.role === 'user' ? '' : modelNameOf(models, message.model_id);
-            const searched = message.search_query || '';
-            const previous = shownMessages[index - 1];
-            const divider = phaseLabel(message);
-            const showDivider =
-              divider
-              && message.role !== 'user'
-              && (!previous || phaseLabel(previous) !== divider);
-            const showEarlyStop =
-              showDivider
-              && message.phase === 'synthesis'
-              && (discussion?.early_stop || discussion?.until_consensus);
-            // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
-            const grouped =
-              !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
-            const replyTarget = findReplyTarget(shownMessages, index);
-            const replyName = message.reply_to
-              ? customNames.get(message.reply_to_slug) || message.reply_to
-              : '';
-            const stance =
-              message.role === 'ai' ? stanceLabel(message, discussion?.mode, replyName) : '';
-            const collapsed =
-              compact
-              && !typing
-              && message.role === 'ai'
-              && message.thesis
-              && !expandedIds.has(message.id);
-            const replyColor = replyTarget
-              ? speakers.get(speakerKeyOf(replyTarget))?.color
-              : undefined;
-            const text = typing ? (
-              <ParagraphReveal
-                key={message.id}
-                content={message.content}
-                skip={skipTyping}
-                onDone={handleTypingDone}
-              >
-                {(blocks, pending) => (
-                  <MessageMarkdown blocks={blocks} sources={sourcesById} animate>
-                    {pending && (
-                      <span className="chat__pending" aria-hidden="true">
-                        <span />
-                        <span />
-                      </span>
-                    )}
-                  </MessageMarkdown>
-                )}
-              </ParagraphReveal>
-            ) : collapsed ? (
-              <div className="chat__thesis">
-                <p>
-                  <InlineText text={message.thesis} sources={sourcesById} />
-                </p>
-                <button
-                  type="button"
-                  className="chat__expand"
-                  onClick={() => expandMessage(message.id)}
-                >
-                  {t.expandMessage}
-                </button>
-              </div>
-            ) : (
-              <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
-            );
-            const ownSources = typing ? [] : messageSources(message, sourcesById);
-            const copyStatus =
-              copiedId === message.id ? 'done' : copiedId === `error-${message.id}` ? 'error' : '';
-            const copyMessageLabel =
-              copyStatus === 'done' ? t.copied : copyStatus === 'error' ? t.copyError : t.copyMessage;
-            return (
-              <Fragment key={message.id || `${speakerKey}-${message.seq}`}>
-                {showEarlyStop && (
-                  <p className="chat__notice">
-                    {!discussion.until_consensus
-                      ? t.earlyStop(discussion.current_round)
-                      : discussion.early_stop
-                        ? t.consensusReached(discussion.current_round)
-                        : t.consensusMissed(discussion.current_round)}
-                  </p>
-                )}
-                {showDivider && (
-                  <div className="chat__divider" role="separator">
-                    <span>{divider}</span>
-                  </div>
-                )}
-                {message.role === 'research' ? (
-                  <div
-                    className={`chat__system ${typing ? 'chat__row--enter' : ''}`}
-                    onClick={typing ? () => setSkipTyping(true) : undefined}
-                  >
-                    <HugeiconsIcon icon={Search01Icon} size={14} className="chat__system-icon" />
-                    {text}
-                  </div>
-                ) : (
-                  <div
-                    id={message.id ? `message-${message.id}` : undefined}
-                    className={[
-                      'chat__row',
-                      `chat__row--${side}`,
-                      `chat__row--${message.role}`,
-                      grouped && 'chat__row--grouped',
-                      typing && 'chat__row--enter',
-                      flashId && flashId === message.id && 'chat__row--flash',
-                    ].filter(Boolean).join(' ')}
-                  >
-                    <span
-                      className="chat__avatar"
-                      style={{ '--avatar': color }}
-                      aria-hidden="true"
-                    >
-                      {/* іконка ролі розрізняє учасників не лише кольором — та сама, що в складі команди */}
-                      {message.role === 'user' ? (
-                        userAvatar
-                      ) : (
-                        <HugeiconsIcon
-                          icon={roleIcon(message.persona_slug || message.role)}
-                          className="chat__avatar-role"
-                          strokeWidth={1.8}
-                        />
-                      )}
-                    </span>
-                    <div className="chat__body">
-                      {!grouped && (
-                        <div className="chat__head">
-                          <span className="chat__name">{authorName}</span>
-                          {messageModel && <span className="chat__model">{messageModel}</span>}
-                          {stance && (
-                            <span className="chat__stance" data-stance={stanceTone(message.stance)}>
-                              {stance}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div
-                        className={[
-                          'chat__bubble',
-                          typing && 'chat__bubble--typing',
-                          (message.content || '').length > WIDE_MESSAGE && 'chat__bubble--wide',
-                        ].filter(Boolean).join(' ')}
-                        style={{ '--bubble': color }}
-                        onClick={typing ? () => setSkipTyping(true) : undefined}
-                        title={typing ? t.skipTyping : undefined}
-                      >
-                        {replyName && (
-                          <button
-                            type="button"
-                            className="chat__quote"
-                            style={replyColor ? { '--quote': replyColor } : undefined}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (replyTarget) jumpToMessage(replyTarget.id);
-                            }}
-                            disabled={!replyTarget}
-                            aria-label={t.jumpToReply(replyName)}
-                          >
-                            <span className="chat__quote-name">
-                              <HugeiconsIcon icon={ArrowTurnBackwardIcon} size={13} />
-                              {replyName}
-                            </span>
-                            {replyTarget && (
-                              <span className="chat__quote-text">{snippetOf(replyTarget.content)}</span>
-                            )}
-                          </button>
-                        )}
-                        {text}
-                      </div>
-                      {!typing && (
-                        <div className="chat__actions">
-                          <button
-                            type="button"
-                            className="chat__icon-button chat__copy"
-                            onClick={() => handleCopyMessage(message)}
-                            aria-label={copyMessageLabel}
-                            title={copyMessageLabel}
-                          >
-                            <HugeiconsIcon icon={copyStatus === 'done' ? Tick02Icon : Copy01Icon} size={16} />
-                          </button>
-                          {ownSources.length > 0 ? (
-                            <SourceList sources={ownSources} query={searched} compact />
-                          ) : (
-                            searched && (
-                              <span className="chat__search" title={t.searchedFor(searched)}>
-                                <HugeiconsIcon icon={Search01Icon} size={12} />
-                                {t.searchedFor(searched)}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {!typing && runRecords.has(message.id) && (
-                  <ThoughtLine
-                    working={false}
-                    steps={runRecords.get(message.id).steps}
-                    elapsed={runRecords.get(message.id).seconds}
-                    label={t.advancing}
-                    doneLabel={t.thoughtDone}
-                    glyph={STILL_GLYPH}
-                    fontSize={16}
-                    className="chat__thought chat__thought--done"
-                  />
-                )}
-              </Fragment>
-            );
-          })}
+          {renderedMessages.map((message, index) => (
+            <ChatMessage
+              key={message.id || `${speakerKeyOf(message)}-${message.seq}`}
+              message={message}
+              index={index}
+              messages={renderedMessages}
+              speakers={speakers}
+              typing={message === typingMessage}
+              streamed={message === typingMessage && streamedIds.has(message.id)}
+              skipTyping={skipTyping}
+              onTypingDone={handleTypingDone}
+              onSkipTyping={() => setSkipTyping(true)}
+              models={models}
+              discussion={discussion}
+              customNames={customNames}
+              compact={compact}
+              expanded={expandedIds.has(message.id)}
+              onExpand={expandMessage}
+              sourcesById={sourcesById}
+              copiedId={copiedId}
+              onCopy={handleCopyMessage}
+              flashed={Boolean(flashId) && flashId === message.id}
+              onJump={jumpToMessage}
+              userAvatar={userAvatar}
+              runRecord={runRecords.get(message.id)}
+            />
+          ))}
 
           {discussion?.finished_early && isFinished && !isRevealing && (
             <p className="chat__notice">{t.finishedEarly}</p>
           )}
 
           {summaryDecision && isFinished && !isRevealing && (
-            <section
-              className={`chat__summary ${animateSummary ? 'chat__summary--enter' : ''}`}
+            <ChatSummary
               ref={summaryRef}
-              aria-label={t.summary}
-            >
-              <SummaryDetails
-                summary={summary}
-                view={summaryView}
-                sources={sourcesById}
-                mode={discussion.mode}
-                options={discussion.options}
-                animate={animateSummary}
-              />
-              <div className="chat__summary-actions" style={summaryStep()}>
-                <button
-                  type="button"
-                  className="chat__icon-button"
-                  onClick={handleCopySummary}
-                  aria-label={copyLabel}
-                  title={copyLabel}
-                >
-                  <HugeiconsIcon icon={copyState === 'done' ? Tick02Icon : Copy01Icon} size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="chat__icon-button"
-                  onClick={handleDownloadPdf}
-                  disabled={pdfState === 'busy'}
-                  aria-label={pdfLabel}
-                  title={pdfLabel}
-                >
-                  <HugeiconsIcon
-                    icon={pdfState === 'busy' ? Loading03Icon : Download04Icon}
-                    size={18}
-                    className={pdfState === 'busy' ? 'chat__icon-spin' : undefined}
-                  />
-                </button>
-                <button
-                  type="button"
-                  className="chat__icon-button"
-                  onClick={handleExportMarkdown}
-                  aria-label={t.exportMarkdown}
-                  title={t.exportMarkdown}
-                >
-                  <HugeiconsIcon icon={FileExportIcon} size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="chat__icon-button"
-                  onClick={shareUrl ? () => copyLink(shareUrl) : handleShare}
-                  disabled={isSharing}
-                  aria-label={t.shareAction}
-                  title={t.shareAction}
-                >
-                  <HugeiconsIcon icon={Share08Icon} size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="chat__icon-button"
-                  onClick={handleRepeat}
-                  aria-label={t.repeat}
-                  title={t.repeat}
-                >
-                  <HugeiconsIcon icon={RepeatIcon} size={18} />
-                </button>
-                {/* кнопка — праворуч у рядку дій, а список розкривається під рядком */}
-                {discussion?.sources?.length > 0 && (
-                  <button
-                    type="button"
-                    className="chat__sources-toggle"
-                    onClick={() => setIsSourcesOpen((open) => !open)}
-                    aria-expanded={isSourcesOpen}
-                    aria-controls="chat-summary-sources"
-                  >
-                    <SourcesLabel sources={discussion.sources} />
-                  </button>
-                )}
-              </div>
-              {discussion?.sources?.length > 0 && (
-                // список є завжди й плавно розгортається; згорнутий — поза фокусом
-                <div
-                  id="chat-summary-sources"
-                  className="chat__sources chat__sources--summary"
-                  data-open={isSourcesOpen ? '' : undefined}
-                  inert={!isSourcesOpen}
-                >
-                  <div className="chat__sources-fold">
-                    <SourceItems sources={discussion.sources} />
-                  </div>
-                </div>
-              )}
-              {(copyState === 'error' || pdfState === 'error') && (
-                <p className="chat__summary-note" role="alert">
-                  {copyState === 'error' ? t.copyError : t.pdfError}
-                </p>
-              )}
-            </section>
+              discussion={discussion}
+              summaryView={summaryView}
+              sourcesById={sourcesById}
+              animate={animateSummary}
+              onExportMarkdown={handleExportMarkdown}
+              onShare={shareUrl ? () => copyLink(shareUrl) : handleShare}
+              isSharing={isSharing}
+              onRepeat={handleRepeat}
+            />
           )}
 
 
@@ -1937,6 +1499,7 @@ export default function ChatPage() {
               className="chat__thought"
             />
           )}
+          {showThoughtLine && <NotifyOffer />}
 
         </section>
 

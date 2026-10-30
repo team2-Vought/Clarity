@@ -12,6 +12,8 @@ const labels = {
   summaryRisks: 'Ризики',
   summaryDissent: 'Окремі думки',
   summaryNextStep: 'Що робити далі',
+  summaryPlan: 'План на тиждень',
+  summaryTriggers: 'Коли варто передумати',
   sources: 'Джерела',
 };
 
@@ -44,6 +46,26 @@ describe('discussionMarkdown', () => {
     expect(text).toContain('1. [Статистика](https://example.com)');
     // запитання не дублюється окремою реплікою
     expect(text.match(/Деталі/g)).toHaveLength(1);
+  });
+});
+
+describe('план дій у Markdown', () => {
+  it('нумерує кроки й перелічує, коли варто передумати', () => {
+    const text = discussionMarkdown(
+      {
+        ...discussion,
+        final_summary: {
+          decision: 'Переїжджати',
+          recommendation: 'Порахувати бюджет',
+          next_steps: ['Порахувати бюджет', 'Подзвонити рієлтору'],
+          change_triggers: ['Якщо оренда дорожча — переглянути'],
+        },
+      },
+      { labels, phaseLabel: () => '', authorOf: (m) => m.persona_name }
+    );
+    expect(text).toContain('**План на тиждень:**\n\n1. Порахувати бюджет\n2. Подзвонити рієлтору');
+    expect(text).toContain('- Якщо оренда дорожча — переглянути');
+    expect(text).not.toContain('Що робити далі');
   });
 });
 

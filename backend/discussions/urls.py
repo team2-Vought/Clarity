@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .account_settings import ProviderKeyView, SettingsView
+from .attachment_views import AttachmentDetailView, AttachmentUploadView
+from .journal import JournalDetailView, JournalDueView, JournalListView
 from .views import (
     DiscussionAdvanceView,
     DiscussionClarifyView,
@@ -55,6 +57,11 @@ urlpatterns = [
     ),
     path('discussions/<uuid:pk>/share/', DiscussionShareView.as_view(), name='discussion-share'),
     path('shared/<uuid:token>/', SharedDiscussionView.as_view(), name='shared-discussion'),
+    path('attachments/', AttachmentUploadView.as_view(), name='attachments'),
+    path('attachments/<uuid:pk>/', AttachmentDetailView.as_view(), name='attachment-detail'),
+    path('journal/', JournalListView.as_view(), name='journal'),
+    path('journal/due/', JournalDueView.as_view(), name='journal-due'),
+    path('journal/<uuid:pk>/', JournalDetailView.as_view(), name='journal-detail'),
     path('teams/', TeamListCreateView.as_view(), name='team-list'),
     path('teams/<uuid:pk>/', TeamDetailView.as_view(), name='team-detail'),
 ]

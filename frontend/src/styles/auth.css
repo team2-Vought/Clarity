@@ -77,6 +77,23 @@
   text-decoration: underline;
 }
 
+/* «Забули пароль?» — під полем пароля, праворуч */
+.form__forgot {
+  justify-self: end;
+  margin-top: -10px;
+  font-size: 0.875rem;
+}
+
+/* пояснення під заголовком на сторінках відновлення пароля */
+.auth-lead {
+  margin: -6px 0 18px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 /* Перехід між логіном і реєстрацією */
 .auth-view {
   display: grid;

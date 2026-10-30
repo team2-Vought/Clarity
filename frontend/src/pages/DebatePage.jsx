@@ -4,6 +4,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Attachment01Icon,
+  IdentityCardIcon,
   BeachIcon,
   BookmarkAdd01Icon,
   Briefcase01Icon,
@@ -23,12 +25,17 @@ import {
   saveTeam,
 } from '../api/discussions';
 import { getToken } from '../api/client';
+import { updatePreferences } from '../api/settings';
+import { removeAttachment, uploadAttachment } from '../api/attachments';
+import AttachmentChip from '../components/AttachmentChip';
 import {
   ArrowUpIcon,
   CloseIcon,
   PlusIcon,
 } from '../components/DebateIcons';
 import ErrorNotice from '../components/ErrorNotice';
+import OnboardingCard from '../components/OnboardingCard';
+import DueDecisionCard from '../components/DueDecisionCard';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
@@ -39,8 +46,12 @@ import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
+import { hasAbout, useMyProfile } from '../hooks/useMyProfile';
 
 const t = copy.debate;
+// вкладення до питання: стільки файлів і таких типів приймає сервер
+const MAX_FILES = 3;
+const FILE_TYPES = '.pdf,.docx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp';
 
 // Фраза заголовка обирається випадково один раз на завантаження сторінки
 const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
@@ -187,6 +198,13 @@ export default function DebatePage() {
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const { pushToast } = useToasts();
   const [isLoading, setIsLoading] = useState(true);
+  // «Про мене» для цієї дискусії: null — як задано в самому профілі
+  const [useProfileChoice, setUseProfileChoice] = useState(null);
+  const { about } = useMyProfile();
+  const aboutFilled = hasAbout(about);
+  const useProfile = useProfileChoice ?? Boolean(about?.enabled);
+  // підказки першого запуску: показуємо, доки людина їх не закрила чи не почала дискусію
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState('');
   // вид картки для помилки запиту; решта помилок — перевірка введених даних
   const [failure, setFailure] = useState(null);
@@ -206,13 +224,50 @@ export default function DebatePage() {
     && participants.every((p) => models.some((m) => m.id === p.model && m.available));
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
+  // файли до питання: сервер одразу читає з них текст; поки читає — старт чекає
+  const [files, setFiles] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+  const filesReading = files.some((item) => item.status === 'reading');
+
+  const addFiles = (list) => {
+    const room = MAX_FILES - files.length;
+    const picked = [...(list || [])].slice(0, Math.max(0, room));
+    if ((list?.length || 0) > room) pushToast(t.attachMax);
+    picked.forEach(async (file) => {
+      const key = `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`;
+      setFiles((current) => [...current, { key, name: file.name, status: 'reading' }]);
+      try {
+        const data = await uploadAttachment(file);
+        setFiles((current) =>
+          current.map((item) => (item.key === key ? { ...item, ...data, status: 'ready' } : item))
+        );
+      } catch (err) {
+        setFiles((current) => current.filter((item) => item.key !== key));
+        pushToast(err?.message || t.attachError);
+      }
+    });
+  };
+
+  const removeFile = (file) => {
+    setFiles((current) => current.filter((item) => item.key !== file.key));
+    if (file.id) removeAttachment(file.id).catch(() => {});
+  };
+
   const canStart =
     !isCreating
     && !isLoading
+    && !filesReading
     && description.trim().length > 0
     && participants.length >= MIN_PARTICIPANTS
     && allParticipantsHaveModels;
   const showSuggestions = !description.trim() && !isCreating;
+
+  // запам'ятовуємо в акаунті: на іншому пристрої підказки теж не повторяться
+  const finishOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    updatePreferences({ onboarding_done: true }).catch(() => {});
+  }, []);
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
 
@@ -250,6 +305,8 @@ export default function DebatePage() {
       const template = templateRef.current;
       // параметри нової дискусії з «Налаштувань»; шаблон (повтор дискусії, команда) важливіший
       const prefs = mData.preferences || {};
+      // повтор дискусії чи команда — людина вже знає, як усе працює
+      setShowOnboarding(prefs.onboarding_done === false && !template);
       const startCount = Math.min(
         Math.max(Number(prefs.default_participants) || MIN_PARTICIPANTS, MIN_PARTICIPANTS),
         pData.max_ai || DEFAULT_MAX_PARTICIPANTS,
@@ -635,8 +692,12 @@ export default function DebatePage() {
         webSearch,
         moderatorModel,
         devilModel,
+        useProfile: aboutFilled ? useProfile : undefined,
+        attachments: files.filter((item) => item.id).map((item) => item.id),
       });
       saveDraft('');
+      setFiles([]);
+      if (showOnboarding) finishOnboarding();
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
       failRequest(err, t.errorCreate);
@@ -1035,6 +1096,13 @@ export default function DebatePage() {
           <h1 className="debate__title">{TITLE}</h1>
         </div>
 
+        {showOnboarding ? (
+          <OnboardingCard onDismiss={finishOnboarding} onMore={() => navigate('/help')} />
+        ) : (
+          // настав час спитати «Як воно?» про рішення з журналу
+          <DueDecisionCard />
+        )}
+
         <div className="debate__prompt">
           <ModePicker
             value={mode}
@@ -1043,9 +1111,28 @@ export default function DebatePage() {
             disabled={isCreating}
           />
           <div
-            className={`debate__composer ${isCreating ? 'debate__composer--busy' : ''}`}
+            className={[
+              'debate__composer',
+              isCreating && 'debate__composer--busy',
+              isDragging && 'debate__composer--drop',
+            ].filter(Boolean).join(' ')}
             onClick={(e) => {
               if (e.target === e.currentTarget) questionRef.current?.focus();
+            }}
+            // файл можна просто перетягнути на поле питання
+            onDragOver={(e) => {
+              if (!e.dataTransfer?.types?.includes('Files') || isCreating) return;
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget)) setIsDragging(false);
+            }}
+            onDrop={(e) => {
+              if (!e.dataTransfer?.files?.length) return;
+              e.preventDefault();
+              setIsDragging(false);
+              addFiles(e.dataTransfer.files);
             }}
           >
             <textarea
@@ -1070,17 +1157,83 @@ export default function DebatePage() {
                 {description.length > 0 ? `${description.length} / ${MAX_QUESTION}` : ''}
               </span>
               <button
+                type="button"
+                className="debate__attach"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isCreating || files.length >= MAX_FILES}
+                aria-label={t.attach}
+                title={`${t.attach} — ${t.attachHint}`}
+              >
+                <HugeiconsIcon icon={Attachment01Icon} size={19} aria-hidden="true" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={FILE_TYPES}
+                multiple
+                hidden
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+              <button
                 type="submit"
                 className="debate__send"
                 disabled={!canStart}
                 aria-label={isCreating ? t.creating : t.start}
-                title={isCreating ? t.creating : t.start}
+                title={isCreating ? t.creating : filesReading ? t.attachWait : t.start}
               >
                 {isCreating ? <span className="debate__send-spinner" /> : <ArrowUpIcon />}
               </button>
             </div>
           </div>
         </div>
+
+        {files.length > 0 && (
+          <div className="debate__files" aria-live="polite">
+            {files.map((file) => (
+              <AttachmentChip
+                key={file.key}
+                name={file.name}
+                kind={file.kind}
+                status={file.status}
+                title={file.status === 'reading' ? t.attachReading : file.truncated ? t.attachTruncated : file.name}
+                onRemove={isCreating ? undefined : () => removeFile(file)}
+                removeLabel={t.attachRemove(file.name)}
+              />
+            ))}
+          </div>
+        )}
+
+        {about && (
+          // профіль «Про мене»: увімкнути чи вимкнути для цієї дискусії, а порожній — заповнити
+          <div className="debate__profile">
+            {aboutFilled ? (
+              <button
+                type="button"
+                className={`debate__profile-chip ${useProfile ? 'debate__profile-chip--on' : ''}`}
+                onClick={() => setUseProfileChoice(!useProfile)}
+                aria-pressed={useProfile}
+                title={t.profileToggle}
+                disabled={isCreating}
+              >
+                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
+                {useProfile ? t.profileOn : t.profileOff}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="debate__profile-chip"
+                onClick={() => navigate('/settings?tab=about')}
+              >
+                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
+                {t.profileEmpty}
+                <HugeiconsIcon icon={ArrowRight01Icon} size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="debate__mode-bar">
           {mode === 'choose_one' && (

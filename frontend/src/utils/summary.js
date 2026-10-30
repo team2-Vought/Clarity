@@ -19,6 +19,9 @@ export function describeSummary(summary) {
     confirmed: typeof summary?.confirmed === 'boolean' ? summary.confirmed : null,
     confidence,
     agreement: summary?.agreement?.total ? summary.agreement : null,
+    // план дій: кроки на тиждень і сигнали, коли варто переглянути рішення
+    plan: listOf(summary?.next_steps),
+    triggers: listOf(summary?.change_triggers),
     lists: [
       { key: 'pros', title: t.summaryPros, items: listOf(summary?.pros) },
       { key: 'cons', title: t.summaryCons, items: listOf(summary?.cons) },
@@ -63,7 +66,11 @@ export function summaryDetailSteps(summary, view) {
     1
     + (view.agreement || view.confidence !== null ? 1 : 0)
     + (
-      (view.confirmed === false && summary?.revision) || view.lists.length > 0 || summary?.recommendation
+      (view.confirmed === false && summary?.revision)
+      || view.lists.length > 0
+      || summary?.recommendation
+      || view.plan?.length
+      || view.triggers?.length
         ? 1
         : 0
     )

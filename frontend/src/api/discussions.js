@@ -30,6 +30,8 @@ export function createDiscussion({
   webSearch,
   moderatorModel,
   devilModel,
+  useProfile,
+  attachments = [],
 }) {
   return request('/api/discussions/', {
     method: 'POST',
@@ -44,6 +46,9 @@ export function createDiscussion({
       web_search: webSearch,
       moderator_model: moderatorModel,
       devil_model: devilModel,
+      // без значення сервер бере вибір із самого профілю
+      ...(useProfile === undefined ? {} : { use_profile: useProfile }),
+      attachments,
     },
   });
 }
