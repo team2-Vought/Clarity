@@ -16,9 +16,9 @@ import {
 import { deleteDiscussion, fetchDiscussions, updateDiscussion } from '../api/discussions';
 import { useToasts } from '../hooks/useToasts';
 import { getToken } from '../api/client';
-import { uk } from '../copy/uk';
+import { copy, locale } from '../copy';
 
-const t = uk.history;
+const t = copy.history;
 
 const VIEW_KEY = 'clarity:history-view';
 const SKELETON_COUNT = 6;
@@ -61,10 +61,10 @@ const prefersReducedMotion = () =>
   document.documentElement.dataset.motion === 'reduced'
   || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const timeFormat = new Intl.DateTimeFormat('uk-UA', { hour: '2-digit', minute: '2-digit' });
-const weekdayFormat = new Intl.DateTimeFormat('uk-UA', { weekday: 'long' });
-const dayFormat = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'short' });
-const fullDayFormat = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'short', year: 'numeric' });
+const timeFormat = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
+const weekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'long' });
+const dayFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+const fullDayFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 

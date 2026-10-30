@@ -47,8 +47,10 @@ from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 
+from backend.i18n import L, using
+
 from ..models import Discussion, Message
-from ..personas import DEVIL, MODERATOR
+from ..personas import devil, localize, moderator
 from . import prompts, search, usage
 from .catalog import available_model_ids, default_model_id, model_label, resolve_model
 from .providers import ProviderError, get_provider
@@ -65,12 +67,21 @@ MAX_DEVIL_QUERIES = 2
 STANCE_AGREE = 'згода'
 STANCE_DISPUTE = 'суперечка'
 USER_SLUG = 'user'
-GENERIC_PUBLIC_ERROR = 'Не вдалося отримати відповідь від AI. Спробуйте ще раз.'
 
+
+def generic_public_error():
+    return L(
+        'Не вдалося отримати відповідь від AI. Спробуйте ще раз.',
+        'Could not get a response from the AI. Please try again.',
+    )
+
+
+# англійські промпти просять THESIS/STANCE/SEARCH — розбираємо обидва варіанти
 _SERVICE_LINE_RE = re.compile(
-    r'^[ \t>*_#\-]*(ТЕЗА|ПОЗИЦІЯ|ПОШУК)[ \t*_]*:[ \t*_]*(.*?)[ \t*_]*$',
+    r'^[ \t>*_#\-]*(ТЕЗА|ПОЗИЦІЯ|ПОШУК|THESIS|STANCE|SEARCH)[ \t*_]*:[ \t*_]*(.*?)[ \t*_]*$',
     re.IGNORECASE | re.MULTILINE,
 )
+_SERVICE_KEYS = {'thesis': 'теза', 'stance': 'позиція', 'search': 'пошук'}
 
 _JSON_FENCE_RE = re.compile(
     r'```(?:json)?\s*(.*?)\s*```',
@@ -265,7 +276,7 @@ def _derive_answer(text, mode, options):
 
 def normalize_solution(data, mode, options, fallback_answer=''):
     data = data if isinstance(data, dict) else {}
-    decision = _text(data.get('decision'), 'Рішення не сформовано', limit=2000)
+    decision = _text(data.get('decision'), L('Рішення не сформовано', 'No solution was formed'), limit=2000)
     result = {
         'decision': decision,
         'reasoning': _text(data.get('reasoning'), limit=4000),
@@ -342,9 +353,11 @@ def normalize_summary(data, best_solution, mode, options):
             # Відповідь змінилась — це перегляд, навіть якщо модель написала інакше.
             result['confirmed'] = False
             if not result['revision']:
-                result['revision'] = (
+                result['revision'] = L(
                     f'Відповідь змінено з «{best_answer}» на «{answer}» '
-                    'після перевірки AI Devil.'
+                    'після перевірки AI Devil.',
+                    f'The answer changed from “{prompts.stance_label(best_answer)}” to '
+                    f'“{prompts.stance_label(answer)}” after AI Devil’s review.',
                 )
         elif result['confirmed'] is None and best_answer:
             result['confirmed'] = True
@@ -392,43 +405,60 @@ def _answer_problems(data, mode, options):
     if mode == Discussion.Mode.OPEN or _answer(data.get('answer'), mode, options):
         return []
     if mode == Discussion.Mode.YES_NO:
-        return ['поле "answer" має бути рівно "так" або "ні"']
+        return [L('поле "answer" має бути рівно "так" або "ні"', 'the "answer" field must be exactly "yes" or "no"')]
     variants = '; '.join(str(option) for option in options or [])
-    return [f'поле "answer" має дослівно збігатися з одним із варіантів: {variants}']
+    return [L(
+        f'поле "answer" має дослівно збігатися з одним із варіантів: {variants}',
+        f'the "answer" field must match one of the options word for word: {variants}',
+    )]
+
+
+def _not_json():
+    return L('відповідь не є JSON-об’єктом', 'the reply is not a JSON object')
+
+
+def _empty_decision():
+    return L('поле "decision" порожнє', 'the "decision" field is empty')
 
 
 def _solution_problems(data, mode, options):
     if not isinstance(data, dict):
-        return ['відповідь не є JSON-об’єктом']
-    problems = [] if _text(data.get('decision')) else ['поле "decision" порожнє']
+        return [_not_json()]
+    problems = [] if _text(data.get('decision')) else [_empty_decision()]
     return problems + _answer_problems(data, mode, options)
 
 
 def _review_problems(data, mode, options):
     if not isinstance(data, dict):
-        return ['відповідь не є JSON-об’єктом']
+        return [_not_json()]
     if _text(data.get('verdict')) or data.get('risks'):
         return []
-    return ['потрібні поле "verdict" або непорожній список "risks"']
+    return [L(
+        'потрібні поле "verdict" або непорожній список "risks"',
+        'a "verdict" field or a non-empty "risks" list is required',
+    )]
 
 
 def _summary_problems(data, mode, options):
     if not isinstance(data, dict):
-        return ['відповідь не є JSON-об’єктом']
-    problems = [] if _text(data.get('decision')) else ['поле "decision" порожнє']
+        return [_not_json()]
+    problems = [] if _text(data.get('decision')) else [_empty_decision()]
     if _as_bool(data.get('confirmed'), None) is None:
-        problems.append('поле "confirmed" має бути true або false')
+        problems.append(L('поле "confirmed" має бути true або false', 'the "confirmed" field must be true or false'))
     return problems + _answer_problems(data, mode, options)
 
 
 def _clarify_problems(data, mode, options):
     if not isinstance(data, dict):
-        return ['відповідь не є JSON-об’єктом']
+        return [_not_json()]
     ready = _as_bool(data.get('ready'), None)
     if ready is None:
-        return ['поле "ready" має бути true або false']
+        return [L('поле "ready" має бути true або false', 'the "ready" field must be true or false')]
     if not ready and not normalize_clarify(data)['questions']:
-        return ['при ready: false потрібні запитання з 2+ варіантами відповіді']
+        return [L(
+            'при ready: false потрібні запитання з 2+ варіантами відповіді',
+            'ready: false requires questions with 2+ answer options',
+        )]
     return []
 
 
@@ -509,9 +539,9 @@ def _normalize_stance(value, mode, options):
             return matches[0]
         return ''
     folded = text.casefold()
-    if folded.startswith(('незгод', 'не згод', 'супереч')):
+    if folded.startswith(('незгод', 'не згод', 'супереч', 'disagree', 'dispute', 'disput')):
         return STANCE_DISPUTE
-    if folded.startswith('згод'):
+    if folded.startswith(('згод', 'agree')):
         return STANCE_AGREE
     return ''
 
@@ -526,7 +556,8 @@ def parse_reply(raw, mode, options):
     text = str(raw or '').replace('\r\n', '\n')
     last = {}
     for match in _SERVICE_LINE_RE.finditer(text):
-        last[match.group(1).casefold()] = match
+        key = match.group(1).casefold()
+        last[_SERVICE_KEYS.get(key, key)] = match
     thesis = _text(last['теза'].group(2), limit=300) if 'теза' in last else ''
     stance = (
         _normalize_stance(last['позиція'].group(2), mode, options)
@@ -704,7 +735,7 @@ def _resolved_personas(discussion):
         base = PERSONA_BY_SLUG.get(slug)
         if base is None:
             continue
-        persona = dict(base)
+        persona = dict(localize(base))
         persona['model'] = _default_model()
         persona['traits'] = []
         persona['temperature'] = DEFAULT_TEMPERATURE
@@ -745,14 +776,18 @@ def _mode_ctx(discussion):
 
 
 def _json_repair_prompt(plan, raw, problems):
-    issues = '; '.join(problems) if problems else 'формат не відповідає схемі'
-    return (
-        f'{plan.prompt}\n\n'
+    issues = '; '.join(problems) if problems else L(
+        'формат не відповідає схемі', 'the format does not match the schema'
+    )
+    note = L(
         f'ВАЖЛИВО: попередня відповідь була невалідною або неповною ({issues}). '
         'Поверни ЛИШЕ один валідний JSON-об’єкт за схемою вище, без markdown, '
-        'коментарів і тексту до/після нього. Ось попередня відповідь для виправлення:\n'
-        f'{str(raw)[:4000]}'
+        'коментарів і тексту до/після нього. Ось попередня відповідь для виправлення:\n',
+        f'IMPORTANT: the previous reply was invalid or incomplete ({issues}). '
+        'Return ONLY a single valid JSON object following the schema above, with no '
+        'markdown, comments or text before/after it. Here is the previous reply to fix:\n',
     )
+    return f'{plan.prompt}\n\n{note}{str(raw)[:4000]}'
 
 
 def _provider_failure(model_id, exc):
@@ -762,9 +797,11 @@ def _provider_failure(model_id, exc):
             'Квоту моделі вичерпано.',
             detail=f'{model_id}: {exc}',
             code='provider_quota',
-            public=(
+            public=L(
                 f'У моделі «{label}» вичерпано квоту або ліміт тарифу. '
-                'Оберіть іншу модель або поповніть баланс у провайдера.'
+                'Оберіть іншу модель або поповніть баланс у провайдера.',
+                f'The model “{label}” has run out of quota or hit its plan limit. '
+                'Choose another model or top up your balance with the provider.',
             ),
             retryable=False,
         )
@@ -773,9 +810,11 @@ def _provider_failure(model_id, exc):
             'Модель недоступна.',
             detail=f'{model_id}: {exc}',
             code='provider_config',
-            public=(
+            public=L(
                 f'Модель «{label}» недоступна (немає або невірний API-ключ, '
-                'модель не знайдено). Оберіть іншу модель.'
+                'модель не знайдено). Оберіть іншу модель.',
+                f'The model “{label}” is unavailable (missing or invalid API key, '
+                'or the model was not found). Choose another model.',
             ),
             retryable=False,
         )
@@ -783,7 +822,10 @@ def _provider_failure(model_id, exc):
         'Модель не змогла відповісти. Спробуйте ще раз.',
         detail=f'{model_id}: {exc}',
         code='provider_error',
-        public=f'Модель «{label}» тимчасово не відповідає. Спробуйте ще раз.',
+        public=L(
+            f'Модель «{label}» тимчасово не відповідає. Спробуйте ще раз.',
+            f'The model “{label}” is temporarily not responding. Please try again.',
+        ),
     )
 
 
@@ -817,7 +859,10 @@ def _complete(
             'Під час звернення до моделі сталася помилка. Спробуйте ще раз.',
             detail=f'{model_id}: {type(exc).__name__}: {exc}',
             code='provider_error',
-            public=f'Модель «{model_label(model_id)}» повернула помилку. Спробуйте ще раз.',
+            public=L(
+                f'Модель «{model_label(model_id)}» повернула помилку. Спробуйте ще раз.',
+                f'The model “{model_label(model_id)}” returned an error. Please try again.',
+            ),
         ) from exc
 
     if not isinstance(text, str) or not text.strip():
@@ -825,7 +870,10 @@ def _complete(
             'Модель повернула порожню відповідь. Спробуйте ще раз.',
             detail=f'{model_id}: empty completion',
             code='empty_response',
-            public=f'Модель «{model_label(model_id)}» повернула порожню відповідь.',
+            public=L(
+                f'Модель «{model_label(model_id)}» повернула порожню відповідь.',
+                f'The model “{model_label(model_id)}” returned an empty response.',
+            ),
         )
 
     logger.info(
@@ -980,7 +1028,7 @@ def _run_plans(plans, provider_factory, discussion):
                 results.append((plan, future.result(), None))
             except EngineError as exc:
                 exc.public = (
-                    f'{plan.persona["name"]}: {exc.public or GENERIC_PUBLIC_ERROR}'
+                    f'{plan.persona["name"]}: {exc.public or generic_public_error()}'
                 )[:MAX_ERROR_PUBLIC]
                 results.append((plan, None, exc))
             except Exception as exc:
@@ -993,7 +1041,10 @@ def _run_plans(plans, provider_factory, discussion):
                             'Не вдалося отримати відповідь учасника.',
                             detail=f'{type(exc).__name__}: {exc}',
                             code='internal_error',
-                            public=f'{plan.persona["name"]}: не вдалося отримати відповідь.',
+                            public=L(
+                                f'{plan.persona["name"]}: не вдалося отримати відповідь.',
+                                f'{plan.persona["name"]}: could not get a response.',
+                            ),
                         ),
                     )
                 )
@@ -1068,7 +1119,7 @@ def _prepare_step(discussion):
         raise EngineError(
             'У дискусії немає AI-учасників.',
             code='no_personas',
-            public='У дискусії немає AI-учасників.',
+            public=L('У дискусії немає AI-учасників.', 'The discussion has no AI participants.'),
             retryable=False,
         )
     messages = _list_messages(discussion)
@@ -1159,8 +1210,8 @@ def _prepare_step(discussion):
                         user_notes=_notes_since(messages, mine[-1].seq if mine else 0),
                         **common,
                     ),
-                    reply_to=DEVIL['name'],
-                    reply_to_slug=DEVIL['slug'],
+                    reply_to=devil()['name'],
+                    reply_to_slug=devil()['slug'],
                 )
             )
         return plans
@@ -1173,8 +1224,8 @@ def _prepare_step(discussion):
                 'moderator',
                 phase=phase,
                 role=Message.Role.MODERATOR,
-                persona=MODERATOR,
-                system=prompts.MODERATOR_SYSTEM,
+                persona=moderator(),
+                system=prompts.moderator_system(),
                 prompt=prompts.synthesis_prompt(
                     question,
                     personas,
@@ -1194,8 +1245,8 @@ def _prepare_step(discussion):
                 'devil',
                 phase=phase,
                 role=Message.Role.DEVIL,
-                persona=DEVIL,
-                system=prompts.DEVIL_SYSTEM,
+                persona=devil(),
+                system=prompts.devil_system(),
                 prompt=prompts.devil_prompt(
                     question,
                     personas,
@@ -1217,8 +1268,8 @@ def _prepare_step(discussion):
                 'moderator',
                 phase=phase,
                 role=Message.Role.MODERATOR,
-                persona=MODERATOR,
-                system=prompts.MODERATOR_SYSTEM,
+                persona=moderator(),
+                system=prompts.moderator_system(),
                 prompt=prompts.final_prompt(
                     question,
                     personas,
@@ -1246,7 +1297,7 @@ def _quote(text, limit=FOCUS_QUOTE_LIMIT):
     text = ' '.join(str(text or '').split())
     if len(text) > limit:
         text = text[: limit - 1].rsplit(' ', 1)[0].rstrip(' ,.;:—-') + '…'
-    return f'«{text}»' if text else ''
+    return L(f'«{text}»', f'“{text}”') if text else ''
 
 
 def _thesis_of(message):
@@ -1262,10 +1313,10 @@ def _question_focus(discussion):
     mode, options = _mode_ctx(discussion)
     question = _quote(discussion.question)
     if mode == Discussion.Mode.YES_NO:
-        return f'вирішує «так» чи «ні»: {question}'
+        return L(f'вирішує «так» чи «ні»: {question}', f'decides “yes” or “no”: {question}')
     if mode == Discussion.Mode.CHOOSE_ONE and options:
-        return 'обирає між ' + ', '.join(_quote(option, 40) for option in options[:4])
-    return f'шукає відповідь на {question}'
+        return L('обирає між ', 'chooses between ') + ', '.join(_quote(option, 40) for option in options[:4])
+    return L(f'шукає відповідь на {question}', f'looks for an answer to {question}')
 
 
 def _stance_tally(messages, personas):
@@ -1279,7 +1330,9 @@ def _stance_tally(messages, personas):
         stance = latest.get(persona['slug'])
         if stance:
             groups.setdefault(stance, []).append(persona['name'])
-    return '; '.join(f'{stance} — {", ".join(names)}' for stance, names in groups.items())
+    return '; '.join(
+        f'{prompts.stance_label(stance)} — {", ".join(names)}' for stance, names in groups.items()
+    )
 
 
 STATUS_TEMPERATURE = 0.4
@@ -1295,6 +1348,16 @@ STAGE_NOTES = {
     Discussion.Phase.DEVIL: 'AI Devil шукає слабкі місця рішення',
     Discussion.Phase.REBUTTAL: 'учасники відповідають на критику',
     Discussion.Phase.FINAL: 'модератор формулює фінальний висновок',
+}
+
+STAGE_NOTES_EN = {
+    Discussion.Phase.CLARIFY: 'the moderator checks whether there is enough context',
+    Discussion.Phase.OPENING: 'the participants form their first positions',
+    Discussion.Phase.DEBATE: 'the participants take turns arguing',
+    Discussion.Phase.SYNTHESIS: 'the moderator brings the arguments together into a solution',
+    Discussion.Phase.DEVIL: 'AI Devil looks for weak spots in the solution',
+    Discussion.Phase.REBUTTAL: 'the participants respond to the criticism',
+    Discussion.Phase.FINAL: 'the moderator formulates the final conclusion',
 }
 
 # Крок, якому належать записи живого статусу: (discussion_id, advance_token)
@@ -1338,9 +1401,9 @@ def _write_ai_status(discussion, focus, provider_factory):
         raw = _complete(
             provider_factory,
             model_id,
-            prompts.STATUS_SYSTEM,
+            prompts.status_system(),
             prompts.status_prompt(
-                discussion.question, STAGE_NOTES.get(discussion.phase, ''), focus
+                discussion.question, L(STAGE_NOTES, STAGE_NOTES_EN).get(discussion.phase, ''), focus
             ),
             STATUS_TEMPERATURE,
         )
@@ -1376,6 +1439,11 @@ def describe_step(discussion):
     Нічого не викликає в моделей — лише читає стан, тож безпечно для кожного
     опитування. Повертає [{slug, name, text}], порожньо для завершеної дискусії.
     """
+    with using(discussion.language):
+        return _describe_step(discussion)
+
+
+def _describe_step(discussion):
     if discussion.phase == Discussion.Phase.DONE or discussion.status in {
         Discussion.Status.DONE,
         Discussion.Status.FAILED,
@@ -1390,7 +1458,10 @@ def describe_step(discussion):
     if phase == Discussion.Phase.CLARIFY:
         if discussion.clarify_questions:
             return []
-        return [_focus(MODERATOR, 'перевіряє, чи вистачає контексту для відповіді')]
+        return [_focus(moderator(), L(
+            'перевіряє, чи вистачає контексту для відповіді',
+            'checks whether there is enough context for an answer',
+        ))]
 
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)
@@ -1404,27 +1475,39 @@ def describe_step(discussion):
         persona = order[discussion.speaker_index]
         target, reason = _reply_target(messages, persona)
         if target is None:
-            return [_focus(persona, 'розвиває власну позицію')]
+            return [_focus(persona, L('розвиває власну позицію', 'develops their own position'))]
         quote = _quote(_thesis_of(target)) if reason != 'user' else _quote(target.content)
         if reason == 'user':
-            return [_focus(persona, f'відповідає на ваше уточнення {quote}')]
-        verb = {
+            return [_focus(persona, L(
+                f'відповідає на ваше уточнення {quote}', f'answers your clarification {quote}'
+            ))]
+        verb = L({
             'question': 'відповідає на звернення',
             'disagree': 'сперечається з тезою',
-        }.get(reason, 'розбирає тезу')
+        }, {
+            'question': 'answers the question',
+            'disagree': 'disputes the point',
+        }).get(reason, L('розбирає тезу', 'examines the point'))
         return [_focus(persona, f'→ {target.persona_name} · {verb} {quote}')]
 
     if phase == Discussion.Phase.SYNTHESIS:
         tally = _stance_tally(messages, personas)
-        text = f'зважує позиції: {tally}' if tally else 'зводить аргументи учасників у рішення'
-        return [_focus(MODERATOR, text)]
+        text = (
+            L(f'зважує позиції: {tally}', f'weighs the positions: {tally}')
+            if tally
+            else L('зводить аргументи учасників у рішення', 'brings the arguments together into a solution')
+        )
+        return [_focus(moderator(), text)]
 
     solution = discussion.best_solution or {}
-    decision = _quote(solution.get('answer') or solution.get('decision'))
+    answer = solution.get('answer')
+    decision = _quote(prompts.stance_label(answer) if answer else solution.get('decision'))
 
     if phase == Discussion.Phase.DEVIL:
-        text = f'шукає слабкі місця в рішенні {decision}' if decision else 'шукає слабкі місця в рішенні'
-        return [_focus(DEVIL, text)]
+        text = L('шукає слабкі місця в рішенні', 'looks for weak spots in the solution')
+        if decision:
+            text = f'{text} {decision}'
+        return [_focus(devil(), text)]
 
     review = discussion.devil_review or {}
     risks = review.get('risks') or []
@@ -1432,14 +1515,19 @@ def describe_step(discussion):
 
     if phase == Discussion.Phase.REBUTTAL:
         done = _speakers_done(messages, phase)
-        text = f'→ {DEVIL["name"]} · відповідає на критику {critique}' if critique else (
-            f'→ {DEVIL["name"]} · відповідає на критику'
-        )
+        text = f'→ {devil()["name"]} · ' + L('відповідає на критику', 'responds to the criticism')
+        if critique:
+            text = f'{text} {critique}'
         return [_focus(persona, text) for persona in personas if persona['slug'] not in done]
 
     if phase == Discussion.Phase.FINAL:
-        text = f'зважує критику {critique} і формулює висновок' if critique else 'формулює фінальний висновок'
-        return [_focus(MODERATOR, text)]
+        text = (
+            L(f'зважує критику {critique} і формулює висновок',
+              f'weighs the criticism {critique} and formulates the conclusion')
+            if critique
+            else L('формулює фінальний висновок', 'formulates the final conclusion')
+        )
+        return [_focus(moderator(), text)]
 
     return []
 
@@ -1463,21 +1551,30 @@ def _unbold(text):
     return text.replace('**', '')
 
 
+def _no_decision():
+    return L('рішення не визначено', 'no solution was determined')
+
+
+def _answer_line(value):
+    """«**Відповідь: так**»: відповідь у тексті — мовою дискусії."""
+    answer = _unbold(_text(value, limit=200))
+    if not answer:
+        return ''
+    return L(f'**Відповідь: {answer}**', f'**Answer: {prompts.stance_label(answer)}**')
+
+
 def _moderator_text(best_solution):
     best_solution = best_solution if isinstance(best_solution, dict) else {}
-    decision = _text(best_solution.get('decision'), 'рішення не визначено', limit=2000)
+    decision = _text(best_solution.get('decision'), _no_decision(), limit=2000)
     reasoning = _text(best_solution.get('reasoning'), limit=4000)
     args = _bullets(_text_list(best_solution.get('supporting_arguments'), limit=4))
     dissent = _bullets(_text_list(best_solution.get('dissenting_points'), limit=4))
-    parts = []
-    answer = _unbold(_text(best_solution.get('answer'), limit=200))
-    if answer:
-        parts.append(f'**Відповідь: {answer}**')
-    parts.append(_section('Пропоноване рішення', decision))
+    parts = [_answer_line(best_solution.get('answer'))]
+    parts.append(_section(L('Пропоноване рішення', 'Proposed solution'), decision))
     if reasoning:
         parts.append(reasoning)
-    parts.append(_section('Аргументи на користь', args))
-    parts.append(_section('Що лишилось спірним', dissent))
+    parts.append(_section(L('Аргументи на користь', 'Arguments in favour'), args))
+    parts.append(_section(L('Що лишилось спірним', 'What remains disputed'), dissent))
     return '\n\n'.join(part for part in parts if part).strip()
 
 
@@ -1499,48 +1596,59 @@ def _devil_text(review):
             continue
         line = f'**{title}** — {description}' if title and description else f'**{_unbold(title or description)}**'
         if severity:
-            line += f' _(ризик: {severity})_'
+            line += L(f' _(ризик: {severity})_', f' _(risk: {severity})_')
         risks.append(f'- {line}')
     if risks:
-        parts.append(_section('Ризики', '\n'.join(risks)))
+        parts.append(_section(L('Ризики', 'Risks'), '\n'.join(risks)))
 
-    parts.append(_section('Слабкі місця', _bullets(_text_list(review.get('weak_spots'), limit=3))))
-    parts.append(
-        _section('Контраргументи', _bullets(_text_list(review.get('counter_arguments'), limit=3)))
-    )
+    parts.append(_section(
+        L('Слабкі місця', 'Weak spots'), _bullets(_text_list(review.get('weak_spots'), limit=3))
+    ))
+    parts.append(_section(
+        L('Контраргументи', 'Counterarguments'),
+        _bullets(_text_list(review.get('counter_arguments'), limit=3)),
+    ))
     text = '\n\n'.join(part for part in parts if part).strip()
-    return text or 'AI Devil не знайшов додаткових ризиків.'
+    return text or L('AI Devil не знайшов додаткових ризиків.', 'AI Devil found no additional risks.')
 
 
 def _final_text(summary):
     summary = summary if isinstance(summary, dict) else {}
-    parts = []
-    answer = _unbold(_text(summary.get('answer'), limit=200))
-    if answer:
-        parts.append(f'**Відповідь: {answer}**')
+    parts = [_answer_line(summary.get('answer'))]
 
-    decision = _text(summary.get('decision'), 'рішення не визначено', limit=2000)
-    parts.append(_section('Фінальне рішення', decision))
+    decision = _text(summary.get('decision'), _no_decision(), limit=2000)
+    parts.append(_section(L('Фінальне рішення', 'Final solution'), decision))
 
     if summary.get('confirmed') is False:
         revision = _text(summary.get('revision'), limit=2000)
-        text = 'Висновок **переглянуто** після перевірки AI Devil.'
+        text = L(
+            'Висновок **переглянуто** після перевірки AI Devil.',
+            'The conclusion was **revised** after AI Devil’s review.',
+        )
         if revision:
-            text = f'{text} Що змінилось: {revision}'
+            text = f'{text} {L("Що змінилось", "What changed")}: {revision}'
         parts.append(text)
     elif summary.get('confirmed') is True:
-        parts.append('Висновок **підтверджено** після перевірки AI Devil.')
+        parts.append(L(
+            'Висновок **підтверджено** після перевірки AI Devil.',
+            'The conclusion was **confirmed** after AI Devil’s review.',
+        ))
 
     agreement = summary.get('agreement') or {}
     if agreement.get('total'):
-        parts.append(
-            f'Згода учасників: **{agreement.get("agree", 0)} з {agreement["total"]}**.'
-        )
+        agree, total = agreement.get('agree', 0), agreement['total']
+        parts.append(L(
+            f'Згода учасників: **{agree} з {total}**.',
+            f'Participant agreement: **{agree} of {total}**.',
+        ))
 
-    parts.append(
-        _section('Окремі думки', _bullets(_text_list(summary.get('dissenting_points'), limit=4)))
-    )
-    parts.append(_section('Що робити далі', _text(summary.get('recommendation'), limit=2000)))
+    parts.append(_section(
+        L('Окремі думки', 'Dissenting opinions'),
+        _bullets(_text_list(summary.get('dissenting_points'), limit=4)),
+    ))
+    parts.append(_section(
+        L('Що робити далі', 'What to do next'), _text(summary.get('recommendation'), limit=2000)
+    ))
     return '\n\n'.join(part for part in parts if part).strip()
 
 
@@ -1704,7 +1812,7 @@ def _set_error(discussion, exc):
     discussion.status = Discussion.Status.FAILED
     discussion.error = str(exc.detail or '')[:MAX_ERROR_DETAIL]
     discussion.error_code = exc.code[:32]
-    discussion.error_public = (exc.public or GENERIC_PUBLIC_ERROR)[:MAX_ERROR_PUBLIC]
+    discussion.error_public = (exc.public or generic_public_error())[:MAX_ERROR_PUBLIC]
 
 
 def _fail(discussion_id, token, exc):
@@ -1811,7 +1919,7 @@ def _store(discussion, plan, payload, personas):
         content = _moderator_text(payload)
     elif plan.phase == Discussion.Phase.DEVIL:
         discussion.devil_review = payload['review']
-        added = _merge_sources(discussion, payload.get('search'), DEVIL['name'])
+        added = _merge_sources(discussion, payload.get('search'), devil()['name'])
         search_query = '; '.join(query for query, _ in payload.get('search') or [])
         content = _devil_text(payload['review'])
     elif plan.phase == Discussion.Phase.FINAL:
@@ -1897,10 +2005,16 @@ def advance(discussion, provider_factory=None):
     """Робить один крок дискусії.
 
     Повертає список створених повідомлень: одне для звичайного кроку, кілька
-    для паралельних фаз, порожній — якщо дискусію вже завершено.
+    для паралельних фаз, порожній — якщо дискусію вже завершено. Промпти,
+    тексти суддів і помилки — мовою, якою дискусію створено.
     """
     if discussion is None or not getattr(discussion, 'pk', None):
         raise EngineError('Дискусію не знайдено.', code='not_found', retryable=False)
+    with using(discussion.language):
+        return _advance(discussion, provider_factory)
+
+
+def _advance(discussion, provider_factory):
 
     discussion_id = discussion.pk
     token = uuid.uuid4()
@@ -1952,7 +2066,10 @@ def advance(discussion, provider_factory=None):
             'Не вдалося продовжити дискусію через внутрішню помилку.',
             detail=f'{type(exc).__name__}: {exc}',
             code='internal_error',
-            public='Внутрішня помилка сервера. Спробуйте продовжити ще раз.',
+            public=L(
+                'Внутрішня помилка сервера. Спробуйте продовжити ще раз.',
+                'Internal server error. Please try to continue again.',
+            ),
         )
         _fail(discussion_id, token, error)
         raise error from exc
@@ -1964,6 +2081,10 @@ def advance(discussion, provider_factory=None):
 # ---------------------------------------------------------------------------
 # Уточнення користувача
 # ---------------------------------------------------------------------------
+
+
+def _not_found():
+    return L('Дискусію не знайдено.', 'Discussion not found.')
 
 
 def add_user_message(discussion_id, author_name, content):
@@ -1979,7 +2100,7 @@ def add_user_message(discussion_id, author_name, content):
         raise EngineError(
             'Повідомлення порожнє.',
             code='empty_note',
-            public='Повідомлення порожнє.',
+            public=L('Повідомлення порожнє.', 'The message is empty.'),
             retryable=False,
         )
     with transaction.atomic():
@@ -1990,14 +2111,17 @@ def add_user_message(discussion_id, author_name, content):
             raise EngineError(
                 'Дискусію не знайдено.',
                 code='not_found',
-                public='Дискусію не знайдено.',
+                public=_not_found(),
                 retryable=False,
             )
         if discussion.awaiting_clarification:
             raise EngineError(
                 'Модератор чекає відповідей на уточнення.',
                 code='clarify_pending',
-                public='Спершу дайте відповідь на питання модератора або пропустіть їх.',
+                public=L(
+                    'Спершу дайте відповідь на питання модератора або пропустіть їх.',
+                    'First answer the moderator’s questions or skip them.',
+                ),
                 retryable=False,
             )
         reopened = discussion.phase == Discussion.Phase.DONE
@@ -2007,8 +2131,12 @@ def add_user_message(discussion_id, author_name, content):
                 raise EngineError(
                     'Ліміт уточнень вичерпано.',
                     code='followup_limit',
-                    public=f'Після фіналу можна поставити не більше {limit} уточнень. '
-                    'Створіть нову дискусію.',
+                    public=L(
+                        f'Після фіналу можна поставити не більше {limit} уточнень. '
+                        'Створіть нову дискусію.',
+                        f'You can ask no more than {limit} follow-ups after the final. '
+                        'Start a new discussion.',
+                    ),
                     retryable=False,
                 )
             discussion.followups += 1
@@ -2029,7 +2157,7 @@ def add_user_message(discussion_id, author_name, content):
             round=discussion.current_round if phase == Discussion.Phase.DEBATE else None,
             role=Message.Role.USER,
             persona_slug=USER_SLUG,
-            persona_name=author_name or 'Користувач',
+            persona_name=author_name or L('Користувач', 'User'),
             avatar='🧑',
             content=content,
         )
@@ -2052,9 +2180,9 @@ def clarify(discussion, provider_factory=None):
     plan = StepPlan(
         phase=Discussion.Phase.OPENING,
         role=Message.Role.MODERATOR,
-        persona=MODERATOR,
+        persona=moderator(),
         model_id='',
-        system=prompts.CLARIFY_SYSTEM,
+        system=prompts.clarify_system(),
         prompt=prompts.clarify_prompt(discussion.question, mode, options),
         temperature=JSON_TEMPERATURE,
         json_kind='clarify',
@@ -2118,14 +2246,14 @@ def finish_early(discussion_id):
         )
         if discussion is None:
             raise EngineError(
-                'Дискусію не знайдено.', code='not_found', public='Дискусію не знайдено.',
+                'Дискусію не знайдено.', code='not_found', public=_not_found(),
                 retryable=False,
             )
         if discussion.phase == Discussion.Phase.DONE:
             raise EngineError(
                 'Дискусію вже завершено.',
                 code='bad_state',
-                public='Дискусію вже завершено.',
+                public=L('Дискусію вже завершено.', 'The discussion has already finished.'),
                 retryable=False,
             )
         spoke = Message.objects.filter(discussion=discussion, role=Message.Role.AI).exists()
@@ -2133,8 +2261,12 @@ def finish_early(discussion_id):
             raise EngineError(
                 'Учасники ще не висловились.',
                 code='nothing_to_finish',
-                public='Учасники ще не висловились — висновок робити ні з чого. '
-                'Натисніть «Продовжити».',
+                public=L(
+                    'Учасники ще не висловились — висновок робити ні з чого. '
+                    'Натисніть «Продовжити».',
+                    'The participants have not spoken yet — there is nothing to conclude. '
+                    'Press “Continue”.',
+                ),
                 retryable=False,
             )
         discussion.phase = Discussion.Phase.DONE
@@ -2162,14 +2294,17 @@ def answer_clarification(discussion_id, clarifications):
         )
         if discussion is None:
             raise EngineError(
-                'Дискусію не знайдено.', code='not_found', public='Дискусію не знайдено.',
+                'Дискусію не знайдено.', code='not_found', public=_not_found(),
                 retryable=False,
             )
         if not discussion.awaiting_clarification:
             raise EngineError(
                 'Модератор не чекає уточнень.',
                 code='no_clarify',
-                public='Модератор уже не чекає уточнень — дискусія триває.',
+                public=L(
+                    'Модератор уже не чекає уточнень — дискусія триває.',
+                    'The moderator is no longer waiting for clarifications — the discussion is on.',
+                ),
                 retryable=False,
             )
         discussion.clarifications = clarifications

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
+import { copy } from './copy';
 import Layout from './components/Layout';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -24,8 +25,8 @@ const SharedPage = lazy(() => import('./pages/SharedPage'));
 function RouteFallback() {
   return (
     <div className="page page--auth">
-      <main className="main main--auth" aria-busy="true" aria-label="Завантаження">
-        <p className="hero__text">Завантаження…</p>
+      <main className="main main--auth" aria-busy="true" aria-label={copy.common.loading}>
+        <p className="hero__text">{copy.common.loading}</p>
       </main>
     </div>
   );

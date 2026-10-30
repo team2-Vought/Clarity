@@ -6,27 +6,29 @@ from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from backend.i18n import L, lazy_L
+
 from .login_limit import check_login_allowed, register_failed_login, reset_login_attempts
 from .models import User
 
-REQUIRED = 'Це поле обов’язкове'
-NAME_TOO_SHORT = 'Занадто коротке ім’я'
-NAME_TOO_LONG = 'Занадто довге ім’я'
-NAME_INVALID_CHAR = 'Недопустимий символ в імені'
-EMAIL_INVALID = 'Пошта вказана у неправильному форматі'
-EMAIL_TAKEN = 'Користувач з такою поштою вже існує'
-PASSWORD_TOO_SHORT = 'Занадто короткий пароль'
-PASSWORD_INVALID_CHAR = 'Недопустимий символ у паролі'
-PASSWORD_NO_LETTER = 'Пароль має містити латинські літери'
-PASSWORD_NO_DIGIT = 'Додайте цифри'
-PASSWORD_NO_SPECIAL = 'Додайте спец. символи'
-PASSWORDS_MISMATCH = 'Паролі не збігаються'
-AVATAR_INVALID = 'Не вдалося прочитати зображення'
-AVATAR_TOO_LARGE = 'Зображення завелике'
+REQUIRED = lazy_L('Це поле обов’язкове', 'This field is required')
+NAME_TOO_SHORT = lazy_L('Занадто коротке ім’я', 'The name is too short')
+NAME_TOO_LONG = lazy_L('Занадто довге ім’я', 'The name is too long')
+NAME_INVALID_CHAR = lazy_L('Недопустимий символ в імені', 'Invalid character in the name')
+EMAIL_INVALID = lazy_L('Пошта вказана у неправильному форматі', 'The email address is not in a valid format')
+EMAIL_TAKEN = lazy_L('Користувач з такою поштою вже існує', 'A user with this email already exists')
+PASSWORD_TOO_SHORT = lazy_L('Занадто короткий пароль', 'The password is too short')
+PASSWORD_INVALID_CHAR = lazy_L('Недопустимий символ у паролі', 'Invalid character in the password')
+PASSWORD_NO_LETTER = lazy_L('Пароль має містити латинські літери', 'The password must contain Latin letters')
+PASSWORD_NO_DIGIT = lazy_L('Додайте цифри', 'Add digits')
+PASSWORD_NO_SPECIAL = lazy_L('Додайте спец. символи', 'Add special characters')
+PASSWORDS_MISMATCH = lazy_L('Паролі не збігаються', 'The passwords do not match')
+AVATAR_INVALID = lazy_L('Не вдалося прочитати зображення', 'Could not read the image')
+AVATAR_TOO_LARGE = lazy_L('Зображення завелике', 'The image is too large')
 
-WRONG_EMAIL = 'Неправильна пошта'
-WRONG_PASSWORD = 'Невірний пароль'
-PASSWORD_SAME = 'Новий пароль збігається з поточним'
+WRONG_EMAIL = lazy_L('Неправильна пошта', 'Wrong email')
+WRONG_PASSWORD = lazy_L('Невірний пароль', 'Wrong password')
+PASSWORD_SAME = lazy_L('Новий пароль збігається з поточним', 'The new password is the same as the current one')
 
 NAME_MIN, NAME_MAX = 2, 40
 PASSWORD_MIN = 8
@@ -61,7 +63,7 @@ def name_from_google(name, email):
         kept = ' '.join(kept.split())[:NAME_MAX].strip()
         if len(kept) >= NAME_MIN:
             return kept
-    return 'Користувач'
+    return L('Користувач', 'User')
 
 
 def clean_email(value, exclude_user=None):

@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from backend.i18n import L, lazy_L
+
 from . import google
 
 from .serializers import (
@@ -22,10 +24,25 @@ from .serializers import (
 )
 
 GOOGLE_ERRORS = {
-    'not_configured': ('Вхід через Google не налаштовано.', status.HTTP_503_SERVICE_UNAVAILABLE),
-    'invalid': ('Не вдалося підтвердити вхід через Google. Спробуйте ще раз.', status.HTTP_400_BAD_REQUEST),
-    'unverified': ('Пошта в Google-акаунті не підтверджена.', status.HTTP_400_BAD_REQUEST),
-    'unavailable': ('Google зараз недоступний. Спробуйте трохи пізніше.', status.HTTP_502_BAD_GATEWAY),
+    'not_configured': (
+        lazy_L('Вхід через Google не налаштовано.', 'Google sign-in is not configured.'),
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+    ),
+    'invalid': (
+        lazy_L(
+            'Не вдалося підтвердити вхід через Google. Спробуйте ще раз.',
+            'Could not confirm the Google sign-in. Please try again.',
+        ),
+        status.HTTP_400_BAD_REQUEST,
+    ),
+    'unverified': (
+        lazy_L('Пошта в Google-акаунті не підтверджена.', 'The email of the Google account is not verified.'),
+        status.HTTP_400_BAD_REQUEST,
+    ),
+    'unavailable': (
+        lazy_L('Google зараз недоступний. Спробуйте трохи пізніше.', 'Google is unavailable right now. Try again a bit later.'),
+        status.HTTP_502_BAD_GATEWAY,
+    ),
 }
 
 
@@ -52,7 +69,7 @@ class RegisterView(APIView):
         user = create_user(serializer.validated_data)
         return Response(
             {
-                'detail': 'Реєстрацію успішно завершено',
+                'detail': L('Реєстрацію успішно завершено', 'Registration completed'),
                 'user': user_payload(user),
             },
             status=status.HTTP_201_CREATED,
@@ -113,7 +130,7 @@ class GoogleLoginView(APIView):
                 created = False
         if not user.is_active:
             return Response(
-                {'detail': 'Акаунт вимкнено.', 'code': 'inactive'},
+                {'detail': L('Акаунт вимкнено.', 'The account is disabled.'), 'code': 'inactive'},
                 status=status.HTTP_403_FORBIDDEN,
             )
         token, _ = Token.objects.get_or_create(user=user)
@@ -129,7 +146,7 @@ class LogoutView(APIView):
     def post(self, request):
         Token.objects.filter(user=request.user).delete()
         return Response(
-            {'detail': 'Вихід виконано'},
+            {'detail': L('Вихід виконано', 'Signed out')},
             status=status.HTTP_200_OK,
         )
 
@@ -178,6 +195,6 @@ class PasswordView(APIView):
             Token.objects.filter(user=user).delete()
             token = Token.objects.create(user=user)
         return Response(
-            {'detail': 'Пароль змінено', 'token': token.key},
+            {'detail': L('Пароль змінено', 'Password changed'), 'token': token.key},
             status=status.HTTP_200_OK,
         )

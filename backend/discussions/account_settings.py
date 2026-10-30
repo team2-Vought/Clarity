@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from accounts.models import ProviderKey
 from accounts.secrets import encrypt, mask
+from backend.i18n import L, lazy_L
 
 from .models import Discussion
 from .personas import CONSENSUS_MAX_ROUNDS, MAX_AI, MAX_ROUNDS, MIN_AI, MIN_ROUNDS
@@ -63,7 +64,7 @@ class PreferencesSerializer(serializers.Serializer):
     default_mode = serializers.ChoiceField(
         required=False,
         choices=Discussion.Mode.choices,
-        error_messages={'invalid_choice': 'Невідомий формат відповіді'},
+        error_messages={'invalid_choice': lazy_L('Невідомий формат відповіді', 'Unknown answer format')},
     )
     default_rounds = serializers.IntegerField(
         required=False, min_value=MIN_ROUNDS, max_value=MAX_ROUNDS
@@ -79,7 +80,7 @@ class PreferencesSerializer(serializers.Serializer):
         # нова дискусія просто візьме іншу, тож тут перевіряємо лише каталог
         value = value.strip()
         if value and resolve_model(value) is None:
-            raise serializers.ValidationError('Такої моделі немає в каталозі')
+            raise serializers.ValidationError(L('Такої моделі немає в каталозі', 'There is no such model in the catalog'))
         return value
 
 
@@ -87,12 +88,15 @@ class KeySerializer(serializers.Serializer):
     key = serializers.CharField(
         max_length=KEY_MAX,
         trim_whitespace=True,
-        error_messages={'blank': 'Вставте ключ', 'required': 'Вставте ключ'},
+        error_messages={
+            'blank': lazy_L('Вставте ключ', 'Paste the key'),
+            'required': lazy_L('Вставте ключ', 'Paste the key'),
+        },
     )
 
     def validate_key(self, value):
         if len(value) < KEY_MIN or any(ch.isspace() for ch in value):
-            raise serializers.ValidationError('Це не схоже на API-ключ')
+            raise serializers.ValidationError(L('Це не схоже на API-ключ', 'This does not look like an API key'))
         return value
 
 
@@ -203,7 +207,10 @@ class ProviderKeyView(APIView):
     def put(self, request, provider):
         if provider not in USER_KEY_PROVIDERS:
             return Response(
-                {'detail': 'Для цього провайдера власний ключ не підтримується'},
+                {'detail': L(
+                    'Для цього провайдера власний ключ не підтримується',
+                    'Custom keys are not supported for this provider',
+                )},
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = KeySerializer(data=request.data)
@@ -213,7 +220,10 @@ class ProviderKeyView(APIView):
         verified = _verify_key(provider, key) if settings.API_KEYS_VERIFY else None
         if verified is False:
             return Response(
-                {'key': [f'{PROVIDERS[provider]["label"]} відхилив цей ключ. Перевірте, чи скопійовано його повністю.']},
+                {'key': [L(
+                    f'{PROVIDERS[provider]["label"]} відхилив цей ключ. Перевірте, чи скопійовано його повністю.',
+                    f'{PROVIDERS[provider]["label"]} rejected this key. Check that it was copied in full.',
+                )]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

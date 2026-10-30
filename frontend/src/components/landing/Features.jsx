@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AiBrain01Icon, GlobalSearchIcon } from '@hugeicons/core-free-icons';
 import Shot from './Shot';
-import { uk } from '../../copy/uk';
+import { copy } from '../../copy';
 
-const t = uk.landing;
+const t = copy.landing;
 
 export default function Features() {
   const [mode, setMode] = useState(t.modes.items[0].key);

@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import { copy } from '../copy';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -20,10 +21,10 @@ export default class ErrorBoundary extends Component {
       return (
         <main className="main main--auth">
           <section className="card card--auth" aria-labelledby="error-title">
-            <h1 id="error-title">Щось пішло не так</h1>
-            <p className="hero__text">Спробуйте оновити сторінку. Якщо помилка повториться — напишіть нам.</p>
+            <h1 id="error-title">{copy.errors.crashTitle}</h1>
+            <p className="hero__text">{copy.errors.crashText}</p>
             <button className="btn" type="button" onClick={() => window.location.reload()}>
-              Оновити сторінку
+              {copy.errors.reload}
             </button>
           </section>
         </main>

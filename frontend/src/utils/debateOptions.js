@@ -8,18 +8,10 @@ import {
   UserIcon,
   Wrench01Icon,
 } from '@hugeicons/core-free-icons';
+import { copy } from '../copy';
 
-export const TRAITS = [
-  'Перфекціоніст',
-  'Реаліст',
-  'Егоїст',
-  'Романтик',
-  'Оптиміст',
-  'Стратег',
-  'Провокатор',
-  'Бунтар',
-  'Консерватор',
-];
+// риси мовою інтерфейсу; сервер знає інструкції до них обома мовами
+export const TRAITS = copy.debate.traits;
 
 export const TRAIT_COLORS = [
   '#f4c1cf', '#feedd5', '#c2effd', '#b4b5ce', '#d3f0dc', '#fff1b8',

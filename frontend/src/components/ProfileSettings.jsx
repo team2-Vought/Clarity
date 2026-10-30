@@ -7,9 +7,9 @@ import { changePassword, deleteAccount, me, updateProfile } from '../api/auth';
 import { setMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import { validateEmail, validatePassword } from '../utils/validate';
-import { uk } from '../copy/uk';
+import { copy, locale } from '../copy';
 
-const t = uk.settings.profile;
+const t = copy.settings.profile;
 
 const EMPTY = {
   name: '',
@@ -57,7 +57,7 @@ async function toAvatar(file) {
 const formatJoined = (value) => {
   const date = new Date(value);
   if (!value || Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 };
 
 function Input({ label, error, type = 'text', inputRef, ...props }) {
@@ -85,7 +85,7 @@ function Input({ label, error, type = 'text', inputRef, ...props }) {
             type="button"
             className="settings__icon-button"
             onClick={() => setIsVisible((visible) => !visible)}
-            aria-label={isVisible ? uk.field.hidePassword : uk.field.showPassword}
+            aria-label={isVisible ? copy.field.hidePassword : copy.field.showPassword}
             aria-pressed={isVisible}
           >
             <HugeiconsIcon icon={isVisible ? ViewOffSlashIcon : ViewIcon} size={18} aria-hidden="true" />
@@ -158,7 +158,7 @@ function EditRow({ title, value, hint, open, onOpen, onClose, onSubmit, busy, su
               {submitLabel}
             </button>
             <button type="button" className="settings__button" onClick={onClose} disabled={busy}>
-              {uk.settings.cancel}
+              {copy.settings.cancel}
             </button>
           </div>
         </form>
@@ -248,7 +248,7 @@ export default function ProfileSettings() {
     } catch (err) {
       const fields = err?.fieldErrors?.() || {};
       if (Object.keys(fields).length) setErrors(fields);
-      else pushToast(err?.message || uk.settings.saveError);
+      else pushToast(err?.message || copy.settings.saveError);
     } finally {
       setIsBusy(false);
     }
@@ -260,7 +260,7 @@ export default function ProfileSettings() {
       setUser(await updateProfile({ avatar }));
       pushToast(message);
     } catch (err) {
-      pushToast(err?.fieldErrors?.().avatar || err?.message || uk.settings.saveError);
+      pushToast(err?.fieldErrors?.().avatar || err?.message || copy.settings.saveError);
     } finally {
       setIsAvatarBusy(false);
     }
@@ -356,7 +356,7 @@ export default function ProfileSettings() {
       <div className="settings__error" role="alert">
         <p>{loadError}</p>
         <button type="button" className="settings__button settings__button--primary" onClick={load}>
-          {uk.settings.retry}
+          {copy.settings.retry}
         </button>
       </div>
     );

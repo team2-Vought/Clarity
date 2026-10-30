@@ -1,6 +1,6 @@
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.chat;
+const t = copy.chat;
 
 const listOf = (value) =>
   (Array.isArray(value) ? value : [])

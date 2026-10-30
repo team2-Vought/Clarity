@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Background } from './AuthLayout';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 export default function AccountPage() {
   const navigate = useNavigate();
@@ -9,10 +9,10 @@ export default function AccountPage() {
       <Background />
       <main className="main main--auth">
         <section className="card card--auth" aria-labelledby="account-title">
-          <h1 id="account-title">{uk.account.title}</h1>
-          <p className="hero__text">{uk.account.empty}</p>
+          <h1 id="account-title">{copy.account.title}</h1>
+          <p className="hero__text">{copy.account.empty}</p>
           <button className="btn" type="button" onClick={() => navigate('/')}>
-            {uk.common.backHome}
+            {copy.common.backHome}
           </button>
         </section>
       </main>

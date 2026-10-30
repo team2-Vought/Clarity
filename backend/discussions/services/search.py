@@ -21,6 +21,8 @@ from urllib.parse import quote, urlparse
 import httpx
 from django.conf import settings
 
+from backend.i18n import L
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = 'ClarityDebate/1.0 (+https://github.com/ttjelky/Clarity)'
@@ -171,7 +173,8 @@ def _searxng(query, limit):
 
 def _wikipedia(query, limit):
     results = []
-    for lang in ('uk', 'en'):
+    # спершу Вікіпедія мовою дискусії, потім інша
+    for lang in L(('uk', 'en'), ('en', 'uk')):
         data = _get(
             f'https://{lang}.wikipedia.org/w/api.php',
             params={

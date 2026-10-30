@@ -3,6 +3,8 @@ import re
 from django.conf import settings
 from rest_framework import serializers
 
+from backend.i18n import lazy_L
+
 from .models import Discussion, Message, Team
 from .personas import (
     DEFAULT_ROUNDS,
@@ -17,38 +19,77 @@ from .personas import (
 from .services import engine, runner, search
 from .services.catalog import resolve_model
 
-REQUIRED = 'Це поле обов’язкове'
-QUESTION_TOO_SHORT = f'Запитання має містити щонайменше {QUESTION_MIN} символів'
-QUESTION_TOO_LONG = f'Запитання задовге (максимум {QUESTION_MAX} символів)'
-PERSONAS_TYPE = 'Повинен бути список персон'
-PERSONAS_COUNT = f'Оберіть від {MIN_AI} до {MAX_AI} AI-учасників'
-PERSONAS_UNKNOWN = 'Невідома персона: {slug}'
-PERSONAS_DUPLICATE = 'Персона «{slug}» обрана двічі'
-DEVIL_NOT_ALLOWED = 'AI Devil не є звичайним учасником дискусії'
-ROUNDS_RANGE = f'Кількість раундів: від {MIN_ROUNDS} до {MAX_ROUNDS}'
-MODE_UNKNOWN = 'Невідомий режим відповіді'
-OPTIONS_RANGE = 'Потрібно від 2 до 8 варіантів'
-OPTION_TOO_LONG = 'Варіант задовгий (максимум 100 символів)'
-OPTION_EMPTY = 'Варіант не може бути порожнім'
-OPTION_DUPLICATE = 'Варіанти мають бути різними'
-OPTION_NOT_ALLOWED = 'Варіанти потрібні лише для режиму «Один із варіантів»'
-NAME_TOO_LONG = 'Ім’я учасника задовге (максимум 64 символи)'
-MODEL_TOO_LONG = 'Ідентифікатор моделі задовгий (максимум 120 символів)'
-MODEL_UNKNOWN = 'Невідома модель: {model}'
-MODEL_UNAVAILABLE = 'Модель «{model}» недоступна: додайте ключ у backend/.env або виберіть іншу'
-NAMES_DUPLICATE = 'Імена учасників мають бути різними'
-DEFAULT_NAME = 'Учасник {index}'
-NAME_INVALID = 'Ім’я містить недопустимі символи'
-TRAITS_TYPE = 'Риси характеру мають бути списком'
-TRAITS_TOO_MANY = 'Максимум 20 рис характеру'
-TRAIT_TOO_LONG = 'Риса характеру задовга (максимум 40 символів)'
-SEARCH_UNAVAILABLE = 'Пошук в інтернеті вимкнено на сервері'
-PERSONA_NOT_IN_DISCUSSION = 'Учасника «{slug}» немає в цій дискусії'
-TEAM_NAME_EMPTY = 'Назвіть команду'
-TEAM_NAME_TOO_LONG = 'Назва команди задовга (максимум 64 символи)'
-SHARED_AUTHOR = 'Автор питання'
-CLARIFICATIONS_TYPE = 'Уточнення мають бути списком пар «питання — відповідь»'
-CLARIFICATION_TOO_LONG = 'Відповідь на уточнення задовга (максимум 500 символів)'
+REQUIRED = lazy_L('Це поле обов’язкове', 'This field is required')
+QUESTION_TOO_SHORT = lazy_L(
+    f'Запитання має містити щонайменше {QUESTION_MIN} символів',
+    f'The question must be at least {QUESTION_MIN} characters long',
+)
+QUESTION_TOO_LONG = lazy_L(
+    f'Запитання задовге (максимум {QUESTION_MAX} символів)',
+    f'The question is too long (maximum {QUESTION_MAX} characters)',
+)
+PERSONAS_TYPE = lazy_L('Повинен бути список персон', 'Must be a list of personas')
+PERSONAS_COUNT = lazy_L(
+    f'Оберіть від {MIN_AI} до {MAX_AI} AI-учасників',
+    f'Choose from {MIN_AI} to {MAX_AI} AI participants',
+)
+PERSONAS_UNKNOWN = lazy_L('Невідома персона: {slug}', 'Unknown persona: {slug}')
+PERSONAS_DUPLICATE = lazy_L('Персона «{slug}» обрана двічі', 'The persona “{slug}” is selected twice')
+DEVIL_NOT_ALLOWED = lazy_L(
+    'AI Devil не є звичайним учасником дискусії', 'AI Devil is not a regular discussion participant'
+)
+ROUNDS_RANGE = lazy_L(
+    f'Кількість раундів: від {MIN_ROUNDS} до {MAX_ROUNDS}',
+    f'Number of rounds: from {MIN_ROUNDS} to {MAX_ROUNDS}',
+)
+MODE_UNKNOWN = lazy_L('Невідомий режим відповіді', 'Unknown answer format')
+OPTIONS_RANGE = lazy_L('Потрібно від 2 до 8 варіантів', 'From 2 to 8 options are required')
+OPTION_TOO_LONG = lazy_L('Варіант задовгий (максимум 100 символів)', 'The option is too long (maximum 100 characters)')
+OPTION_EMPTY = lazy_L('Варіант не може бути порожнім', 'An option cannot be empty')
+OPTION_DUPLICATE = lazy_L('Варіанти мають бути різними', 'Options must be different')
+OPTION_NOT_ALLOWED = lazy_L(
+    'Варіанти потрібні лише для режиму «Один із варіантів»',
+    'Options are only needed for the “One of the options” format',
+)
+NAME_TOO_LONG = lazy_L(
+    'Ім’я учасника задовге (максимум 64 символи)',
+    'The participant name is too long (maximum 64 characters)',
+)
+MODEL_TOO_LONG = lazy_L(
+    'Ідентифікатор моделі задовгий (максимум 120 символів)',
+    'The model identifier is too long (maximum 120 characters)',
+)
+MODEL_UNKNOWN = lazy_L('Невідома модель: {model}', 'Unknown model: {model}')
+MODEL_UNAVAILABLE = lazy_L(
+    'Модель «{model}» недоступна: додайте ключ у backend/.env або виберіть іншу',
+    'The model “{model}” is unavailable: add a key in backend/.env or choose another one',
+)
+NAMES_DUPLICATE = lazy_L('Імена учасників мають бути різними', 'Participant names must be different')
+DEFAULT_NAME = lazy_L('Учасник {index}', 'Participant {index}')
+NAME_INVALID = lazy_L('Ім’я містить недопустимі символи', 'The name contains invalid characters')
+TRAITS_TYPE = lazy_L('Риси характеру мають бути списком', 'Character traits must be a list')
+TRAITS_TOO_MANY = lazy_L('Максимум 20 рис характеру', 'A maximum of 20 character traits')
+TRAIT_TOO_LONG = lazy_L(
+    'Риса характеру задовга (максимум 40 символів)',
+    'The character trait is too long (maximum 40 characters)',
+)
+SEARCH_UNAVAILABLE = lazy_L('Пошук в інтернеті вимкнено на сервері', 'Web search is disabled on the server')
+PERSONA_NOT_IN_DISCUSSION = lazy_L(
+    'Учасника «{slug}» немає в цій дискусії', 'The participant “{slug}” is not in this discussion'
+)
+TEAM_NAME_EMPTY = lazy_L('Назвіть команду', 'Name the team')
+TEAM_NAME_TOO_LONG = lazy_L(
+    'Назва команди задовга (максимум 64 символи)', 'The team name is too long (maximum 64 characters)'
+)
+SHARED_AUTHOR = lazy_L('Автор питання', 'Question author')
+CLARIFICATIONS_TYPE = lazy_L(
+    'Уточнення мають бути списком пар «питання — відповідь»',
+    'Clarifications must be a list of “question — answer” pairs',
+)
+CLARIFICATION_TOO_LONG = lazy_L(
+    'Відповідь на уточнення задовга (максимум 500 символів)',
+    'The clarification answer is too long (maximum 500 characters)',
+)
 
 # Помилки, які не минуть від повтору: потрібно змінити модель чи налаштування.
 NON_RETRYABLE_CODES = {
@@ -378,6 +419,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'question',
+            'language',
             'mode',
             'options',
             'clarifications',

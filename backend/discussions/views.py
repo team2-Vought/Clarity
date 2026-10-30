@@ -12,12 +12,15 @@ from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from backend.i18n import L, current
+
 from .account_settings import preferences_of
 from .models import Discussion, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
     MAX_AI,
+    MODE_LABELS_EN,
     MAX_ROUNDS,
     MIN_AI,
     MIN_ROUNDS,
@@ -122,22 +125,19 @@ def _discussion_state(discussion):
 
 
 def _daily_limit_response():
-    limit = int(getattr(settings, 'DISCUSSION_DAILY_ADVANCE_LIMIT', 0) or 0)
-    return _too_many(
-        f'Денний ліміт AI-відповідей вичерпано ({limit}). Спробуйте завтра.'
-    )
+    return _too_many(runner.daily_limit_message())
 
 
 def _not_found():
     return Response(
-        {'detail': 'Дискусію не знайдено'},
+        {'detail': L('Дискусію не знайдено', 'Discussion not found')},
         status=status.HTTP_404_NOT_FOUND,
     )
 
 
 def _engine_error_response(exc, discussion=None):
     payload = {
-        'detail': exc.public or engine.GENERIC_PUBLIC_ERROR,
+        'detail': exc.public or engine.generic_public_error(),
         'code': exc.code,
         'retryable': exc.retryable and exc.code not in NON_RETRYABLE_CODES,
     }
@@ -170,7 +170,7 @@ class PersonaListView(APIView):
                 'search': search.status(),
                 'max_followups': int(settings.DISCUSSION_MAX_FOLLOWUPS),
                 'modes': [
-                    {'value': value, 'label': label}
+                    {'value': value, 'label': L(label, MODE_LABELS_EN.get(value, label))}
                     for value, label in Discussion.Mode.choices
                 ],
             },
@@ -231,10 +231,12 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
     def post(self, request):
         if usage.over_discussion_limit(request.user):
             limit = int(settings.DISCUSSION_DAILY_LIMIT)
-            return _too_many(
+            return _too_many(L(
                 f'Денний ліміт створення дискусій вичерпано ({limit}). '
-                'Спробуйте завтра.'
-            )
+                'Спробуйте завтра.',
+                f'The daily limit of new discussions has been reached ({limit}). '
+                'Try again tomorrow.',
+            ))
 
         serializer = CreateDiscussionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -254,6 +256,8 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             # спершу модератор перевіряє, чи досить контексту; пошуку окремим
             # кроком немає — учасники шукають самі, коли їм бракує фактів
             phase=Discussion.Phase.CLARIFY,
+            # мова інтерфейсу автора: нею відповідатимуть AI
+            language=current(),
         )
         # одразу створюємо повідомлення користувача як початок чату
         discussion.messages.create(
@@ -261,7 +265,7 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             phase=Discussion.Phase.OPENING,
             role='user',
             persona_slug='user',
-            persona_name=request.user.name or 'Користувач',
+            persona_name=request.user.name or L('Користувач', 'User'),
             avatar='🧑',
             content=discussion.question,
         )
@@ -306,7 +310,10 @@ class DiscussionDetailView(OwnedDiscussionView):
         changes_models = bool(MODEL_FIELDS & set(request.data))
         if changes_models and runner.is_working(discussion):
             return Response(
-                {'detail': 'Зачекайте, поки завершиться поточний крок, або зупиніть дискусію.'},
+                {'detail': L(
+                    'Зачекайте, поки завершиться поточний крок, або зупиніть дискусію.',
+                    'Wait for the current step to finish or stop the discussion.',
+                )},
                 status=status.HTTP_409_CONFLICT,
             )
         serializer = UpdateDiscussionSerializer(discussion, data=request.data, partial=True)
@@ -341,7 +348,13 @@ class DiscussionAdvanceView(OwnedDiscussionView):
             messages = engine.advance(discussion)
         except engine.EngineBusy:
             return Response(
-                {'detail': 'Ця дискусія вже обробляється. Спробуйте за мить.', 'code': 'busy'},
+                {
+                    'detail': L(
+                        'Ця дискусія вже обробляється. Спробуйте за мить.',
+                        'This discussion is already being processed. Try again in a moment.',
+                    ),
+                    'code': 'busy',
+                },
                 status=status.HTTP_409_CONFLICT,
                 headers={'Retry-After': '2'},
             )
@@ -349,7 +362,10 @@ class DiscussionAdvanceView(OwnedDiscussionView):
             discussion.refresh_from_db()
             return Response(
                 {
-                    'detail': 'Стан дискусії змінився. Оновіть сторінку.',
+                    'detail': L(
+                        'Стан дискусії змінився. Оновіть сторінку.',
+                        'The discussion has changed. Refresh the page.',
+                    ),
                     'code': 'conflict',
                     'status': discussion.status,
                     'phase': discussion.phase,
@@ -420,7 +436,7 @@ class DiscussionFinishView(OwnedDiscussionView):
             engine.finish_early(discussion.pk)
         except engine.EngineError as exc:
             return Response(
-                {'detail': exc.public or engine.GENERIC_PUBLIC_ERROR, 'code': exc.code},
+                {'detail': exc.public or engine.generic_public_error(), 'code': exc.code},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         discussion.refresh_from_db()
@@ -442,12 +458,12 @@ class DiscussionMessageView(OwnedDiscussionView):
         try:
             message, reopened = engine.add_user_message(
                 discussion.pk,
-                request.user.name or 'Користувач',
+                request.user.name or L('Користувач', 'User'),
                 request.data.get('content', ''),
             )
         except engine.EngineError as exc:
             return Response(
-                {'detail': exc.public or engine.GENERIC_PUBLIC_ERROR, 'code': exc.code},
+                {'detail': exc.public or engine.generic_public_error(), 'code': exc.code},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         runner.start(discussion.pk)
@@ -480,7 +496,7 @@ class DiscussionClarifyView(OwnedDiscussionView):
             )
         except engine.EngineError as exc:
             return Response(
-                {'detail': exc.public or engine.GENERIC_PUBLIC_ERROR, 'code': exc.code},
+                {'detail': exc.public or engine.generic_public_error(), 'code': exc.code},
                 status=status.HTTP_409_CONFLICT,
             )
         if not runner.over_daily_limit(request.user):
@@ -520,7 +536,10 @@ class SharedDiscussionView(APIView):
         discussion = Discussion.objects.filter(share_token=token).first()
         if discussion is None:
             return Response(
-                {'detail': 'Посилання недійсне або доступ до дискусії закрито'},
+                {'detail': L(
+                    'Посилання недійсне або доступ до дискусії закрито',
+                    'The link is invalid or access to the discussion has been closed',
+                )},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(SharedDiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
@@ -542,7 +561,10 @@ class TeamListCreateView(UserModelsMixin, APIView):
         existing = Team.objects.filter(user=request.user, name=name).first()
         if existing is None and Team.objects.filter(user=request.user).count() >= TEAMS_MAX:
             return Response(
-                {'detail': f'Можна зберегти не більше {TEAMS_MAX} команд. Видаліть непотрібні.'},
+                {'detail': L(
+                    f'Можна зберегти не більше {TEAMS_MAX} команд. Видаліть непотрібні.',
+                    f'You can save no more than {TEAMS_MAX} teams. Delete the ones you no longer need.',
+                )},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if existing is None:
@@ -560,5 +582,8 @@ class TeamDetailView(UserModelsMixin, APIView):
     def delete(self, request, pk):
         deleted, _ = Team.objects.filter(user=request.user, pk=pk).delete()
         if not deleted:
-            return Response({'detail': 'Команду не знайдено'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'detail': L('Команду не знайдено', 'Team not found')},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)

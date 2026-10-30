@@ -3,13 +3,13 @@ import { AuthPage } from './AuthLayout';
 import LoginForm from '../components/LoginForm';
 import GoogleButton from '../components/GoogleButton';
 import { login } from '../api/auth';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   return (
     <AuthPage
-      title={uk.login.title}
+      title={copy.login.title}
       variant="login"
       form={
         <LoginForm

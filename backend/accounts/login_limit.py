@@ -9,6 +9,8 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework.exceptions import Throttled
 
+from backend.i18n import L
+
 from .models import LoginAttempt
 
 MAX_FAILED_ATTEMPTS = 5
@@ -27,9 +29,11 @@ def check_login_allowed(email):
             seconds = int((attempt.locked_until - now).total_seconds())
             minutes = max(1, (seconds + 59) // 60)
             raise Throttled(
-                detail=(
-                    f'Ліміт спроб вичерпано для цього акаунта. '
-                    f'Спробуйте через {minutes} хв.'
+                detail=L(
+                    'Ліміт спроб вичерпано для цього акаунта. '
+                    f'Спробуйте через {minutes} хв.',
+                    'Too many attempts for this account. '
+                    f'Try again in {minutes} min.',
                 )
             )
         # блокування минуло — знімаємо лічильник

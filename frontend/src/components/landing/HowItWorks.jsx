@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Shot from './Shot';
-import { uk } from '../../copy/uk';
+import { copy } from '../../copy';
 
-const t = uk.landing;
+const t = copy.landing;
 
 // Кроки гортаються зліва, а скрін праворуч «прилипає» й змінюється під активний крок.
 // На телефоні липкої рамки немає — кожен крок показує свій скрін під текстом.

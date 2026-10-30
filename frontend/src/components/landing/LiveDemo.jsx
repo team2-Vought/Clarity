@@ -14,10 +14,10 @@ import { parseBlocks } from '../../utils/markdown';
 import { roleIcon } from '../../utils/debateOptions';
 import logoThinking from '../../assets/logo-thinking.svg';
 import logoStill from '../../assets/Clarity_logo_8.svg';
-import { uk } from '../../copy/uk';
+import { copy } from '../../copy';
 
-const t = uk.landing;
-const tc = uk.chat;
+const t = copy.landing;
+const tc = copy.chat;
 
 // Репліки демо в тому ж вигляді, що приходять із сервера, — тож кольори,
 // сторони, роздільники фаз і анімації беруться з тих самих функцій, що в чаті

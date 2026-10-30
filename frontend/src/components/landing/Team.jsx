@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { toneOf } from './personaTones';
 import { roleIcon } from '../../utils/debateOptions';
-import { uk } from '../../copy/uk';
+import { copy } from '../../copy';
 
-const t = uk.landing;
+const t = copy.landing;
 
 export default function Team() {
   // на сенсорних екранах наведення немає — картку перевертає дотик

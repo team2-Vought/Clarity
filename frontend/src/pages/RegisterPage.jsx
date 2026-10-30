@@ -3,13 +3,13 @@ import { AuthPage } from './AuthLayout';
 import RegisterForm from '../components/RegisterForm';
 import GoogleButton from '../components/GoogleButton';
 import { login, register } from '../api/auth';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   return (
     <AuthPage
-      title={uk.register.title}
+      title={copy.register.title}
       variant="register"
       form={
         <RegisterForm

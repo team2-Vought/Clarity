@@ -2,15 +2,16 @@ import PropTypes from 'prop-types';
 import Field from './Field';
 import { useForm } from '../hooks/useForm';
 import { PASSWORD_HINT, validateEmail, validatePassword } from '../utils/validate';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.register;
+const t = copy.register;
+const v8n = copy.validation;
 
 const validate = {
-  name: (v) => (v.trim() ? '' : 'Вкажіть ім’я'),
-  email: (v) => (validateEmail(v) ? '' : 'Введіть коректну пошту, наприклад name@mail.com'),
+  name: (v) => (v.trim() ? '' : v8n.nameRequired),
+  email: (v) => (validateEmail(v) ? '' : v8n.emailInvalid),
   password: (v) => validatePassword(v) || '',
-  repeat: (v, all) => (v && v === all.password ? '' : 'Паролі не збігаються'),
+  repeat: (v, all) => (v && v === all.password ? '' : v8n.mismatch),
 };
 
 export default function RegisterForm({ onSubmit, onSwitch, alternative = null }) {
