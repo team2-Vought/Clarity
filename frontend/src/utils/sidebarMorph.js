@@ -189,7 +189,7 @@ export function morphSidebar(rail, drawer, opening, store, origin) {
   if (!railVisible) {
     if (drawer && origin?.getBoundingClientRect().width) {
       morphFromBurger(drawer, origin, opening, store, current, interrupted);
-      if (!opening) scheduleCleanUp(drawer, store);
+      if (!opening) scheduleCleanUp(drawer.querySelector('.sidebar--drawer'), store);
     }
     return;
   }
@@ -242,13 +242,12 @@ export function morphSidebar(rail, drawer, opening, store, origin) {
     }
   }
 
-  if (!opening) scheduleCleanUp(drawer, store);
+  if (!opening) scheduleCleanUp(drawer.querySelector('.sidebar--drawer'), store);
 }
 
 // кожне наступне відкриття стартує з чистого стану — як найперше
-function scheduleCleanUp(drawer, store) {
+function scheduleCleanUp(card, store) {
   const closing = store.current;
-  const card = drawer.querySelector('.sidebar--drawer');
   const cleanUp = () => {
     if (store.current !== closing) return; // меню вже знову відкривають
     // поки картку ще видно (браузер пригальмував), іконки лишаються на кінцевих місцях
@@ -261,3 +260,44 @@ function scheduleCleanUp(drawer, store) {
   };
   window.setTimeout(cleanUp, CLOSE_CLEANUP);
 }
+
+// Права панель налаштувань на телефоні виростає зі своєї кнопки так само, як
+// меню з «бургера» (форму задає CSS). Її блоки — заголовок, ряд учасників,
+// анкети, «Додатково» — вилітають з боку кнопки хвилею зверху вниз цілими
+// картками, а при закритті злітаються назад знизу вгору
+const SHEET_BLOCKS = '.debate__cast-head, .debate__lineup, .debate__sheet, .debate__more-toggle';
+const SHEET_SCALE = 0.82;
+const SHEET_REACH = 70;
+
+export function morphSheet(panel, origin, opening, store) {
+  const previous = store.current;
+  const interrupted = previous.some((animation) => animation.playState === 'running');
+  store.current = [];
+  previous.forEach((animation) => animation.cancel());
+  if (!panel || !origin || reducedMotion()) return;
+
+  const view = panel.querySelector('.debate__panel-view') || panel;
+  const button = origin.getBoundingClientRect();
+  const blocks = [...view.querySelectorAll(SHEET_BLOCKS)].filter(
+    (block) => block.offsetHeight > 0 && !block.parentElement.closest(SHEET_BLOCKS)
+  );
+  blocks.forEach((block, i) => {
+    const layout = block.getBoundingClientRect();
+    // від правого верхнього кута блока — до центру кнопки, не далі за SHEET_REACH
+    const dx = button.left + button.width / 2 - layout.right;
+    const dy = button.top + button.height / 2 - layout.top;
+    const reach = Math.min(1, SHEET_REACH / (Math.hypot(dx, dy) || 1));
+    const away = {
+      transformOrigin: '100% 0',
+      transform: `translate(${dx * reach}px, ${dy * reach}px) scale(${SHEET_SCALE})`,
+      opacity: 0,
+    };
+    const home = { transformOrigin: '100% 0', transform: 'none', opacity: 1 };
+    const timing = opening
+      ? { ...BURGER_OPEN, delay: interrupted ? 0 : BURGER_DELAY + i * 30 }
+      : { ...BURGER_CLOSE, delay: (blocks.length - 1 - i) * 14, fill: 'both' };
+    store.current.push(animate(block, opening ? [away, home] : [home, away], timing));
+  });
+  if (!opening) scheduleCleanUp(panel, store);
+}
+

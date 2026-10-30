@@ -38,6 +38,7 @@ import {
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
+import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown from '../components/MessageMarkdown';
 import ClarifyCard from '../components/ClarifyCard';
@@ -192,6 +193,8 @@ export default function ChatPage() {
   const swipeRef = useRef(0);
   const panelRef = useRef(null);
   const noteRef = useRef(null);
+  // на телефоні панель виростає зі своєї кнопки, а її блоки вилітають хвилею
+  usePanelMorph(isPanelOpen, panelRef);
   const composerRef = useRef(null);
   const summaryRef = useRef(null);
   const [showJump, setShowJump] = useState(false);

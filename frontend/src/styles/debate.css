@@ -362,6 +362,30 @@ body:has(.app-shell) {
   initial-value: 0px;
 }
 
+@property --sheet-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --sheet-left {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --sheet-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --sheet-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 .app-shell__drawer {
   --drawer-max: min(280px, calc(100vw - 72px));
   position: fixed;
@@ -5470,37 +5494,87 @@ ol.chat__reveal {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* панель налаштувань — окреме вікно справа із закругленими кутами,
-     як і меню зліва; сховане — за правим краєм екрана */
+  /* панель налаштувань — окреме вікно справа, як і меню зліва, і так само
+     виростає з кнопки: закрита — рівно коло кнопки в правому верхньому куті
+     (4px нижче верху панелі, 50px), відкрита — картка з полями 12px.
+     Форму задає clip-path, тож вміст не перекладається під час руху.
+     Сам елемент ширший і довший за картку на запас --sheet-spare ліворуч
+     і внизу: туди картка ледь перелітає, перш ніж стати на місце */
   .debate__form-panel {
     position: fixed;
-    inset: 12px 12px 12px auto;
+    inset: 12px 12px 0 auto;
     z-index: 95;
     /* зліва лишається смуга затемнення, на яку зручно тапнути, щоб закрити */
-    width: min(360px, calc(100vw - 72px));
+    width: calc(var(--sheet-w) + var(--sheet-spare));
     gap: 20px;
-    padding: 20px 14px 14px;
-    border-radius: 28px;
+    padding: 20px 14px calc(14px + 12px) calc(14px + var(--sheet-spare));
     background: var(--panel);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+    clip-path: inset(var(--sheet-top) 0 var(--sheet-bottom) var(--sheet-left) round var(--sheet-r));
+    --sheet-w: min(360px, calc(100vw - 72px));
+    --sheet-spare: 24px;
+    --sheet-top: 4px;
+    --sheet-left: calc(var(--sheet-spare) + var(--sheet-w) - 50px);
+    --sheet-bottom: calc(100vh - 66px);
+    --sheet-bottom: calc(100dvh - 66px);
+    --sheet-r: 25px;
     visibility: hidden;
-    transform: translateX(calc(100% + 24px));
+    /* закриття: низ підтягується вгору, ширина стискається, кути округлюються
+       до кола — і панель зникає саме там, де лишається кнопка */
     transition:
-      transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-      visibility 0s linear 0.3s;
+      --sheet-bottom 0.24s cubic-bezier(0.5, 0, 0.2, 1),
+      --sheet-left 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.05s,
+      --sheet-top 0.17s cubic-bezier(0.4, 0, 0.2, 1) 0.08s,
+      --sheet-r 0.16s ease-in 0.09s,
+      visibility 0s linear 0.26s;
   }
 
   .debate-page--panel-open .debate__form-panel {
     visibility: visible;
-    transform: none;
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition:
+      --sheet-left 0.3s cubic-bezier(0.34, 1.36, 0.5, 1),
+      --sheet-bottom 0.4s cubic-bezier(0.3, 1.12, 0.4, 1) 0.03s,
+      --sheet-top 0.24s cubic-bezier(0.3, 1.8, 0.5, 1),
+      --sheet-r 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* тінь картки окремим шаром: clip-path панелі обрізав би її власну.
+     Проявляється, коли картка вже майже розгорнулась, і гасне першою */
+  .debate-page::after {
+    content: '';
+    position: fixed;
+    inset: 12px 12px 12px auto;
+    z-index: 94;
+    width: min(360px, calc(100vw - 72px));
+    border-radius: 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.12s ease,
+      visibility 0s linear 0.12s;
+  }
+
+  .debate-page--panel-open::after {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.24s ease 0.16s;
+  }
+
+  :root[data-theme='dark'] .debate-page::after {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
   }
 
   .debate__panel-backdrop {
     display: block;
     position: fixed;
     inset: 0;
+  /* відкриття: спершу розтягується вліво з легким перельотом, далі «стікає» вниз */
     z-index: 90;
+    --sheet-top: 0px;
+    --sheet-left: var(--sheet-spare);
+    --sheet-bottom: 12px;
+    --sheet-r: 28px;
     background: rgba(0, 0, 0, 0.25);
     animation: debate-view-in 0.22s ease-out;
   }
@@ -5932,7 +6006,10 @@ ol.chat__reveal {
   .sidebar__controls,
   .sidebar__label,
   .debate__model-menu,
-  .app-shell__backdrop {
+  .app-shell__backdrop,
+  .debate__form-panel,
+  .debate-page--panel-open .debate__form-panel,
+  .debate-page::after {
     transition: none;
   }
 }

@@ -44,6 +44,7 @@ import DueDecisionCard from '../components/DueDecisionCard';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
+import { usePanelMorph } from '../hooks/usePanelMorph';
 import RolePicker from '../components/RolePicker';
 import TraitPicker from '../components/TraitPicker';
 import { copy } from '../copy';
@@ -216,6 +217,8 @@ export default function DebatePage() {
   const allTraits = [...TRAITS, ...customTraits];
   const advancedRef = useRef(null);
   const panelRef = useRef(null);
+  // на телефоні панель виростає зі своєї кнопки, а її блоки вилітають хвилею
+  usePanelMorph(isPanelOpen, panelRef);
   const teamInputRef = useRef(null);
   const formRef = useRef(null);
   const questionRef = useRef(null);
