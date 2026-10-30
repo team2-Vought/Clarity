@@ -4,6 +4,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  IdentityCardIcon,
   BeachIcon,
   BookmarkAdd01Icon,
   Briefcase01Icon,
@@ -41,6 +42,7 @@ import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
+import { hasAbout, useMyProfile } from '../hooks/useMyProfile';
 
 const t = copy.debate;
 
@@ -189,6 +191,11 @@ export default function DebatePage() {
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const { pushToast } = useToasts();
   const [isLoading, setIsLoading] = useState(true);
+  // «Про мене» для цієї дискусії: null — як задано в самому профілі
+  const [useProfileChoice, setUseProfileChoice] = useState(null);
+  const { about } = useMyProfile();
+  const aboutFilled = hasAbout(about);
+  const useProfile = useProfileChoice ?? Boolean(about?.enabled);
   // підказки першого запуску: показуємо, доки людина їх не закрила чи не почала дискусію
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState('');
@@ -647,6 +654,7 @@ export default function DebatePage() {
         webSearch,
         moderatorModel,
         devilModel,
+        useProfile: aboutFilled ? useProfile : undefined,
       });
       saveDraft('');
       if (showOnboarding) finishOnboarding();
@@ -1098,6 +1106,35 @@ export default function DebatePage() {
             </div>
           </div>
         </div>
+
+        {about && (
+          // профіль «Про мене»: увімкнути чи вимкнути для цієї дискусії, а порожній — заповнити
+          <div className="debate__profile">
+            {aboutFilled ? (
+              <button
+                type="button"
+                className={`debate__profile-chip ${useProfile ? 'debate__profile-chip--on' : ''}`}
+                onClick={() => setUseProfileChoice(!useProfile)}
+                aria-pressed={useProfile}
+                title={t.profileToggle}
+                disabled={isCreating}
+              >
+                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
+                {useProfile ? t.profileOn : t.profileOff}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="debate__profile-chip"
+                onClick={() => navigate('/settings?tab=about')}
+              >
+                <HugeiconsIcon icon={IdentityCardIcon} size={15} aria-hidden="true" />
+                {t.profileEmpty}
+                <HugeiconsIcon icon={ArrowRight01Icon} size={14} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="debate__mode-bar">
           {mode === 'choose_one' && (

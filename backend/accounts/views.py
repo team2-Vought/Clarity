@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from backend.i18n import L, lazy_L
 
 from . import google
+from .about import about_of
 from .login_limit import reset_login_attempts
 from .password_reset import send_reset_email, user_from_link
 
@@ -58,6 +59,7 @@ def user_payload(user):
         'email': user.email,
         'date_joined': user.date_joined,
         'avatar': user.avatar,
+        'about': about_of(user),
         # акаунт із Google може не мати пароля — тоді профіль не питає поточний
         'has_password': user.has_usable_password(),
     }
@@ -170,6 +172,10 @@ class MeView(APIView):
         changed = [field for field in ('name', 'email', 'avatar') if field in serializer.validated_data]
         for field in changed:
             setattr(user, field, serializer.validated_data[field])
+        if 'about' in serializer.validated_data:
+            # часткова зміна: поля, яких немає в запиті, лишаються як були
+            user.about = {**about_of(user), **serializer.validated_data['about']}
+            changed.append('about')
         try:
             user.save(update_fields=changed)
         except IntegrityError:

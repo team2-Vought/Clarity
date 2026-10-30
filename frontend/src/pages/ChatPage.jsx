@@ -6,6 +6,7 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Copy01Icon,
+  IdentityCardIcon,
   Link01Icon,
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons';
@@ -1401,6 +1402,13 @@ export default function ChatPage() {
                     </dl>
                   )}
                 </div>
+                {discussion.profile_used && (
+                  // модератор і учасники знають про людину з «Про мене» — показуємо, що це враховано
+                  <p className="chat__profile-note">
+                    <HugeiconsIcon icon={IdentityCardIcon} size={14} aria-hidden="true" />
+                    {t.profileUsed}
+                  </p>
+                )}
               </div>
             </header>
           )}

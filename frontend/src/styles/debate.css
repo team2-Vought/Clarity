@@ -1487,6 +1487,50 @@ body:has(.app-shell) {
   }
 }
 
+/* «Про мене» під полем питання: тиха пігулка, щоб не відволікати від питання */
+.debate__profile {
+  display: flex;
+  justify-content: center;
+  width: min(760px, 100%);
+  margin-top: -4px;
+}
+
+.debate__profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.debate__profile-chip:hover:not(:disabled) {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.debate__profile-chip:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.debate__profile-chip--on {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.debate__profile-chip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .debate__mode-bar:empty {
   display: none;
 }
@@ -3563,6 +3607,17 @@ ol.chat__reveal {
   max-width: 880px;
   padding: 2px 0 2px 44px;
   color: var(--muted);
+}
+
+/* під питанням: відповіді враховують профіль «Про мене» */
+.chat__profile-note {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 6px 4px 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 /* пропозиція сповістити, коли висновок буде готовий — під рядком «Аналізуємо…» */

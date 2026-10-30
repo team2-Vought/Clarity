@@ -71,10 +71,12 @@ def synthesis_prompt(
     consensus=False,
     early_stop=False,
     sources=None,
+    profile=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     if early_stop:
@@ -132,11 +134,13 @@ def devil_prompt(
     rounds=2,
     consensus=False,
     sources=None,
+    profile=None,
     can_search=False,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
@@ -196,10 +200,12 @@ def final_prompt(
     rounds=2,
     consensus=False,
     sources=None,
+    profile=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)

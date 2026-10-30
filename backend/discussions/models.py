@@ -46,6 +46,8 @@ class Discussion(models.Model):
     clarifications = models.JSONField('уточнення перед стартом', default=list, blank=True)
     # Питання модератора, на які ще чекаємо відповіді: [{id, question, options}]
     clarify_questions = models.JSONField('питання модератора', default=list, blank=True)
+    # «Про мене» автора на момент створення: зміни профілю не переписують старих дискусій
+    profile = models.JSONField('профіль автора', default=dict, blank=True)
     personas = models.JSONField('персони', default=list)
     rounds = models.PositiveSmallIntegerField('раундів дискусії', default=2)
     web_search = models.BooleanField('пошук в інтернеті', default=False)

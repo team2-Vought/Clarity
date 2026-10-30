@@ -12,6 +12,8 @@ from rest_framework.settings import api_settings
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from accounts.about import about_of
+from accounts.about import snapshot as about_snapshot
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
@@ -242,9 +244,12 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        about = about_of(request.user)
+        use_profile = data.get('use_profile', about['enabled'])
         discussion = Discussion.objects.create(
             user=request.user,
             question=data['question'],
+            profile=about_snapshot(about) if use_profile else {},
             mode=data.get('mode', Discussion.Mode.OPEN),
             options=data.get('options') or [],
             personas=data['personas'],

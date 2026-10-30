@@ -7,6 +7,7 @@ import { ToastProvider } from '../components/Toast';
 import DebatePage from './DebatePage';
 import { createDiscussion, fetchModels, fetchPersonas, fetchTeams } from '../api/discussions';
 import { updatePreferences } from '../api/settings';
+import { setMyProfile } from '../hooks/useMyProfile';
 
 vi.mock('../api/discussions', () => ({
   createDiscussion: vi.fn(),
@@ -64,6 +65,8 @@ beforeEach(() => {
   vi.mocked(fetchModels).mockResolvedValue({ models: MODELS, default_model: 'm1', recommended: [] });
   vi.mocked(fetchTeams).mockResolvedValue({ results: [] });
   vi.mocked(createDiscussion).mockReset();
+  // без профілю: пігулки «Про мене» немає, поки він не завантажився
+  setMyProfile({ name: 'Оксана', avatar: '' });
 });
 
 describe('DebatePage', () => {
@@ -82,6 +85,37 @@ describe('DebatePage', () => {
     await user.click(within(card).getByRole('button', { name: 'Зрозуміло' }));
     expect(screen.queryByRole('region', { name: 'Вітаємо в Clarity' })).not.toBeInTheDocument();
     expect(updatePreferences).toHaveBeenCalledWith({ onboarding_done: true });
+  });
+
+  it('заповнений «Про мене» можна вимкнути для однієї дискусії', async () => {
+    const user = userEvent.setup();
+    setMyProfile({ name: 'Оксана', about: { enabled: true, age: '25_34', values: ['family'] } });
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    const chip = screen.getByRole('button', { name: 'З урахуванням «Про мене»' });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await user.click(chip);
+    expect(screen.getByRole('button', { name: 'Без «Про мене»' })).toHaveAttribute('aria-pressed', 'false');
+
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
+    expect(vi.mocked(createDiscussion).mock.calls[0][0].useProfile).toBe(false);
+  });
+
+  it('порожній «Про мене» пропонує розповісти про себе', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    setMyProfile({ name: 'Оксана', about: { enabled: true, age: '', values: [] } });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    expect(
+      screen.getByRole('button', { name: /Розкажіть про себе — поради стануть персональними/ })
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
+    // профілю немає — сервер вирішить сам
+    expect(vi.mocked(createDiscussion).mock.calls[0][0].useProfile).toBeUndefined();
   });
 
   it('тому, хто вже бачив підказки, їх не показує', async () => {

@@ -81,6 +81,7 @@ def _prepare_step(discussion):
         'rounds': discussion.rounds,
         'consensus': discussion.until_consensus,
         'sources': sources,
+        'profile': discussion.profile,
     }
 
     if phase == Discussion.Phase.OPENING:

@@ -6,8 +6,9 @@
 
 Промпти поділено за призначенням: `rules_uk` / `rules_en` — незмінні правила
 для моделей, `systems` — системні промпти, `context` — контекст дискусії,
-`debate` — промпти учасників, `judges` — промпти суддів, `clarify` — перевірка
-контексту перед стартом. Решта коду користується іменами нижче.
+`profile` — профіль «Про мене», `debate` — промпти учасників, `judges` —
+промпти суддів, `clarify` — перевірка контексту перед стартом. Решта коду
+користується іменами нижче.
 """
 
 from .rules_uk import (
@@ -60,6 +61,9 @@ from .context import (
     SOURCE_SNIPPET_LIMIT,
     sources_block,
 )
+from .profile import (
+    profile_block,
+)
 from .debate import (
     opening_prompt,
     debate_prompt,
@@ -85,6 +89,7 @@ from .clarify import (
 )
 
 __all__ = [
+    'profile_block',
     'DATA_TAGS',
     'REASONING_RULES',
     'SAFETY_RULE',

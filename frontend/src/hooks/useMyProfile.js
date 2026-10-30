@@ -2,9 +2,10 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { getToken } from '../api/client';
 import { me } from '../api/auth';
 
-// фото й ім'я поточного користувача — одні на весь застосунок;
-// прив'язані до токена, щоб після входу в інший акаунт не лишилося чуже фото
-const EMPTY = { avatar: '', name: '' };
+// фото, ім'я й «Про мене» поточного користувача — одні на весь застосунок;
+// прив'язані до токена, щоб після входу в інший акаунт не лишилося чуже фото.
+// about — null, поки профіль не завантажився
+const EMPTY = { avatar: '', name: '', about: null };
 let profile = EMPTY;
 let loadedFor = null;
 let pending = null;
@@ -19,9 +20,9 @@ const subscribe = (listener) => {
 
 const snapshot = () => (loadedFor === getToken() ? profile : EMPTY);
 
-/** Профіль змінив фото чи ім'я — чат підхоплює їх без перезавантаження. */
+/** Профіль змінив фото, ім'я чи «Про мене» — сторінки підхоплюють це без перезавантаження. */
 export function setMyProfile(user) {
-  profile = { avatar: user?.avatar || '', name: user?.name || '' };
+  profile = { avatar: user?.avatar || '', name: user?.name || '', about: user?.about || null };
   loadedFor = getToken();
   notify();
 }
@@ -45,3 +46,10 @@ export function useMyProfile() {
   useEffect(load, []);
   return useSyncExternalStore(subscribe, snapshot);
 }
+
+/** Чи людина бодай щось розповіла про себе в «Про мене». */
+export const hasAbout = (about) =>
+  Boolean(about)
+  && Object.entries(about).some(
+    ([key, value]) => key !== 'enabled' && (Array.isArray(value) ? value.length > 0 : Boolean(value))
+  );

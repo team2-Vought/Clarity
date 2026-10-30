@@ -119,7 +119,9 @@ def clarify(discussion, provider_factory=None):
         persona=moderator(),
         model_id='',
         system=prompts.clarify_system(),
-        prompt=prompts.clarify_prompt(discussion.question, mode, options),
+        prompt=prompts.clarify_prompt(
+            discussion.question, mode, options, profile=discussion.profile
+        ),
         temperature=JSON_TEMPERATURE,
         json_kind='clarify',
     )

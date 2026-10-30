@@ -155,6 +155,9 @@ class CreateDiscussionSerializer(serializers.Serializer):
     web_search = serializers.BooleanField(required=False, default=False)
     moderator_model = serializers.CharField(required=False, allow_blank=True, default='')
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
+    # врахувати «Про мене»; без поля — як задано в самому профілі
+    use_profile = serializers.BooleanField(required=False)
+
     def validate_web_search(self, value):
         if value and not search.is_available():
             raise serializers.ValidationError(SEARCH_UNAVAILABLE)
@@ -381,6 +384,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
     max_followups = serializers.SerializerMethodField()
     thinking = serializers.SerializerMethodField()
     live = serializers.SerializerMethodField()
+    # сам профіль клієнту не потрібен — лише те, що його враховано
+    profile_used = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
         queryset = obj.messages.order_by('seq')
@@ -391,6 +396,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_is_running(self, obj):
         return runner.is_working(obj)
+
+    def get_profile_used(self, obj):
+        return bool(obj.profile)
 
     def get_title(self, obj):
         return discussion_title(obj.question)
@@ -430,6 +438,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'options',
             'clarifications',
             'clarify_questions',
+            'profile_used',
             'personas',
             'rounds',
             'until_consensus',

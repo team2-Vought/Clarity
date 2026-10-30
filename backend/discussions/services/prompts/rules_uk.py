@@ -4,7 +4,7 @@
 
 
 DATA_TAGS = (
-    '<user_question>, <user_name>, <user_style>, '
+    '<user_question>, <user_profile>, <user_name>, <user_style>, '
     '<debate_history> та <web_sources>'
 )
 

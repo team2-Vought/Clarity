@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from backend.i18n import L, lazy_L
 
+from .about import AboutSerializer
 from .login_limit import check_login_allowed, register_failed_login, reset_login_attempts
 from .models import User
 
@@ -211,7 +212,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.Serializer):
-    """Зміна імені, пошти чи аватарки; нова пошта — лише з поточним паролем."""
+    """Зміна імені, пошти, аватарки чи «Про мене»; нова пошта — лише з поточним паролем."""
 
     name = serializers.CharField(required=False, max_length=200, error_messages={'blank': REQUIRED})
     email = serializers.CharField(required=False, max_length=254, error_messages={'blank': REQUIRED})
@@ -219,6 +220,7 @@ class ProfileSerializer(serializers.Serializer):
     current_password = serializers.CharField(
         required=False, allow_blank=True, write_only=True, max_length=128
     )
+    about = AboutSerializer(required=False)
 
     def validate_name(self, value):
         return clean_name(value)

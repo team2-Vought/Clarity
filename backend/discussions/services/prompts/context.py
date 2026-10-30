@@ -8,6 +8,7 @@ from django.conf import settings
 
 from backend.i18n import L
 
+from .profile import profile_block
 from .common import (
     ROLE_LABELS,
     ROLE_LABELS_EN,
@@ -316,6 +317,7 @@ def _context_block(
     full_tail=None,
     sources=None,
     consensus=False,
+    profile=None,
 ):
     lines = [
         L('Опис проблеми / запитання користувача:', 'Problem description / the user’s question:'),
@@ -323,6 +325,9 @@ def _context_block(
         question,
         '</user_question>',
     ]
+    about = profile_block(profile)
+    if about:
+        lines.extend(['', about])
     lines.extend(
         [
             '',

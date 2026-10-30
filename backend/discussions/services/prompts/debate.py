@@ -21,12 +21,14 @@ def opening_prompt(
     rounds=2,
     consensus=False,
     sources=None,
+    profile=None,
     can_search=False,
 ):
     """Вступ генерується паралельно: учасник не бачить позицій інших."""
     ctx = _context_block(
         question, personas, None, mode, options or [], rounds,
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     task = L(
@@ -68,6 +70,7 @@ def debate_prompt(
     reply_to=None,
     reply_reason='',
     sources=None,
+    profile=None,
     can_search=False,
     user_notes=None,
 ):
@@ -81,6 +84,7 @@ def debate_prompt(
         debate_round,
         full_tail=len(personas),
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     reply_block = _reply_block(reply_to, reply_reason) or L(
@@ -162,6 +166,7 @@ def rebuttal_prompt(
     rounds=2,
     consensus=False,
     sources=None,
+    profile=None,
     user_notes=None,
 ):
     ctx = _context_block(
@@ -173,6 +178,7 @@ def rebuttal_prompt(
         rounds,
         full_tail=len(personas),
         sources=sources,
+        profile=profile,
         consensus=consensus,
     )
     parts = [ctx, _speaker_line(persona)]
