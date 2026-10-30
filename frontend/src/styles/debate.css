@@ -5396,9 +5396,38 @@ ol.chat__reveal {
     display: none;
   }
 
-  /* смуги іконок немає — меню відривається від самого краю екрана */
+  /* смуги іконок немає — меню виростає з кнопки-«бургера»: закрите воно
+     рівно її коло (16px згори, 12px зліва, 50px), відкрите — картка з полями
+     12px. Краї рухаються з різним темпом і легким перельотом, як на ПК:
+     спершу картка розтягується вбік, далі «стікає» вниз і пружинить */
   .sidebar--drawer.sidebar--collapsed {
-    --drawer-w: 0px;
+    --drawer-w: 50px;
+    --drawer-top: 16px;
+    --drawer-left: 12px;
+    --drawer-bottom: calc(100vh - 66px);
+    --drawer-bottom: calc(100dvh - 66px);
+    --drawer-rt: 25px;
+    --drawer-rb: 25px;
+    /* закриття: низ підтягується вгору, ширина стискається, кути округлюються
+       до кола — і картка зникає саме там, де лишається кнопка */
+    transition:
+      --drawer-bottom 0.24s cubic-bezier(0.5, 0, 0.2, 1),
+      --drawer-w 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.05s,
+      --drawer-top 0.17s cubic-bezier(0.4, 0, 0.2, 1) 0.08s,
+      --drawer-left 0.17s cubic-bezier(0.4, 0, 0.2, 1) 0.08s,
+      --drawer-rb 0.17s ease-in 0.06s,
+      --drawer-rt 0.16s ease-in 0.09s,
+      visibility 0s linear 0.26s;
+  }
+
+  .sidebar--drawer:not(.sidebar--collapsed) {
+    transition:
+      --drawer-w 0.3s cubic-bezier(0.34, 1.36, 0.5, 1),
+      --drawer-bottom 0.4s cubic-bezier(0.3, 1.12, 0.4, 1) 0.03s,
+      --drawer-top 0.24s cubic-bezier(0.3, 1.8, 0.5, 1),
+      --drawer-left 0.24s cubic-bezier(0.3, 1.8, 0.5, 1) 0.02s,
+      --drawer-rt 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+      --drawer-rb 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) 0.06s;
   }
 
   .app-shell__burger {

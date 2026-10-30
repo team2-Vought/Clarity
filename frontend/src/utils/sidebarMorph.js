@@ -49,6 +49,97 @@ const placeAt = (rect, layout) => ({
 
 const AT_HOME = { transformOrigin: '0 0', transform: 'none' };
 
+// На телефоні смуги немає, і меню виростає з кнопки-«бургера»: іконки
+// вилітають з боку кнопки хвилею зверху вниз, а при закритті злітаються назад.
+// Далекі (кнопки внизу картки) стартують не з самої кнопки, а за BURGER_REACH
+// від свого місця в її напрямку — хвиля йде слідом за краєм картки, що
+// опускається, а не летить через увесь екран
+const BURGER_SCALE = 0.35;
+const BURGER_REACH = 90;
+const BURGER_STAGGER = 14;
+const BURGER_DELAY = 20;
+// та сама пружина, що на ПК, лише коротша: картка на телефоні менша й ближча
+const BURGER_OPEN = { ...OPEN, duration: 380 };
+const BURGER_CLOSE = { duration: 180, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' };
+
+// зсув від місця елемента в бік кнопки (не далі за BURGER_REACH)
+const towardBurger = (origin, layout) => {
+  const x = origin.left + origin.width / 2 - (layout.left + (layout.width * BURGER_SCALE) / 2);
+  const y = origin.top + origin.height / 2 - (layout.top + (layout.height * BURGER_SCALE) / 2);
+  const reach = Math.min(1, BURGER_REACH / (Math.hypot(x, y) || 1));
+  return { x: x * reach, y: y * reach };
+};
+
+const inBurger = (offset) => ({
+  transformOrigin: '0 0',
+  transform: `translate(${offset.x}px, ${offset.y}px) scale(${BURGER_SCALE})`,
+  opacity: 0,
+});
+
+const BURGER_HOME = { ...AT_HOME, opacity: 1 };
+
+function morphFromBurger(drawer, origin, opening, store, current, interrupted) {
+  const icons = [...drawer.querySelectorAll(ICONS)];
+  const burger = origin.getBoundingClientRect();
+  icons.forEach((icon, i) => {
+    const layout = icon.getBoundingClientRect();
+    if (!layout.width) return;
+    const offset = towardBurger(burger, layout);
+    const now = interrupted ? { ...placeAt(current[i], layout), opacity: 1 } : null;
+    const start = now || (opening ? inBurger(offset) : BURGER_HOME);
+    const end = opening ? BURGER_HOME : inBurger(offset);
+    const timing = opening
+      ? { ...BURGER_OPEN, delay: interrupted ? 0 : BURGER_DELAY + i * BURGER_STAGGER }
+      // закриваються знизу вгору — ближчі до кнопки останніми
+      : { ...BURGER_CLOSE, delay: (icons.length - 1 - i) * 8 };
+    store.current.push(animate(icon, [start, end], timing));
+
+    // назва летить разом зі своєю іконкою — тим самим шляхом і в тому ж темпі
+    // (fill both: поки меню відкрите, вона тримається на місці поверх CSS, а при
+    // закритті, поки чекає своєї черги, не гасне раніше — CSS ховає її одразу)
+    const label = icon.parentElement?.querySelector(':scope > .sidebar__label');
+    if (label) {
+      const away = { translate: `${offset.x}px ${offset.y}px`, opacity: 0 };
+      const home = { translate: '0px 0px', opacity: 1 };
+      const from = interrupted
+        ? { translate: `${current[i].left - layout.left}px ${current[i].top - layout.top}px`, opacity: 1 }
+        : opening ? away : home;
+      store.current.push(
+        animate(label, [from, opening ? home : away], { ...timing, fill: 'both' })
+      );
+    }
+  });
+
+  // підсвітка активного пункту теж виростає з кнопки, а лічильник на пункті
+  // проявляється разом зі своєю іконкою — інакше вони стояли б готові з першої миті
+  const pill = drawer.querySelector(PILL);
+  if (pill) {
+    const layout = pill.getBoundingClientRect();
+    const index = icons.findIndex((icon) => pill.contains(icon));
+    const home = { ...pillFrame(layout, layout, getComputedStyle(pill).borderTopLeftRadius), opacity: 1 };
+    const docked = { ...pillFrame(burger, layout, `${burger.width / 2}px`), opacity: 0 };
+    const timing = opening
+      ? { ...BURGER_OPEN, delay: interrupted ? 0 : BURGER_DELAY + Math.max(0, index) * BURGER_STAGGER }
+      : { ...BURGER_CLOSE, delay: 0 };
+    try {
+      store.current.push(
+        animate(pill, opening ? [docked, home] : [home, docked], { ...timing, pseudoElement: '::before' })
+      );
+    } catch {
+      // без анімації псевдоелементів підсвітка просто з'являється разом з карткою
+    }
+  }
+  drawer.querySelectorAll('.sidebar__badge').forEach((badge) => {
+    const index = icons.findIndex((icon) => icon.parentElement === badge.parentElement);
+    const hidden = { opacity: 0, transform: 'scale(0.4)' };
+    const shown = { opacity: 1, transform: 'none' };
+    const timing = opening
+      ? { ...BURGER_OPEN, delay: interrupted ? 0 : 120 + Math.max(0, index) * BURGER_STAGGER }
+      : { ...BURGER_CLOSE, duration: 120 };
+    store.current.push(animate(badge, opening ? [hidden, shown] : [shown, hidden], timing));
+  });
+}
+
 const pillFrame = (rect, layout, radius) => ({
   left: `${rect.left - layout.left}px`,
   top: `${rect.top - layout.top}px`,
@@ -76,7 +167,7 @@ const currentPillRect = (pill, layout) => {
  * `store` — ref зі списком анімацій попереднього руху: якщо той ще триває
  * (швидке повторне натискання), новий рух стартує з поточного положення.
  */
-export function morphSidebar(rail, drawer, opening, store) {
+export function morphSidebar(rail, drawer, opening, store, origin) {
   const previous = store.current;
   const interrupted = previous.some((animation) => animation.playState === 'running');
   store.current = [];
@@ -92,9 +183,17 @@ export function morphSidebar(rail, drawer, opening, store) {
   const pillNow = pill && interrupted ? currentPillRect(pill, pillLayout) : null;
   previous.forEach((animation) => animation.cancel());
 
-  // на телефоні смуги немає (display: none) — картка просто виростає від краю
+  if (reducedMotion()) return;
+  // на телефоні смуги немає (display: none) — картка виростає з кнопки-«бургера»
   const railVisible = railIcons.length && railIcons[0].getBoundingClientRect().width > 0;
-  if (!railVisible || railIcons.length !== icons.length || reducedMotion()) return;
+  if (!railVisible) {
+    if (drawer && origin?.getBoundingClientRect().width) {
+      morphFromBurger(drawer, origin, opening, store, current, interrupted);
+      if (!opening) scheduleCleanUp(drawer, store);
+    }
+    return;
+  }
+  if (railIcons.length !== icons.length) return;
 
   // натиснута кнопка (лого, пункт) ще повертається з ефекту натискання (scale у
   // base.css) — без цього її стиснутий розмір став би «домашнім», іконка
@@ -143,20 +242,22 @@ export function morphSidebar(rail, drawer, opening, store) {
     }
   }
 
-  // кожне наступне відкриття стартує з чистого стану — як найперше
-  if (!opening) {
-    const closing = store.current;
-    const card = drawer.querySelector('.sidebar--drawer');
-    const cleanUp = () => {
-      if (store.current !== closing) return; // меню вже знову відкривають
-      // поки картку ще видно (браузер пригальмував), іконки лишаються в смузі
-      if (card && getComputedStyle(card).visibility !== 'hidden') {
-        window.setTimeout(cleanUp, 100);
-        return;
-      }
-      closing.forEach((animation) => animation.cancel());
-      store.current = [];
-    };
-    window.setTimeout(cleanUp, CLOSE_CLEANUP);
-  }
+  if (!opening) scheduleCleanUp(drawer, store);
+}
+
+// кожне наступне відкриття стартує з чистого стану — як найперше
+function scheduleCleanUp(drawer, store) {
+  const closing = store.current;
+  const card = drawer.querySelector('.sidebar--drawer');
+  const cleanUp = () => {
+    if (store.current !== closing) return; // меню вже знову відкривають
+    // поки картку ще видно (браузер пригальмував), іконки лишаються на кінцевих місцях
+    if (card && getComputedStyle(card).visibility !== 'hidden') {
+      window.setTimeout(cleanUp, 100);
+      return;
+    }
+    closing.forEach((animation) => animation.cancel());
+    store.current = [];
+  };
+  window.setTimeout(cleanUp, CLOSE_CLEANUP);
 }

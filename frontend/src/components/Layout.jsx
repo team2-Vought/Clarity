@@ -114,11 +114,12 @@ export default function Layout() {
   const railRef = useRef(null);
   const drawerRef = useRef(null);
   const morphRef = useRef([]);
+  const burgerRef = useRef(null);
   const morphedCollapsedRef = useRef(collapsed);
   useLayoutEffect(() => {
     if (morphedCollapsedRef.current === collapsed) return;
     morphedCollapsedRef.current = collapsed;
-    morphSidebar(railRef.current, drawerRef.current, !collapsed, morphRef);
+    morphSidebar(railRef.current, drawerRef.current, !collapsed, morphRef, burgerRef.current);
   }, [collapsed]);
 
   // Escape закриває розгорнуте меню
@@ -171,6 +172,7 @@ export default function Layout() {
 
       {/* на телефоні смуги іконок немає — меню відкривається цією кнопкою */}
       <button
+        ref={burgerRef}
         type="button"
         className="app-shell__burger"
         onClick={toggle}
