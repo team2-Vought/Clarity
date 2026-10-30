@@ -2,6 +2,9 @@
    тут лише картки рішень, план і «Як воно?» */
 
 .journal {
+  /* розгортання — швидкий старт і м'яка зупинка; згортання — плавне з обох боків */
+  --j-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --j-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   /* кнопки всередині картки: на телефоні --h-control білий, як сама картка */
   --j-control: color-mix(in srgb, var(--ink) 6%, var(--card));
   --j-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
@@ -124,6 +127,13 @@ button.journal__summary {
   cursor: pointer;
 }
 
+/* натискання «втискає» всю картку, а не саму кнопку: зі scale кнопка стала б
+   рамкою для розтягнутої зони кліку й стрілки — зона стискалася б до кнопки
+   (клік біля краю картки губився), а стрілка стрибала б */
+.journal .journal__summary:active {
+  scale: none;
+}
+
 .journal__entry:not(.journal__entry--open) button.journal__summary::after {
   content: '';
   position: absolute;
@@ -195,20 +205,20 @@ button.journal__summary {
   -webkit-line-clamp: 2;
 }
 
-.journal__entry--open .journal__question {
-  -webkit-line-clamp: unset;
-}
-
 .journal__chevron {
   position: absolute;
   top: 26px;
   right: 24px;
   color: var(--muted);
-  transition: transform 0.26s var(--h-spring);
+  transition: transform 0.44s var(--j-ease-out);
 }
 
 .journal__entry--open .journal__chevron {
   transform: rotate(180deg);
+}
+
+.journal__summary:hover .journal__chevron {
+  color: var(--ink);
 }
 
 /* відкрити дискусію й видалити — над кнопкою відкриття, ліворуч від стрілки */
@@ -219,9 +229,12 @@ button.journal__summary {
   z-index: 2;
   display: flex;
   gap: 2px;
+  /* проміжки між кнопками пропускають клік до картки */
+  pointer-events: none;
 }
 
 .journal__icon-button {
+  pointer-events: auto;
   position: relative;
   display: grid;
   place-items: center;
@@ -259,16 +272,30 @@ button.journal__summary {
   }
 }
 
-/* скільки кроків плану вже зроблено */
-.journal__progress {
+/* скільки кроків плану вже зроблено: смужка й «1 з 3»; увесь план — зеленим */
+.journal__overview {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
+}
+
+.journal__overview-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.journal__progress {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
 }
 
 .journal__bar {
   position: relative;
-  flex: 0 0 120px;
+  width: 96px;
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
@@ -280,13 +307,24 @@ button.journal__summary {
   inset: 0 auto 0 0;
   border-radius: inherit;
   background: var(--ink);
-  transition: width 0.3s var(--h-spring);
+  transition:
+    width 0.4s var(--j-ease-out),
+    background-color 0.3s;
 }
 
 .journal__progress-text {
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.journal__progress--done .journal__bar > span {
+  background: var(--j-good);
+}
+
+.journal__progress--done .journal__progress-text {
+  color: var(--j-good);
 }
 
 .journal__result {
@@ -324,29 +362,38 @@ button.journal__summary {
 }
 
 /* Розгортання й згортання: висота росте від нуля через рядок сітки 0fr → 1fr,
-   а від'ємний відступ «з'їдає» проміжок картки, поки вмісту ще не видно */
+   а від'ємний відступ «з'їдає» проміжок картки, поки вмісту ще не видно.
+   Розгортається лише висота, а вміст з'являється сам, блок за блоком
+   (.journal__reveal). Згортання — у зворотному порядку: блоки гаснуть знизу
+   вгору, і лише тоді стискається висота */
 .journal__fold {
   display: grid;
   grid-template-rows: 1fr;
-  animation: journal-unfold 0.36s var(--h-spring);
+  animation: journal-unfold 0.56s var(--h-spring);
 }
 
-.journal__fold > * {
+.journal__fold > *,
+.journal__collapse > *,
+.journal__swap > * {
   min-height: 0;
   overflow: clip;
-  /* фокус і підсвітка кроків виходять за край — не обрізаємо їх */
-  overflow-clip-margin: 12px;
+  /* підсвітка кроків, маркери й рамки фокусу виходять за край вмісту —
+     розширюємо зону обрізання полями й забираємо їх від'ємним відступом
+     (overflow-clip-margin Safari не підтримує) */
+  margin: 0 -14px -6px;
+  padding: 0 14px 6px;
 }
 
 .journal__fold--closing {
-  animation: journal-fold 0.26s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation:
+    journal-fold 0.26s var(--j-ease-in-out) 0.06s both,
+    journal-fade-out 0.14s ease 0.14s both;
 }
 
 @keyframes journal-unfold {
   from {
     grid-template-rows: 0fr;
     margin-top: calc(-1 * var(--j-gap));
-    opacity: 0;
   }
 }
 
@@ -354,11 +401,101 @@ button.journal__summary {
   to {
     grid-template-rows: 0fr;
     margin-top: calc(-1 * var(--j-gap));
+  }
+}
+
+/* Блоки розгорнутої картки — як репліка ШІ в чаті: зверху вниз, кожен
+   виринає з розмиття й трохи піднімається; після дюжини затримка не росте */
+.journal__reveal {
+  animation: journal-reveal 0.62s var(--j-ease-out) both;
+  animation-delay: calc(min(var(--item, 0), 12) * 60ms + 90ms);
+}
+
+@keyframes journal-reveal {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(8px);
+  }
+}
+
+/* закриття: знизу вгору (--count — останнє місце в картці чи формі),
+   кожен блок розмивається й трохи осідає */
+.journal__fold--closing .journal__reveal,
+.journal__swap--shrink .journal__reveal {
+  animation: journal-conceal 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  animation-delay: calc(min(var(--count, 0) - var(--rank, 0), 8) * 14ms);
+}
+
+@keyframes journal-conceal {
+  to {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(6px);
+  }
+}
+
+/* «Як воно?» на місці кнопки «Підбити підсумок зараз»: виростає з неї
+   й стискається назад до неї (не нижча за кнопку — без стрибка), а рядки
+   з'являються й гаснуть так само по черзі */
+.journal__swap {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 40px;
+}
+
+.journal__swap--grow {
+  animation: journal-grow 0.5s var(--h-spring);
+}
+
+.journal__swap--shrink {
+  animation: journal-shrink 0.22s var(--j-ease-in-out) 0.06s both;
+}
+
+@keyframes journal-grow {
+  from {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes journal-shrink {
+  to {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes journal-fade-out {
+  to {
     opacity: 0;
   }
 }
 
-/* «Як воно?» на згорнутій картці — над кнопкою відкриття */
+/* «Як воно?» на згорнутій картці завжди в розмітці й ховається тим самим
+   стисканням, поки картка розгорнута, — висота змінюється плавно, без стрибка */
+.journal__collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.48s var(--j-ease-out),
+    margin-top 0.48s var(--j-ease-out),
+    opacity 0.3s ease 0.08s,
+    visibility 0s;
+}
+
+.journal__collapse--shut {
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--j-gap));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 0.34s var(--j-ease-in-out),
+    margin-top 0.34s var(--j-ease-in-out),
+    opacity 0.18s ease,
+    visibility 0s 0.34s;
+}
+
+/* «Як воно?» на згорнутій картці — над кнопкою відкриття; клік повз кнопки
+   відповіді проходить до картки й відкриває її */
 .journal__quick {
   position: relative;
   z-index: 2;
@@ -366,6 +503,11 @@ button.journal__summary {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 14px;
+  pointer-events: none;
+}
+
+.journal__quick .journal__outcome {
+  pointer-events: auto;
 }
 
 .journal__quick .journal__label {
@@ -379,9 +521,30 @@ button.journal__summary {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 18px;
-  padding-top: 16px;
+  gap: 24px;
+  padding-top: 18px;
   border-top: 1px solid var(--h-line);
+}
+
+.journal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journal__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+
+.journal__section-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .journal__label {
@@ -456,20 +619,49 @@ button.journal__summary {
   outline-offset: 2px;
 }
 
+/* «коли варто передумати» — свої крапки замість маркерів браузера,
+   вирівняні по першому рядку */
 .journal__triggers {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.journal__triggers ul {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 1.1em;
+.journal__triggers li {
+  position: relative;
+  padding-left: 22px;
   font-size: 0.9375rem;
-  line-height: 1.45;
+  line-height: 1.5;
+}
+
+.journal__triggers li::before {
+  content: '';
+  position: absolute;
+  top: calc(0.75em - 3px);
+  left: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--h-progress);
+}
+
+/* «Як воно?» — дія, тож окрема м'яка панель, а не ще один список */
+.journal__body .journal__review {
+  padding: 16px 18px 18px;
+  border-radius: 22px;
+  background: var(--h-soft);
+}
+
+.journal__body .journal__outcome,
+.journal__body .journal__textarea {
+  background: var(--card);
+}
+
+.journal__body .journal__outcome:hover:not(.journal__outcome--active) {
+  background: color-mix(in srgb, var(--ink) 6%, var(--card));
 }
 
 .journal__review {
@@ -672,20 +864,39 @@ button.journal__summary {
   }
 
   .journal__bar {
-    flex-basis: 88px;
+    width: 72px;
+  }
+
+  .journal__body .journal__review {
+    margin: 0 -6px;
+    padding: 14px 14px 16px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .journal__inner,
   .journal__entry--focused,
-  .journal__fold {
+  .journal__fold,
+  .journal__swap,
+  .journal__reveal {
     animation: none;
+  }
+
+  .journal__collapse,
+  .journal__chevron {
+    transition: none;
   }
 }
 
 :root[data-motion='reduced'] .journal__inner,
 :root[data-motion='reduced'] .journal__entry--focused,
-:root[data-motion='reduced'] .journal__fold {
+:root[data-motion='reduced'] .journal__fold,
+:root[data-motion='reduced'] .journal__swap,
+:root[data-motion='reduced'] .journal__reveal {
   animation: none;
+}
+
+:root[data-motion='reduced'] .journal__collapse,
+:root[data-motion='reduced'] .journal__chevron {
+  transition: none;
 }

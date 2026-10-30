@@ -95,16 +95,19 @@ describe('JournalPage', () => {
     await user.click(await screen.findByRole('button', { name: /Переїжджаю в березні/ }));
     await user.click(screen.getByRole('checkbox', { name: 'Подзвонити рієлтору' }));
     expect(updateDecision).toHaveBeenCalledWith('e1', { done_steps: [1] });
-    expect(screen.getByText('1 з 2')).toBeInTheDocument();
+    const plan = screen.getByRole('region', { name: 'План на тиждень' });
+    expect(within(plan).getByText('1 з 2')).toBeInTheDocument();
   });
 
-  it('«Ще рано» відкладає питання на тиждень', async () => {
+  it('«Скасувати» ховає «Як воно?» назад у кнопку', async () => {
     const user = userEvent.setup();
-    vi.mocked(updateDecision).mockResolvedValue({ ...DUE, status: 'waiting' });
     renderPage();
     await user.click(await screen.findByRole('button', { name: /Переїжджаю в березні/ }));
-    await user.click(screen.getByRole('button', { name: 'Ще рано — спитати через тиждень' }));
-    expect(updateDecision).toHaveBeenCalledWith('e1', { remind_in_days: 7 });
+    await user.click(screen.getByRole('button', { name: 'Скасувати' }));
+    // у тестах немає анімацій — форма зникає після таймера закриття
+    expect(await screen.findByRole('button', { name: 'Підбити підсумок зараз' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Зберегти підсумок' })).not.toBeInTheDocument();
+    expect(updateDecision).not.toHaveBeenCalled();
   });
 
   it('листи-нагадування вимикаються перемикачем', async () => {

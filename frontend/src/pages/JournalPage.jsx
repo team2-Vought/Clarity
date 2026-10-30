@@ -23,8 +23,10 @@ const OUTCOMES = ['good', 'mixed', 'bad'];
 const REFLECTION_MAX = 1000;
 const NO_SOURCES = new Map();
 const SKELETON_COUNT = 3;
-// скільки триває згортання картки — як анімація journal-fold у стилях
-const FOLD_MS = 260;
+// скільки триває згортання картки й форми «Як воно?» — як анімації в стилях:
+// спершу блоки гаснуть знизу вгору, тоді стискається висота
+const FOLD_MS = 320;
+const REVIEW_CLOSE_MS = 280;
 
 const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (value) => {
@@ -32,12 +34,17 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date);
 };
 
+// Поява вмісту картки — як репліки ШІ в чаті: кожен блок зверху вниз
+// виринає з розмиття, із затримкою за своїм номером (--item). При закритті
+// блоки гаснуть у зворотному порядку — за місцем у картці (--rank)
+const reveal = (index, rank = index) => ({ '--item': index, '--rank': rank });
+
 const prefersReducedMotion = () =>
   document.documentElement.dataset.motion === 'reduced'
   || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
-/** «Як воно?»: як вийшло й висновок для себе; «ще рано» відкладає питання на тиждень. */
-function ReviewForm({ entry, initialOutcome, onSaved }) {
+/** «Як воно?»: як вийшло й висновок для себе; «Скасувати» ховає форму назад у кнопку. */
+function ReviewForm({ entry, initialOutcome, onSaved, onCancel, revealFrom = 0, rankFrom = 0 }) {
   const id = useId();
   const [outcome, setOutcome] = useState(initialOutcome || entry.outcome || '');
   const [reflection, setReflection] = useState(entry.reflection || '');
@@ -57,9 +64,20 @@ function ReviewForm({ entry, initialOutcome, onSaved }) {
   };
 
   return (
-    <div className="journal__review">
-      <span className="journal__label" id={`${id}-outcome`}>{t.howIsIt}</span>
-      <div className="journal__outcomes" role="radiogroup" aria-labelledby={`${id}-outcome`}>
+    <div className="journal__review journal__reveal" style={reveal(revealFrom, rankFrom)}>
+      <span
+        className="journal__section-title journal__reveal"
+        id={`${id}-outcome`}
+        style={reveal(revealFrom + 1, rankFrom + 1)}
+      >
+        {t.howIsIt}
+      </span>
+      <div
+        className="journal__outcomes journal__reveal"
+        role="radiogroup"
+        aria-labelledby={`${id}-outcome`}
+        style={reveal(revealFrom + 2, rankFrom + 2)}
+      >
         {OUTCOMES.map((key) => (
           <button
             key={key}
@@ -74,10 +92,17 @@ function ReviewForm({ entry, initialOutcome, onSaved }) {
           </button>
         ))}
       </div>
-      <label className="journal__label" htmlFor={`${id}-reflection`}>{t.reflection}</label>
+      <label
+        className="journal__label journal__reveal"
+        htmlFor={`${id}-reflection`}
+        style={reveal(revealFrom + 3, rankFrom + 3)}
+      >
+        {t.reflection}
+      </label>
       <textarea
         id={`${id}-reflection`}
-        className="journal__textarea"
+        className="journal__textarea journal__reveal"
+        style={reveal(revealFrom + 4, rankFrom + 4)}
         value={reflection}
         onChange={(e) => setReflection(e.target.value)}
         placeholder={t.reflectionPlaceholder}
@@ -85,14 +110,9 @@ function ReviewForm({ entry, initialOutcome, onSaved }) {
         rows={3}
         disabled={busy}
       />
-      <div className="journal__actions">
-        <button
-          type="button"
-          className="journal__button"
-          onClick={() => save({ remind_in_days: 7 })}
-          disabled={busy}
-        >
-          {t.tooEarly}
+      <div className="journal__actions journal__reveal" style={reveal(revealFrom + 5, rankFrom + 5)}>
+        <button type="button" className="journal__button" onClick={onCancel} disabled={busy}>
+          {t.cancel}
         </button>
         <button
           type="button"
@@ -110,7 +130,10 @@ function ReviewForm({ entry, initialOutcome, onSaved }) {
 ReviewForm.propTypes = {
   entry: PropTypes.object.isRequired,
   initialOutcome: PropTypes.string,
+  revealFrom: PropTypes.number,
+  rankFrom: PropTypes.number,
   onSaved: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
 };
 
 // Картка рішення: згорнута — що вирішили, коли й скільки кроків зроблено;
@@ -125,10 +148,13 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
   // згортання спершу програє анімацію, і лише після неї вміст зникає
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef(null);
-  // «Як воно?» на згорнутій картці виростає, лише коли картку щойно згорнули
-  const [quickAppears, setQuickAppears] = useState(false);
   const expanded = open && !closing;
-  const [reviewing, setReviewing] = useState(focused || entry.status === 'due');
+  // «Як воно?»: форма, форма, що закривається, або кнопка «Підбити підсумок зараз»
+  const [review, setReview] = useState(focused || entry.status === 'due' ? 'form' : 'button');
+  // як вона з'являється: разом з усією карткою, виростає з кнопки
+  // чи (кнопка після «Скасувати») сама по собі, без затримки
+  const [reviewEnter, setReviewEnter] = useState('stagger');
+  const reviewTimer = useRef(null);
   const [quickOutcome, setQuickOutcome] = useState('');
   const { pushToast } = useToasts();
   const done = new Set(entry.done_steps || []);
@@ -140,7 +166,13 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
     if (focused) ref.current?.scrollIntoView({ block: 'center' });
   }, [focused]);
 
-  useEffect(() => () => clearTimeout(closeTimer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(closeTimer.current);
+      clearTimeout(reviewTimer.current);
+    },
+    []
+  );
 
   const toggleStep = async (index) => {
     const next = new Set(done);
@@ -182,9 +214,31 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
       closeTimer.current = setTimeout(() => {
         setClosing(false);
         setOpen(false);
-        setQuickAppears(true);
+        // наступного разу форма з'явиться разом з рештою, а не виростатиме окремо
+        setReviewEnter('stagger');
       }, FOLD_MS);
     }
+  };
+
+  const openReview = () => {
+    clearTimeout(reviewTimer.current);
+    setReviewEnter('grow');
+    setReview('form');
+  };
+
+  // «Скасувати»: рядки форми гаснуть знизу вгору, панель стискається до кнопки
+  const cancelReview = () => {
+    const finish = () => {
+      setQuickOutcome('');
+      setReviewEnter('alone');
+      setReview('button');
+    };
+    if (prefersReducedMotion()) {
+      finish();
+      return;
+    }
+    setReview('closing');
+    reviewTimer.current = setTimeout(finish, REVIEW_CLOSE_MS);
   };
 
   const meta = [t.decidedOn(formatDate(entry.created_at))];
@@ -193,6 +247,23 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
   // колір крапки: чекає підсумку, ще рано або як вийшло
   const dot = entry.status === 'reviewed' ? entry.outcome || 'reviewed' : entry.status;
 
+  const allDone = steps.length > 0 && done.size === steps.length;
+  // номери блоків для появи: заголовок плану, кроки, заголовок «коли передумати», пункти, «Як воно?»
+  const triggersFrom = steps.length > 0 ? steps.length + 1 : 0;
+  const reviewFrom = triggersFrom + (triggers.length > 0 ? triggers.length + 1 : 0);
+  // останнє місце в картці: форма — це шість блоків, кнопка — один
+  const lastRank = entry.status === 'reviewed' ? reviewFrom - 1 : review === 'button' ? reviewFrom : reviewFrom + 5;
+
+  // скільки кроків зроблено: у згорнутій картці — під питанням, у розгорнутій — біля заголовка плану
+  const progress = (
+    <span className={`journal__progress${allDone ? ' journal__progress--done' : ''}`}>
+      <span className="journal__bar" aria-hidden="true">
+        <span style={{ width: `${(done.size / Math.max(1, steps.length)) * 100}%` }} />
+      </span>
+      <span className="journal__progress-text">{t.planProgress(done.size, steps.length)}</span>
+    </span>
+  );
+
   const summary = (
     <>
       <span className="journal__when">
@@ -200,7 +271,7 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         {meta.join(' · ')}
       </span>
       <span className="journal__decision">{entry.decision}</span>
-      <span className="journal__question">{entry.question}</span>
+      <span className="journal__question" title={entry.question}>{entry.question}</span>
     </>
   );
 
@@ -247,14 +318,13 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         </button>
       </div>
 
+      {/* у розгорнутій картці прогрес переїжджає до заголовка плану */}
       {steps.length > 0 && (
-        <div className="journal__progress">
-          <span className="journal__bar" aria-hidden="true">
-            <span style={{ width: `${(done.size / steps.length) * 100}%` }} />
-          </span>
-          <span className="journal__progress-text">
-            {t.plan} · <span>{t.planProgress(done.size, steps.length)}</span>
-          </span>
+        <div className={`journal__collapse${expanded ? ' journal__collapse--shut' : ''}`} inert={expanded}>
+          <div className="journal__overview">
+            <span className="journal__overview-label">{t.plan}</span>
+            {progress}
+          </div>
         </div>
       )}
 
@@ -265,8 +335,9 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         </div>
       )}
 
-      {entry.status === 'due' && !open && (
-        <div className={quickAppears ? 'journal__fold' : undefined}>
+      {/* ховається разом із розгортанням і повертається, поки картка згортається */}
+      {entry.status === 'due' && (
+        <div className={`journal__collapse${expanded ? ' journal__collapse--shut' : ''}`} inert={expanded}>
           <div className="journal__quick">
             <span className="journal__label" id={quickId}>{t.howIsIt}</span>
             <div className="journal__outcomes" role="group" aria-labelledby={quickId}>
@@ -292,33 +363,50 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         <div
           id={bodyId}
           className={`journal__fold${closing ? ' journal__fold--closing' : ''}`}
+          style={{ '--count': lastRank }}
         >
           <div>
             <div className="journal__body">
               {steps.length > 0 && (
-                <ul className="journal__steps" aria-label={t.plan}>
-                  {steps.map((step, index) => (
-                    <li key={`${entry.id}-${index}`}>
-                      <label className={`journal__step ${done.has(index) ? 'journal__step--done' : ''}`}>
-                        <input type="checkbox" checked={done.has(index)} onChange={() => toggleStep(index)} />
-                        <span className="journal__check" aria-hidden="true">
-                          {done.has(index) && <HugeiconsIcon icon={Tick02Icon} size={13} strokeWidth={2.4} />}
-                        </span>
-                        <span>
-                          <InlineText text={step} sources={NO_SOURCES} />
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
+                <section className="journal__section" aria-labelledby={`${bodyId}-plan`}>
+                  <div className="journal__section-head journal__reveal" style={reveal(0)}>
+                    <h3 className="journal__section-title" id={`${bodyId}-plan`}>{t.plan}</h3>
+                    {progress}
+                  </div>
+                  <ul className="journal__steps">
+                    {steps.map((step, index) => (
+                      <li key={`${entry.id}-${index}`} className="journal__reveal" style={reveal(index + 1)}>
+                        <label className={`journal__step ${done.has(index) ? 'journal__step--done' : ''}`}>
+                          <input type="checkbox" checked={done.has(index)} onChange={() => toggleStep(index)} />
+                          <span className="journal__check" aria-hidden="true">
+                            {done.has(index) && <HugeiconsIcon icon={Tick02Icon} size={13} strokeWidth={2.4} />}
+                          </span>
+                          <span>
+                            <InlineText text={step} sources={NO_SOURCES} />
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               )}
 
               {triggers.length > 0 && (
-                <section className="journal__triggers">
-                  <h3 className="journal__label">{t.triggers}</h3>
-                  <ul>
+                <section className="journal__section" aria-labelledby={`${bodyId}-triggers`}>
+                  <h3
+                    className="journal__section-title journal__reveal"
+                    id={`${bodyId}-triggers`}
+                    style={reveal(triggersFrom)}
+                  >
+                    {t.triggers}
+                  </h3>
+                  <ul className="journal__triggers">
                     {triggers.map((item, index) => (
-                      <li key={`${entry.id}-trigger-${index}`}>
+                      <li
+                        key={`${entry.id}-trigger-${index}`}
+                        className="journal__reveal"
+                        style={reveal(triggersFrom + index + 1)}
+                      >
                         <InlineText text={item} sources={NO_SOURCES} />
                       </li>
                     ))}
@@ -326,12 +414,36 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
                 </section>
               )}
 
-              {entry.status !== 'reviewed' && (reviewing ? (
-                <ReviewForm entry={entry} initialOutcome={quickOutcome} onSaved={onChange} />
-              ) : (
-                <button type="button" className="journal__button journal__button--soft" onClick={() => setReviewing(true)}>
+              {entry.status !== 'reviewed' && (review === 'button' ? (
+                <button
+                  type="button"
+                  className="journal__button journal__button--soft journal__reveal"
+                  style={reveal(reviewEnter === 'stagger' ? reviewFrom : 0, reviewFrom)}
+                  onClick={openReview}
+                >
                   {t.reviewNow}
                 </button>
+              ) : (
+                <div
+                  className={[
+                    'journal__swap',
+                    review === 'form' && reviewEnter === 'grow' && 'journal__swap--grow',
+                    review === 'closing' && 'journal__swap--shrink',
+                  ].filter(Boolean).join(' ')}
+                  style={{ '--count': reviewFrom + 5 }}
+                  inert={review === 'closing'}
+                >
+                  <div>
+                    <ReviewForm
+                      entry={entry}
+                      initialOutcome={quickOutcome}
+                      onSaved={onChange}
+                      onCancel={cancelReview}
+                      revealFrom={reviewEnter === 'stagger' ? reviewFrom : 0}
+                      rankFrom={reviewFrom}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           </div>

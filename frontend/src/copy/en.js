@@ -422,7 +422,7 @@ export const en = {
     reflectionPlaceholder: 'A few words for your future self',
     save: 'Save',
     saving: 'Saving…',
-    tooEarly: 'Too early — ask in a week',
+    cancel: 'Cancel',
     remove: 'Remove from the journal',
     removeConfirm: 'Remove this entry from the journal? The discussion stays.',
     saveError: 'Could not save the changes',
