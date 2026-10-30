@@ -1170,6 +1170,13 @@
     padding: 2px 16px;
   }
 
+  /* аркуші «Про мене» з полями — з повітрям зверху й знизу: загальне правило
+     вище прибрало б його, і підписи та поля тулилися б до країв секції */
+  .settings__sheet--form {
+    padding: 18px 16px 20px;
+    border-radius: 24px;
+  }
+
   .settings__row {
     flex-wrap: wrap;
   }

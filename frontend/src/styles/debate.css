@@ -4899,6 +4899,23 @@ ol.chat__reveal {
   margin-top: 0;
 }
 
+/* на телефоні все одним рядком не вміщається: питання окремо, під ним
+   «Допомогло / Не допомогло», а «У журнал» — під ними, без розірваних рядків */
+@media (max-width: 639px) {
+  /* рядок лишається рядком із переносом (у колонці flex-basis форми став би
+     висотою, і вона виїхала б за екран): відгук і форма — на всю ширину,
+     кнопка «У журнал» — своєї ширини окремим рядком */
+  .chat__summary-after > .chat__feedback {
+    flex-basis: 100%;
+  }
+
+  .chat__summary-after .chat__feedback-row > .chat__feedback-ask {
+    flex-basis: 100%;
+    margin-bottom: 2px;
+  }
+
+}
+
 /* «У журнал» — невелика кнопка, як «Допомогло» поруч */
 .chat__journal-add {
   display: inline-flex;
@@ -5018,6 +5035,14 @@ ol.chat__reveal {
   box-shadow: inset 0 0 0 1.5px var(--focus);
 }
 
+/* поле з підставленим рішенням росте під текст, щоб його було видно цілим
+   (де field-sizing не підтримують, лишаються три рядки й ручна зміна висоти) */
+.chat__journal-input {
+  field-sizing: content;
+  min-height: calc(3lh + 20px);
+  max-height: 12lh;
+}
+
 .chat__journal-pills {
   display: flex;
   flex-wrap: wrap;
@@ -5071,6 +5096,30 @@ ol.chat__reveal {
 @media (prefers-reduced-motion: reduce) {
   .chat__journal {
     animation: none;
+  }
+}
+
+/* форма журналу на телефоні; стоїть після базових правил, щоб їх перекрити */
+@media (max-width: 639px) {
+  .chat__journal {
+    gap: 12px;
+    padding: 14px 14px 14px;
+  }
+
+  /* вибір нагадування й кнопка — однаковою сіткою на всю ширину */
+  .chat__journal-pills {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .chat__journal-pill {
+    height: 36px;
+    padding: 0 8px;
+  }
+
+  .chat__journal-save {
+    align-self: stretch;
+    height: 42px;
   }
 }
 
@@ -5709,7 +5758,10 @@ ol.chat__reveal {
       visibility 0s linear var(--min-time);
   }
 
+  /* без переносу: у вузькому колі кнопка відправки перескочила б під поле,
+     і замість кола вийшов би витягнутий овал */
   .chat__composer--min .debate__composer {
+    flex-wrap: nowrap;
     width: var(--prompt-h, 57px);
   }
 

@@ -797,7 +797,8 @@ export default function ChatPage() {
       setIsComposerMin(false);
       return;
     }
-    if (note.trim() || document.activeElement === noteRef.current) return;
+    // почате уточнення (текст чи файли) не ховаємо
+    if (note.trim() || noteFiles.length > 0 || document.activeElement === noteRef.current) return;
     setIsComposerMin(true);
   };
 
