@@ -11,8 +11,10 @@ from django.utils import timezone
 from backend.i18n import L, using
 
 from ...models import Discussion, Message
-from ...personas import devil
+from ...personas import devil, moderator
 from .. import usage
+from ..criteria import compute_matrix
+from ..safety import CRISIS, crisis_message
 from .base import EngineBusy, EngineConflict, EngineError, STANCE_AGREE
 from .context import _add_message, _list_messages, _resolved_personas, _speakers_done
 from .live import _DraftBoard, _drafts, _live
@@ -73,7 +75,20 @@ def _next_speaker_transition(discussion, personas):
     discussion.early_stop = discussion.current_round < discussion.rounds or (
         discussion.until_consensus and agreed
     )
-    discussion.phase = Discussion.Phase.SYNTHESIS
+    _after_debate(discussion)
+
+
+def _uses_criteria(discussion):
+    return bool(discussion.criteria) and discussion.mode == Discussion.Mode.CHOOSE_ONE
+
+
+def _after_debate(discussion):
+    """Після дебатів — оцінка за критеріями людини, якщо вона їх задала, інакше рішення."""
+    if _uses_criteria(discussion):
+        discussion.phase = Discussion.Phase.SCORING
+        discussion.scores = {}
+    else:
+        discussion.phase = Discussion.Phase.SYNTHESIS
 
 
 def _all_spoke(discussion, personas, phase):
@@ -82,6 +97,10 @@ def _all_spoke(discussion, personas, phase):
 
 
 def _store(discussion, plan, payload, personas):
+    """Зберігає результат виклику; None — крок без повідомлення в чаті (оцінки)."""
+    if plan.phase == Discussion.Phase.SCORING:
+        discussion.scores = {**(discussion.scores or {}), plan.persona['slug']: payload}
+        return None
     if plan.role == Message.Role.AI:
         added = _merge_sources(discussion, payload.get('search'), plan.persona['name'])
         return _add_message(
@@ -113,6 +132,17 @@ def _store(discussion, plan, payload, personas):
         payload['agreement'] = _agreement(discussion, personas, payload.get('answer'))
         discussion.final_summary = payload
         content = _final_text(payload)
+    elif plan.phase == Discussion.Phase.QUICK:
+        topic = payload.pop('topic', '')
+        if topic:
+            discussion.safety = topic
+        if topic == CRISIS:
+            # криза — не порада, а підтримка й контакти допомоги
+            discussion.final_summary = None
+            content = crisis_message()
+        else:
+            discussion.final_summary = payload
+            content = _final_text(payload)
     else:
         raise EngineError(f'Невідома фаза: {plan.phase}', code='bad_state', retryable=False)
     return _add_message(
@@ -143,10 +173,19 @@ def _transition(discussion, personas):
     elif phase == Discussion.Phase.REBUTTAL:
         if _all_spoke(discussion, personas, phase):
             discussion.phase = Discussion.Phase.FINAL
-    elif phase == Discussion.Phase.FINAL:
+    elif phase == Discussion.Phase.SCORING:
+        if all(persona['slug'] in (discussion.scores or {}) for persona in personas):
+            discussion.matrix = compute_matrix(discussion.criteria, discussion.options, discussion.scores)
+            discussion.phase = Discussion.Phase.SYNTHESIS
+    elif phase in {Discussion.Phase.FINAL, Discussion.Phase.QUICK}:
         discussion.phase = Discussion.Phase.DONE
         discussion.status = Discussion.Status.DONE
         discussion.finished_at = timezone.now()
+    elif phase == Discussion.Phase.ANSWER:
+        # відповідь одного учасника не переписує висновку — дискусія знову завершена
+        discussion.phase = Discussion.Phase.DONE
+        discussion.status = Discussion.Status.DONE
+        discussion.ask_target = ''
     else:
         raise EngineError(f'Невідома фаза: {phase}', code='bad_state', retryable=False)
 
@@ -172,8 +211,10 @@ def _commit(discussion_id, token, phase, results, error=None):
             )
 
         personas = _resolved_personas(discussion)
-        created = [_store(discussion, plan, payload, personas) for plan, payload in results]
-        usage.record(discussion.user_id, replies=len(created))
+        stored = [_store(discussion, plan, payload, personas) for plan, payload in results]
+        # оцінки за критеріями — теж відповіді моделей, хоч і без повідомлень у чаті
+        usage.record(discussion.user_id, replies=len(stored))
+        created = [message for message in stored if message is not None]
         if error is not None:
             _set_error(discussion, error)
         else:
@@ -188,6 +229,34 @@ def _commit(discussion_id, token, phase, results, error=None):
         discussion.live_drafts = []
         discussion.save()
         return created
+
+
+def _crisis_stop(discussion_id, token):
+    """Криза: замість дискусії — підтримка модератора; контакти допомоги показує інтерфейс.
+
+    Жодного виклику моделі: відповідь однакова й надійна, навіть без ключів."""
+    with transaction.atomic():
+        discussion = Discussion.objects.select_for_update().filter(pk=discussion_id).first()
+        if discussion is None or discussion.advance_token != token:
+            raise EngineConflict('Дискусію вже оновив інший запит.', code='conflict')
+        message = _add_message(
+            discussion,
+            persona=moderator(),
+            role=Message.Role.MODERATOR,
+            # не «фінальний висновок»: це підтримка, тож у чаті без роздільника етапу
+            phase=Discussion.Phase.CLARIFY,
+            content=crisis_message(),
+        )
+        discussion.safety = CRISIS
+        discussion.phase = Discussion.Phase.DONE
+        discussion.status = Discussion.Status.DONE
+        discussion.finished_at = timezone.now()
+        discussion.final_summary = None
+        discussion.advance_token = None
+        discussion.advance_started_at = None
+        discussion.live_drafts = []
+        discussion.save()
+        return [message]
 
 
 def advance(discussion, provider_factory=None):
@@ -216,9 +285,14 @@ def _advance(discussion, provider_factory):
     live = _live.set((discussion_id, token))
     drafts = _drafts.set(_DraftBoard(discussion_id, token))
     try:
+        if claimed.safety == CRISIS:
+            return _crisis_stop(discussion_id, token)
         if claimed.phase == Discussion.Phase.CLARIFY:
             _start_ai_status(claimed, provider_factory)
-            if not _clarify_step(claimed, token, provider_factory):
+            outcome = _clarify_step(claimed, token, provider_factory)
+            if outcome == CRISIS:
+                return _crisis_stop(discussion_id, token)
+            if not outcome:
                 return []
             # контексту досить — у тому ж кроці починаємо вступ
             claimed.phase = Discussion.Phase.OPENING

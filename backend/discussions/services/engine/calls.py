@@ -16,6 +16,8 @@ from ...models import Message
 from .. import search
 from ..catalog import model_label
 from ..providers import ProviderError, get_provider
+from ..criteria import normalize_scores
+from ..safety import normalize_topic
 from .base import (
     DEFAULT_TEMPERATURE,
     EngineError,
@@ -152,7 +154,7 @@ def _complete(
 
 
 def _complete_json(provider_factory, plan, model_id, mode, options):
-    check = PROBLEM_CHECKS[plan.json_kind]
+    check = plan.check or PROBLEM_CHECKS[plan.json_kind]
     raw = _complete(
         provider_factory, model_id, plan.system, plan.prompt, plan.temperature, json_mode=True
     )
@@ -264,6 +266,12 @@ def _run_plan(plan, provider_factory, discussion):
         return reply
 
     _, data = _run_json_plan(plan, provider_factory, discussion)
+    if plan.json_kind == 'scores':
+        return normalize_scores(data, options, discussion.criteria)
+    if plan.json_kind == 'quick':
+        summary = normalize_summary(data, {}, mode, options)
+        summary['topic'] = normalize_topic(data.get('topic'))
+        return summary
     if plan.json_kind == 'solution':
         return normalize_solution(
             data,

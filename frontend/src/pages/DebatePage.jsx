@@ -5,6 +5,7 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Attachment01Icon,
+  FlashIcon,
   IdentityCardIcon,
   BeachIcon,
   BookmarkAdd01Icon,
@@ -28,6 +29,10 @@ import { getToken } from '../api/client';
 import { updatePreferences } from '../api/settings';
 import { removeAttachment, uploadAttachment } from '../api/attachments';
 import AttachmentChip from '../components/AttachmentChip';
+import CriteriaEditor from '../components/CriteriaEditor';
+import CustomRoleDialog from '../components/CustomRoleDialog';
+import { CrisisHelp } from '../components/SafetyNotice';
+import { looksLikeCrisis } from '../utils/safety';
 import {
   ArrowUpIcon,
   CloseIcon,
@@ -229,6 +234,14 @@ export default function DebatePage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const filesReading = files.some((item) => item.status === 'reading');
+  // швидкий режим: одна коротка відповідь замість дебатів
+  const [quick, setQuick] = useState(false);
+  // критерії для «Один із варіантів»: [{name, weight}]
+  const [criteria, setCriteria] = useState([]);
+  // своя роль: діалог створення відкривається з меню ролі
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  // питання схоже на кризу — допомогу показуємо ще до надсилання
+  const crisis = looksLikeCrisis(description);
 
   const addFiles = (list) => {
     const room = MAX_FILES - files.length;
@@ -330,7 +343,11 @@ export default function DebatePage() {
       if (template) {
         setCustomTraits(customTraitsOf(initial));
         if (template.mode) setMode(template.mode);
-        if (template.mode === 'choose_one') setOptions(template.options || []);
+        if (template.mode === 'choose_one') {
+          setOptions(template.options || []);
+          setCriteria(template.criteria || []);
+        }
+        setQuick(Boolean(template.quick));
         if (template.untilConsensus) setUntilConsensus(true);
         else if (template.rounds) setRounds(clampRounds(template.rounds));
         setModeratorModel(template.moderatorModel || '');
@@ -349,7 +366,8 @@ export default function DebatePage() {
       const templateSearch = template ? template.webSearch : prefs.web_search;
       setWebSearch(Boolean(search.available && (templateSearch ?? true)));
       setModelOrder(pool);
-      setPersonas(personaList);
+      // свої ролі людини — після вбудованих, у тому ж меню
+      setPersonas([...personaList, ...(pData.custom || [])]);
       setMaxParticipants(pData.max_ai || DEFAULT_MAX_PARTICIPANTS);
       setMinRounds(pData.min_rounds || DEFAULT_ROUNDS);
       setMaxRounds(pData.max_rounds || 3);
@@ -694,6 +712,8 @@ export default function DebatePage() {
         devilModel,
         useProfile: aboutFilled ? useProfile : undefined,
         attachments: files.filter((item) => item.id).map((item) => item.id),
+        quick,
+        criteria: mode === 'choose_one' ? criteria : [],
       });
       saveDraft('');
       setFiles([]);
@@ -1016,6 +1036,7 @@ export default function DebatePage() {
                       participants={participants}
                       value={activeParticipant.slug}
                       onChange={handleRoleSelect}
+                      onCreateRole={() => setIsRoleDialogOpen(true)}
                       disabled={isCreating}
                     />
                   </div>
@@ -1190,6 +1211,19 @@ export default function DebatePage() {
           </div>
         </div>
 
+        {crisis && <CrisisHelp className="debate__crisis" />}
+
+        {isRoleDialogOpen && (
+          <CustomRoleDialog
+            onClose={() => setIsRoleDialogOpen(false)}
+            onCreated={(role) => {
+              setIsRoleDialogOpen(false);
+              setPersonas((current) => [...current, { ...role, custom: true }]);
+              handleRoleSelect(role.slug);
+            }}
+          />
+        )}
+
         {files.length > 0 && (
           <div className="debate__files" aria-live="polite">
             {files.map((file) => (
@@ -1206,10 +1240,21 @@ export default function DebatePage() {
           </div>
         )}
 
-        {about && (
-          // профіль «Про мене»: увімкнути чи вимкнути для цієї дискусії, а порожній — заповнити
-          <div className="debate__profile">
-            {aboutFilled ? (
+        {/* швидка відповідь і профіль «Про мене» — тихі пігулки під полем питання */}
+        <div className="debate__profile">
+          <button
+            type="button"
+            className={`debate__profile-chip ${quick ? 'debate__profile-chip--on' : ''}`}
+            onClick={() => setQuick((value) => !value)}
+            aria-pressed={quick}
+            title={t.quickHint}
+            disabled={isCreating}
+          >
+            <HugeiconsIcon icon={FlashIcon} size={15} aria-hidden="true" />
+            {t.quick}
+          </button>
+          {about && (
+            aboutFilled ? (
               <button
                 type="button"
                 className={`debate__profile-chip ${useProfile ? 'debate__profile-chip--on' : ''}`}
@@ -1231,9 +1276,9 @@ export default function DebatePage() {
                 {t.profileEmpty}
                 <HugeiconsIcon icon={ArrowRight01Icon} size={14} aria-hidden="true" />
               </button>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
 
         <div className="debate__mode-bar">
           {mode === 'choose_one' && (
@@ -1291,6 +1336,14 @@ export default function DebatePage() {
                 {options.length}/{MAX_OPTIONS}
               </span>
             </div>
+          )}
+          {mode === 'choose_one' && (
+            <CriteriaEditor
+              value={criteria}
+              onChange={setCriteria}
+              disabled={isCreating}
+              onLimit={pushToast}
+            />
           )}
         </div>
 

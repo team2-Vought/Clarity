@@ -74,8 +74,12 @@ def clarify_prompt(question, mode='open', options=None, profile=None, documents=
             f'{CLARIFY_MAX_OPTIONS} short answer options (up to 6 words) that cover '
             'the most likely situations and do not overlap. Do not add an “other” '
             'option: the user can type their own answer.\n'
+            'topic — the topic for disclaimers: "crisis" if the person is thinking about '
+            'suicide or self-harm or is in acute crisis; "medical" — health, treatment, '
+            'medicines; "legal" — law, contracts, courts, documents; "financial" — big '
+            'money: investments, loans, mortgages, debts, buying a home; otherwise "none".\n'
             'Reply STRICTLY with a single JSON object:\n'
-            '{"ready": true or false, '
+            '{"ready": true or false, "topic": "none", '
             '"questions": [{"question": "question", "options": ["option", "option"]}]}'
         )
     return (
@@ -96,8 +100,12 @@ def clarify_prompt(question, mode='open', options=None, profile=None, documents=
         f'{CLARIFY_MAX_OPTIONS} коротких варіантів відповіді (до 6 слів), які '
         'охоплюють найімовірніші ситуації й не перетинаються. Варіант «інше» '
         'не додавай: користувач зможе вписати свою відповідь сам.\n'
+        'topic — тема для застережень: "crisis", якщо людина думає про самогубство чи '
+        'самоушкодження або в гострій кризі; "medical" — здоров’я, лікування, ліки; '
+        '"legal" — закон, договори, суди, документи; "financial" — великі гроші: '
+        'інвестиції, кредити, іпотека, борги, купівля житла; інакше "none".\n'
         'Відповідай СУВОРО одним JSON-об’єктом:\n'
-        '{"ready": true або false, '
+        '{"ready": true або false, "topic": "none", '
         '"questions": [{"question": "запитання", "options": ["варіант", "варіант"]}]}'
     )
 

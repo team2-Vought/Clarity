@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Tick02Icon } from '@hugeicons/core-free-icons';
+import { Tick02Icon, UserAdd01Icon } from '@hugeicons/core-free-icons';
 import { ChevronIcon } from './DebateIcons';
 import { copy } from '../copy';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
@@ -16,7 +16,7 @@ const OUTSET = 10;
 // Роль учасника — кнопка з поточною роллю і меню в стилі «Формату відповіді».
 // Роль, яку вже має інший учасник, видно в меню з його номером, але обрати її не можна.
 // Меню винесене шаром поверх сторінки: у панелі його обрізала б прокрутка й накривав футер.
-export default function RolePicker({ personas, participants, value, onChange, disabled = false }) {
+export default function RolePicker({ personas, participants, value, onChange, onCreateRole, disabled = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
   const menuRef = useRef(null);
@@ -89,6 +89,24 @@ export default function RolePicker({ personas, participants, value, onChange, di
           </button>
         );
       })}
+      {onCreateRole && (
+        <button
+          type="button"
+          role="menuitem"
+          className="debate__mode-item debate__role-create"
+          onClick={() => {
+            close(true);
+            onCreateRole();
+          }}
+        >
+          <span className="debate__mode-item-icon" aria-hidden="true">
+            <HugeiconsIcon icon={UserAdd01Icon} size={17} strokeWidth={1.8} />
+          </span>
+          <span className="debate__mode-item-text">
+            <span>{t.createRole}</span>
+          </span>
+        </button>
+      )}
     </div>
   );
 

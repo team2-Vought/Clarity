@@ -1,0 +1,767 @@
+/* Інструменти рішення: допомога в кризі, застереження, оцінка висновку,
+   матриця критеріїв, питання одному учаснику, свої ролі */
+
+/* ---------- Допомога в кризі ---------- */
+.safety-help {
+  --help: #c2416c;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(760px, 100%);
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--help) 7%, var(--card, #fff));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--help) 22%, transparent);
+  color: var(--ink);
+}
+
+:root[data-theme='dark'] .safety-help {
+  --help: #ff93ae;
+}
+
+.safety-help__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.safety-help__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--help) 15%, transparent);
+  color: var(--help);
+}
+
+.safety-help__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.safety-help__lead {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.safety-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.safety-help__line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--card, #fff);
+  color: var(--ink);
+  text-decoration: none;
+  transition: box-shadow 0.18s, var(--press);
+}
+
+.safety-help__line:hover {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--help) 40%, transparent);
+}
+
+.safety-help__line > svg {
+  flex: none;
+  color: var(--help);
+}
+
+.safety-help__line-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.safety-help__line-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.safety-help__line-note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.safety-help__contact {
+  margin-left: auto;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.debate__crisis {
+  margin-top: 2px;
+}
+
+.chat__crisis {
+  max-width: 880px;
+  margin: 8px 0 0 44px;
+}
+
+@media (max-width: 639px) {
+  .chat__crisis {
+    margin-left: 0;
+  }
+
+  .safety-help__line {
+    flex-wrap: wrap;
+  }
+
+  .safety-help__contact {
+    margin-left: 26px;
+  }
+}
+
+/* ---------- Застереження теми ---------- */
+.safety-topic {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.safety-topic > svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.chat__topic {
+  justify-content: flex-end;
+  max-width: 520px;
+  margin: 6px 4px 0 auto;
+  text-align: right;
+}
+
+.chat__summary-topic {
+  margin-top: 4px;
+}
+
+/* ---------- Швидка відповідь ---------- */
+.chat__summary-quick {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chat__summary-deepen {
+  height: 32px;
+  margin-left: 6px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s, var(--press);
+}
+
+.chat__summary-deepen:hover {
+  opacity: 0.88;
+}
+
+.chat__summary-deepen:active {
+  scale: var(--press-scale);
+}
+
+/* ---------- Оцінка висновку ---------- */
+.chat__feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.chat__feedback-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat__feedback-ask {
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.chat__feedback-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.chat__feedback-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 8%, var(--soft));
+}
+
+.chat__feedback-button--active {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.chat__feedback-button:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.chat__feedback-why {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat__feedback-why-row {
+  display: flex;
+  gap: 6px;
+}
+
+.chat__feedback-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.chat__feedback-input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--focus);
+}
+
+.chat__feedback-send {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat__feedback-send:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat__feedback--done {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.chat__feedback-change {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ---------- Матриця критеріїв ---------- */
+.chat__matrix-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.chat__matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 0.875rem;
+}
+
+.chat__matrix th,
+.chat__matrix td {
+  padding: 8px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.chat__matrix thead th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: bottom;
+}
+
+.chat__matrix thead th small {
+  display: block;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.chat__matrix tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+
+.chat__matrix tbody td {
+  background: color-mix(in srgb, var(--ink) calc(var(--score, 0) * 9%), transparent);
+}
+
+.chat__matrix tbody tr > :first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.chat__matrix tbody tr > :last-child {
+  border-radius: 0 12px 12px 0;
+}
+
+.chat__matrix tbody tr {
+  background: var(--soft);
+}
+
+.chat__matrix-winner {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.chat__matrix-winner th,
+.chat__matrix-winner td {
+  box-shadow: inset 0 1.5px 0 var(--ink), inset 0 -1.5px 0 var(--ink);
+}
+
+.chat__matrix-winner > :first-child {
+  box-shadow: inset 1.5px 1.5px 0 var(--ink), inset 0 -1.5px 0 var(--ink);
+}
+
+.chat__matrix-winner > :last-child {
+  box-shadow: inset -1.5px 1.5px 0 var(--ink), inset 0 -1.5px 0 var(--ink);
+}
+
+.chat__matrix-total {
+  font-weight: 700;
+}
+
+.chat__matrix-badge {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+.chat__matrix-hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* ---------- Кому адресоване питання після висновку ---------- */
+.chat__ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px 50px;
+}
+
+.chat__ask-label {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chat__ask-chip {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, var(--press);
+}
+
+.chat__ask-chip:hover {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--chip, var(--ink)) 70%, transparent);
+}
+
+.chat__ask-chip--on {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.chat__ask-chip:active {
+  scale: var(--press-scale);
+}
+
+@media (max-width: 639px) {
+  .chat__ask {
+    margin-left: 0;
+  }
+}
+
+/* ---------- Критерії вибору ---------- */
+.criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, 100%);
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: var(--soft);
+}
+
+.criteria__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.criteria__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.criteria__hint {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.criteria__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.criteria__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.criteria__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criteria__weights {
+  display: flex;
+  gap: 4px;
+}
+
+.criteria__dot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  cursor: pointer;
+  transition: background 0.15s, var(--press);
+}
+
+.criteria__dot--on {
+  background: var(--ink);
+}
+
+.criteria__dot:active {
+  scale: 0.85;
+}
+
+.criteria__remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.criteria__remove:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.criteria__input {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.criteria__input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--focus);
+}
+
+/* ---------- Своя роль ---------- */
+.debate__role-create {
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.role-dialog__backdrop {
+  --card: #ffffff;
+  --soft: #f2f2f3;
+  --ink: #121212;
+  --muted: rgba(18, 18, 18, 0.6);
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.32);
+  animation: role-dialog-fade 0.18s ease-out;
+}
+
+:root[data-theme='dark'] .role-dialog__backdrop {
+  --card: #2b2b31;
+  --soft: #1f1f23;
+  --ink: #f4f4f4;
+  --muted: rgba(244, 244, 244, 0.6);
+}
+
+@keyframes role-dialog-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.role-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
+}
+
+.role-dialog__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.role-dialog__lead {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.role-dialog__ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.role-dialog__idea {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.role-dialog__idea:hover {
+  background: color-mix(in srgb, var(--ink) 8%, var(--soft));
+}
+
+.role-dialog__label {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.role-dialog__input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.role-dialog__input--area {
+  height: auto;
+  padding: 10px 14px;
+  border-radius: 18px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.role-dialog__input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--focus);
+}
+
+.role-dialog__error {
+  margin: 0;
+  color: var(--error, #c93a62);
+  font-size: 0.875rem;
+}
+
+.role-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.role-dialog__button {
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.role-dialog__button:hover:not(:disabled) {
+  background: var(--soft);
+}
+
+.role-dialog__button--primary,
+.role-dialog__button--primary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.role-dialog__button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* свої ролі в налаштуваннях */
+.settings__role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings__role {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 6px 10px 14px;
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.settings__role-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings__role-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.settings__role-description {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.settings__roles .settings__button svg {
+  margin-right: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-dialog__backdrop {
+    animation: none;
+  }
+}

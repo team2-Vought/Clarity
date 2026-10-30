@@ -16,6 +16,7 @@ from ...models import Discussion, Message
 from ...personas import moderator
 from ..attachments import documents_for_prompt
 from .. import prompts, usage
+from ..safety import CRISIS, looks_like_crisis
 from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG
 from .parsing import _text, normalize_clarify
 from .context import _judge_models, _mode_ctx, _next_seq, _resolved_personas
@@ -29,12 +30,14 @@ def _not_found():
     return L('Дискусію не знайдено.', 'Discussion not found.')
 
 
-def add_user_message(discussion_id, author_name, content):
+def add_user_message(discussion_id, author_name, content, target=''):
     """Додає уточнення користувача.
 
     Під час дискусії воно потрапляє в історію, і наступні учасники на нього
     реагують. Після фіналу — відкриває ще один раунд дебатів, після якого
-    синтез, перевірка Devil і фінал проходять заново.
+    синтез, перевірка Devil і фінал проходять заново; у швидкому режимі —
+    ще одну коротку відповідь. Якщо після фіналу людина звертається до одного
+    учасника (`target` — його slug), відповідає лише він, а висновок лишається.
     Повертає (message, reopened).
     """
     content = _text(content, limit=int(settings.DISCUSSION_NOTE_MAX_CHARS))
@@ -66,8 +69,43 @@ def add_user_message(discussion_id, author_name, content):
                 ),
                 retryable=False,
             )
+        if discussion.safety == CRISIS or looks_like_crisis(content):
+            # криза посеред розмови — наступний крок зупиняє дискусію й показує допомогу
+            discussion.safety = CRISIS
         reopened = discussion.phase == Discussion.Phase.DONE
-        if reopened:
+        persona = None
+        if target:
+            persona = next(
+                (p for p in _resolved_personas(discussion) if p['slug'] == target), None
+            )
+            if not reopened or persona is None:
+                raise EngineError(
+                    'Звернутися до учасника можна лише після висновку.',
+                    code='bad_target',
+                    public=L(
+                        'Звернутися до окремого учасника можна після висновку.',
+                        'You can address a single participant after the conclusion.',
+                    ),
+                    retryable=False,
+                )
+            limit = int(settings.DISCUSSION_MAX_DIRECT)
+            if discussion.direct_questions >= limit:
+                raise EngineError(
+                    'Ліміт питань учасникам вичерпано.',
+                    code='direct_limit',
+                    public=L(
+                        f'До окремих учасників можна звернутися не більше {limit} разів. '
+                        'Створіть нову дискусію.',
+                        f'You can address single participants no more than {limit} times. '
+                        'Start a new discussion.',
+                    ),
+                    retryable=False,
+                )
+            discussion.direct_questions += 1
+            discussion.ask_target = persona['slug']
+            discussion.phase = Discussion.Phase.ANSWER
+            discussion.status = Discussion.Status.IN_PROGRESS
+        elif reopened:
             limit = int(settings.DISCUSSION_MAX_FOLLOWUPS)
             if discussion.followups >= limit:
                 raise EngineError(
@@ -82,14 +120,18 @@ def add_user_message(discussion_id, author_name, content):
                     retryable=False,
                 )
             discussion.followups += 1
-            discussion.current_round += 1
-            discussion.rounds = discussion.current_round
-            discussion.speaker_index = 0
-            discussion.early_stop = False
             discussion.finished_early = False
-            discussion.phase = Discussion.Phase.DEBATE
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.finished_at = None
+            if discussion.quick:
+                # у швидкому режимі уточнення — це ще одна коротка відповідь
+                discussion.phase = Discussion.Phase.QUICK
+            else:
+                discussion.current_round += 1
+                discussion.rounds = discussion.current_round
+                discussion.speaker_index = 0
+                discussion.early_stop = False
+                discussion.phase = Discussion.Phase.DEBATE
         discussion.stop_requested = False
         phase = discussion.phase
         message = Message.objects.create(
@@ -102,6 +144,9 @@ def add_user_message(discussion_id, author_name, content):
             persona_name=author_name or L('Користувач', 'User'),
             avatar='🧑',
             content=content,
+            # питання до одного учасника — у чаті видно, до кого саме
+            reply_to=persona['name'] if persona else '',
+            reply_to_slug=persona['slug'] if persona else '',
         )
         discussion.save()
         return message, reopened
@@ -146,6 +191,7 @@ def _clarify_step(discussion, token, provider_factory=None):
     за кроком), False — чекаємо відповідей користувача (lease знято).
 
     Збій модератора не блокує дискусію: тоді просто стартуємо без питань.
+    CRISIS — модератор розпізнав кризу: дискусію треба зупинити.
     """
     if discussion.clarify_questions:
         _release(discussion.pk, token)
@@ -157,6 +203,11 @@ def _clarify_step(discussion, token, provider_factory=None):
         result = {'ready': True, 'questions': []}
     else:
         usage.record(discussion.user_id, replies=1)
+    if result.get('topic'):
+        Discussion.objects.filter(pk=discussion.pk, advance_token=token).update(safety=result['topic'])
+        if result['topic'] == CRISIS:
+            # криза — без питань і без дебатів; lease лишається за кроком
+            return CRISIS
     if result['ready']:
         updated = Discussion.objects.filter(pk=discussion.pk, advance_token=token).update(
             phase=Discussion.Phase.OPENING

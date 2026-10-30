@@ -83,6 +83,9 @@ STAGE_NOTES = {
     Discussion.Phase.CLARIFY: 'модератор перевіряє, чи вистачає контексту',
     Discussion.Phase.OPENING: 'учасники формують перші позиції',
     Discussion.Phase.DEBATE: 'учасники по черзі сперечаються',
+    Discussion.Phase.SCORING: 'учасники оцінюють варіанти за критеріями людини',
+    Discussion.Phase.QUICK: 'модератор готує коротку відповідь',
+    Discussion.Phase.ANSWER: 'учасник відповідає на питання людини',
     Discussion.Phase.SYNTHESIS: 'модератор зводить аргументи в рішення',
     Discussion.Phase.DEVIL: 'AI Devil шукає слабкі місця рішення',
     Discussion.Phase.REBUTTAL: 'учасники відповідають на критику',
@@ -93,6 +96,9 @@ STAGE_NOTES_EN = {
     Discussion.Phase.CLARIFY: 'the moderator checks whether there is enough context',
     Discussion.Phase.OPENING: 'the participants form their first positions',
     Discussion.Phase.DEBATE: 'the participants take turns arguing',
+    Discussion.Phase.SCORING: 'the participants score the options on the person’s criteria',
+    Discussion.Phase.QUICK: 'the moderator prepares a short answer',
+    Discussion.Phase.ANSWER: 'a participant answers the person’s question',
     Discussion.Phase.SYNTHESIS: 'the moderator brings the arguments together into a solution',
     Discussion.Phase.DEVIL: 'AI Devil looks for weak spots in the solution',
     Discussion.Phase.REBUTTAL: 'the participants respond to the criticism',
@@ -168,6 +174,21 @@ def _describe_step(discussion):
             'перевіряє, чи вистачає контексту для відповіді',
             'checks whether there is enough context for an answer',
         ))]
+
+    if phase == Discussion.Phase.QUICK:
+        return [_focus(moderator(), L('готує коротку відповідь', 'prepares a short answer'))]
+
+    if phase == Discussion.Phase.ANSWER:
+        persona = next((p for p in personas if p['slug'] == discussion.ask_target), None)
+        return [_focus(persona, L('відповідає на ваше питання', 'answers your question'))] if persona else []
+
+    if phase == Discussion.Phase.SCORING:
+        scored = discussion.scores or {}
+        return [
+            _focus(persona, L('оцінює варіанти за вашими критеріями', 'scores the options on your criteria'))
+            for persona in personas
+            if persona['slug'] not in scored
+        ]
 
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)

@@ -67,7 +67,17 @@ from .profile import (
 from .documents import (
     documents_block,
 )
+from .quick import (
+    quick_prompt,
+)
+from .criteria import (
+    SCORE_MAX,
+    SCORE_MIN,
+    matrix_block,
+    scoring_prompt,
+)
 from .debate import (
+    answer_prompt,
     opening_prompt,
     debate_prompt,
     rebuttal_prompt,
@@ -92,6 +102,12 @@ from .clarify import (
 )
 
 __all__ = [
+    'SCORE_MAX',
+    'SCORE_MIN',
+    'answer_prompt',
+    'matrix_block',
+    'quick_prompt',
+    'scoring_prompt',
     'profile_block',
     'documents_block',
     'DATA_TAGS',

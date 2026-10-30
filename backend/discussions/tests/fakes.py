@@ -12,12 +12,16 @@ class FakeProvider:
     (порожньо — контексту досить).
     """
 
-    def __init__(self, stance=None, search_query=None, clarify_questions=None):
+    def __init__(self, stance=None, search_query=None, clarify_questions=None, topic='none'):
         self.calls = []
         self.counter = 0
         self.stance = stance
         self.search_query = search_query
         self.clarify_questions = clarify_questions or []
+        # тема, яку «розпізнає» модератор: crisis / medical / legal / financial / none
+        self.topic = topic
+        # оцінки за критеріями: {варіант: {критерій: бал}}
+        self.scores_reply = {}
         self._lock = threading.Lock()
 
     def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
@@ -32,11 +36,29 @@ class FakeProvider:
             )
             if '"ready"' in prompt:
                 return json.dumps(
-                    {'ready': not self.clarify_questions, 'questions': self.clarify_questions},
+                    {
+                        'ready': not self.clarify_questions,
+                        'questions': self.clarify_questions,
+                        'topic': self.topic,
+                    },
                     ensure_ascii=False,
                 )
             if '"confirmed"' in prompt:
                 return json.dumps(self._final(prompt), ensure_ascii=False)
+            if '"scores"' in prompt:
+                return json.dumps({'scores': self.scores_reply, 'comment': 'Оцінив'}, ensure_ascii=False)
+            if '"topic"' in prompt:
+                data = {
+                    'decision': 'Швидке рішення',
+                    'next_steps': ['Зробити перший крок'],
+                    'change_triggers': [],
+                    'confidence': 70,
+                    'topic': self.topic,
+                }
+                answer = self._answer(prompt)
+                if answer:
+                    data['answer'] = answer
+                return json.dumps(data, ensure_ascii=False)
             if '"verdict"' in prompt:
                 return json.dumps(self._devil(), ensure_ascii=False)
             if '"supporting_arguments"' in prompt:

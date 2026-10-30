@@ -5,12 +5,13 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import DebatePage from './DebatePage';
-import { createDiscussion, fetchModels, fetchPersonas, fetchTeams } from '../api/discussions';
+import { createCustomRole, createDiscussion, fetchModels, fetchPersonas, fetchTeams } from '../api/discussions';
 import { updatePreferences } from '../api/settings';
 import { setMyProfile } from '../hooks/useMyProfile';
 import { removeAttachment, uploadAttachment } from '../api/attachments';
 
 vi.mock('../api/discussions', () => ({
+  createCustomRole: vi.fn(),
   createDiscussion: vi.fn(),
   deleteTeam: vi.fn(),
   fetchModels: vi.fn(),
@@ -149,6 +150,56 @@ describe('DebatePage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Почати дискусію' }));
     expect(vi.mocked(createDiscussion).mock.calls[0][0].attachments).toEqual(['f1']);
+  });
+
+  it('швидка відповідь і критерії вибору йдуть у запит на створення', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    await user.click(screen.getByRole('button', { name: 'Швидка відповідь' }));
+    await user.click(screen.getByRole('button', { name: /Формат відповіді/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Один із варіантів/ }));
+    const options = screen.getByRole('textbox', { name: 'Варіанти' });
+    await user.type(options, 'Київ{Enter}Львів{Enter}');
+    await user.type(screen.getByRole('textbox', { name: 'Критерії' }), 'Зарплата{Enter}');
+    await user.click(screen.getByRole('radio', { name: 'Вага «Зарплата»: 5 з 5' }));
+
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Куди переїхати заради роботи?{Enter}');
+    const payload = vi.mocked(createDiscussion).mock.calls[0][0];
+    expect(payload.quick).toBe(true);
+    expect(payload.criteria).toEqual([{ name: 'Зарплата', weight: 5 }]);
+  });
+
+  it('свою роль можна створити з меню ролі й одразу дати учаснику', async () => {
+    const user = userEvent.setup();
+    vi.mocked(createCustomRole).mockImplementation(async ({ name, description }) => ({
+      id: 'r1', slug: 'c-abc', name, description,
+    }));
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    await user.click(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Створити свою роль' }));
+    const dialog = screen.getByRole('dialog', { name: 'Своя роль' });
+    await user.click(within(dialog).getByRole('button', { name: 'Юрист' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Створити' }));
+
+    expect(createCustomRole).toHaveBeenCalledWith(expect.objectContaining({ name: 'Юрист' }));
+    expect(await within(sheetOf('Учасник 1')).findByRole('button', { name: 'Роль: Юрист' })).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи підписувати цей договір оренди?{Enter}');
+    expect(vi.mocked(createDiscussion).mock.calls[0][0].personas[0].slug).toBe('c-abc');
+  });
+
+  it('питання про кризу одразу показує, куди звернутися', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    expect(screen.queryByText('7333')).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Я не хочу більше жити');
+    expect(screen.getByText('7333')).toBeInTheDocument();
   });
 
   it('тому, хто вже бачив підказки, їх не показує', async () => {

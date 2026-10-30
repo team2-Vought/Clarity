@@ -193,7 +193,7 @@ def _judge_models(discussion, personas, role):
 
 def _resolved_personas(discussion):
     """Повертає персон з усіма user-оверайдами: name, style, traits, model."""
-    from ...personas import PERSONA_BY_SLUG
+    from ...personas import PERSONA_BY_SLUG, custom_persona
 
     resolved = []
     for item in discussion.personas:
@@ -202,6 +202,8 @@ def _resolved_personas(discussion):
         else:
             slug = str(item)
         base = PERSONA_BY_SLUG.get(slug)
+        if base is None and isinstance(item, dict) and isinstance(item.get('custom'), dict):
+            base = custom_persona(slug, item['custom'])
         if base is None:
             continue
         persona = dict(localize(base))

@@ -32,6 +32,8 @@ export function createDiscussion({
   devilModel,
   useProfile,
   attachments = [],
+  quick = false,
+  criteria = [],
 }) {
   return request('/api/discussions/', {
     method: 'POST',
@@ -49,6 +51,8 @@ export function createDiscussion({
       // без значення сервер бере вибір із самого профілю
       ...(useProfile === undefined ? {} : { use_profile: useProfile }),
       attachments,
+      quick,
+      criteria,
     },
   });
 }
@@ -84,12 +88,35 @@ export function finishDiscussion(id) {
 }
 
 /** Уточнення користувача: під час дискусії або після фіналу. */
-export function postNote(id, content) {
+/** Уточнення; після висновку `target` — slug учасника, якому адресоване питання. */
+export function postNote(id, content, target = '') {
   return request(`/api/discussions/${id}/messages/`, {
     method: 'POST',
     auth: true,
-    body: { content },
+    body: target ? { content, target } : { content },
   });
+}
+
+/** «Допомогло» / «Не допомогло» під висновком; порожнє value — скасувати. */
+export function sendFeedback(id, value, note = '') {
+  return request(`/api/discussions/${id}/feedback/`, {
+    method: 'POST',
+    auth: true,
+    body: { value, note },
+  });
+}
+
+/** Свої ролі учасників: «юрист», «мій обережний тато». */
+export function fetchCustomRoles() {
+  return request('/api/personas/custom/', { auth: true });
+}
+
+export function createCustomRole({ name, description }) {
+  return request('/api/personas/custom/', { method: 'POST', auth: true, body: { name, description } });
+}
+
+export function deleteCustomRole(id) {
+  return request(`/api/personas/custom/${id}/`, { method: 'DELETE', auth: true });
 }
 
 /** Зміна моделей учасників і суддів, поки дискусія не виконується. */

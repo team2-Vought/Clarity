@@ -9,6 +9,7 @@ from backend.i18n import L
 from ...models import Discussion, Message
 from ...personas import devil, moderator
 from ..attachments import documents_for_prompt
+from ..criteria import scoring_problems
 from .. import prompts, search
 from .base import DEFAULT_TEMPERATURE, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG
 from .context import (
@@ -39,7 +40,7 @@ def _persona_plan(persona, phase, prompt, **extra):
         model_id=_model_for_persona(persona),
         system=prompts.persona_system(persona),
         prompt=prompt,
-        temperature=persona.get('temperature', DEFAULT_TEMPERATURE),
+        temperature=extra.pop('temperature', persona.get('temperature', DEFAULT_TEMPERATURE)),
         **extra,
     )
 
@@ -179,6 +180,7 @@ def _prepare_step(discussion):
                     personas,
                     messages,
                     early_stop=discussion.early_stop,
+                    matrix=discussion.matrix,
                     **common,
                 ),
                 json_kind='solution',
@@ -224,10 +226,81 @@ def _prepare_step(discussion):
                     discussion.best_solution or {},
                     discussion.devil_review or {},
                     messages,
+                    matrix=discussion.matrix,
                     **common,
                 ),
                 json_kind='summary',
             )
+        ]
+
+    if phase == Discussion.Phase.QUICK:
+        # швидкий режим: одна порада модератора; уточнення бачать попередню розмову
+        history = messages if len(messages) > 1 else None
+        return [
+            _judge_plan(
+                discussion,
+                personas,
+                'moderator',
+                phase=phase,
+                role=Message.Role.MODERATOR,
+                persona=moderator(),
+                system=prompts.moderator_system(),
+                prompt=prompts.quick_prompt(
+                    question,
+                    mode,
+                    options,
+                    profile=discussion.profile,
+                    documents=common['documents'],
+                    messages=history,
+                ),
+                json_kind='quick',
+            )
+        ]
+
+    if phase == Discussion.Phase.ANSWER:
+        persona = next((p for p in personas if p['slug'] == discussion.ask_target), None)
+        asked = next(
+            (m for m in reversed(messages) if m.role == Message.Role.USER), None
+        )
+        if persona is None or asked is None:
+            raise EngineError(
+                'Учасника, до якого звернулися, немає в дискусії.',
+                code='bad_state',
+                retryable=False,
+            )
+        return [
+            _persona_plan(
+                persona,
+                phase,
+                prompts.answer_prompt(
+                    question,
+                    persona,
+                    personas,
+                    messages,
+                    asked.content,
+                    **common,
+                ),
+                reply_to=asked.persona_name,
+                reply_to_slug=USER_SLUG,
+            )
+        ]
+
+    if phase == Discussion.Phase.SCORING:
+        # кожен учасник, що ще не оцінив, ставить бали паралельно з іншими
+        criteria = discussion.criteria
+        return [
+            _persona_plan(
+                persona,
+                phase,
+                prompts.scoring_prompt(
+                    question, persona, personas, messages, criteria, **common
+                ),
+                json_kind='scores',
+                temperature=JSON_TEMPERATURE,
+                check=lambda data, mode, options: scoring_problems(data, options, criteria),
+            )
+            for persona in personas
+            if persona['slug'] not in (discussion.scores or {})
         ]
 
     raise EngineError(f'Невідома фаза: {discussion.phase}', code='bad_state', retryable=False)

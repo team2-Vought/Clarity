@@ -281,6 +281,8 @@ LLM_MODERATOR_MODEL = os.getenv('LLM_MODERATOR_MODEL', '').strip()
 LLM_DEVIL_MODEL = os.getenv('LLM_DEVIL_MODEL', '').strip()
 DISCUSSION_DAILY_LIMIT = int(os.getenv('DISCUSSION_DAILY_LIMIT', '20'))
 DISCUSSION_MAX_FOLLOWUPS = int(os.getenv('DISCUSSION_MAX_FOLLOWUPS', '3'))
+# питання до окремого учасника після висновку — дешевші за новий раунд, тож їх більше
+DISCUSSION_MAX_DIRECT = int(os.getenv('DISCUSSION_MAX_DIRECT', '10'))
 DISCUSSION_NOTE_MAX_CHARS = int(os.getenv('DISCUSSION_NOTE_MAX_CHARS', '1000'))
 # Де виконуються дискусії: thread — потік у вебсервері (розробка), worker —
 # окремий процес `manage.py discussion_worker` (продакшн: переживає перезапуски).

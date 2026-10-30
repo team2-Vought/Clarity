@@ -16,11 +16,27 @@ class Discussion(models.Model):
         RESEARCH = 'research', 'Пошук джерел'
         OPENING = 'opening', 'Вступні слова'
         DEBATE = 'debate', 'Дискусія'
+        # учасники оцінюють варіанти за критеріями людини
+        SCORING = 'scoring', 'Оцінка за критеріями'
         SYNTHESIS = 'synthesis', 'Пропозиція рішення'
         DEVIL = 'devil', 'Перевірка AI Devil'
         REBUTTAL = 'rebuttal', 'Відповідь на AI Devil'
         FINAL = 'final', 'Фінальний підсумок'
+        # швидкий режим: одна коротка відповідь без дебатів
+        QUICK = 'quick', 'Швидка відповідь'
+        # після фіналу людина звертається до одного учасника
+        ANSWER = 'answer', 'Відповідь учасника'
         DONE = 'done', 'Готово'
+
+    class Safety(models.TextChoices):
+        CRISIS = 'crisis', 'Кризовий стан'
+        MEDICAL = 'medical', 'Здоров’я'
+        LEGAL = 'legal', 'Право'
+        FINANCIAL = 'financial', 'Великі гроші'
+
+    class Feedback(models.TextChoices):
+        HELPED = 'helped', 'Допомогло'
+        NOT_HELPED = 'not_helped', 'Не допомогло'
 
     class Mode(models.TextChoices):
         YES_NO = 'yes_no', 'Так або ні'
@@ -48,6 +64,21 @@ class Discussion(models.Model):
     clarify_questions = models.JSONField('питання модератора', default=list, blank=True)
     # «Про мене» автора на момент створення: зміни профілю не переписують старих дискусій
     profile = models.JSONField('профіль автора', default=dict, blank=True)
+    # швидкий режим: одна коротка відповідь замість дебатів
+    quick = models.BooleanField('швидка відповідь', default=False)
+    # чутлива тема: криза — без дебатів і з контактами допомоги; решта — застереження
+    safety = models.CharField('чутлива тема', max_length=12, choices=Safety.choices, blank=True)
+    # критерії для «Один із варіантів»: [{name, weight 1–5}] і оцінки учасників
+    criteria = models.JSONField('критерії', default=list, blank=True)
+    scores = models.JSONField('оцінки учасників', default=dict, blank=True)
+    matrix = models.JSONField('матриця критеріїв', null=True, blank=True)
+    # після фіналу: кому з учасників адресоване питання і скільки таких питань було
+    ask_target = models.CharField('питання до учасника', max_length=32, blank=True, default='')
+    direct_questions = models.PositiveSmallIntegerField('питань учасникам', default=0)
+    # чи допоміг висновок — так ми знаємо, чи Clarity корисний насправді
+    feedback = models.CharField('оцінка висновку', max_length=12, choices=Feedback.choices, blank=True)
+    feedback_note = models.TextField('коментар до оцінки', max_length=500, blank=True)
+    feedback_at = models.DateTimeField('оцінено', null=True, blank=True)
     personas = models.JSONField('персони', default=list)
     rounds = models.PositiveSmallIntegerField('раундів дискусії', default=2)
     web_search = models.BooleanField('пошук в інтернеті', default=False)
@@ -344,3 +375,37 @@ class Attachment(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CustomPersona(models.Model):
+    """Своя роль учасника: «юрист», «фінансовий консультант», «мій обережний тато».
+
+    У дискусію потрапляє копія ролі, тож зміна чи видалення ролі не переписує
+    старих дискусій.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='custom_personas',
+        verbose_name='користувач',
+    )
+    name = models.CharField('назва ролі', max_length=40)
+    # хто це й як міркує — з цього модель розуміє, як говорити
+    description = models.TextField('хто це й як міркує', max_length=400)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'своя роль'
+        verbose_name_plural = 'свої ролі'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def slug(self):
+        # коротко, бо slug учасника живе в повідомленнях (max_length=32)
+        return f'c-{self.id.hex[:12]}'
