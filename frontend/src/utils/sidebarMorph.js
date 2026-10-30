@@ -96,6 +96,15 @@ export function morphSidebar(rail, drawer, opening, store) {
   const railVisible = railIcons.length && railIcons[0].getBoundingClientRect().width > 0;
   if (!railVisible || railIcons.length !== icons.length || reducedMotion()) return;
 
+  // натиснута кнопка (лого, пункт) ще повертається з ефекту натискання (scale у
+  // base.css) — без цього її стиснутий розмір став би «домашнім», іконка
+  // приїхала б не туди й наприкінці стрибнула б на місце
+  [rail, drawer].forEach((root) =>
+    root?.getAnimations?.({ subtree: true })?.forEach((animation) => {
+      if (animation.transitionProperty === 'scale') animation.finish();
+    })
+  );
+
   const timing = opening ? OPEN : CLOSE;
 
   icons.forEach((icon, i) => {
