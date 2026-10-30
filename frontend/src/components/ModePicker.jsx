@@ -6,10 +6,10 @@ import {
   LeftToRightListBulletIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { usePickerMenu } from '../hooks/usePickerMenu';
 
-const t = uk.debate;
+const t = copy.debate;
 
 const MODES = [
   { value: 'yes_no', label: t.modeYesNo, icon: CheckmarkCircle02Icon },

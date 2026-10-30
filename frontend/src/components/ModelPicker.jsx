@@ -4,10 +4,10 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { AiModelIcon, ChevronIcon } from './DebateIcons';
 import ProviderLogo from './ProviderLogo';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
 
-const t = uk.debate;
+const t = copy.debate;
 
 // галочка біля вибраної моделі — як у меню ролі й формату відповіді
 const OptionCheck = () => (

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 export function Background() {
   return (
@@ -30,7 +30,7 @@ export function AuthPage({ title, form, variant }) {
           </div>
           <p className="card__back">
             <button type="button" className="link" onClick={() => navigate('/')}>
-              {uk.common.backHome}
+              {copy.common.backHome}
             </button>
           </p>
         </section>

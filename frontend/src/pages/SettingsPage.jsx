@@ -27,7 +27,7 @@ import {
   updatePreferences,
 } from '../api/settings';
 import { useToasts } from '../hooks/useToasts';
-import { uk } from '../copy/uk';
+import { LANGUAGES, copy, readLanguagePref, setLanguagePref } from '../copy';
 import {
   isMac,
   readReducedMotion,
@@ -36,7 +36,7 @@ import {
   writeSendKey,
 } from '../utils/devicePrefs';
 
-const t = uk.settings;
+const t = copy.settings;
 
 const TABS = [
   { key: 'profile', icon: UserIcon },
@@ -62,9 +62,9 @@ const KEY_URLS = {
 const MARK_TONES = ['peach', 'sky', 'lilac', 'pink'];
 
 const MODE_LABELS = {
-  open: uk.debate.modeOpen,
-  yes_no: uk.debate.modeYesNo,
-  choose_one: uk.debate.modeChooseOne,
+  open: copy.debate.modeOpen,
+  yes_no: copy.debate.modeYesNo,
+  choose_one: copy.debate.modeChooseOne,
 };
 
 // значення пігулки «До згоди» поряд із числами раундів
@@ -394,6 +394,13 @@ export default function SettingsPage() {
   const [filter, setFilter] = useState('all');
   const [sendKey, setSendKey] = useState(readSendKey);
   const [reducedMotion, setReducedMotion] = useState(readReducedMotion);
+  const [language, setLanguage] = useState(readLanguagePref);
+
+  // тексти читаються під час завантаження, тож нова мова — це перезавантаження
+  const changeLanguage = (value) => {
+    setLanguage(value);
+    setLanguagePref(value);
+  };
   const modKey = isMac() ? '⌘' : 'Ctrl';
 
   const load = useCallback(async () => {
@@ -536,7 +543,7 @@ export default function SettingsPage() {
   const renderDebate = () => (
     <>
       <div className="settings__sheet">
-        <Row title={t.modeLabel} hint={uk.debate.modeHints[prefs.default_mode]} stacked>
+        <Row title={t.modeLabel} hint={copy.debate.modeHints[prefs.default_mode]} stacked>
           <Pills
             fill
             label={t.modeLabel}
@@ -594,6 +601,19 @@ export default function SettingsPage() {
   const renderAppearance = () => (
     <>
       <div className="settings__sheet">
+        <Row title={t.languageLabel} hint={t.languageHint} stacked>
+          <Pills
+            fill
+            label={t.languageLabel}
+            value={language}
+            onChange={changeLanguage}
+            options={[
+              { value: 'system', label: t.languageSystem, icon: ComputerIcon },
+              // назви мов — кожна своєю мовою, щоб їх упізнав той, хто її шукає
+              ...LANGUAGES.map((code) => ({ value: code, label: t.languageNames[code] })),
+            ]}
+          />
+        </Row>
         <Row title={t.themeLabel} stacked>
           <Pills
             fill

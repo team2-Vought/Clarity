@@ -2,13 +2,14 @@ import PropTypes from 'prop-types';
 import Field from './Field';
 import { useForm } from '../hooks/useForm';
 import { validateEmail } from '../utils/validate';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.login;
+const t = copy.login;
+const v8n = copy.validation;
 
 const validate = {
-  email: (v) => (validateEmail(v) ? '' : 'Введіть коректну пошту, наприклад name@mail.com'),
-  password: (v) => (v ? '' : 'Введіть пароль'),
+  email: (v) => (validateEmail(v) ? '' : v8n.emailInvalid),
+  password: (v) => (v ? '' : v8n.passwordRequired),
 };
 
 export default function LoginForm({ onSubmit, onSwitch, alternative = null }) {

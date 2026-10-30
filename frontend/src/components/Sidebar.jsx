@@ -2,9 +2,9 @@ import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { logout } from '../api/auth';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.nav;
+const t = copy.nav;
 
 const DebateIcon = () => (
   <svg width="35" height="35" viewBox="0 0 35 35" fill="none" aria-hidden="true">

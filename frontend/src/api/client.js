@@ -1,3 +1,5 @@
+import { copy, lang } from '../copy';
+
 const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 const TOKEN_KEY = 'clarity_token';
 // Подія для Layout: токен прострочено або відкликано — треба знову увійти
@@ -41,7 +43,8 @@ export function setToken(token) {
 }
 
 export async function request(path, { method = 'GET', body, auth = false, signal } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  // мова інтерфейсу: нею сервер пише помилки, а AI — відповіді нових дискусій
+  const headers = { 'Content-Type': 'application/json', 'Accept-Language': lang };
   if (auth) {
     const token = getToken();
     if (token) headers.Authorization = `Token ${token}`;
@@ -57,7 +60,7 @@ export async function request(path, { method = 'GET', body, auth = false, signal
     });
   } catch (err) {
     if (err?.name === 'AbortError') throw err;
-    throw new ApiError(0, { detail: 'Немає з’єднання із сервером' });
+    throw new ApiError(0, { detail: copy.errors.noConnection });
   }
 
   const data = await res.json().catch(() => null);

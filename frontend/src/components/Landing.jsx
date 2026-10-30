@@ -7,9 +7,9 @@ import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
 import { readThemeMode } from '../utils/devicePrefs';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.landing;
+const t = copy.landing;
 const NAV = ['how', 'team', 'demo', 'features'];
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 

@@ -1,5 +1,13 @@
-// Єдине джерело українських текстів UI.
-// Валідаційні повідомлення живуть у utils/validate.js, серверні — у api/client.js.
+// Єдине джерело українських текстів UI; англійські — у en.js з тією самою структурою.
+// Мову обирає copy/index.js, тож компоненти імпортують `copy` звідти, а не цей файл.
+
+// «1 секунду / 2 секунди / 5 секунд»
+const plural = (n, one, few, many) => {
+  const tens = n % 100;
+  if (n % 10 === 1 && tens !== 11) return one;
+  if (n % 10 >= 2 && n % 10 <= 4 && (tens < 12 || tens > 14)) return few;
+  return many;
+};
 
 export const uk = {
   appName: 'Clarity',
@@ -323,6 +331,10 @@ export const uk = {
     usageOf: (used, limit) => `${used} з ${limit}`,
     usageUnlimited: (used) => `${used} · без ліміту`,
     usageLeft: (left) => `Залишилось ${left}`,
+    languageLabel: 'Мова',
+    languageSystem: 'Як на пристрої',
+    languageHint: 'Цією мовою відповідатимуть і AI-учасники нових дискусій.',
+    languageNames: { uk: 'Українська', en: 'English' },
     profile: {
       loadError: 'Не вдалося завантажити профіль',
       joined: (date) => `У Clarity з ${date}`,
@@ -499,6 +511,17 @@ export const uk = {
         text: 'Чи варто взяти місяць відпустки через вигорання, якщо проєкт саме в розпалі?',
       },
     },
+    traits: [
+      'Перфекціоніст',
+      'Реаліст',
+      'Егоїст',
+      'Романтик',
+      'Оптиміст',
+      'Стратег',
+      'Провокатор',
+      'Бунтар',
+      'Консерватор',
+    ],
     participants: 'Учасники',
     participant: 'Учасник',
     participantN: (index) => `Учасник ${index}`,
@@ -632,6 +655,18 @@ export const uk = {
       return `Шукаємо в інтернеті «${short}»…`;
     },
     thoughtDone: 'Аналізовано за',
+    // таймер у рядку «Аналізуємо…» і його повна версія для скрінрідерів
+    timerShort: (seconds) =>
+      seconds < 60
+        ? `${seconds} с`
+        : `${Math.floor(seconds / 60)} хв ${String(seconds % 60).padStart(2, '0')} с`,
+    timerSpoken: (seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const rest = seconds % 60;
+      const secondsText = `${rest} ${plural(rest, 'секунду', 'секунди', 'секунд')}`;
+      if (!minutes) return secondsText;
+      return `${minutes} ${plural(minutes, 'хвилину', 'хвилини', 'хвилин')} ${secondsText}`;
+    },
     retry: 'Спробувати ще раз',
     errorAdvance: 'Не вдалося продовжити дискусію',
     // заголовок «Дискусію зупинено» показує картка, тут — що робити далі
@@ -681,6 +716,7 @@ export const uk = {
     summaryConfidenceHint: 'Суб’єктивна оцінка моделі-модератора, а не статистична ймовірність.',
     summaryAgreement: 'Згода учасників',
     summaryAgreementValue: (agree, total) => `${agree} з ${total}`,
+    summaryAgreementOf: (total) => ` з ${total}`,
     summaryDissent: 'Окремі думки',
     summaryPros: 'Переваги',
     summaryCons: 'Недоліки',
@@ -752,6 +788,22 @@ export const uk = {
     hidePassword: 'Сховати пароль',
   },
 
+  validation: {
+    emailInvalid: 'Введіть коректну пошту, наприклад name@mail.com',
+    passwordRequired: 'Введіть пароль',
+    nameRequired: 'Вкажіть ім’я',
+    mismatch: 'Паролі не збігаються',
+    passwordHint:
+      '*пароль має містити щонайменше 8 символів, включно з латинськими літерами, цифрами та спец. символами',
+    passwordShort: 'Занадто короткий пароль',
+    passwordLatinOnly: 'Використовуйте лише латинські літери',
+    passwordBadChar: 'Один з символів не є доступним',
+    passwordNoLetter: 'Пароль має містити латинські літери',
+    passwordNoDigit: 'Додайте цифри',
+    passwordNoSpecial: 'Додайте спец. символи',
+    passwordWeak: 'Цей пароль не виглядає надійним',
+  },
+
   errors: {
     // заголовок картки помилки: одним рядком, у чому проблема
     titles: {
@@ -768,6 +820,11 @@ export const uk = {
       generic: 'Щось пішло не так',
     },
     network: 'Не вдалося зв’язатися із сервером. Перевірте інтернет і спробуйте ще раз.',
+    noConnection: 'Немає з’єднання із сервером',
+    unexpected: 'Неочікувана помилка',
+    crashTitle: 'Щось пішло не так',
+    crashText: 'Спробуйте оновити сторінку. Якщо помилка повториться — напишіть нам.',
+    reload: 'Оновити сторінку',
     changeModel: 'Змінити модель',
   },
 
@@ -784,5 +841,7 @@ export const uk = {
     close: 'Закрити',
     homeAria: 'Clarity — на головну',
     sessionExpired: 'Сесія завершилась — увійдіть ще раз',
+    loading: 'Завантаження…',
+    notFound: 'Сторінку не знайдено',
   },
 };

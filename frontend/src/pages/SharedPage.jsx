@@ -7,7 +7,7 @@ import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
 import SummaryDetails from '../components/SummaryDetails';
 import logo from '../assets/Clarity_logo_8.svg';
-import { uk } from '../copy/uk';
+import { copy, locale } from '../copy';
 import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import {
   USER_COLOR,
@@ -21,10 +21,10 @@ import {
 import { parseBlocks } from '../utils/markdown';
 import { describeSummary } from '../utils/summary';
 
-const t = uk.shared;
-const c = uk.chat;
+const t = copy.shared;
+const c = copy.chat;
 
-const dateFormat = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
 /** Дискусія за публічним посиланням: лише читання, без входу й без поля вводу. */
 export default function SharedPage() {
@@ -49,7 +49,7 @@ export default function SharedPage() {
   useEffect(() => {
     if (!discussion?.title) return undefined;
     const previous = document.title;
-    document.title = `${discussion.title} · ${uk.appName}`;
+    document.title = `${discussion.title} · ${copy.appName}`;
     return () => {
       document.title = previous;
     };
@@ -83,7 +83,7 @@ export default function SharedPage() {
       <header className="shared__bar">
         <Link to="/" className="shared__brand">
           <img src={logo} alt="" width="40" height="28" />
-          <span>{uk.appName}</span>
+          <span>{copy.appName}</span>
         </Link>
         <Link to={getToken() ? '/home' : '/register'} className="shared__cta">
           {getToken() ? t.ctaSignedIn : t.cta}

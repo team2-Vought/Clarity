@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useToasts } from './useToasts';
 import { ApiError } from '../api/client';
+import { copy } from '../copy';
 
 /**
  * Спільна логіка форм: значення, помилки полів, сабміт, тости.
@@ -68,7 +69,7 @@ export function useForm({ initialValues, validate, labels, onSubmit, invalidToas
             pushToast(err.message);
           }
         } else {
-          pushToast('Неочікувана помилка');
+          pushToast(copy.errors.unexpected);
         }
         onError?.(err);
       } finally {

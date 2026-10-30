@@ -1,9 +1,9 @@
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { TRAIT_COLORS } from './debateOptions';
 
 // Спільне для чату й публічного посилання: кольори, підписи етапів і позицій.
 
-const t = uk.chat;
+const t = copy.chat;
 
 export const DEVIL_COLOR = '#e5484d';
 export const MODERATOR_COLOR = '#fde3c6';

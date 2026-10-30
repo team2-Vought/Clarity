@@ -3,9 +3,9 @@ import PropTypes from 'prop-types';
 import Shot from './Shot';
 import { prefersReducedMotion } from './personaTones';
 import { ArrowUpIcon } from '../DebateIcons';
-import { uk } from '../../copy/uk';
+import { copy } from '../../copy';
 
-const t = uk.landing;
+const t = copy.landing;
 
 // Плейсхолдер поля «друкується» сам: підказує, про що можна спитати
 function useTypedPlaceholder(phrases, paused) {

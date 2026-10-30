@@ -1,10 +1,10 @@
 import PropTypes from 'prop-types';
 import { useOutletContext } from 'react-router-dom';
 import { PanelIcon } from './DebateIcons';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { useIsPhone } from '../hooks/useIsPhone';
 
-const t = uk.debate;
+const t = copy.debate;
 
 /**
  * Кнопка в куті області чату: на десктопі згортає / розгортає панель

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { googleConfig, googleLogin } from '../api/auth';
 import { useToasts } from '../hooks/useToasts';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.google;
+const t = copy.google;
 const SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 
 let scriptPromise = null;

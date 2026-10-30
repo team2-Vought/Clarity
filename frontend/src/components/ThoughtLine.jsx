@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { animate, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { copy } from '../copy';
 import './ThoughtLine.css';
 
 const EASE_OUT = [0.23, 1, 0.32, 1];
@@ -10,11 +11,7 @@ const GLYPH_DONE = 0.55;
 const EMPTY_STEPS = [];
 
 // цілі секунди: десяті частки лише мерехтіли й відволікали
-const fmt = (ds) => {
-  const seconds = Math.floor(ds / 10);
-  if (seconds < 60) return `${seconds} с`;
-  return `${Math.floor(seconds / 60)} хв ${String(seconds % 60).padStart(2, '0')} с`;
-};
+const fmt = (ds) => copy.chat.timerShort(Math.floor(ds / 10));
 
 // У DM Sans немає табличних цифр («1» удвічі вужча за «0»), тож кожна цифра
 // стоїть у комірці однакової ширини — інакше таймер і стрілка поруч тремтять
@@ -28,21 +25,7 @@ const fixedDigits = (text) =>
   );
 
 // «за 1 секунду / 2 секунди / 5 секунд» — знахідний відмінок після «за»
-const plural = (n, one, few, many) => {
-  const tens = n % 100;
-  if (n % 10 === 1 && tens !== 11) return one;
-  if (n % 10 >= 2 && n % 10 <= 4 && (tens < 12 || tens > 14)) return few;
-  return many;
-};
-
-const spoken = (ds) => {
-  const total = Math.floor(ds / 10);
-  const seconds = total % 60;
-  const minutes = Math.floor(total / 60);
-  const secondsText = `${seconds} ${plural(seconds, 'секунду', 'секунди', 'секунд')}`;
-  if (!minutes) return secondsText;
-  return `${minutes} ${plural(minutes, 'хвилину', 'хвилини', 'хвилин')} ${secondsText}`;
-};
+const spoken = (ds) => copy.chat.timerSpoken(Math.floor(ds / 10));
 
 export default function ThoughtLine({
   label = 'Thinking…',

@@ -50,7 +50,7 @@ import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
 import ParagraphReveal from '../components/ParagraphReveal';
 import SummaryDetails from '../components/SummaryDetails';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { citedIds, inlinePlain, parseBlocks, plainText } from '../utils/markdown';
 import { downloadSummaryPdf } from '../utils/summaryPdf';
@@ -70,13 +70,13 @@ import { isSendShortcut } from '../utils/devicePrefs';
 import logoStill from '../assets/Clarity_logo_8.svg';
 import logoThinking from '../assets/logo-thinking.svg';
 
-const t = uk.chat;
-const d = uk.debate;
+const t = copy.chat;
+const d = copy.debate;
 
 // помилка дії — текст і вид картки; мережеву пояснюємо своїми словами
 function actionFailure(err, fallback) {
   const kind = requestErrorKind(err);
-  return { kind, text: kind === 'network' ? uk.errors.network : err?.message || fallback };
+  return { kind, text: kind === 'network' ? copy.errors.network : err?.message || fallback };
 }
 
 // сталі елементи: ThoughtLine перезапускає анімації гліфа, коли той змінюється
@@ -457,7 +457,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!discussion?.title) return undefined;
     const previous = document.title;
-    document.title = `${discussion.title} · ${uk.appName}`;
+    document.title = `${discussion.title} · ${copy.appName}`;
     return () => {
       document.title = previous;
     };
@@ -1982,7 +1982,7 @@ export default function ChatPage() {
                     who={notice.who}
                     actions={noticeButtons.map((button) =>
                       button === 'model'
-                        ? { label: uk.errors.changeModel, onClick: openModelPanel }
+                        ? { label: copy.errors.changeModel, onClick: openModelPanel }
                         : button === 'finish'
                           ? { label: t.finish, onClick: handleFinish }
                           : { label: retryLabel, onClick: handleResume }

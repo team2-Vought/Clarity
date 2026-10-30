@@ -57,9 +57,11 @@ class FakeProvider:
     def _answer(self, prompt):
         if '«Так або ні»' in prompt:
             return 'так'
-        if '«Один із варіантів»' in prompt:
+        if '“Yes or no”' in prompt:
+            return 'yes'
+        if '«Один із варіантів»' in prompt or '“One of the options”' in prompt:
             for line in prompt.splitlines():
-                if line.startswith('Варіанти:'):
+                if line.startswith(('Варіанти:', 'Options:')):
                     options = [
                         item.strip()
                         for item in line.split(':', 1)[1].split(';')
