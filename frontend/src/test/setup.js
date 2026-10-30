@@ -1,6 +1,11 @@
 // Заглушки браузерних API, яких немає в jsdom; тести утиліт працюють у node і їх не потребують
 import { afterEach } from 'vitest';
 
+// тести перевіряють українські тексти: copy/index.js бере мову пристрою під час імпорту
+if (typeof navigator !== 'undefined') {
+  Object.defineProperty(navigator, 'languages', { value: ['uk-UA'], configurable: true });
+}
+
 if (typeof window !== 'undefined') {
   const { cleanup } = await import('@testing-library/react');
   await import('@testing-library/jest-dom/vitest');

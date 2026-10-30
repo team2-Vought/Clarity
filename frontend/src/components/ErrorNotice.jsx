@@ -14,7 +14,7 @@ import {
   Wallet01Icon,
   WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 // Вид помилки задає іконку, колір і заголовок: проблему видно ще до тексту
 const KINDS = {
@@ -42,7 +42,7 @@ function emphasize(text) {
 
 export default function ErrorNotice({ kind = 'generic', text = '', who = false, actions = [], className = '' }) {
   const { icon, tone } = KINDS[kind] || KINDS.generic;
-  const title = uk.errors.titles[kind] || uk.errors.titles.generic;
+  const title = copy.errors.titles[kind] || copy.errors.titles.generic;
 
   // сервер додає до тексту ім'я учасника («Учасник 2: …») — показуємо його міткою
   const match = who ? PARTICIPANT_PREFIX.exec(text) : null;

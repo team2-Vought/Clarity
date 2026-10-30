@@ -13,7 +13,7 @@ const quote = (text) =>
     .join('\n');
 
 /**
- * `labels` — тексти з copy (uk.chat), `phaseLabel(message)` — назва етапу,
+ * `labels` — тексти з copy (copy.chat), `phaseLabel(message)` — назва етапу,
  * `authorOf(message)` — ім'я автора так, як його видно в чаті.
  */
 export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf }) {

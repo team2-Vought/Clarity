@@ -2,6 +2,7 @@
 // натисканні, щоб не роздувати основний бандл. Вбудований Roboto має
 // кирилицю, а текст у PDF лишається виділеним і доступним для пошуку.
 
+import { locale } from '../copy';
 import { parseInline } from './markdown';
 
 const INK = '#121212';
@@ -53,7 +54,7 @@ const fileDate = (date) => date.toISOString().slice(0, 10);
 
 /**
  * Будує й завантажує PDF. `summary` — final_summary дискусії, `t` — тексти
- * uk.chat (підписи збігаються з тими, що на сторінці).
+ * copy.chat (підписи збігаються з тими, що на сторінці).
  */
 export async function downloadSummaryPdf({ question, summary, lists, sources, t }) {
   const pdfMake = await loadPdfMake();
@@ -130,7 +131,7 @@ export async function downloadSummaryPdf({ question, summary, lists, sources, t 
     defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.3, color: INK },
     content,
     footer: (page, pages) => ({
-      text: `${now.toLocaleDateString('uk-UA')} · ${page} / ${pages}`,
+      text: `${now.toLocaleDateString(locale)} · ${page} / ${pages}`,
       alignment: 'center',
       fontSize: 8,
       color: MUTED,

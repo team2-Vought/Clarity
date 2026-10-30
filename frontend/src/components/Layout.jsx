@@ -12,7 +12,7 @@ import Sidebar from './Sidebar';
 import { MenuIcon } from './DebateIcons';
 import { UNAUTHORIZED_EVENT } from '../api/client';
 import { useToasts } from '../hooks/useToasts';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { readThemeMode, writeThemeMode } from '../utils/devicePrefs';
 import { morphSidebar } from '../utils/sidebarMorph';
 
@@ -39,7 +39,7 @@ export default function Layout() {
   // прострочена сесія з будь-якого запиту веде на вхід, а не лишає сторінку з помилкою
   useEffect(() => {
     const handleUnauthorized = () => {
-      pushToast(uk.common.sessionExpired);
+      pushToast(copy.common.sessionExpired);
       navigate('/login', { replace: true });
     };
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
@@ -168,7 +168,7 @@ export default function Layout() {
         type="button"
         className="app-shell__burger"
         onClick={toggle}
-        aria-label={uk.nav.menu}
+        aria-label={copy.nav.menu}
         aria-expanded={!collapsed}
       >
         <MenuIcon />

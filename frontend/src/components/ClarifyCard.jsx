@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.debate;
+const t = copy.debate;
 const MAX_ANSWER = 500;
 
 /**

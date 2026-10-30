@@ -10,6 +10,8 @@ from contextvars import ContextVar
 
 from django.conf import settings
 
+from backend.i18n import L
+
 OPENAI_COMPATIBLE = 'openai_compatible'
 ANTHROPIC = 'anthropic'
 
@@ -332,16 +334,50 @@ def _all_specs():
         yield item
 
 
+# Описи моделей англійською: ключ — український опис із каталогу
+NOTES_EN = {
+    'Найекономніша актуальна модель OpenAI для частих викликів.': 'The most economical current OpenAI model for frequent calls.',
+    'Сильна модель OpenAI для складних міркувань.': 'A strong OpenAI model for complex reasoning.',
+    'Баланс швидкості та якості для дебатів.': 'A balance of speed and quality for debates.',
+    'Швидка й дешева модель для великої кількості реплік.': 'A fast, cheap model for lots of replies.',
+    'Найсильніша актуальна модель Anthropic для складних рішень.': 'The strongest current Anthropic model for complex decisions.',
+    'Швидка модель Gemini з великим контекстом.': 'A fast Gemini model with a large context.',
+    'Найдешевша актуальна модель Gemini.': 'The cheapest current Gemini model.',
+    'Потужна відкрита модель на дуже швидкій інфраструктурі Groq.': 'A powerful open model on Groq’s very fast infrastructure.',
+    'Швидка й дешева модель Groq.': 'A fast, cheap Groq model.',
+    'Швидка мультимодальна модель Qwen на Groq.': 'A fast multimodal Qwen model on Groq.',
+    'Відкрита модель на екстремально швидкій інфраструктурі Cerebras.': 'An open model on Cerebras’ extremely fast infrastructure.',
+    'Актуальна швидка модель DeepSeek з великим контекстом.': 'A current fast DeepSeek model with a large context.',
+    'Сильніша модель DeepSeek для складних міркувань.': 'A stronger DeepSeek model for complex reasoning.',
+    'Флагманська відкрита модель Mistral.': 'Mistral’s flagship open model.',
+    'Збалансована модель Mistral.': 'A balanced Mistral model.',
+    'Швидка й дешева модель Mistral.': 'A fast, cheap Mistral model.',
+    'OpenRouter автоматично обирає доступну модель під запит.': 'OpenRouter automatically picks an available model for the request.',
+    'Модель OpenAI через OpenRouter.': 'An OpenAI model via OpenRouter.',
+    'Модель Anthropic через OpenRouter.': 'An Anthropic model via OpenRouter.',
+    'Локальна модель через Ollama; ключ не потрібен.': 'A local model via Ollama; no key needed.',
+    'Власний OpenAI-сумісний endpoint із налаштувань.': 'Your own OpenAI-compatible endpoint from the settings.',
+}
+
+PROVIDER_LABELS_EN = {'ollama': 'Ollama (local)'}
+
+
+def provider_label(provider_id):
+    label = PROVIDERS[provider_id]['label']
+    return L(label, PROVIDER_LABELS_EN.get(provider_id, label))
+
+
 def _public_spec(spec):
     provider = PROVIDERS[spec['provider_id']]
     available = _is_available(spec)
+    notes = spec.get('notes', '')
     return {
         'id': spec['id'],
         'provider_id': spec['provider_id'],
-        'provider': provider['label'],
+        'provider': provider_label(spec['provider_id']),
         'model': spec['model'],
         'label': spec['label'],
-        'notes': spec.get('notes', ''),
+        'notes': L(notes, NOTES_EN.get(notes, notes)),
         'available': available,
         'requires_key': provider['requires_key'],
         'key_env': provider.get('key_env', ''),
@@ -361,7 +397,7 @@ def resolve_model(model_id):
             resolved['requires_key'] = PROVIDERS[spec['provider_id']]['requires_key']
             resolved['key_env'] = PROVIDERS[spec['provider_id']].get('key_env', '')
             resolved['available'] = _is_available(spec)
-            resolved['provider'] = PROVIDERS[spec['provider_id']]['label']
+            resolved['provider'] = provider_label(spec['provider_id'])
             return resolved
     return None
 
@@ -397,7 +433,7 @@ def catalog():
         providers.append(
             {
                 'id': provider_id,
-                'label': provider['label'],
+                'label': provider_label(provider_id),
                 'available': available,
                 'requires_key': provider['requires_key'],
                 'key_env': provider.get('key_env', ''),
@@ -410,10 +446,12 @@ def catalog():
         'providers': providers,
         'recommended': recommended,
         'default_model': default_model_id(),
-        'note': (
+        'note': L(
             'Показано лише реальні моделі. Для віддалених моделей додайте власний '
             'API-ключ у налаштуваннях або в backend/.env; Ollama працює локально '
-            'без ключа.'
+            'без ключа.',
+            'Only real models are shown. For remote models add your own API key in '
+            'the settings or in backend/.env; Ollama runs locally without a key.',
         ),
     }
 
@@ -422,7 +460,7 @@ def model_label(model_id):
     """Людська назва моделі для повідомлень користувачу."""
     spec = resolve_model(model_id) if model_id else None
     if spec is None:
-        return model_id or 'модель'
+        return model_id or L('модель', 'model')
     return f"{spec['provider']} — {spec['label']}"
 
 

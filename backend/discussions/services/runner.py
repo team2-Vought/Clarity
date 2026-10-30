@@ -19,6 +19,8 @@ import time
 from django.conf import settings
 from django.db import connection
 
+from backend.i18n import L, using
+
 from ..models import Discussion
 from . import engine, usage
 from .catalog import user_context
@@ -57,12 +59,21 @@ def over_daily_limit(user):
     return usage.over_reply_limit(user)
 
 
-def _fail_with_limit(discussion_id):
+def daily_limit_message():
     limit = int(getattr(settings, 'DISCUSSION_DAILY_ADVANCE_LIMIT', 0) or 0)
-    Discussion.objects.filter(pk=discussion_id).update(
+    return L(
+        f'Денний ліміт AI-відповідей вичерпано ({limit}). Спробуйте завтра.',
+        f'The daily limit of AI replies has been reached ({limit}). Try again tomorrow.',
+    )
+
+
+def _fail_with_limit(discussion):
+    with using(discussion.language):
+        message = daily_limit_message()
+    Discussion.objects.filter(pk=discussion.pk).update(
         status=Discussion.Status.FAILED,
         error_code='daily_limit',
-        error_public=f'Денний ліміт AI-відповідей вичерпано ({limit}). Спробуйте завтра.',
+        error_public=message,
     )
 
 
@@ -77,7 +88,7 @@ def run(discussion_id, provider_factory=None):
         if discussion.stop_requested or discussion.awaiting_clarification:
             return
         if over_daily_limit(discussion.user):
-            _fail_with_limit(discussion_id)
+            _fail_with_limit(discussion)
             return
         try:
             # моделі викликаються з власними ключами автора дискусії

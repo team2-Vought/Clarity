@@ -3,9 +3,9 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import { InlineText } from './MessageMarkdown';
 import { describeVerdict } from '../utils/summary';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
-const t = uk.chat;
+const t = copy.chat;
 
 /**
  * Зміст підсумку дискусії. Головна відповідь виглядає по-різному залежно від
@@ -85,7 +85,7 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
               <span className="chat__summary-label">{t.summaryAgreement}</span>
               <span className="chat__summary-stat-value">
                 {view.agreement.agree}
-                <small>{` з ${view.agreement.total}`}</small>
+                <small>{t.summaryAgreementOf(view.agreement.total)}</small>
               </span>
             </div>
           )}

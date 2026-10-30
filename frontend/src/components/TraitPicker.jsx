@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { SmileIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { ChevronIcon } from './DebateIcons';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { useFloatingMenu } from '../hooks/useFloatingMenu';
 import { usePickerMenu } from '../hooks/usePickerMenu';
 
-const t = uk.debate;
+const t = copy.debate;
 
 // меню трохи ширше за кнопку — на ширину поля анкети, як у RolePicker
 const OUTSET = 10;

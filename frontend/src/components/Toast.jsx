@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { ToastsContext, useToasts } from '../hooks/useToasts';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -39,7 +39,7 @@ function ToastItem({ toast, onClose }) {
     <div className="toast" role="alert">
       <span className="toast__dot" aria-hidden="true" />
       <p>{toast.text}</p>
-      <button type="button" className="toast__close" onClick={() => onClose(toast.id)} aria-label={uk.common.close}>
+      <button type="button" className="toast__close" onClick={() => onClose(toast.id)} aria-label={copy.common.close}>
         ×
       </button>
     </div>

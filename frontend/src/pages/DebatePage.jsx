@@ -34,13 +34,13 @@ import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
 import RolePicker from '../components/RolePicker';
 import TraitPicker from '../components/TraitPicker';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
 
-const t = uk.debate;
+const t = copy.debate;
 
 // Фраза заголовка обирається випадково один раз на завантаження сторінки
 const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
@@ -116,7 +116,8 @@ const customTraitsOf = (list) => [
 
 // Ім'я «Учасник N» сервер дає сам, тож у збереженому складі воно зайве:
 // інакше після перестановки учасників номер не збігався б з позицією
-const isDefaultName = (name) => /^Учасник \d+$/.test(name || '');
+// типове ім'я будь-якою мовою: команду могли зберегти до зміни мови
+const isDefaultName = (name) => /^(Учасник|Participant) \d+$/.test(name || '');
 
 const MAX_OPTIONS = 8;
 const OPTION_LETTERS = 'ABCDEFGH';
@@ -218,7 +219,7 @@ export default function DebatePage() {
   // мережеву помилку пояснюємо своїми словами, решту — текстом сервера
   const failRequest = useCallback((err, fallback) => {
     const kind = requestErrorKind(err);
-    const text = kind === 'network' ? uk.errors.network : err?.message || fallback;
+    const text = kind === 'network' ? copy.errors.network : err?.message || fallback;
     setFailure({ kind, text });
     setError(text);
   }, []);

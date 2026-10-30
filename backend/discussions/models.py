@@ -57,6 +57,8 @@ class Discussion(models.Model):
     stop_requested = models.BooleanField('зупинку запитано', default=False)
     pinned = models.BooleanField('закріплено', default=False)
     archived = models.BooleanField('в архіві', default=False)
+    # мова, якою створено дискусію: нею пишуть AI і рушій (uk | en)
+    language = models.CharField('мова', max_length=5, default='uk')
     # Публічне посилання лише для читання: None — доступу немає
     share_token = models.UUIDField(
         'токен публічного посилання', null=True, blank=True, unique=True, editable=False

@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import PropTypes from 'prop-types';
-import { uk } from '../copy/uk';
+import { copy } from '../copy';
 
 const EyeIcon = ({ off }) => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -37,7 +37,7 @@ export default function Field({ label, type = 'text', error, hint, placeholder, 
             type="button"
             className="field__eye"
             onClick={() => setVisible((v) => !v)}
-            aria-label={visible ? uk.field.hidePassword : uk.field.showPassword}
+            aria-label={visible ? copy.field.hidePassword : copy.field.showPassword}
             aria-pressed={visible}
           >
             <EyeIcon off={!visible} />
