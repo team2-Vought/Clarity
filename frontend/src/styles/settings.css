@@ -141,7 +141,9 @@
 .settings__main {
   min-width: 0;
   min-height: 0;
-  padding: clamp(24px, 4vh, 44px) clamp(20px, 4vw, 56px) 48px;
+  /* нижній відступ — змінна: липка кнопка «Зберегти» опускається на всю його висоту */
+  --main-pad-bottom: 48px;
+  padding: clamp(24px, 4vh, 44px) clamp(20px, 4vw, 56px) var(--main-pad-bottom);
   overflow-y: auto;
   overscroll-behavior-y: none;
   background: var(--main-bg);
@@ -1037,10 +1039,14 @@
   padding: 12px 8px;
 }
 
-/* кнопка збереження лишається видимою, поки людина заповнює довгу форму */
+/* кнопка збереження лишається видимою, поки людина заповнює довгу форму.
+   Липкий елемент зупиняється над нижнім відступом області прокрутки, тож
+   опускаємо його на цей відступ — інакше під кнопкою видно форму */
 .settings__save-bar--sticky {
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--main-pad-bottom, 0px));
+  /* під кнопкою — звичайний відступ, а на телефоні ще й місце під смугу жестів */
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 1;
   background: linear-gradient(to bottom, transparent, var(--main-bg) 30%);
 }
@@ -1156,7 +1162,8 @@
   }
 
   .settings__main {
-    padding: 12px 12px max(32px, env(safe-area-inset-bottom));
+    --main-pad-bottom: max(32px, env(safe-area-inset-bottom));
+    padding: 12px 12px var(--main-pad-bottom);
   }
 
   .settings__sheet {
