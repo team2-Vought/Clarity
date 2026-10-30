@@ -65,6 +65,7 @@ import {
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatSummary from '../components/chat/ChatSummary';
 import NotifyOffer from '../components/chat/NotifyOffer';
+import AttachmentChip from '../components/AttachmentChip';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
@@ -1402,6 +1403,15 @@ export default function ChatPage() {
                     </dl>
                   )}
                 </div>
+                {discussion.attachments?.length > 0 && (
+                  <div className="chat__attachments" role="list" aria-label={t.attachments}>
+                    {discussion.attachments.map((file) => (
+                      <span key={file.id} role="listitem">
+                        <AttachmentChip name={file.name} kind={file.kind} title={file.preview || file.name} />
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {discussion.profile_used && (
                   // модератор і учасники знають про людину з «Про мене» — показуємо, що це враховано
                   <p className="chat__profile-note">

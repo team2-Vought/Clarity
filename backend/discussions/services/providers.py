@@ -274,6 +274,28 @@ class OpenAICompatibleProvider(BaseProvider):
             if isinstance(content, str):
                 yield content
 
+    def complete_image(self, *, system, prompt, image, mime):
+        """Відповідь на зображення (base64) — для фото документів."""
+        headers = {'Content-Type': 'application/json'}
+        if self.api_key:
+            headers['Authorization'] = f'Bearer {self.api_key}'
+        payload = {
+            'model': self.model,
+            'temperature': 0,
+            'max_tokens': settings.LLM_MAX_OUTPUT_TOKENS * 2,
+            'messages': [
+                {'role': 'system', 'content': system},
+                {
+                    'role': 'user',
+                    'content': [
+                        {'type': 'text', 'text': prompt},
+                        {'type': 'image_url', 'image_url': {'url': f'data:{mime};base64,{image}'}},
+                    ],
+                },
+            ],
+        }
+        return self._complete_plain(headers, payload, False)
+
     def _complete_plain(self, headers, payload, json_mode):
         try:
             response = self._post(headers, payload)
@@ -340,6 +362,21 @@ class AnthropicProvider(BaseProvider):
             'messages': [{'role': 'user', 'content': prompt}],
         }
         return headers, payload
+
+    def complete_image(self, *, system, prompt, image, mime):
+        """Відповідь на зображення (base64) — для фото документів."""
+        headers, payload = self._request(system, prompt, 0)
+        payload['max_tokens'] = settings.LLM_MAX_OUTPUT_TOKENS * 2
+        payload['messages'] = [
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'image', 'source': {'type': 'base64', 'media_type': mime, 'data': image}},
+                    {'type': 'text', 'text': prompt},
+                ],
+            }
+        ]
+        return self._complete_plain(headers, payload)
 
     def complete(self, *, system, prompt, temperature=0.7, json_mode=False, on_text=None):
         # Anthropic не має окремого JSON-режиму: формат задає промпт.

@@ -17,7 +17,7 @@ from accounts.about import snapshot as about_snapshot
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
-from .models import Discussion, Message, Team
+from .models import Attachment, Discussion, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
@@ -264,6 +264,10 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             # мова інтерфейсу автора: нею відповідатимуть AI
             language=current(),
         )
+        # вкладення людини, що ще ні до чого не прив'язані, стають частиною питання
+        Attachment.objects.filter(
+            user=request.user, pk__in=data['attachments'], discussion__isnull=True
+        ).update(discussion=discussion)
         # одразу створюємо повідомлення користувача як початок чату
         discussion.messages.create(
             seq=1,

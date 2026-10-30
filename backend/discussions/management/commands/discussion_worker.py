@@ -12,6 +12,7 @@
 import logging
 import signal
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
@@ -23,6 +24,7 @@ from django.utils import timezone
 
 from discussions.models import Discussion
 from discussions.services import engine, runner
+from discussions.services.reminders import send_due_reminders
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +117,17 @@ class Command(BaseCommand):
         self.stdout.write(f'Discussion worker started (concurrency {concurrency}).')
 
         running = {}
+        # листи журналу рішень — заодно з дискусіями, щоб не заводити окремий cron
+        reminders_every = float(settings.DISCUSSION_REMINDER_INTERVAL)
+        next_reminders = time.monotonic()
         with ThreadPoolExecutor(max_workers=concurrency, thread_name_prefix='discussion') as pool:
             while not stopping.is_set():
+                if reminders_every > 0 and time.monotonic() >= next_reminders:
+                    next_reminders = time.monotonic() + reminders_every
+                    try:
+                        send_due_reminders()
+                    except Exception:
+                        logger.exception('Decision reminders failed')
                 for pk in [pk for pk, future in running.items() if future.done()]:
                     running.pop(pk)
                 free = concurrency - len(running)

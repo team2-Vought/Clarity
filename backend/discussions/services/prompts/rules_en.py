@@ -2,7 +2,7 @@
 
 
 DATA_TAGS_EN = (
-    '<user_question>, <user_profile>, <user_name>, <user_style>, '
+    '<user_question>, <user_profile>, <user_documents>, <user_name>, <user_style>, '
     '<debate_history> and <web_sources>'
 )
 

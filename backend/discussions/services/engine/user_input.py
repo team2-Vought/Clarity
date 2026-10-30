@@ -14,6 +14,7 @@ from backend.i18n import L
 
 from ...models import Discussion, Message
 from ...personas import moderator
+from ..attachments import documents_for_prompt
 from .. import prompts, usage
 from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG
 from .parsing import _text, normalize_clarify
@@ -120,7 +121,11 @@ def clarify(discussion, provider_factory=None):
         model_id='',
         system=prompts.clarify_system(),
         prompt=prompts.clarify_prompt(
-            discussion.question, mode, options, profile=discussion.profile
+            discussion.question,
+            mode,
+            options,
+            profile=discussion.profile,
+            documents=documents_for_prompt(discussion.attachments.all()),
         ),
         temperature=JSON_TEMPERATURE,
         json_kind='clarify',

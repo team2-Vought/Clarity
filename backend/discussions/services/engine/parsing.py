@@ -229,6 +229,9 @@ def normalize_summary(data, best_solution, mode, options):
         ),
         'confidence': _confidence(data.get('confidence')),
         'recommendation': _text(data.get('recommendation'), limit=2000),
+        # план дій: кроки на тиждень і сигнали, коли варто передумати
+        'next_steps': _text_list(data.get('next_steps'), limit=5, item_limit=300),
+        'change_triggers': _text_list(data.get('change_triggers'), limit=4, item_limit=300),
     }
     best_answer = _answer(best_solution.get('answer'), mode, options)
     answer = (

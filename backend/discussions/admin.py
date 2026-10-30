@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DailyUsage, Discussion, Message, Team
+from .models import DailyUsage, Decision, Discussion, Message, Team
 
 
 class MessageInline(admin.StackedInline):
@@ -39,3 +39,14 @@ class DailyUsageAdmin(admin.ModelAdmin):
 class TeamAdmin(admin.ModelAdmin):
     list_display = ('name', 'user', 'updated_at')
     search_fields = ('name', 'user__email')
+
+
+@admin.register(Decision)
+class DecisionAdmin(admin.ModelAdmin):
+    list_display = ('decision_short', 'user', 'check_at', 'outcome', 'reviewed_at')
+    list_filter = ('outcome',)
+    search_fields = ('decision', 'question', 'user__email')
+
+    @admin.display(description='Рішення')
+    def decision_short(self, obj):
+        return obj.decision[:60]

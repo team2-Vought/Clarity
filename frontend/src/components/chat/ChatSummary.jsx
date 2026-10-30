@@ -11,6 +11,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import SummaryDetails from '../SummaryDetails';
+import JournalCard from './JournalCard';
 import { SourceItems, SourcesLabel } from './Sources';
 import { copy } from '../../copy';
 import { inlinePlain } from '../../utils/markdown';
@@ -61,8 +62,13 @@ export default function ChatSummary({
     summaryLists.forEach(({ title, items }) => {
       lines.push('', `${title}:`, ...items.map((item) => `• ${inlinePlain(item)}`));
     });
-    if (summary?.recommendation) {
+    if (summaryView.plan.length) {
+      lines.push('', `${t.summaryPlan}:`, ...summaryView.plan.map((item, i) => `${i + 1}. ${inlinePlain(item)}`));
+    } else if (summary?.recommendation) {
       lines.push('', `${t.summaryNextStep}: ${inlinePlain(summary.recommendation)}`);
+    }
+    if (summaryView.triggers.length) {
+      lines.push('', `${t.summaryTriggers}:`, ...summaryView.triggers.map((item) => `• ${inlinePlain(item)}`));
     }
     if (discussion.sources?.length) {
       lines.push('', `${t.sources}:`);
@@ -200,6 +206,9 @@ export default function ChatSummary({
           {copyState === 'error' ? t.copyError : t.pdfError}
         </p>
       )}
+      <div style={summaryStep()}>
+        <JournalCard discussion={discussion} />
+      </div>
     </section>
   );
 }

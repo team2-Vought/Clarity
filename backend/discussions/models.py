@@ -241,3 +241,106 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Decision(models.Model):
+    """Запис журналу рішень: що людина вирішила й як воно вийшло.
+
+    Через обраний час Clarity питає «Як воно?» — у застосунку й листом.
+    Питання, рішення, кроки й тригери скопійовано з дискусії: запис лишається
+    осмисленим, навіть якщо дискусію потім видалили.
+    """
+
+    class Outcome(models.TextChoices):
+        GOOD = 'good', 'Добре'
+        MIXED = 'mixed', 'По-різному'
+        BAD = 'bad', 'Погано'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='decisions',
+        verbose_name='користувач',
+    )
+    discussion = models.OneToOneField(
+        Discussion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='journal_entry',
+        verbose_name='дискусія',
+    )
+    question = models.TextField('запитання', max_length=6000)
+    decision = models.TextField('рішення', max_length=2000)
+    # план на тиждень із висновку й номери вже зроблених кроків
+    steps = models.JSONField('кроки', default=list, blank=True)
+    done_steps = models.JSONField('зроблені кроки', default=list, blank=True)
+    triggers = models.JSONField('коли передумати', default=list, blank=True)
+    # мова листа-нагадування — та, якою йшла дискусія
+    language = models.CharField('мова', max_length=5, default='uk')
+    check_at = models.DateTimeField('коли спитати «Як воно?»')
+    reminded_at = models.DateTimeField('лист надіслано', null=True, blank=True)
+    outcome = models.CharField('як вийшло', max_length=8, choices=Outcome.choices, blank=True)
+    reflection = models.TextField('що зрозумів', max_length=1000, blank=True)
+    reviewed_at = models.DateTimeField('підсумовано', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'рішення'
+        verbose_name_plural = 'журнал рішень'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'check_at']),
+            models.Index(fields=['reviewed_at', 'reminded_at', 'check_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.decision[:50]} ({self.user})'
+
+
+class Attachment(models.Model):
+    """Документ, доданий до питання: оффер, договір, резюме, оголошення.
+
+    Зберігається лише витягнутий текст — самого файлу сервер не тримає. До
+    створення дискусії вкладення ні до чого не прив'язане; такі «сироти»
+    прибираються через добу.
+    """
+
+    class Kind(models.TextChoices):
+        PDF = 'pdf', 'PDF'
+        DOCX = 'docx', 'Word'
+        TEXT = 'text', 'Текст'
+        IMAGE = 'image', 'Фото'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='користувач',
+    )
+    discussion = models.ForeignKey(
+        Discussion,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='attachments',
+        verbose_name='дискусія',
+    )
+    name = models.CharField('назва файлу', max_length=200)
+    kind = models.CharField('тип', max_length=8, choices=Kind.choices)
+    size = models.PositiveIntegerField('розмір, байт')
+    text = models.TextField('текст документа')
+    # текст обрізано до ліміту — моделі бачать не весь документ
+    truncated = models.BooleanField('обрізано', default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'вкладення'
+        verbose_name_plural = 'вкладення'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.name

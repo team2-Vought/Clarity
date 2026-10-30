@@ -102,6 +102,8 @@ class FakeProvider:
             'dissenting_points': [],
             'confidence': 80,
             'recommendation': 'Тестова рекомендація',
+            'next_steps': ['Порахувати бюджет на місяць', 'Поговорити з керівником'],
+            'change_triggers': ['Якщо зарплата буде меншою за обіцяну — переглянути рішення'],
         }
         answer = self._answer(prompt)
         if answer:

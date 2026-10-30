@@ -107,8 +107,17 @@ export async function downloadSummaryPdf({ question, summary, lists, sources, t 
     });
   }
 
-  if (summary.recommendation) {
+  const plan = (summary.next_steps || []).filter(Boolean);
+  if (plan.length) {
+    content.push({ text: t.summaryPlan, bold: true, margin: [0, 0, 0, 6] });
+    content.push({ ol: plan.map((item) => ({ text: richText(item) })), margin: [0, 0, 0, 12] });
+  } else if (summary.recommendation) {
     content.push(labelled(t.summaryNextStep, summary.recommendation));
+  }
+  const triggers = (summary.change_triggers || []).filter(Boolean);
+  if (triggers.length) {
+    content.push({ text: t.summaryTriggers, bold: true, margin: [0, 0, 0, 6] });
+    content.push({ ul: triggers.map((item) => ({ text: richText(item) })), markerColor: MUTED, margin: [0, 0, 0, 12] });
   }
 
   if (sources?.length) {

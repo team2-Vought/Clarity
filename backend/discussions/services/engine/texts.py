@@ -122,8 +122,19 @@ def _final_text(summary):
         L('Окремі думки', 'Dissenting opinions'),
         _bullets(_text_list(summary.get('dissenting_points'), limit=4)),
     ))
+    steps = _text_list(summary.get('next_steps'), limit=5)
+    if steps:
+        parts.append(_section(
+            L('План на тиждень', 'Plan for the week'),
+            '\n'.join(f'{index}. {step}' for index, step in enumerate(steps, 1)),
+        ))
+    else:
+        parts.append(_section(
+            L('Що робити далі', 'What to do next'), _text(summary.get('recommendation'), limit=2000)
+        ))
     parts.append(_section(
-        L('Що робити далі', 'What to do next'), _text(summary.get('recommendation'), limit=2000)
+        L('Коли варто передумати', 'When to reconsider'),
+        _bullets(_text_list(summary.get('change_triggers'), limit=4)),
     ))
     return '\n\n'.join(part for part in parts if part).strip()
 

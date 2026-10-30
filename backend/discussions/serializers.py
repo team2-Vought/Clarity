@@ -3,7 +3,7 @@ import re
 from django.conf import settings
 from rest_framework import serializers
 
-from backend.i18n import lazy_L
+from backend.i18n import L, lazy_L
 
 from .models import Discussion, Message, Team
 from .personas import (
@@ -16,6 +16,8 @@ from .personas import (
     QUESTION_MAX,
     QUESTION_MIN,
 )
+from .attachment_views import attachment_payload
+from .journal import journal_state
 from .services import engine, runner, search
 from .services.catalog import resolve_model
 
@@ -157,6 +159,19 @@ class CreateDiscussionSerializer(serializers.Serializer):
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
     # врахувати «Про мене»; без поля — як задано в самому профілі
     use_profile = serializers.BooleanField(required=False)
+    # завантажені заздалегідь вкладення (POST /api/attachments/)
+    attachments = serializers.ListField(
+        child=serializers.UUIDField(), required=False, default=list
+    )
+
+    def validate_attachments(self, value):
+        value = list(dict.fromkeys(value))
+        if len(value) > settings.ATTACHMENTS_MAX:
+            raise serializers.ValidationError(L(
+                f'Можна додати не більше {settings.ATTACHMENTS_MAX} файлів',
+                f'You can add no more than {settings.ATTACHMENTS_MAX} files',
+            ))
+        return value
 
     def validate_web_search(self, value):
         if value and not search.is_available():
@@ -386,6 +401,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
     live = serializers.SerializerMethodField()
     # сам профіль клієнту не потрібен — лише те, що його враховано
     profile_used = serializers.SerializerMethodField()
+    journal = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
         queryset = obj.messages.order_by('seq')
@@ -399,6 +416,12 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_profile_used(self, obj):
         return bool(obj.profile)
+
+    def get_journal(self, obj):
+        return journal_state(obj)
+
+    def get_attachments(self, obj):
+        return [attachment_payload(item) for item in obj.attachments.all()]
 
     def get_title(self, obj):
         return discussion_title(obj.question)
@@ -439,6 +462,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'clarifications',
             'clarify_questions',
             'profile_used',
+            'journal',
+            'attachments',
             'personas',
             'rounds',
             'until_consensus',

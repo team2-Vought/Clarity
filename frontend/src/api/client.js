@@ -44,7 +44,11 @@ export function setToken(token) {
 
 export async function request(path, { method = 'GET', body, auth = false, signal } = {}) {
   // мова інтерфейсу: нею сервер пише помилки, а AI — відповіді нових дискусій
-  const headers = { 'Content-Type': 'application/json', 'Accept-Language': lang };
+  // файли йдуть як multipart: заголовок із межею частин ставить сам браузер
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  const headers = isForm
+    ? { 'Accept-Language': lang }
+    : { 'Content-Type': 'application/json', 'Accept-Language': lang };
   if (auth) {
     const token = getToken();
     if (token) headers.Authorization = `Token ${token}`;
@@ -55,7 +59,7 @@ export async function request(path, { method = 'GET', body, auth = false, signal
     res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || isForm ? body : JSON.stringify(body),
       signal,
     });
   } catch (err) {

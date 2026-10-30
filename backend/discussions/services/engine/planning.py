@@ -8,6 +8,7 @@ from backend.i18n import L
 
 from ...models import Discussion, Message
 from ...personas import devil, moderator
+from ..attachments import documents_for_prompt
 from .. import prompts, search
 from .base import DEFAULT_TEMPERATURE, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG
 from .context import (
@@ -82,6 +83,7 @@ def _prepare_step(discussion):
         'consensus': discussion.until_consensus,
         'sources': sources,
         'profile': discussion.profile,
+        'documents': documents_for_prompt(discussion.attachments.all()),
     }
 
     if phase == Discussion.Phase.OPENING:

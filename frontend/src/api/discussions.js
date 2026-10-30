@@ -31,6 +31,7 @@ export function createDiscussion({
   moderatorModel,
   devilModel,
   useProfile,
+  attachments = [],
 }) {
   return request('/api/discussions/', {
     method: 'POST',
@@ -47,6 +48,7 @@ export function createDiscussion({
       devil_model: devilModel,
       // без значення сервер бере вибір із самого профілю
       ...(useProfile === undefined ? {} : { use_profile: useProfile }),
+      attachments,
     },
   });
 }

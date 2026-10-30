@@ -249,6 +249,8 @@ REST_FRAMEWORK = {
         'google_login': '20/min',
         # лист на чужу пошту — не даємо розсилати їх потоком
         'password_reset': '5/min',
+        # фото читає модель — не даємо завантажувати потоком
+        'attachments': '20/min',
     },
 }
 
@@ -287,6 +289,8 @@ if DISCUSSION_RUNNER not in {'thread', 'worker'}:
     raise ImproperlyConfigured('DISCUSSION_RUNNER must be "thread" or "worker".')
 DISCUSSION_WORKER_CONCURRENCY = int(os.getenv('DISCUSSION_WORKER_CONCURRENCY', '4'))
 DISCUSSION_WORKER_POLL_SECONDS = float(os.getenv('DISCUSSION_WORKER_POLL_SECONDS', '1'))
+# як часто воркер надсилає листи журналу рішень, секунд (0 — не надсилати)
+DISCUSSION_REMINDER_INTERVAL = float(os.getenv('DISCUSSION_REMINDER_INTERVAL', '600'))
 # Фоновий раннер дискусій. SYNC=1 — виконувати кроки в самому запиті (тести).
 DISCUSSION_RUNNER_SYNC = os.getenv('DISCUSSION_RUNNER_SYNC', '').lower() in {'1', 'true', 'yes'}
 DISCUSSION_RUNNER_MAX_RETRIES = int(os.getenv('DISCUSSION_RUNNER_MAX_RETRIES', '2'))
@@ -299,6 +303,12 @@ DISCUSSION_RUNNER_RETRY_DELAY_SECONDS = float(
 DISCUSSION_AI_STATUS = os.getenv('DISCUSSION_AI_STATUS', 'true').lower() in {'1', 'true', 'yes'} and (
     'test' not in sys.argv[1:2]
 )
+
+# Вкладення до питання: розмір файлу, скільки файлів на дискусію і скільки
+# їхнього тексту разом іде в кожен промпт (решта обрізається).
+ATTACHMENTS_MAX_BYTES = 10 * 1024 * 1024
+ATTACHMENTS_MAX = int(os.getenv('ATTACHMENTS_MAX', '3'))
+ATTACHMENTS_PROMPT_CHARS = int(os.getenv('ATTACHMENTS_PROMPT_CHARS', '12000'))
 
 # Пошук в інтернеті для моделей. SEARCH_PROVIDER: auto | tavily | brave |
 # searxng | wikipedia | off. auto — перший налаштований, інакше Wikipedia.

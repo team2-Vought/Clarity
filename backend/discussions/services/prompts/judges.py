@@ -72,11 +72,13 @@ def synthesis_prompt(
     early_stop=False,
     sources=None,
     profile=None,
+    documents=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
         profile=profile,
+        documents=documents,
         consensus=consensus,
     )
     if early_stop:
@@ -135,12 +137,14 @@ def devil_prompt(
     consensus=False,
     sources=None,
     profile=None,
+    documents=None,
     can_search=False,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
         profile=profile,
+        documents=documents,
         consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
@@ -201,11 +205,13 @@ def final_prompt(
     consensus=False,
     sources=None,
     profile=None,
+    documents=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
         sources=sources,
         profile=profile,
+        documents=documents,
         consensus=consensus,
     )
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
@@ -233,7 +239,15 @@ def final_prompt(
         'факти надійні й серйозних заперечень не лишилось; 50–70 — коли багато '
         'залежить від обставин, яких ви не знаєте. '
         'recommendation — конкретний перший крок, який людина може зробити '
-        'найближчими днями, а не загальна порада. ',
+        'найближчими днями, а не загальна порада. '
+        'next_steps — план на найближчі 7 днів: 3–5 конкретних дій для саме цієї '
+        'людини, кожна починається з дієслова й така, що її можна виконати й '
+        'позначити зробленою («Порахувати…», «Подзвонити…», «Спитати в…»); '
+        'перша дія — та сама, що в recommendation. Без загальників на кшталт '
+        '«подумати» чи «зважити все». '
+        'change_triggers — 2–4 сигнали, за яких варто переглянути рішення: що '
+        'людина може дізнатися чи що може статися («якщо…, то…»). Конкретні '
+        'й перевірювані, а не «якщо обставини зміняться». ',
         'The participants have already responded to AI Devil’s criticism (see the '
         'end of the history). Weigh the criticism and their responses and decide '
         'whether the conclusion holds up. '
@@ -251,7 +265,14 @@ def final_prompt(
         'level of agreement: 85+ only when the facts are reliable and no serious '
         'objections remain; 50–70 when a lot depends on circumstances you do not know. '
         'recommendation — a concrete first step the person can take in the next '
-        'few days, not general advice. ',
+        'few days, not general advice. '
+        'next_steps — a plan for the next 7 days: 3–5 concrete actions for this '
+        'particular person, each starting with a verb, that can be done and ticked '
+        'off (“Calculate…”, “Call…”, “Ask…”); the first action is the same as in '
+        'recommendation. No vague items like “think it over” or “weigh everything”. '
+        'change_triggers — 2–4 signals that should make the person reconsider the '
+        'decision: what they may learn or what may happen (“if…, then…”). Concrete '
+        'and checkable, not “if circumstances change”. ',
     )
     schema = L(
         'Відповідай СУВОРО одним JSON-об’єктом:\n'
@@ -260,13 +281,17 @@ def final_prompt(
         '"revision": "що змінилось після Devil (порожнє, якщо підтверджено)", '
         '"pros": ["перевага"], "cons": ["недолік"], "risks": ["ризик"], '
         '"dissenting_points": ["окрема думка: хто і що"], '
-        '"confidence": 0-100, "recommendation": "що робити далі"}',
+        '"confidence": 0-100, "recommendation": "що робити далі", '
+        '"next_steps": ["дія на цей тиждень"], '
+        '"change_triggers": ["якщо…, переглянути рішення"]}',
         'Reply STRICTLY with a single JSON object:\n'
         f'{{{_answer_schema(mode, options)}"decision": "the final solution", '
         '"confirmed": true or false, '
         '"revision": "what changed after Devil (empty if confirmed)", '
         '"pros": ["advantage"], "cons": ["drawback"], "risks": ["risk"], '
         '"dissenting_points": ["separate opinion: who and what"], '
-        '"confidence": 0-100, "recommendation": "what to do next"}',
+        '"confidence": 0-100, "recommendation": "what to do next", '
+        '"next_steps": ["an action for this week"], '
+        '"change_triggers": ["if…, reconsider the decision"]}',
     )
     return f'{ctx}\n\n{head}{task}{_rules(sources)}{_answer_rule(mode)}{schema}'

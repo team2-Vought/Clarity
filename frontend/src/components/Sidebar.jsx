@@ -4,6 +4,7 @@ import Logo from './Logo';
 import { logout } from '../api/auth';
 import { copy } from '../copy';
 import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
+import { useJournalDue } from '../hooks/useJournalDue';
 
 const t = copy.nav;
 
@@ -79,9 +80,20 @@ const LogoutIcon = () => (
   </svg>
 );
 
+// записник із галочкою — журнал рішень; той самий штрих, що й в інших іконок меню
+const JournalIcon = () => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <rect x="5.5" y="3.5" width="14" height="18" rx="2.5" stroke="currentColor" strokeWidth="2" />
+    <path d="M9.25 3.75V21.25" stroke="currentColor" strokeWidth="2" />
+    <path d="M12.25 10.25L13.75 11.75L16.5 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.5 15.5H16.25" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
 const ICONS = {
   debates: DebateIcon,
   history: HistoryIcon,
+  journal: JournalIcon,
   settings: SettingsIcon,
   help: HelpIcon,
 };
@@ -91,6 +103,7 @@ const ICONS = {
 const NAV_ITEMS = [
   { key: 'debates', label: t.debates, path: '/home', match: ['/home'] },
   { key: 'history', label: t.history, path: '/history', match: ['/history'] },
+  { key: 'journal', label: t.journal, path: '/journal', match: ['/journal'] },
   { key: 'settings', label: t.settings, path: '/settings', match: ['/settings'] },
   { key: 'help', label: t.help, path: '/help', match: ['/help'] },
 ];
@@ -111,6 +124,8 @@ export default function Sidebar({
   onTogglePanel,
 }) {
   const { sound, setSound } = useNotifyPrefs();
+  // рішення, що чекають на «Як воно?», — число на іконці журналу
+  const { count: dueCount } = useJournalDue();
   const navigate = useNavigate();
   const themeActionLabel = theme === 'dark' ? t.themeLight : t.themeDark;
 
@@ -171,6 +186,12 @@ export default function Sidebar({
             >
               <Icon />
               <span className="sidebar__label">{item.label}</span>
+              {item.key === 'journal' && dueCount > 0 && (
+                <span className="sidebar__badge" title={copy.journal.dueBadge(dueCount)}>
+                  {dueCount}
+                  <span className="sr-only">{copy.journal.dueBadge(dueCount)}</span>
+                </span>
+              )}
             </button>
           );
         })}

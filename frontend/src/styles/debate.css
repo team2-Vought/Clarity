@@ -198,6 +198,29 @@ body:has(.app-shell) {
   gap: 14px;
 }
 
+/* число на іконці журналу: стільки рішень чекають на «Як воно?» */
+.sidebar__item {
+  position: relative;
+}
+
+.sidebar__badge {
+  position: absolute;
+  top: 2px;
+  left: calc((var(--rail-w) - 2 * var(--nav-pad) - var(--item-icon)) / 2 + var(--item-icon) - 10px);
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--error, #c93a62);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .sidebar__item svg {
   flex-shrink: 0;
   width: var(--item-icon);
@@ -807,6 +830,81 @@ body:has(.app-shell) {
   min-height: 0;
   padding: 32px clamp(16px, 4vw, 48px);
   overflow-y: auto;
+}
+
+/* ---------- «Як воно?» — рішення з журналу, якому настав час ---------- */
+.debate__due {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(760px, 100%);
+  margin-bottom: 6px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: var(--soft);
+  animation: debate-view-in 0.3s ease-out;
+}
+
+.debate__due-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.debate__due-decision {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.debate__due-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.debate__due-ask {
+  margin-right: auto;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.debate__due-later,
+.debate__due-tell {
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, opacity 0.18s, var(--press);
+}
+
+.debate__due-later {
+  background: transparent;
+  color: var(--ink);
+}
+
+.debate__due-later:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.debate__due-tell {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.debate__due-later:active:not(:disabled),
+.debate__due-tell:active:not(:disabled) {
+  scale: var(--press-scale);
 }
 
 /* ---------- Підказки першого запуску ---------- */
@@ -1485,6 +1583,117 @@ body:has(.app-shell) {
   .debate__suggestion-text {
     -webkit-line-clamp: 2;
   }
+}
+
+/* скріпка в полі питання — поряд із кнопкою надсилання */
+.debate__attach {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.debate__attach:hover:not(:disabled) {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.debate__attach:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.debate__attach:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* файл тягнуть на поле — рамка підсвічується */
+.debate__composer--drop {
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--ink), var(--ink)) border-box;
+}
+
+.debate__files {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: min(760px, 100%);
+}
+
+/* файл біля питання: тип, назва, хрестик */
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  animation: debate-view-in 0.22s ease-out;
+}
+
+.attachment-chip--reading {
+  color: var(--muted);
+}
+
+.attachment-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-chip > svg {
+  flex: none;
+}
+
+.attachment-chip__spin {
+  animation: chat-icon-spin 0.9s linear infinite;
+}
+
+.attachment-chip__remove {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.attachment-chip__remove:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+/* файли під питанням у чаті — праворуч, як і сама бульбашка питання */
+.chat__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.chat__attachments .attachment-chip {
+  padding-right: 12px;
 }
 
 /* «Про мене» під полем питання: тиха пігулка, щоб не відволікати від питання */
@@ -4327,6 +4536,190 @@ ol.chat__reveal {
 
 .chat__summary-group li::marker {
   color: var(--muted);
+}
+
+/* журнал рішень під висновком: пропозиція, форма або «вже в журналі» */
+.chat__journal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.chat__journal--offer {
+  cursor: pointer;
+  transition: background 0.18s, var(--press);
+}
+
+.chat__journal--offer:hover {
+  background: color-mix(in srgb, var(--ink) 5%, var(--soft));
+}
+
+.chat__journal--offer:active {
+  scale: 0.99;
+}
+
+.chat__journal--offer > svg {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.chat__journal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chat__journal-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.chat__journal-lead {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.chat__journal--form {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.chat__journal-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 14px;
+  outline: none;
+  resize: vertical;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.chat__journal-input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--focus);
+}
+
+.chat__journal-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chat__journal-pill {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.chat__journal-pill--active {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.chat__journal-save {
+  align-self: flex-end;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s, var(--press);
+}
+
+.chat__journal-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat__journal-pill:active,
+.chat__journal-save:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.chat__journal--saved {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.chat__journal--saved > svg {
+  color: var(--ink);
+}
+
+.chat__journal-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* план на тиждень — пронумеровані кроки, номер у кружечку, як у підказках */
+.chat__summary-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__summary-plan li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.chat__summary-plan-num {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* дії під підсумком, як під відповіддю асистента; іконка вирівняна з текстом */

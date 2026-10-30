@@ -58,3 +58,22 @@ describe('summaryDetailSteps', () => {
     expect(summaryDetailSteps({ decision: 'Так.' }, describeSummary({ decision: 'Так.' }))).toBe(1);
   });
 });
+
+describe('план дій у підсумку', () => {
+  it('бере кроки на тиждень і тригери, відкидаючи порожні', () => {
+    const view = describeSummary({
+      decision: 'Переїжджати.',
+      next_steps: ['Порахувати бюджет', ' ', 'Подзвонити рієлтору'],
+      change_triggers: ['Якщо оренда дорожча за 15 000 — переглянути'],
+    });
+    expect(view.plan).toEqual(['Порахувати бюджет', 'Подзвонити рієлтору']);
+    expect(view.triggers).toHaveLength(1);
+    expect(summaryDetailSteps({ decision: 'Переїжджати.' }, view)).toBe(2);
+  });
+
+  it('старий підсумок без плану — порожні списки', () => {
+    const view = describeSummary({ decision: 'Так.' });
+    expect(view.plan).toEqual([]);
+    expect(view.triggers).toEqual([]);
+  });
+});

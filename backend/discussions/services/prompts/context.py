@@ -8,6 +8,7 @@ from django.conf import settings
 
 from backend.i18n import L
 
+from .documents import documents_block
 from .profile import profile_block
 from .common import (
     ROLE_LABELS,
@@ -318,6 +319,7 @@ def _context_block(
     sources=None,
     consensus=False,
     profile=None,
+    documents=None,
 ):
     lines = [
         L('Опис проблеми / запитання користувача:', 'Problem description / the user’s question:'),
@@ -328,6 +330,9 @@ def _context_block(
     about = profile_block(profile)
     if about:
         lines.extend(['', about])
+    attached = documents_block(documents)
+    if attached:
+        lines.extend(['', attached])
     lines.extend(
         [
             '',

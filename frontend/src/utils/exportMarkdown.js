@@ -54,8 +54,15 @@ export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf })
       const list = listOf(items);
       if (list.length) lines.push(`**${title}:**`, '', ...list.map((item) => `- ${item}`), '');
     });
-    if (summary.recommendation) {
+    const plan = listOf(summary.next_steps);
+    if (plan.length) {
+      lines.push(`**${labels.summaryPlan}:**`, '', ...plan.map((item, index) => `${index + 1}. ${item}`), '');
+    } else if (summary.recommendation) {
       lines.push(`**${labels.summaryNextStep}:** ${summary.recommendation}`, '');
+    }
+    const triggers = listOf(summary.change_triggers);
+    if (triggers.length) {
+      lines.push(`**${labels.summaryTriggers}:**`, '', ...triggers.map((item) => `- ${item}`), '');
     }
   }
 

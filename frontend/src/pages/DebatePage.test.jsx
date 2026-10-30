@@ -8,6 +8,7 @@ import DebatePage from './DebatePage';
 import { createDiscussion, fetchModels, fetchPersonas, fetchTeams } from '../api/discussions';
 import { updatePreferences } from '../api/settings';
 import { setMyProfile } from '../hooks/useMyProfile';
+import { removeAttachment, uploadAttachment } from '../api/attachments';
 
 vi.mock('../api/discussions', () => ({
   createDiscussion: vi.fn(),
@@ -16,6 +17,11 @@ vi.mock('../api/discussions', () => ({
   fetchPersonas: vi.fn(),
   fetchTeams: vi.fn(),
   saveTeam: vi.fn(),
+}));
+
+vi.mock('../api/attachments', () => ({
+  uploadAttachment: vi.fn(),
+  removeAttachment: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('../api/settings', () => ({
@@ -116,6 +122,33 @@ describe('DebatePage', () => {
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
     // профілю немає — сервер вирішить сам
     expect(vi.mocked(createDiscussion).mock.calls[0][0].useProfile).toBeUndefined();
+  });
+
+  it('додає файли до питання й передає їх у дискусію', async () => {
+    const user = userEvent.setup();
+    let finish;
+    vi.mocked(uploadAttachment).mockImplementationOnce(
+      () => new Promise((resolve) => { finish = resolve; })
+    );
+    vi.mocked(uploadAttachment).mockResolvedValueOnce({ id: 'f2', name: 'flat.txt', kind: 'text' });
+    vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто погоджуватись на оффер?');
+
+    const input = document.querySelector('input[type="file"]');
+    await user.upload(input, new File(['%PDF'], 'offer.pdf', { type: 'application/pdf' }));
+    // поки сервер читає файл, дискусію не створити
+    expect(screen.getByText('offer.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Почати дискусію' })).toBeDisabled();
+    finish({ id: 'f1', name: 'offer.pdf', kind: 'pdf' });
+
+    await user.upload(input, new File(['x'], 'flat.txt', { type: 'text/plain' }));
+    await user.click(await screen.findByRole('button', { name: 'Прибрати «flat.txt»' }));
+    expect(removeAttachment).toHaveBeenCalledWith('f2');
+
+    await user.click(screen.getByRole('button', { name: 'Почати дискусію' }));
+    expect(vi.mocked(createDiscussion).mock.calls[0][0].attachments).toEqual(['f1']);
   });
 
   it('тому, хто вже бачив підказки, їх не показує', async () => {
