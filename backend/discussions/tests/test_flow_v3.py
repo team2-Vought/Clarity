@@ -555,7 +555,7 @@ class ApiV3Tests(TestCase):
         self.addCleanup(patcher.stop)
         self.provider = FakeProvider()
         provider_patcher = mock.patch(
-            'discussions.services.engine.get_provider',
+            'discussions.services.engine.calls.get_provider',
             side_effect=lambda model_id: self.provider,
         )
         provider_patcher.start()
@@ -713,7 +713,7 @@ class ApiV3Tests(TestCase):
     def test_failed_step_exposes_public_error(self):
         created = self.create()
         with mock.patch(
-            'discussions.services.engine.get_provider',
+            'discussions.services.engine.calls.get_provider',
             side_effect=ProviderError('401 sk-secret', status=401),
         ):
             self.client.post(f'/api/discussions/{created["id"]}/run/')

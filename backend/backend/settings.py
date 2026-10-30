@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 import sys
 from pathlib import Path
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
@@ -109,6 +110,29 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+
+def postgres_from_url(url):
+    """postgres://user:password@host:port/name?sslmode=require → DATABASES['default']."""
+    parsed = urlsplit(url)
+    if parsed.scheme not in {'postgres', 'postgresql'}:
+        raise ImproperlyConfigured('DATABASE_URL must start with postgres:// or postgresql://.')
+    return {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(parsed.path.lstrip('/')),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': str(parsed.port or ''),
+        # з'єднання живуть між запитами; воркер закриває свої після кожного кроку
+        'CONN_MAX_AGE': int(os.getenv('DATABASE_CONN_MAX_AGE', '60')),
+        'CONN_HEALTH_CHECKS': True,
+        'OPTIONS': dict(parse_qsl(parsed.query)),
+    }
+
+
+# Продакшн — Postgres через DATABASE_URL; без нього — SQLite для розробки.
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -123,6 +147,8 @@ DATABASES = {
         },
     }
 }
+if DATABASE_URL:
+    DATABASES['default'] = postgres_from_url(DATABASE_URL)
 
 
 # Password validation
@@ -172,9 +198,20 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 EMAIL_BACKEND = os.getenv(
-    'DJANGO_EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend',
-)
+    'DJANGO_EMAIL_BACKEND', ''
+).strip() or 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost').strip() or 'localhost'
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587') or 587)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_TIMEOUT = 15
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '').strip() or 'Clarity <no-reply@localhost>'
+
+# Адреса фронтенду: на неї ведуть посилання в листах
+FRONTEND_URL = os.getenv('FRONTEND_URL', '').strip() or 'http://localhost:5173'
+# Посилання на новий пароль діє 2 години
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 
 CORS_ALLOWED_ORIGINS = [
     o.strip()
@@ -210,6 +247,8 @@ REST_FRAMEWORK = {
         # перевірка ключа — запит до провайдера; не даємо перебирати ключі
         'api_keys': '20/min',
         'google_login': '20/min',
+        # лист на чужу пошту — не даємо розсилати їх потоком
+        'password_reset': '5/min',
     },
 }
 
@@ -241,6 +280,13 @@ LLM_DEVIL_MODEL = os.getenv('LLM_DEVIL_MODEL', '').strip()
 DISCUSSION_DAILY_LIMIT = int(os.getenv('DISCUSSION_DAILY_LIMIT', '20'))
 DISCUSSION_MAX_FOLLOWUPS = int(os.getenv('DISCUSSION_MAX_FOLLOWUPS', '3'))
 DISCUSSION_NOTE_MAX_CHARS = int(os.getenv('DISCUSSION_NOTE_MAX_CHARS', '1000'))
+# Де виконуються дискусії: thread — потік у вебсервері (розробка), worker —
+# окремий процес `manage.py discussion_worker` (продакшн: переживає перезапуски).
+DISCUSSION_RUNNER = os.getenv('DISCUSSION_RUNNER', 'thread').strip().lower()
+if DISCUSSION_RUNNER not in {'thread', 'worker'}:
+    raise ImproperlyConfigured('DISCUSSION_RUNNER must be "thread" or "worker".')
+DISCUSSION_WORKER_CONCURRENCY = int(os.getenv('DISCUSSION_WORKER_CONCURRENCY', '4'))
+DISCUSSION_WORKER_POLL_SECONDS = float(os.getenv('DISCUSSION_WORKER_POLL_SECONDS', '1'))
 # Фоновий раннер дискусій. SYNC=1 — виконувати кроки в самому запиті (тести).
 DISCUSSION_RUNNER_SYNC = os.getenv('DISCUSSION_RUNNER_SYNC', '').lower() in {'1', 'true', 'yes'}
 DISCUSSION_RUNNER_MAX_RETRIES = int(os.getenv('DISCUSSION_RUNNER_MAX_RETRIES', '2'))

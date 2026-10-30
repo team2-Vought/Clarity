@@ -11,13 +11,18 @@ from rest_framework.views import APIView
 from backend.i18n import L, lazy_L
 
 from . import google
+from .login_limit import reset_login_attempts
+from .password_reset import send_reset_email, user_from_link
 
 from .serializers import (
     EMAIL_TAKEN,
     DeleteAccountSerializer,
     LoginSerializer,
     PasswordChangeSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     ProfileSerializer,
+    RESET_LINK_INVALID,
     RegisterSerializer,
     create_user,
     name_from_google,
@@ -196,5 +201,70 @@ class PasswordView(APIView):
             token = Token.objects.create(user=user)
         return Response(
             {'detail': L('Пароль змінено', 'Password changed'), 'token': token.key},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetRequestView(APIView):
+    """Лист із посиланням на новий пароль. Відповідь та сама, є такий акаунт чи ні."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        send_reset_email(serializer.validated_data['email'])
+        return Response(
+            {'detail': L(
+                'Якщо акаунт із цією поштою існує, ми надіслали на неї лист із посиланням.',
+                'If an account with this email exists, we have sent it a link.',
+            )},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """GET — чи посилання ще дійсне; POST — новий пароль і вхід.
+
+    Старі токени видаляються: пристрої, що входили зі старим паролем, вийдуть."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
+
+    def get(self, request):
+        valid = user_from_link(
+            request.query_params.get('uid', ''), request.query_params.get('token', '')
+        ) is not None
+        return Response({'valid': valid}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = user_from_link(
+            str(request.data.get('uid', ''))[:64], str(request.data.get('token', ''))[:128]
+        )
+        if user is None:
+            # окремий код: сторінка пропонує попросити новий лист, а не виправити поле
+            return Response(
+                {'detail': RESET_LINK_INVALID, 'code': 'invalid_link'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            user.set_password(serializer.validated_data['password'])
+            user.save(update_fields=['password'])
+            Token.objects.filter(user=user).delete()
+            token = Token.objects.create(user=user)
+        reset_login_attempts(user.email)
+        return Response(
+            {
+                'detail': L('Пароль змінено', 'Password changed'),
+                'token': token.key,
+                'user': user_payload(user),
+            },
             status=status.HTTP_200_OK,
         )

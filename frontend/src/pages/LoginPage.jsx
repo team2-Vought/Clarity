@@ -18,6 +18,7 @@ export default function LoginPage() {
             navigate('/home');
           }}
           onSwitch={() => navigate('/register')}
+          onForgot={() => navigate('/forgot-password')}
           alternative={<GoogleButton onSignedIn={() => navigate('/home')} />}
         />
       }

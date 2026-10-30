@@ -14,6 +14,8 @@ import './styles/settings.css';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DebatePage = lazy(() => import('./pages/DebatePage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
@@ -41,6 +43,8 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
             <Route path="/shared/:token" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />

@@ -408,10 +408,16 @@ class DiscussionSerializer(serializers.ModelSerializer):
         return engine.describe_step(obj)
 
     def get_live(self, obj):
-        """Живий статус поточного кроку: {status, search}; порожньо між кроками."""
+        """Живий статус поточного кроку: {status, search, drafts}; порожньо між кроками.
+
+        drafts — репліки, які моделі ще пишуть (лише з текстом)."""
         if not obj.live_token or obj.live_token != obj.advance_token or not engine.is_running(obj):
-            return {'status': '', 'search': ''}
-        return {'status': obj.live_status, 'search': obj.live_search}
+            return {'status': '', 'search': '', 'drafts': []}
+        drafts = [
+            draft for draft in (obj.live_drafts or [])
+            if isinstance(draft, dict) and draft.get('text')
+        ]
+        return {'status': obj.live_status, 'search': obj.live_search, 'drafts': drafts}
 
     class Meta:
         model = Discussion

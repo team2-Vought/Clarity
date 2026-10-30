@@ -55,6 +55,11 @@ class Discussion(models.Model):
     devil_model = models.CharField('модель AI Devil', max_length=120, blank=True, default='')
     followups = models.PositiveSmallIntegerField('уточнень після фіналу', default=0)
     stop_requested = models.BooleanField('зупинку запитано', default=False)
+    # Черга воркера (DISCUSSION_RUNNER=worker): коли попросили виконувати кроки.
+    # Скидається, коли дискусія завершилась, зупинилась чи чекає на людину.
+    run_requested_at = models.DateTimeField(
+        'запуск запитано', null=True, blank=True, editable=False, db_index=True
+    )
     pinned = models.BooleanField('закріплено', default=False)
     archived = models.BooleanField('в архіві', default=False)
     # мова, якою створено дискусію: нею пишуть AI і рушій (uk | en)
@@ -87,6 +92,8 @@ class Discussion(models.Model):
     live_token = models.UUIDField(null=True, blank=True, editable=False)
     live_status = models.CharField(max_length=120, blank=True, default='', editable=False)
     live_search = models.CharField(max_length=300, blank=True, default='', editable=False)
+    # Репліки, які моделі ще пишуть: [{slug, name, phase, round, reply_to, reply_to_slug, text}]
+    live_drafts = models.JSONField(default=list, blank=True, editable=False)
 
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)

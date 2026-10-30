@@ -416,7 +416,11 @@ class DiscussionStopView(OwnedDiscussionView):
         if discussion is None:
             return _not_found()
         Discussion.objects.filter(pk=discussion.pk).update(
-            stop_requested=True, advance_token=None, advance_started_at=None, live_token=None
+            stop_requested=True,
+            advance_token=None,
+            advance_started_at=None,
+            live_token=None,
+            run_requested_at=None,
         )
         discussion.refresh_from_db()
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)

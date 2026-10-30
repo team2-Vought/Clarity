@@ -10,6 +10,13 @@ HTTP-запитом, закрита вкладка зупиняла дебати
 - тимчасові збої моделей повторюються з паузою, помилки налаштування
   (ключ, недоступна модель) — ні;
 - паралельні раннери однієї дискусії не шкодять: кроки серіалізує lease.
+
+Де виконуються кроки, задає DISCUSSION_RUNNER:
+- `thread` (типово, для розробки) — потік у процесі вебсервера; перезапуск
+  сервера обриває дискусію, доки клієнт не попросить запустити її знову;
+- `worker` (продакшн) — окремий процес `manage.py discussion_worker`. Вебсервер
+  лише ставить позначку `run_requested_at`, воркер її підхоплює. Позначка
+  живе в базі, тож дискусії, перервані перезапуском, воркер продовжує сам.
 """
 
 import logging
@@ -18,6 +25,7 @@ import time
 
 from django.conf import settings
 from django.db import connection
+from django.utils import timezone
 
 from backend.i18n import L, using
 
@@ -38,6 +46,10 @@ def is_active(discussion_id):
         return str(discussion_id) in _active
 
 
+def uses_worker():
+    return getattr(settings, 'DISCUSSION_RUNNER', 'thread') == 'worker'
+
+
 def is_working(discussion):
     """Чи виконується крок. Після «Зупинити» потік, що ще чекає на модель,
     не рахується: lease з нього знято, тож його результат буде відкинуто.
@@ -47,7 +59,12 @@ def is_working(discussion):
         return False
     if engine.is_running(discussion):
         return True
-    return not discussion.stop_requested and is_active(discussion.pk)
+    if discussion.stop_requested:
+        return False
+    if uses_worker():
+        # між кроками lease знято, але позначка каже, що воркер продовжить
+        return discussion.run_requested_at is not None and not discussion.is_finished
+    return is_active(discussion.pk)
 
 
 def daily_usage(user):
@@ -77,11 +94,16 @@ def _fail_with_limit(discussion):
     )
 
 
-def run(discussion_id, provider_factory=None):
-    """Виконує кроки, доки дискусія не завершиться, не зупиниться чи не впаде."""
+def run(discussion_id, provider_factory=None, should_stop=None):
+    """Виконує кроки, доки дискусія не завершиться, не зупиниться чи не впаде.
+
+    `should_stop` — перевірка між кроками: воркер, що вимикається, доробляє
+    поточний крок і не починає наступного."""
     retries = 0
     max_retries = int(settings.DISCUSSION_RUNNER_MAX_RETRIES)
     for _ in range(MAX_STEPS):
+        if should_stop is not None and should_stop():
+            return
         discussion = Discussion.objects.select_related('user').filter(pk=discussion_id).first()
         if discussion is None or discussion.phase == Discussion.Phase.DONE:
             return
@@ -126,9 +148,16 @@ def _run_in_thread(discussion_id):
 
 
 def start(discussion_id):
-    """Запускає раннер, якщо в цьому процесі він ще не працює. Повертає True, якщо запущено."""
+    """Запускає раннер, якщо в цьому процесі він ще не працює. Повертає True, якщо запущено.
+
+    У режимі воркера лише ставить дискусію в чергу: крок виконає воркер."""
     if getattr(settings, 'DISCUSSION_RUNNER_SYNC', False):
         run(discussion_id)
+        return True
+    if uses_worker():
+        Discussion.objects.filter(pk=discussion_id).exclude(phase=Discussion.Phase.DONE).update(
+            run_requested_at=timezone.now()
+        )
         return True
     key = str(discussion_id)
     with _active_lock:

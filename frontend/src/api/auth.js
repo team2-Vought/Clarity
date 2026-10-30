@@ -71,6 +71,28 @@ export async function changePassword({ current_password, password, confirm_passw
   return data;
 }
 
+/** Лист із посиланням на новий пароль; відповідь та сама, є такий акаунт чи ні. */
+export function requestPasswordReset(email) {
+  return request('/api/auth/password-reset/', { method: 'POST', body: { email } });
+}
+
+/** Чи посилання з листа ще дійсне: { valid }. */
+export function checkResetLink(uid, token) {
+  const query = new URLSearchParams({ uid, token });
+  return request(`/api/auth/password-reset/confirm/?${query}`);
+}
+
+/** Новий пароль за посиланням; сервер одразу видає токен — людина входить. */
+export async function confirmPasswordReset({ uid, token, password, confirm_password }) {
+  const data = await request('/api/auth/password-reset/confirm/', {
+    method: 'POST',
+    body: { uid, token, password, confirm_password },
+  });
+  const authToken = pickToken(data);
+  if (authToken) setToken(authToken);
+  return data;
+}
+
 export async function deleteAccount(password) {
   await request('/api/auth/me/', { method: 'DELETE', auth: true, body: { password } });
   setToken(null);

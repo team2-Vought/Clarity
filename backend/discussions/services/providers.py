@@ -4,8 +4,14 @@
 - OpenAI-compatible Chat Completions (OpenAI, Gemini, Groq, Cerebras, DeepSeek,
   Mistral, OpenRouter, Ollama, custom endpoint);
 - Anthropic Messages API.
+
+Репліки учасників можна отримувати потоком (`on_text`): провайдер викликає
+його з усім текстом, що вже надійшов, — так чат показує, як модель пише.
+Якщо потік не вдався до кінця, запит повторюється звичайним способом
+(з повторами й очікуванням rate limit), тож потік ніколи не гірший за запит.
 """
 
+import json
 import logging
 import random
 import time
@@ -155,15 +161,65 @@ def _post_with_retries(url, *, headers, payload, timeout, provider_label):
     raise ProviderError(last_error or f'{provider_label}: не вдалося отримати відповідь')
 
 
+def _stream_events(url, *, headers, payload, timeout, provider_label):
+    """Дані подій SSE (рядки після `data:`). Помилку HTTP кидає одразу — без
+    повторів: їх зробить звичайний запит, на який перейде виклик."""
+    with httpx.stream('POST', url, headers=headers, json=payload, timeout=timeout) as response:
+        if response.status_code >= 400:
+            response.read()
+            quota = response.status_code == 429 and _quota_exhausted(response)
+            raise ProviderError(
+                f'{provider_label} {response.status_code}: {response.text[:400]}',
+                status=response.status_code,
+                quota=quota,
+            )
+        for line in response.iter_lines():
+            if line.startswith('data:'):
+                yield line[5:].strip()
+
+
+def _event(data, provider_label):
+    try:
+        return json.loads(data)
+    except ValueError as exc:
+        raise ProviderError(f'{provider_label}: пошкоджена подія потоку') from exc
+
+
 class BaseProvider:
     name = 'base'
+    # Чи вміє провайдер віддавати текст потоком (`on_text` у complete)
+    supports_streaming = False
 
-    def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False, on_text=None):
         raise NotImplementedError
+
+    def _complete_streaming(self, stream, fallback, on_text):
+        """Потік із переходом на звичайний запит: збій мережі чи 5xx посеред
+        відповіді не мають ламати крок, а помилки ключа чи квоти — повторюватись."""
+        try:
+            text = ''
+            for chunk in stream():
+                if chunk:
+                    text += chunk
+                    on_text(text)
+            if text.strip():
+                return text.strip()
+            raise ProviderError(f'{self.provider_label}: порожня відповідь моделі')
+        except (ProviderError, httpx.HTTPError) as exc:
+            if getattr(exc, 'config', False):
+                raise
+            logger.warning(
+                'LLM stream failed, falling back to a plain request',
+                extra={'provider': self.provider_label, 'error': str(exc)},
+            )
+            # чернетку з обірваного потоку не лишаємо — текст прийде заново
+            on_text('')
+            return fallback()
 
 
 class OpenAICompatibleProvider(BaseProvider):
     name = 'openai_compatible'
+    supports_streaming = True
 
     def __init__(self, api_key, base_url, model, timeout, provider_label=''):
         self.api_key = api_key
@@ -172,7 +228,7 @@ class OpenAICompatibleProvider(BaseProvider):
         self.timeout = timeout
         self.provider_label = provider_label or self.name
 
-    def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False, on_text=None):
         headers = {'Content-Type': 'application/json'}
         if self.api_key:
             headers['Authorization'] = f'Bearer {self.api_key}'
@@ -187,6 +243,38 @@ class OpenAICompatibleProvider(BaseProvider):
         }
         if json_mode:
             payload['response_format'] = {'type': 'json_object'}
+        elif on_text is not None:
+            return self._complete_streaming(
+                lambda: self._stream(headers, payload),
+                lambda: self._complete_plain(headers, payload, json_mode),
+                on_text,
+            )
+        return self._complete_plain(headers, payload, json_mode)
+
+    def _stream(self, headers, payload):
+        label = f'{self.provider_label} ({self.model})'
+        for data in _stream_events(
+            f'{self.base_url}/chat/completions',
+            headers=headers,
+            payload={**payload, 'stream': True},
+            timeout=self.timeout,
+            provider_label=label,
+        ):
+            if data == '[DONE]':
+                return
+            event = _event(data, label)
+            if isinstance(event, dict) and event.get('error'):
+                raise ProviderError(f'{label}: {str(event["error"])[:400]}')
+            choices = event.get('choices') if isinstance(event, dict) else None
+            if not choices:
+                # службові події (usage тощо) тексту не мають
+                continue
+            delta = (choices[0] or {}).get('delta') or {}
+            content = delta.get('content')
+            if isinstance(content, str):
+                yield content
+
+    def _complete_plain(self, headers, payload, json_mode):
         try:
             response = self._post(headers, payload)
         except ProviderError as exc:
@@ -229,31 +317,66 @@ class OpenAICompatibleProvider(BaseProvider):
 
 class AnthropicProvider(BaseProvider):
     name = 'anthropic'
+    supports_streaming = True
 
     def __init__(self, api_key, base_url, model, timeout):
         self.api_key = api_key
         self.base_url = base_url.rstrip('/')
         self.model = model
         self.timeout = timeout
+        self.provider_label = f'Anthropic ({model})'
 
-    def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
+    def _request(self, system, prompt, temperature):
+        headers = {
+            'x-api-key': self.api_key,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+        }
+        payload = {
+            'model': self.model,
+            'temperature': temperature,
+            'max_tokens': settings.LLM_MAX_OUTPUT_TOKENS,
+            'system': system,
+            'messages': [{'role': 'user', 'content': prompt}],
+        }
+        return headers, payload
+
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False, on_text=None):
         # Anthropic не має окремого JSON-режиму: формат задає промпт.
+        headers, payload = self._request(system, prompt, temperature)
+        if on_text is not None and not json_mode:
+            return self._complete_streaming(
+                lambda: self._stream(headers, payload),
+                lambda: self._complete_plain(headers, payload),
+                on_text,
+            )
+        return self._complete_plain(headers, payload)
+
+    def _stream(self, headers, payload):
+        for data in _stream_events(
+            f'{self.base_url}/v1/messages',
+            headers=headers,
+            payload={**payload, 'stream': True},
+            timeout=self.timeout,
+            provider_label=self.provider_label,
+        ):
+            event = _event(data, self.provider_label)
+            kind = event.get('type') if isinstance(event, dict) else None
+            if kind == 'error':
+                raise ProviderError(f'{self.provider_label}: {str(event.get("error"))[:400]}')
+            if kind == 'message_stop':
+                return
+            delta = event.get('delta') if kind == 'content_block_delta' else None
+            if isinstance(delta, dict) and delta.get('type') == 'text_delta':
+                yield delta.get('text') or ''
+
+    def _complete_plain(self, headers, payload):
         response = _post_with_retries(
             f'{self.base_url}/v1/messages',
-            headers={
-                'x-api-key': self.api_key,
-                'anthropic-version': '2023-06-01',
-                'Content-Type': 'application/json',
-            },
-            payload={
-                'model': self.model,
-                'temperature': temperature,
-                'max_tokens': settings.LLM_MAX_OUTPUT_TOKENS,
-                'system': system,
-                'messages': [{'role': 'user', 'content': prompt}],
-            },
+            headers=headers,
+            payload=payload,
             timeout=self.timeout,
-            provider_label=f'Anthropic ({self.model})',
+            provider_label=self.provider_label,
         )
         try:
             data = response.json()

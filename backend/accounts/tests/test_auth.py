@@ -363,3 +363,97 @@ class GoogleLoginTests(TestCase):
         response = self.client.delete('/api/auth/me/', {}, format='json')
         self.assertEqual(response.status_code, 204)
         self.assertFalse(User.objects.exists())
+
+
+@override_settings(FRONTEND_URL='https://clarity.test')
+class PasswordResetTests(TestCase):
+    def setUp(self):
+        throttle = mock.patch(
+            'rest_framework.throttling.SimpleRateThrottle.allow_request',
+            return_value=True,
+        )
+        throttle.start()
+        self.addCleanup(throttle.stop)
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='reset@test.com', name='Оксана', password='pass123!A'
+        )
+
+    def request_link(self, email='reset@test.com'):
+        from django.core import mail
+
+        response = self.client.post('/api/auth/password-reset/', {'email': email}, format='json')
+        self.assertEqual(response.status_code, 200)
+        return mail.outbox
+
+    def link_parts(self):
+        outbox = self.request_link()
+        self.assertEqual(len(outbox), 1)
+        self.assertEqual(outbox[0].to, ['reset@test.com'])
+        url = next(word for word in outbox[0].body.split() if word.startswith('https://'))
+        self.assertTrue(url.startswith('https://clarity.test/reset-password/'))
+        uid, token = url.rstrip('/').split('/')[-2:]
+        return uid, token
+
+    def confirm(self, uid, token, password='newPass1!'):
+        return self.client.post(
+            '/api/auth/password-reset/confirm/',
+            {'uid': uid, 'token': token, 'password': password, 'confirm_password': password},
+            format='json',
+        )
+
+    def test_unknown_email_gets_the_same_answer_and_no_letter(self):
+        outbox = self.request_link('nobody@test.com')
+        self.assertEqual(outbox, [])
+
+    def test_link_sets_a_new_password_and_signs_in(self):
+        uid, token = self.link_parts()
+        check = self.client.get('/api/auth/password-reset/confirm/', {'uid': uid, 'token': token})
+        self.assertTrue(check.data['valid'])
+        response = self.confirm(uid, token)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn('token', response.data)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('newPass1!'))
+
+    def test_link_works_only_once(self):
+        uid, token = self.link_parts()
+        self.assertEqual(self.confirm(uid, token).status_code, 200)
+        again = self.confirm(uid, token, password='otherPass2!')
+        self.assertEqual(again.status_code, 400)
+        self.assertEqual(again.data['code'], 'invalid_link')
+
+    def test_old_sessions_are_signed_out(self):
+        login = self.client.post(
+            '/api/auth/login/', {'email': 'reset@test.com', 'password': 'pass123!A'}, format='json'
+        )
+        old_token = login.data['token']
+        uid, token = self.link_parts()
+        self.confirm(uid, token)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {old_token}')
+        self.assertEqual(self.client.get('/api/auth/me/').status_code, 401)
+
+    def test_weak_password_is_rejected_by_the_usual_rules(self):
+        uid, token = self.link_parts()
+        response = self.confirm(uid, token, password='short')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', response.data)
+
+    def test_garbage_link_is_invalid(self):
+        response = self.confirm('bm9wZQ', 'nope-token')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'invalid_link')
+        check = self.client.get('/api/auth/password-reset/confirm/', {'uid': '!!', 'token': 'x'})
+        self.assertFalse(check.data['valid'])
+
+    def test_google_account_without_password_can_set_one(self):
+        google_user = User.objects.create_user(email='g@test.com', name='Гугл', password=None)
+        from django.core import mail
+
+        self.client.post('/api/auth/password-reset/', {'email': 'G@test.com'}, format='json')
+        self.assertEqual(mail.outbox[-1].to, ['g@test.com'])
+        url = next(w for w in mail.outbox[-1].body.split() if w.startswith('https://'))
+        uid, token = url.split('/')[-2:]
+        self.assertEqual(self.confirm(uid, token).status_code, 200)
+        google_user.refresh_from_db()
+        self.assertTrue(google_user.has_usable_password())

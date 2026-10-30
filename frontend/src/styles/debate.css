@@ -2876,6 +2876,11 @@ span.debate__tag {
   animation: chat-bubble-glow 2.6s ease-in-out infinite;
 }
 
+/* модель ще пише репліку: текст росте наживо, бульбашка так само підсвічена */
+.chat__bubble--draft {
+  animation: chat-bubble-glow 2.6s ease-in-out infinite;
+}
+
 /* поки репліка «пишеться», бульбашку ледь підсвічує колір автора */
 @keyframes chat-bubble-glow {
   0%,
@@ -3293,6 +3298,11 @@ ol.chat__reveal {
   width: min(190px, 70%);
 }
 
+/* під текстом, що ще пишеться, — один короткий рядок-заглушка */
+.chat__pending--short span:first-child {
+  width: min(140px, 50%);
+}
+
 @keyframes chat-shimmer {
   from {
     background-position: 100% 0;
@@ -3373,6 +3383,7 @@ ol.chat__reveal {
 @media (prefers-reduced-motion: reduce) {
   .chat__row--enter,
   .chat__bubble--typing,
+  .chat__bubble--draft,
   .chat__pending span,
   .chat__reveal,
   .chat__reveal > li {

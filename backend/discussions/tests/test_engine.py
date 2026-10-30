@@ -643,7 +643,7 @@ class StructuredTextTests(TestCase):
     """Тексти модератора й AI Devil — markdown із заголовками та списками."""
 
     def test_devil_text_has_sections(self):
-        text = engine._devil_text({
+        text = engine.texts._devil_text({
             'verdict': 'Рішення ризиковане',
             'risks': [{'title': 'Касовий розрив', 'description': 'грошей на 3 місяці.', 'severity': 'висока'}],
             'weak_spots': ['Немає плану Б.'],
@@ -673,7 +673,7 @@ class LiveStatusTests(EngineTests):
             advance_token=token, advance_started_at=timezone.now(), live_token=token
         )
         self.discussion.refresh_from_db()
-        return engine._live.set((self.discussion.pk, token))
+        return engine.live._live.set((self.discussion.pk, token))
 
     def live(self):
         self.discussion.refresh_from_db()
@@ -683,7 +683,7 @@ class LiveStatusTests(EngineTests):
         raw = '<think>хм, треба коротко</think>\n«зважуємо ризики переходу в стартап».\nПояснення'
         self.assertEqual(engine.clean_status(raw), 'Зважуємо ризики переходу в стартап…')
         self.assertEqual(engine.clean_status('   \n'), '')
-        self.assertLessEqual(len(engine.clean_status('слово ' * 40)), engine.STATUS_LIMIT + 1)
+        self.assertLessEqual(len(engine.clean_status('слово ' * 40)), engine.live.STATUS_LIMIT + 1)
 
     def test_ai_status_and_search_are_live_only_during_the_step(self):
         provider = mock.Mock()
@@ -691,8 +691,8 @@ class LiveStatusTests(EngineTests):
         live = self.claim_step()
         try:
             # фоновий потік закриває своє з'єднання; у тесті воно спільне
-            with mock.patch('discussions.services.engine.connection'):
-                engine._write_ai_status(
+            with mock.patch('discussions.services.engine.status.connection'):
+                engine.status._write_ai_status(
                     self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
                 )
             prompt = provider.complete.call_args.kwargs['prompt']
@@ -705,27 +705,107 @@ class LiveStatusTests(EngineTests):
                 return []
 
             with mock.patch('discussions.services.search.search', side_effect=search):
-                engine._run_searches(['зарплати в стартапах'])
+                engine.calls._run_searches(['зарплати в стартапах'])
         finally:
-            engine._live.reset(live)
+            engine.live._live.reset(live)
 
         self.assertEqual(seen, ['зарплати в стартапах'])
         self.assertEqual(
-            self.live(), {'status': 'Порівнюємо стартап зі стабільною роботою…', 'search': ''}
+            self.live(),
+            {'status': 'Порівнюємо стартап зі стабільною роботою…', 'search': '', 'drafts': []},
         )
 
         Discussion.objects.filter(pk=self.discussion.pk).update(advance_token=None)
-        self.assertEqual(self.live(), {'status': '', 'search': ''})
+        self.assertEqual(self.live(), {'status': '', 'search': '', 'drafts': []})
 
     def test_status_failure_is_silent(self):
         provider = mock.Mock()
         provider.complete.side_effect = ProviderError('down')
         live = self.claim_step()
         try:
-            with mock.patch('discussions.services.engine.connection'):
-                engine._write_ai_status(
+            with mock.patch('discussions.services.engine.status.connection'):
+                engine.status._write_ai_status(
                     self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
                 )
         finally:
-            engine._live.reset(live)
+            engine.live._live.reset(live)
         self.assertEqual(self.live()['status'], '')
+
+
+class StreamingProvider(FakeProvider):
+    """Віддає репліки учасників шматками через on_text, як справжній потік."""
+
+    supports_streaming = True
+
+    def __init__(self, on_chunk=None, **kwargs):
+        super().__init__(**kwargs)
+        self.streaming = False
+        self.on_chunk = on_chunk
+
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False, on_text=None):
+        text = super().complete(
+            system=system, prompt=prompt, temperature=temperature, json_mode=json_mode
+        )
+        if on_text is not None and self.streaming:
+            for end in range(1, len(text) + 1):
+                on_text(text[:end])
+                if self.on_chunk is not None:
+                    self.on_chunk(text[:end])
+        return text
+
+
+@override_settings(DISCUSSION_AI_STATUS=False)
+class StreamingTests(EngineTests):
+    def setUp(self):
+        super().setUp()
+        self.seen = []
+        self.provider = StreamingProvider(on_chunk=self.capture)
+
+    def capture(self, raw):
+        discussion = Discussion.objects.get(pk=self.discussion.pk)
+        live = DiscussionSerializer(discussion).data['live']
+        self.seen.append((raw, live['drafts']))
+
+    def test_debate_reply_is_visible_while_it_is_written(self):
+        # вступ іде паралельно — потоки; потік перевіряємо на кроці дебатів
+        engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.discussion.refresh_from_db()
+        self.provider.streaming = True
+        with mock.patch.object(engine.live, 'DRAFT_FLUSH_SECONDS', 0):
+            [message] = engine.advance(self.discussion, provider_factory=self.provider_factory)
+
+        drafts = [drafts for _, drafts in self.seen if drafts]
+        self.assertTrue(drafts, 'чернетка не з’явилась під час генерації')
+        last = drafts[-1][0]
+        self.assertEqual(last['slug'], message.persona_slug)
+        self.assertEqual(last['phase'], Discussion.Phase.DEBATE)
+        self.assertEqual(last['text'], message.content)
+        # службові рядки не потрапляють у чернетку навіть недописаними
+        for [draft] in drafts:
+            self.assertNotIn('ТЕЗ', draft['text'])
+
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.live_drafts, [])
+        self.assertEqual(DiscussionSerializer(self.discussion).data['live']['drafts'], [])
+
+    def test_providers_without_streaming_get_no_callback(self):
+        plain = FakeProvider()
+        engine.advance(self.discussion, provider_factory=lambda model_id: plain)
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.live_drafts, [])
+
+
+class DraftTextTests(TestCase):
+    def test_service_lines_and_thinking_are_hidden(self):
+        raw = '<think>міркую</think>Перший абзац.\n\nДругий.\nТЕЗА: головне\nПОЗИЦІЯ: згода'
+        self.assertEqual(engine.draft_text(raw), 'Перший абзац.\n\nДругий.')
+
+    def test_unclosed_thinking_shows_nothing(self):
+        self.assertEqual(engine.draft_text('<think>ще думаю над'), '')
+
+    def test_service_word_being_typed_is_hidden(self):
+        self.assertEqual(engine.draft_text('Абзац.\n\nTHES'), 'Абзац.')
+        self.assertEqual(engine.draft_text('Абзац.\n**ПОЗИЦ'), 'Абзац.')
+
+    def test_ordinary_words_stay(self):
+        self.assertEqual(engine.draft_text('Абзац.\nТак'), 'Абзац.\nТак')
