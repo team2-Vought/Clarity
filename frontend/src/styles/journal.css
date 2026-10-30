@@ -1,18 +1,13 @@
-/* Журнал рішень: одна колонка карток, як «Допомога» */
+/* Журнал рішень: розкладка й панель праворуч — від «Історії» (.history),
+   тут лише картки рішень, план і «Як воно?» */
 
 .journal {
-  --j-sheet: var(--soft);
-  --j-line: color-mix(in srgb, var(--ink) 8%, transparent);
+  /* кнопки всередині картки: на телефоні --h-control білий, як сама картка */
+  --j-control: color-mix(in srgb, var(--ink) 6%, var(--card));
+  --j-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
   --j-good: #23855a;
   --j-mixed: #b7791f;
   --j-bad: #c93a62;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: none;
-  padding: clamp(28px, 5vh, 56px) clamp(16px, 4vw, 56px) 64px;
-  background: var(--main-bg);
-  color: var(--ink);
 }
 
 :root[data-theme='dark'] .journal {
@@ -25,104 +20,80 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
   animation: help-in 0.22s ease-out;
-}
-
-.journal__head {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.journal__title {
-  margin: 0;
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.journal__lead {
-  margin: 0;
-  max-width: 60ch;
-  color: var(--muted);
-  font-size: 1.0625rem;
-  line-height: 1.55;
-}
-
-.journal__setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 4px;
-  padding: 14px 18px;
-  border-radius: 22px;
-  background: var(--j-sheet);
-  cursor: pointer;
-}
-
-.journal__setting > span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.journal__setting-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.journal__setting-hint {
-  color: var(--muted);
-  font-size: 0.875rem;
 }
 
 .journal__group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .journal__group-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
 }
 
 .journal__group-count {
   display: grid;
   place-items: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 7px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
   border-radius: 999px;
-  background: var(--j-sheet);
+  background: var(--h-soft);
   color: var(--muted);
   font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .journal__list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* ---- картка рішення ---- */
+
 .journal__entry {
+  --j-gap: 14px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 20px 20px;
-  border-radius: 26px;
-  background: var(--j-sheet);
+  gap: var(--j-gap);
+  padding: 24px 26px;
+  border: 1px solid var(--h-line);
+  border-radius: 32px;
+  background-color: var(--card);
+  box-shadow: var(--h-shadow);
+  color: var(--ink);
   scroll-margin: 24px;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    var(--press);
+}
+
+/* рішення, про яке пора спитати, — з теплою обвідкою */
+.journal__entry--due {
+  border-color: color-mix(in srgb, var(--h-progress) 45%, transparent);
+}
+
+/* згорнуту картку відкриває клік будь-де — як картку в «Історії» */
+.journal__entry:not(.journal__entry--open):has(.journal__summary:hover) {
+  background-color: var(--h-hover);
+}
+
+.journal__entry:not(.journal__entry--open):has(.journal__summary:active) {
+  scale: var(--press-scale);
 }
 
 /* рішення, про яке питає лист чи картка на головній, коротко підсвічується */
@@ -136,38 +107,129 @@
   }
 }
 
-.journal__entry-head {
+.journal__summary {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 40px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.journal__summary {
+  cursor: pointer;
+}
+
+.journal__entry:not(.journal__entry--open) button.journal__summary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.journal .journal__summary:focus-visible {
+  outline: none;
+}
+
+.journal__entry:has(.journal__summary:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.journal__when {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.journal__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  vertical-align: 0.05em;
+  border-radius: 50%;
+  background: var(--h-faint);
+}
+
+.journal__dot--due {
+  background: var(--h-progress);
+}
+
+.journal__dot--good,
+.journal__dot--reviewed {
+  background: var(--j-good);
+}
+
+.journal__dot--mixed {
+  background: var(--j-mixed);
+}
+
+.journal__dot--bad {
+  background: var(--j-bad);
+}
+
+.journal__decision {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  white-space: pre-line;
 }
 
 .journal__question {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.45;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.journal__entry-tools {
+.journal__entry--open .journal__question {
+  -webkit-line-clamp: unset;
+}
+
+.journal__chevron {
+  position: absolute;
+  top: 26px;
+  right: 24px;
+  color: var(--muted);
+  transition: transform 0.26s var(--h-spring);
+}
+
+.journal__entry--open .journal__chevron {
+  transform: rotate(180deg);
+}
+
+/* відкрити дискусію й видалити — над кнопкою відкриття, ліворуч від стрілки */
+.journal__tools {
+  position: absolute;
+  top: 16px;
+  right: 54px;
+  z-index: 2;
   display: flex;
-  flex: none;
   gap: 2px;
-  margin: -6px -8px 0 0;
 }
 
 .journal__icon-button {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -175,139 +237,63 @@
 }
 
 .journal__icon-button:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
 }
 
-.journal__decision {
-  margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: pre-line;
+.journal__icon-button--delete:hover {
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  color: var(--error);
 }
 
-.journal__meta {
-  margin: -4px 0 0;
-  color: var(--muted);
-  font-size: 0.8125rem;
+/* з мишею дії проявляються при наведенні, на дотикових — завжди */
+@media (hover: hover) {
+  .journal__tools {
+    opacity: 0;
+    transition: opacity 0.18s;
+  }
+
+  .journal__entry:hover .journal__tools,
+  .journal__entry:focus-within .journal__tools {
+    opacity: 1;
+  }
 }
 
-.journal__label {
+/* скільки кроків плану вже зроблено */
+.journal__progress {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
+  gap: 12px;
+}
+
+.journal__bar {
+  position: relative;
+  flex: 0 0 120px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--h-soft);
+}
+
+.journal__bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--ink);
+  transition: width 0.3s var(--h-spring);
+}
+
+.journal__progress-text {
   color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.journal__progress {
-  letter-spacing: 0;
-  text-transform: none;
-  font-weight: 500;
-}
-
-.journal__block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--j-line);
-}
-
-.journal__steps {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.journal__step {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  padding: 4px 0;
-  font-size: 0.9375rem;
-  line-height: 1.45;
-  cursor: pointer;
-}
-
-.journal__step input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.journal__check {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  margin-top: 1px;
-  border-radius: 6px;
-  background: var(--card);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 25%, transparent);
-  color: var(--card);
-  transition: background 0.18s, box-shadow 0.18s;
-}
-
-.journal__step--done .journal__check {
-  background: var(--ink);
-  box-shadow: none;
-}
-
-.journal__step--done > span:last-child {
-  color: var(--muted);
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent);
-}
-
-.journal__step:has(input:focus-visible) .journal__check {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.journal__triggers summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.journal__triggers summary::-webkit-details-marker {
-  display: none;
-}
-
-.journal__triggers summary::after {
-  content: '+';
-  margin-left: 2px;
-  font-weight: 500;
-}
-
-.journal__triggers[open] summary::after {
-  content: '−';
-}
-
-.journal__triggers ul {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 1.1em;
-  font-size: 0.9375rem;
-  line-height: 1.45;
 }
 
 .journal__result {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
 }
 
 .journal__chip {
@@ -337,12 +323,159 @@
   white-space: pre-line;
 }
 
+/* Розгортання й згортання: висота росте від нуля через рядок сітки 0fr → 1fr,
+   а від'ємний відступ «з'їдає» проміжок картки, поки вмісту ще не видно */
+.journal__fold {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: journal-unfold 0.36s var(--h-spring);
+}
+
+.journal__fold > * {
+  min-height: 0;
+  overflow: clip;
+  /* фокус і підсвітка кроків виходять за край — не обрізаємо їх */
+  overflow-clip-margin: 12px;
+}
+
+.journal__fold--closing {
+  animation: journal-fold 0.26s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes journal-unfold {
+  from {
+    grid-template-rows: 0fr;
+    margin-top: calc(-1 * var(--j-gap));
+    opacity: 0;
+  }
+}
+
+@keyframes journal-fold {
+  to {
+    grid-template-rows: 0fr;
+    margin-top: calc(-1 * var(--j-gap));
+    opacity: 0;
+  }
+}
+
+/* «Як воно?» на згорнутій картці — над кнопкою відкриття */
+.journal__quick {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.journal__quick .journal__label {
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+/* ---- розгорнута частина: план, «коли передумати», «Як воно?» ---- */
+
+.journal__body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--h-line);
+}
+
+.journal__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.journal__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal__step {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin: 0 -10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  font-size: 1rem;
+  line-height: 1.45;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.journal__step:hover {
+  background: var(--h-soft);
+}
+
+.journal__step input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.journal__check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 0;
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 25%, transparent);
+  color: var(--card);
+  transition: background 0.18s, box-shadow 0.18s;
+}
+
+.journal__step--done .journal__check {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+.journal__step--done > span:last-child {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+.journal__step:has(input:focus-visible) .journal__check {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.journal__triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journal__triggers ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
 .journal__review {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--j-line);
 }
 
 .journal__outcomes {
@@ -352,17 +485,21 @@
 }
 
 .journal__outcome {
-  height: 36px;
-  padding: 0 16px;
+  height: 38px;
+  padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--card);
+  background: var(--j-control);
   color: var(--ink);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.journal__outcome:hover:not(.journal__outcome--active) {
+  background: var(--j-control-active);
 }
 
 .journal__outcome:active {
@@ -391,13 +528,12 @@
 .journal__textarea {
   width: 100%;
   min-height: 3lh;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 18px;
   outline: none;
   resize: vertical;
-  background: var(--card);
-  box-shadow: inset 0 0 0 1px var(--j-line);
+  background: var(--h-soft);
   color: var(--ink);
   font: inherit;
   font-size: 0.9375rem;
@@ -416,8 +552,8 @@
 }
 
 .journal__button {
-  height: 36px;
-  padding: 0 16px;
+  height: 40px;
+  padding: 0 18px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -430,7 +566,16 @@
 }
 
 .journal__button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  background: var(--h-soft);
+}
+
+.journal__button--soft {
+  align-self: flex-start;
+  background: var(--j-control);
+}
+
+.journal__button--soft:hover:not(:disabled) {
+  background: var(--j-control-active);
 }
 
 .journal__button--primary,
@@ -448,73 +593,99 @@
   scale: var(--press-scale);
 }
 
-.journal__link {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-color: var(--lilac);
-  cursor: pointer;
-}
+/* ---- службові стани ---- */
 
+/* журнал порожній — пояснення посередині сторінки, як в «Історії» */
 .journal__empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 22px;
-  border-radius: 26px;
-  background: var(--j-sheet);
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.journal__empty > * {
+  pointer-events: auto;
 }
 
 .journal__empty p {
+  max-width: 46ch;
   margin: 0;
   color: var(--muted);
-  font-size: 0.9375rem;
   line-height: 1.55;
 }
 
-.journal__skeleton {
-  display: flex;
-  flex-direction: column;
+.journal__entry--skeleton {
   gap: 10px;
+  pointer-events: none;
 }
 
-.journal__skeleton span {
-  height: 140px;
-  border-radius: 26px;
-  background: var(--j-sheet);
-}
-
-.journal button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
+/* ---- телефон ---- */
 
 @media (max-width: 639px) {
-  .journal {
-    padding-top: 72px;
+  /* кнопка листів — у лівому нижньому куті, де в «Історії» перемикач вигляду */
+  .journal .history__archive {
+    left: var(--h-edge);
+  }
+
+  .journal__inner {
+    gap: 26px;
   }
 
   .journal__entry {
-    padding: 16px;
+    --j-gap: 12px;
+    padding: 18px 16px;
+    border-radius: 26px;
+  }
+
+  .journal__summary {
+    padding-right: 28px;
+  }
+
+  .journal__decision {
+    font-size: 1.125rem;
+  }
+
+  .journal__chevron {
+    top: 20px;
+    right: 16px;
+  }
+
+  /* на дотикових дії завжди видно, тож у згорнутій картці їх немає,
+     а в розгорнутій вони стоять окремим рядком унизу */
+  .journal__entry:not(.journal__entry--open) .journal__tools {
+    display: none;
+  }
+
+  .journal__tools {
+    position: relative;
+    top: auto;
+    right: auto;
+    order: 10;
+    justify-content: flex-end;
+    margin: -8px -8px -10px 0;
+  }
+
+  .journal__bar {
+    flex-basis: 88px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .journal__inner,
-  .journal__entry--focused {
+  .journal__entry--focused,
+  .journal__fold {
     animation: none;
   }
 }
 
 :root[data-motion='reduced'] .journal__inner,
-:root[data-motion='reduced'] .journal__entry--focused {
+:root[data-motion='reduced'] .journal__entry--focused,
+:root[data-motion='reduced'] .journal__fold {
   animation: none;
 }

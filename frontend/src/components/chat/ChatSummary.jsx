@@ -229,14 +229,13 @@ export default function ChatSummary({
         </p>
       )}
       <TopicNotice topic={discussion.safety} className="chat__summary-topic" />
-      <div style={summaryStep()}>
+      {/* «Чи допомогло?» і «У журнал» — одним рядком під висновком */}
+      <div className="chat__summary-after" style={summaryStep()}>
         <FeedbackBar
           discussionId={discussion.id}
           initial={discussion.feedback || ''}
           initialNote={discussion.feedback_note || ''}
         />
-      </div>
-      <div style={summaryStep()}>
         <JournalCard discussion={discussion} />
       </div>
     </section>

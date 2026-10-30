@@ -310,6 +310,8 @@ DISCUSSION_AI_STATUS = os.getenv('DISCUSSION_AI_STATUS', 'true').lower() in {'1'
 # їхнього тексту разом іде в кожен промпт (решта обрізається).
 ATTACHMENTS_MAX_BYTES = 10 * 1024 * 1024
 ATTACHMENTS_MAX = int(os.getenv('ATTACHMENTS_MAX', '3'))
+# усього на дискусію: файли питання й ті, що додано до уточнень у чаті
+ATTACHMENTS_TOTAL_MAX = int(os.getenv('ATTACHMENTS_TOTAL_MAX', '6'))
 ATTACHMENTS_PROMPT_CHARS = int(os.getenv('ATTACHMENTS_PROMPT_CHARS', '12000'))
 
 # Пошук в інтернеті для моделей. SEARCH_PROVIDER: auto | tavily | brave |

@@ -2,7 +2,15 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Delete02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import {
+  ArrowDown01Icon,
+  ArrowUpRight01Icon,
+  Delete02Icon,
+  Mail01Icon,
+  MailRemove01Icon,
+  PencilEdit02Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import { deleteDecision, fetchJournal, updateDecision } from '../api/journal';
 import { fetchSettings, updatePreferences } from '../api/settings';
 import { refreshJournalDue } from '../hooks/useJournalDue';
@@ -14,6 +22,9 @@ const t = copy.journal;
 const OUTCOMES = ['good', 'mixed', 'bad'];
 const REFLECTION_MAX = 1000;
 const NO_SOURCES = new Map();
+const SKELETON_COUNT = 3;
+// скільки триває згортання картки — як анімація journal-fold у стилях
+const FOLD_MS = 260;
 
 const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 const formatDate = (value) => {
@@ -21,10 +32,14 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date);
 };
 
+const prefersReducedMotion = () =>
+  document.documentElement.dataset.motion === 'reduced'
+  || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+
 /** «Як воно?»: як вийшло й висновок для себе; «ще рано» відкладає питання на тиждень. */
-function ReviewForm({ entry, onSaved }) {
+function ReviewForm({ entry, initialOutcome, onSaved }) {
   const id = useId();
-  const [outcome, setOutcome] = useState(entry.outcome || '');
+  const [outcome, setOutcome] = useState(initialOutcome || entry.outcome || '');
   const [reflection, setReflection] = useState(entry.reflection || '');
   const [busy, setBusy] = useState(false);
   const { pushToast } = useToasts();
@@ -94,19 +109,38 @@ function ReviewForm({ entry, onSaved }) {
 
 ReviewForm.propTypes = {
   entry: PropTypes.object.isRequired,
+  initialOutcome: PropTypes.string,
   onSaved: PropTypes.func.isRequired,
 };
 
+// Картка рішення: згорнута — що вирішили, коли й скільки кроків зроблено;
+// розгорнута — план, «коли передумати» й «Як воно?». На тих, що чекають підсумку,
+// «Як воно?» видно й у згорнутій: вибір відповіді відкриває картку з формою.
 function JournalEntry({ entry, focused, onChange, onRemove }) {
   const navigate = useNavigate();
   const ref = useRef(null);
+  const bodyId = useId();
+  const quickId = useId();
+  const [open, setOpen] = useState(Boolean(focused));
+  // згортання спершу програє анімацію, і лише після неї вміст зникає
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef(null);
+  // «Як воно?» на згорнутій картці виростає, лише коли картку щойно згорнули
+  const [quickAppears, setQuickAppears] = useState(false);
+  const expanded = open && !closing;
   const [reviewing, setReviewing] = useState(focused || entry.status === 'due');
+  const [quickOutcome, setQuickOutcome] = useState('');
   const { pushToast } = useToasts();
   const done = new Set(entry.done_steps || []);
+  const steps = entry.steps || [];
+  const triggers = entry.triggers || [];
+  const hasDetails = steps.length > 0 || triggers.length > 0 || entry.status !== 'reviewed';
 
   useEffect(() => {
     if (focused) ref.current?.scrollIntoView({ block: 'center' });
   }, [focused]);
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   const toggleStep = async (index) => {
     const next = new Set(done);
@@ -134,42 +168,95 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
     }
   };
 
+  // таймер, а не animationend: у фоновій вкладці подія може не прийти, і картка застрягла б
+  const toggle = () => {
+    clearTimeout(closeTimer.current);
+    if (!open) {
+      setOpen(true);
+    } else if (closing) {
+      setClosing(false);
+    } else if (prefersReducedMotion()) {
+      setOpen(false);
+    } else {
+      setClosing(true);
+      closeTimer.current = setTimeout(() => {
+        setClosing(false);
+        setOpen(false);
+        setQuickAppears(true);
+      }, FOLD_MS);
+    }
+  };
+
   const meta = [t.decidedOn(formatDate(entry.created_at))];
   if (entry.status === 'waiting') meta.push(t.askOn(formatDate(entry.check_at)));
   if (entry.status === 'reviewed') meta.push(t.reviewedOn(formatDate(entry.reviewed_at)));
+  // колір крапки: чекає підсумку, ще рано або як вийшло
+  const dot = entry.status === 'reviewed' ? entry.outcome || 'reviewed' : entry.status;
+
+  const summary = (
+    <>
+      <span className="journal__when">
+        <span className={`journal__dot journal__dot--${dot}`} aria-hidden="true" />
+        {meta.join(' · ')}
+      </span>
+      <span className="journal__decision">{entry.decision}</span>
+      <span className="journal__question">{entry.question}</span>
+    </>
+  );
 
   return (
     <li
       ref={ref}
-      className={`journal__entry journal__entry--${entry.status} ${focused ? 'journal__entry--focused' : ''}`}
+      className={`journal__entry journal__entry--${entry.status}${expanded ? ' journal__entry--open' : ''}${focused ? ' journal__entry--focused' : ''}`}
     >
-      <div className="journal__entry-head">
-        <p className="journal__question">{entry.question}</p>
-        <div className="journal__entry-tools">
-          {entry.discussion_id && (
-            <button
-              type="button"
-              className="journal__icon-button"
-              onClick={() => navigate(`/chat/${entry.discussion_id}`)}
-              aria-label={t.openDiscussion}
-              title={t.openDiscussion}
-            >
-              <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
-            </button>
-          )}
+      {hasDetails ? (
+        <button
+          type="button"
+          className="journal__summary"
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+        >
+          {summary}
+          <HugeiconsIcon className="journal__chevron" icon={ArrowDown01Icon} size={18} aria-hidden="true" />
+        </button>
+      ) : (
+        <div className="journal__summary">{summary}</div>
+      )}
+
+      <div className="journal__tools">
+        {entry.discussion_id && (
           <button
             type="button"
             className="journal__icon-button"
-            onClick={remove}
-            aria-label={t.remove}
-            title={t.remove}
+            onClick={() => navigate(`/chat/${entry.discussion_id}`)}
+            aria-label={t.openDiscussion}
+            title={t.openDiscussion}
           >
-            <HugeiconsIcon icon={Delete02Icon} size={16} aria-hidden="true" />
+            <HugeiconsIcon icon={ArrowUpRight01Icon} size={18} aria-hidden="true" />
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          className="journal__icon-button journal__icon-button--delete"
+          onClick={remove}
+          aria-label={t.remove}
+          title={t.remove}
+        >
+          <HugeiconsIcon icon={Delete02Icon} size={18} aria-hidden="true" />
+        </button>
       </div>
-      <p className="journal__decision">{entry.decision}</p>
-      <p className="journal__meta">{meta.join(' · ')}</p>
+
+      {steps.length > 0 && (
+        <div className="journal__progress">
+          <span className="journal__bar" aria-hidden="true">
+            <span style={{ width: `${(done.size / steps.length) * 100}%` }} />
+          </span>
+          <span className="journal__progress-text">
+            {t.plan} · <span>{t.planProgress(done.size, steps.length)}</span>
+          </span>
+        </div>
+      )}
 
       {entry.status === 'reviewed' && entry.outcome && (
         <div className="journal__result">
@@ -178,50 +265,78 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         </div>
       )}
 
-      {entry.steps?.length > 0 && (
-        <section className="journal__block">
-          <h3 className="journal__label">
-            {t.plan}
-            <span className="journal__progress">{t.planProgress(done.size, entry.steps.length)}</span>
-          </h3>
-          <ul className="journal__steps">
-            {entry.steps.map((step, index) => (
-              <li key={`${entry.id}-${index}`}>
-                <label className={`journal__step ${done.has(index) ? 'journal__step--done' : ''}`}>
-                  <input type="checkbox" checked={done.has(index)} onChange={() => toggleStep(index)} />
-                  <span className="journal__check" aria-hidden="true">
-                    {done.has(index) && <HugeiconsIcon icon={Tick02Icon} size={13} strokeWidth={2.4} />}
-                  </span>
-                  <span>
-                    <InlineText text={step} sources={NO_SOURCES} />
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {entry.status === 'due' && !open && (
+        <div className={quickAppears ? 'journal__fold' : undefined}>
+          <div className="journal__quick">
+            <span className="journal__label" id={quickId}>{t.howIsIt}</span>
+            <div className="journal__outcomes" role="group" aria-labelledby={quickId}>
+              {OUTCOMES.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`journal__outcome journal__outcome--${key}`}
+                  onClick={() => {
+                    setQuickOutcome(key);
+                    setOpen(true);
+                  }}
+                >
+                  {t.outcomes[key]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
-      {entry.triggers?.length > 0 && (
-        <details className="journal__block journal__triggers">
-          <summary className="journal__label">{t.triggers}</summary>
-          <ul>
-            {entry.triggers.map((item, index) => (
-              <li key={`${entry.id}-trigger-${index}`}>
-                <InlineText text={item} sources={NO_SOURCES} />
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {hasDetails && open && (
+        <div
+          id={bodyId}
+          className={`journal__fold${closing ? ' journal__fold--closing' : ''}`}
+        >
+          <div>
+            <div className="journal__body">
+              {steps.length > 0 && (
+                <ul className="journal__steps" aria-label={t.plan}>
+                  {steps.map((step, index) => (
+                    <li key={`${entry.id}-${index}`}>
+                      <label className={`journal__step ${done.has(index) ? 'journal__step--done' : ''}`}>
+                        <input type="checkbox" checked={done.has(index)} onChange={() => toggleStep(index)} />
+                        <span className="journal__check" aria-hidden="true">
+                          {done.has(index) && <HugeiconsIcon icon={Tick02Icon} size={13} strokeWidth={2.4} />}
+                        </span>
+                        <span>
+                          <InlineText text={step} sources={NO_SOURCES} />
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-      {entry.status !== 'reviewed' && (reviewing ? (
-        <ReviewForm entry={entry} onSaved={onChange} />
-      ) : (
-        <button type="button" className="journal__link" onClick={() => setReviewing(true)}>
-          {t.reviewNow}
-        </button>
-      ))}
+              {triggers.length > 0 && (
+                <section className="journal__triggers">
+                  <h3 className="journal__label">{t.triggers}</h3>
+                  <ul>
+                    {triggers.map((item, index) => (
+                      <li key={`${entry.id}-trigger-${index}`}>
+                        <InlineText text={item} sources={NO_SOURCES} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {entry.status !== 'reviewed' && (reviewing ? (
+                <ReviewForm entry={entry} initialOutcome={quickOutcome} onSaved={onChange} />
+              ) : (
+                <button type="button" className="journal__button journal__button--soft" onClick={() => setReviewing(true)}>
+                  {t.reviewNow}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </li>
   );
 }
@@ -241,7 +356,6 @@ export default function JournalPage() {
   const [entries, setEntries] = useState(null);
   const [error, setError] = useState('');
   const [emails, setEmails] = useState(null);
-  const switchId = useId();
   const { pushToast } = useToasts();
 
   const load = useCallback(async () => {
@@ -274,6 +388,7 @@ export default function JournalPage() {
     setEmails(value);
     try {
       await updatePreferences({ journal_emails: value });
+      pushToast(value ? t.emailsOnToast : t.emailsOffToast);
     } catch (err) {
       setEmails(!value);
       pushToast(err?.message || t.saveError);
@@ -294,79 +409,94 @@ export default function JournalPage() {
     ].filter((group) => group.items.length > 0);
   }, [entries]);
 
+  const isLoading = !error && entries === null;
+
   return (
-    <div className="journal">
-      <div className="journal__inner">
-        <header className="journal__head">
-          <h1 className="journal__title">{t.title}</h1>
-          <p className="journal__lead">{t.lead}</p>
-          {emails !== null && (
-            <label className="journal__setting" htmlFor={switchId}>
-              <span>
-                <span className="journal__setting-title">{t.emails}</span>
-                <span className="journal__setting-hint">{t.emailsHint}</span>
-              </span>
-              <input
-                id={switchId}
-                type="checkbox"
-                role="switch"
-                className="debate__switch-input"
-                checked={emails}
-                onChange={(e) => changeEmails(e.target.checked)}
-              />
-            </label>
+    <main className="history journal">
+      <div className="history__scroll" aria-busy={isLoading}>
+        <div className="journal__inner">
+          <h1 className="history__sr-only">{t.title}</h1>
+
+          {error && (
+            <div className="history__error" role="alert">
+              <p>{error}</p>
+              <button type="button" className="history__retry" onClick={load}>
+                {t.retry}
+              </button>
+            </div>
           )}
-        </header>
 
-        {error && (
-          <div className="journal__empty" role="alert">
-            <p>{error}</p>
-            <button type="button" className="journal__button" onClick={load}>
-              {t.retry}
-            </button>
-          </div>
-        )}
-
-        {!error && entries === null && (
-          <div className="journal__skeleton" aria-hidden="true">
-            <span />
-            <span />
-          </div>
-        )}
-
-        {entries?.length === 0 && (
-          <div className="journal__empty">
-            <p>{t.empty}</p>
-            <button
-              type="button"
-              className="journal__button journal__button--primary"
-              onClick={() => navigate('/home')}
-            >
-              {t.emptyAction}
-            </button>
-          </div>
-        )}
-
-        {groups.map((group) => (
-          <section key={group.key} className="journal__group" aria-labelledby={`journal-${group.key}`}>
-            <h2 id={`journal-${group.key}`} className="journal__group-title">
-              {group.title}
-              <span className="journal__group-count">{group.items.length}</span>
-            </h2>
-            <ul className="journal__list">
-              {group.items.map((entry) => (
-                <JournalEntry
-                  key={entry.id}
-                  entry={entry}
-                  focused={String(entry.id) === focusId}
-                  onChange={replace}
-                  onRemove={remove}
-                />
+          {isLoading && (
+            <ul className="journal__list" aria-hidden="true">
+              {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+                <li key={index} className="journal__entry journal__entry--skeleton">
+                  <span className="history__skeleton history__skeleton--date" />
+                  <span className="history__skeleton history__skeleton--title" />
+                  <span className="history__skeleton history__skeleton--title history__skeleton--short" />
+                </li>
               ))}
             </ul>
-          </section>
-        ))}
+          )}
+
+          {entries?.length === 0 && (
+            <div className="journal__empty">
+              <p>{t.empty}</p>
+              <button type="button" className="history__retry" onClick={() => navigate('/home')}>
+                {t.emptyAction}
+              </button>
+            </div>
+          )}
+
+          {groups.map((group) => (
+            <section key={group.key} className="journal__group" aria-labelledby={`journal-${group.key}`}>
+              <h2 id={`journal-${group.key}`} className="history__group-title journal__group-title">
+                {group.title}
+                <span className="journal__group-count">{group.items.length}</span>
+              </h2>
+              <ul className="journal__list">
+                {group.items.map((entry) => (
+                  <JournalEntry
+                    key={entry.id}
+                    entry={entry}
+                    focused={String(entry.id) === focusId}
+                    onChange={replace}
+                    onRemove={remove}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* панель праворуч, як в історії: листи-нагадування вгорі, нова дискусія внизу */}
+      <aside className="history__rail" aria-label={t.toolbar}>
+        <div className="history__rail-group">
+          {emails !== null && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={emails}
+              className={`history__rail-button history__archive${emails ? ' history__archive--active' : ''}`}
+              onClick={() => changeEmails(!emails)}
+              aria-label={t.emails}
+              title={`${t.emails} — ${emails ? t.emailsOn : t.emailsOff}. ${t.emailsHint}`}
+            >
+              <HugeiconsIcon icon={emails ? Mail01Icon : MailRemove01Icon} size={22} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="history__rail-button history__new"
+          onClick={() => navigate('/home')}
+          aria-label={copy.history.newDiscussion}
+          title={copy.history.newDiscussion}
+        >
+          <HugeiconsIcon icon={PencilEdit02Icon} size={22} aria-hidden="true" />
+        </button>
+      </aside>
+    </main>
   );
 }

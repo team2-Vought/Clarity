@@ -38,6 +38,7 @@ from .serializers import (
     CreateDiscussionSerializer,
     DiscussionListSerializer,
     DiscussionSerializer,
+    MessageCreateSerializer,
     MessageSerializer,
     SharedDiscussionSerializer,
     TeamSerializer,
@@ -480,6 +481,9 @@ class DiscussionMessageView(OwnedDiscussionView):
             return _not_found()
         if runner.over_daily_limit(request.user):
             return _daily_limit_response()
+        serializer = MessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         try:
             message, reopened = engine.add_user_message(
                 discussion.pk,
@@ -487,6 +491,8 @@ class DiscussionMessageView(OwnedDiscussionView):
                 request.data.get('content', ''),
                 # після висновку можна звернутися до одного учасника
                 target=str(request.data.get('target') or ''),
+                quick=data['quick'],
+                attachment_ids=data['attachments'],
             )
         except engine.EngineError as exc:
             return Response(

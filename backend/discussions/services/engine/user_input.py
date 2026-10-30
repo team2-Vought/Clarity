@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from backend.i18n import L
 
-from ...models import Discussion, Message
+from ...models import Attachment, Discussion, Message
 from ...personas import moderator
 from ..attachments import documents_for_prompt
 from .. import prompts, usage
@@ -30,7 +30,7 @@ def _not_found():
     return L('Дискусію не знайдено.', 'Discussion not found.')
 
 
-def add_user_message(discussion_id, author_name, content, target=''):
+def add_user_message(discussion_id, author_name, content, target='', quick=False, attachment_ids=()):
     """Додає уточнення користувача.
 
     Під час дискусії воно потрапляє в історію, і наступні учасники на нього
@@ -38,6 +38,9 @@ def add_user_message(discussion_id, author_name, content, target=''):
     синтез, перевірка Devil і фінал проходять заново; у швидкому режимі —
     ще одну коротку відповідь. Якщо після фіналу людина звертається до одного
     учасника (`target` — його slug), відповідає лише він, а висновок лишається.
+    `quick` після фіналу просить коротку відповідь модератора замість раунду.
+    `attachment_ids` — файли, щойно завантажені для цього уточнення: вони
+    стають частиною дискусії, і наступні кроки бачать їх у промптах.
     Повертає (message, reopened).
     """
     content = _text(content, limit=int(settings.DISCUSSION_NOTE_MAX_CHARS))
@@ -69,6 +72,19 @@ def add_user_message(discussion_id, author_name, content, target=''):
                 ),
                 retryable=False,
             )
+        attachment_ids = list(dict.fromkeys(attachment_ids or ()))
+        if attachment_ids:
+            limit = int(settings.ATTACHMENTS_TOTAL_MAX)
+            if discussion.attachments.count() + len(attachment_ids) > limit:
+                raise EngineError(
+                    'Ліміт файлів дискусії вичерпано.',
+                    code='attachments_limit',
+                    public=L(
+                        f'До однієї дискусії можна додати не більше {limit} файлів.',
+                        f'You can add no more than {limit} files to one discussion.',
+                    ),
+                    retryable=False,
+                )
         if discussion.safety == CRISIS or looks_like_crisis(content):
             # криза посеред розмови — наступний крок зупиняє дискусію й показує допомогу
             discussion.safety = CRISIS
@@ -123,8 +139,8 @@ def add_user_message(discussion_id, author_name, content, target=''):
             discussion.finished_early = False
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.finished_at = None
-            if discussion.quick:
-                # у швидкому режимі уточнення — це ще одна коротка відповідь
+            if discussion.quick or quick:
+                # у швидкому режимі (або на прохання людини) уточнення — це ще одна коротка відповідь
                 discussion.phase = Discussion.Phase.QUICK
             else:
                 discussion.current_round += 1
@@ -148,6 +164,10 @@ def add_user_message(discussion_id, author_name, content, target=''):
             reply_to=persona['name'] if persona else '',
             reply_to_slug=persona['slug'] if persona else '',
         )
+        if attachment_ids:
+            Attachment.objects.filter(
+                user_id=discussion.user_id, pk__in=attachment_ids, discussion__isnull=True
+            ).update(discussion=discussion, message=message)
         discussion.save()
         return message, reopened
 

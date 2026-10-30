@@ -1630,12 +1630,13 @@ body:has(.app-shell) {
 }
 
 /* після старту дискусії режим лише видно: пункти сірі й не обираються */
-.debate__mode-picker--locked .debate__mode-item {
+/* дискусія вже йде: сірі лише самі формати — файли, швидка відповідь і пошук у тому ж меню працюють */
+.debate__mode-picker--locked .debate__mode-item[role='menuitemradio'] {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.debate__mode-picker--locked .debate__mode-item:hover {
+.debate__mode-picker--locked .debate__mode-item[role='menuitemradio']:hover {
   background: transparent;
 }
 
@@ -4882,46 +4883,89 @@ ol.chat__reveal {
   color: var(--muted);
 }
 
-/* журнал рішень під висновком: пропозиція, форма або «вже в журналі» */
-.chat__journal {
+/* під висновком одним рядком: «Чи допомогло?» ліворуч, «У журнал» праворуч;
+   розкрита форма журналу переходить на окремий рядок на всю ширину */
+.chat__summary-after {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  width: 100%;
+  justify-content: space-between;
+  gap: 10px 16px;
   margin-top: 6px;
-  padding: 14px 16px;
+}
+
+.chat__summary-after > .chat__feedback {
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* «У журнал» — невелика кнопка, як «Допомогло» поруч */
+.chat__journal-add {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--soft);
   color: var(--ink);
   font: inherit;
-  text-align: left;
-}
-
-.chat__journal--offer {
+  font-size: 0.8125rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.18s, var(--press);
+  transition: background 0.18s, color 0.18s, var(--press);
 }
 
-.chat__journal--offer:hover {
-  background: color-mix(in srgb, var(--ink) 5%, var(--soft));
+.chat__journal-add:hover {
+  background: color-mix(in srgb, var(--ink) 8%, var(--soft));
 }
 
-.chat__journal--offer:active {
-  scale: 0.99;
+.chat__journal-add:active {
+  scale: var(--press-scale);
 }
 
-.chat__journal--offer > svg {
-  flex: none;
-  margin-left: auto;
+/* уже в журналі — без підкладки, тихіше, веде в журнал */
+.chat__journal-add--saved {
+  background: transparent;
   color: var(--muted);
+  font-weight: 500;
 }
 
-.chat__journal-text {
+.chat__journal-add--saved > svg {
+  color: var(--ink);
+}
+
+.chat__journal-add--saved:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.chat__journal {
   display: flex;
+  flex-basis: 100%;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border-radius: 20px;
+  background: var(--soft);
+  color: var(--ink);
+  animation: chat-journal-in 0.24s ease-out;
+}
+
+@keyframes chat-journal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.chat__journal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .chat__journal-title {
@@ -4935,10 +4979,24 @@ ol.chat__reveal {
   line-height: 1.45;
 }
 
-.chat__journal--form {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
+.chat__journal-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -4px -6px -4px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+
+.chat__journal-close:hover {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
 }
 
 .chat__journal-input {
@@ -5010,30 +5068,10 @@ ol.chat__reveal {
   scale: var(--press-scale);
 }
 
-.chat__journal--saved {
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 14px;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.chat__journal--saved > svg {
-  color: var(--ink);
-}
-
-.chat__journal-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+@media (prefers-reduced-motion: reduce) {
+  .chat__journal {
+    animation: none;
+  }
 }
 
 /* план на тиждень — пронумеровані кроки, номер у кружечку, як у підказках */

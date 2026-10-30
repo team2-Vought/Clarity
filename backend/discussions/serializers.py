@@ -344,6 +344,9 @@ class CreateDiscussionSerializer(serializers.Serializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    # файли, додані до уточнення в чаті (без самого тексту документа)
+    attachments = serializers.SerializerMethodField()
+
     class Meta:
         model = Message
         fields = [
@@ -365,7 +368,29 @@ class MessageSerializer(serializers.ModelSerializer):
             'source_ids',
             'model_id',
             'created_at',
+            'attachments',
         ]
+
+    def get_attachments(self, obj):
+        return [attachment_payload(item) for item in obj.attachments.all()]
+
+
+class MessageCreateSerializer(serializers.Serializer):
+    """Уточнення в чаті: текст і адресата перевіряє рушій, тут — лише прапорець і файли."""
+
+    quick = serializers.BooleanField(required=False, default=False)
+    attachments = serializers.ListField(
+        child=serializers.UUIDField(), required=False, default=list
+    )
+
+    def validate_attachments(self, value):
+        value = list(dict.fromkeys(value))
+        if len(value) > settings.ATTACHMENTS_MAX:
+            raise serializers.ValidationError(L(
+                f'Можна додати не більше {settings.ATTACHMENTS_MAX} файлів',
+                f'You can add no more than {settings.ATTACHMENTS_MAX} files',
+            ))
+        return value
 
 
 class UpdateDiscussionSerializer(serializers.Serializer):
@@ -376,6 +401,13 @@ class UpdateDiscussionSerializer(serializers.Serializer):
     devil_model = serializers.CharField(required=False, allow_blank=True)
     pinned = serializers.BooleanField(required=False)
     archived = serializers.BooleanField(required=False)
+    # пошук в інтернеті можна ввімкнути чи вимкнути й посеред дискусії
+    web_search = serializers.BooleanField(required=False)
+
+    def validate_web_search(self, value):
+        if value and not search.is_available():
+            raise serializers.ValidationError(SEARCH_UNAVAILABLE)
+        return value
 
     def validate_personas(self, value):
         result = {}
@@ -413,7 +445,7 @@ class UpdateDiscussionSerializer(serializers.Serializer):
                     persona.pop('model', None)
             personas.append(persona)
         instance.personas = personas
-        for field in ('moderator_model', 'devil_model', 'pinned', 'archived'):
+        for field in ('moderator_model', 'devil_model', 'pinned', 'archived', 'web_search'):
             if field in validated_data:
                 setattr(instance, field, validated_data[field])
         changed_models = bool(models) or {'moderator_model', 'devil_model'} & set(validated_data)
@@ -453,7 +485,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
-        queryset = obj.messages.order_by('seq')
+        queryset = obj.messages.order_by('seq').prefetch_related('attachments')
         after = self.context.get('after')
         if after is not None:
             queryset = queryset.filter(seq__gt=after)
@@ -469,7 +501,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
         return journal_state(obj)
 
     def get_attachments(self, obj):
-        return [attachment_payload(item) for item in obj.attachments.all()]
+        # файли самого питання; додані до уточнень — у своїх повідомленнях
+        return [attachment_payload(item) for item in obj.attachments.filter(message__isnull=True)]
 
     def get_title(self, obj):
         return discussion_title(obj.question)
@@ -619,7 +652,11 @@ class DiscussionListSerializer(serializers.ModelSerializer):
 
 
 class SharedMessageSerializer(MessageSerializer):
-    """Репліка для публічного посилання: ім'я автора питання не розкриваємо."""
+    """Репліка для публічного посилання: ім'я автора питання не розкриваємо,
+    а файлів уточнень не показуємо зовсім."""
+
+    class Meta(MessageSerializer.Meta):
+        fields = [name for name in MessageSerializer.Meta.fields if name != 'attachments']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

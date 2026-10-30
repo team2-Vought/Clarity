@@ -28,7 +28,6 @@ import {
 } from '../api/discussions';
 import { getToken } from '../api/client';
 import { updatePreferences } from '../api/settings';
-import { removeAttachment, uploadAttachment } from '../api/attachments';
 import AttachmentCard from '../components/AttachmentCard';
 import CriteriaEditor from '../components/CriteriaEditor';
 import CustomRoleDialog from '../components/CustomRoleDialog';
@@ -52,12 +51,11 @@ import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
+import { FILE_TYPES, MAX_FILES, useAttachmentDraft } from '../hooks/useAttachmentDraft';
 import { hasAbout, useMyProfile } from '../hooks/useMyProfile';
 
 const t = copy.debate;
 // вкладення до питання: стільки файлів і таких типів приймає сервер
-const MAX_FILES = 3;
-const FILE_TYPES = '.pdf,.docx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp';
 
 // Фраза заголовка обирається випадково один раз на завантаження сторінки
 const TITLE = t.titles[Math.floor(Math.random() * t.titles.length)];
@@ -231,11 +229,17 @@ export default function DebatePage() {
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
   // файли до питання: сервер одразу читає з них текст; поки читає — старт чекає
-  const [files, setFiles] = useState([]);
+  const {
+    files,
+    ids: fileIds,
+    reading: filesReading,
+    addFiles,
+    removeFile,
+    clearFiles,
+  } = useAttachmentDraft();
   const [isDragging, setIsDragging] = useState(false);
   // поле вибору файлу відкривається з меню формату — тримаємо сам елемент
   const [fileInput, setFileInput] = useState(null);
-  const filesReading = files.some((item) => item.status === 'reading');
   // швидкий режим: одна коротка відповідь замість дебатів
   const [quick, setQuick] = useState(false);
   // критерії для «Один із варіантів»: [{name, weight}]
@@ -244,50 +248,6 @@ export default function DebatePage() {
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   // питання схоже на кризу — допомогу показуємо ще до надсилання
   const crisis = looksLikeCrisis(description);
-
-  const addFiles = (list) => {
-    const room = MAX_FILES - files.length;
-    const picked = [...(list || [])].slice(0, Math.max(0, room));
-    if ((list?.length || 0) > room) pushToast(t.attachMax);
-    picked.forEach(async (file) => {
-      const key = `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`;
-      // сервер зберігає лише текст — мініатюру й перегляд показуємо з самого файлу
-      const isImage = file.type.startsWith('image/');
-      const url = (isImage || file.type === 'application/pdf') && URL.createObjectURL
-        ? URL.createObjectURL(file)
-        : '';
-      setFiles((current) => [
-        ...current,
-        { key, name: file.name, status: 'reading', kind: isImage ? 'image' : '', url, source: file },
-      ]);
-      try {
-        const data = await uploadAttachment(file);
-        setFiles((current) =>
-          current.map((item) => (item.key === key ? { ...item, ...data, status: 'ready' } : item))
-        );
-      } catch (err) {
-        setFiles((current) => current.filter((item) => item.key !== key));
-        if (url) URL.revokeObjectURL(url);
-        pushToast(err?.message || t.attachError);
-      }
-    });
-  };
-
-  const removeFile = (file) => {
-    setFiles((current) => current.filter((item) => item.key !== file.key));
-    if (file.url) URL.revokeObjectURL(file.url);
-    if (file.id) removeAttachment(file.id).catch(() => {});
-  };
-
-  // локальні адреси файлів звільняємо, коли сторінку закрито
-  const filesRef = useRef(files);
-  useEffect(() => {
-    filesRef.current = files;
-  }, [files]);
-  useEffect(
-    () => () => filesRef.current.forEach((item) => item.url && URL.revokeObjectURL(item.url)),
-    []
-  );
 
   const canStart =
     !isCreating
@@ -779,12 +739,12 @@ export default function DebatePage() {
         moderatorModel,
         devilModel,
         useProfile: aboutFilled ? useProfile : undefined,
-        attachments: files.filter((item) => item.id).map((item) => item.id),
+        attachments: fileIds,
         quick,
         criteria: mode === 'choose_one' ? criteria : [],
       });
       saveDraft('');
-      setFiles([]);
+      clearFiles();
       if (showOnboarding) finishOnboarding();
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {

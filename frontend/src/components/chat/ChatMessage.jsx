@@ -23,6 +23,7 @@ import {
   stanceLabel,
   stanceTone,
 } from '../../utils/chatView';
+import AttachmentChip from '../AttachmentChip';
 
 const t = copy.chat;
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
@@ -238,6 +239,16 @@ export default function ChatMessage({
               )}
               {text}
             </div>
+            {/* файли, додані до уточнення, — під ним, як під самим питанням */}
+            {message.attachments?.length > 0 && (
+              <div className="chat__attachments" role="list" aria-label={t.attachments}>
+                {message.attachments.map((file) => (
+                  <span key={file.id} role="listitem">
+                    <AttachmentChip name={file.name} kind={file.kind} title={file.preview || file.name} />
+                  </span>
+                ))}
+              </div>
+            )}
             {!typing && !draft && (
               <div className="chat__actions">
                 <button

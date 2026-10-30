@@ -73,17 +73,18 @@ describe('JournalPage', () => {
     expect(within(reviewed).getByText('Добре, що не чекав')).toBeInTheDocument();
   });
 
-  it('зберігає «Як воно?» з висновком для себе', async () => {
+  it('картки згорнуті, а «Як воно?» відкриває форму з обраною відповіддю', async () => {
     const user = userEvent.setup();
     vi.mocked(updateDecision).mockResolvedValue({ ...DUE, outcome: 'mixed', status: 'reviewed' });
     renderPage();
     const due = await screen.findByRole('region', { name: /Час підбити підсумок/ });
-    const save = within(due).getByRole('button', { name: 'Зберегти підсумок' });
-    expect(save).toBeDisabled();
+    expect(within(due).queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(within(due).getByText('0 з 2')).toBeInTheDocument();
 
-    await user.click(within(due).getByRole('radio', { name: 'По-різному' }));
+    await user.click(within(due).getByRole('button', { name: 'По-різному' }));
+    expect(within(due).getByRole('radio', { name: 'По-різному' })).toHaveAttribute('aria-checked', 'true');
     await user.type(within(due).getByRole('textbox'), 'Дорожче, ніж думав');
-    await user.click(save);
+    await user.click(within(due).getByRole('button', { name: 'Зберегти підсумок' }));
     expect(updateDecision).toHaveBeenCalledWith('e1', { outcome: 'mixed', reflection: 'Дорожче, ніж думав' });
   });
 
@@ -91,7 +92,8 @@ describe('JournalPage', () => {
     const user = userEvent.setup();
     vi.mocked(updateDecision).mockResolvedValue({ ...DUE, done_steps: [1] });
     renderPage();
-    await user.click(await screen.findByRole('checkbox', { name: 'Подзвонити рієлтору' }));
+    await user.click(await screen.findByRole('button', { name: /Переїжджаю в березні/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Подзвонити рієлтору' }));
     expect(updateDecision).toHaveBeenCalledWith('e1', { done_steps: [1] });
     expect(screen.getByText('1 з 2')).toBeInTheDocument();
   });
@@ -100,7 +102,8 @@ describe('JournalPage', () => {
     const user = userEvent.setup();
     vi.mocked(updateDecision).mockResolvedValue({ ...DUE, status: 'waiting' });
     renderPage();
-    await user.click(await screen.findByRole('button', { name: 'Ще рано — спитати через тиждень' }));
+    await user.click(await screen.findByRole('button', { name: /Переїжджаю в березні/ }));
+    await user.click(screen.getByRole('button', { name: 'Ще рано — спитати через тиждень' }));
     expect(updateDecision).toHaveBeenCalledWith('e1', { remind_in_days: 7 });
   });
 
