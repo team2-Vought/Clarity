@@ -5,7 +5,10 @@ import {
   ArrowDown02Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Attachment01Icon,
   Copy01Icon,
+  FlashIcon,
+  GlobalSearchIcon,
   IdentityCardIcon,
   Link01Icon,
   PencilEdit02Icon,
@@ -26,6 +29,7 @@ import {
 import { useIsPhone } from '../hooks/useIsPhone';
 import { useMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
+import { FILE_TYPES, MAX_FILES, useAttachmentDraft } from '../hooks/useAttachmentDraft';
 import {
   ArrowUpIcon,
   AvatarIcon,
@@ -66,6 +70,7 @@ import ChatMessage from '../components/chat/ChatMessage';
 import ChatSummary from '../components/chat/ChatSummary';
 import NotifyOffer from '../components/chat/NotifyOffer';
 import AttachmentChip from '../components/AttachmentChip';
+import AttachmentCard from '../components/AttachmentCard';
 import { CrisisHelp, TopicNotice } from '../components/SafetyNotice';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
@@ -135,6 +140,19 @@ export default function ChatPage() {
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [note, setNote] = useState('');
+  // меню біля поля вводу: файли до уточнення, швидка відповідь, пошук
+  const {
+    files: noteFiles,
+    ids: noteFileIds,
+    reading: noteFilesReading,
+    addFiles: addNoteFiles,
+    removeFile: removeNoteFile,
+    clearFiles: clearNoteFiles,
+  } = useAttachmentDraft();
+  const [noteFileInput, setNoteFileInput] = useState(null);
+  const [isNoteDragging, setIsNoteDragging] = useState(false);
+  const [quickNext, setQuickNext] = useState(false);
+  const [searchAvailable, setSearchAvailable] = useState(false);
   // кому адресоване питання після висновку: '' — усім, інакше slug учасника
   const [askTarget, setAskTarget] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -248,6 +266,7 @@ export default function ChatPage() {
       setRevealedCount(Math.max(0, (data.messages || []).length - 1));
       setActiveSlug(data.personas?.[0]?.slug || '');
       if (personaData?.personas) setPersonas(personaData.personas);
+      setSearchAvailable(Boolean(personaData?.search?.available));
       if (modelData?.models) {
         setModels(modelData.models);
         setDefaultModel(
@@ -967,19 +986,73 @@ export default function ChatPage() {
     && !isSending
     && !isFinalWriting
     && !isAwaitingClarify
+    && !noteFilesReading
     && note.trim().length > 0
     && (!isFinished || questionsLeft > 0);
-  const showStop = isRunning && !isSending && note.trim().length === 0;
+  const showStop = isRunning && !isSending && note.trim().length === 0 && noteFiles.length === 0;
+
+  // коротка відповідь замість раунду — лише для уточнення всім після висновку;
+  // у швидкій дискусії так відповідають завжди
+  const canQuickNext = isFinished && !askEntry && !discussion?.quick && discussion?.safety !== 'crisis';
+  const noteLocked = isSending || isFinalWriting || (isFinished && questionsLeft === 0);
+
+  // пошук можна ввімкнути чи вимкнути й посеред дискусії — діє з наступного кроку
+  const toggleSearch = async () => {
+    const next = !discussion.web_search;
+    setDiscussion((current) => ({ ...current, web_search: next }));
+    try {
+      await updateDiscussion(discussion.id, { webSearch: next });
+    } catch (err) {
+      setDiscussion((current) => ({ ...current, web_search: !next }));
+      pushToast(err?.message || t.searchToggleError);
+    }
+  };
+
+  // те саме меню, що й у полі нового питання: формат видно, але вже не змінити
+  const composerExtras = discussion
+    ? [
+        {
+          key: 'attach',
+          icon: Attachment01Icon,
+          label: d.attach,
+          hint: t.noteAttachHint,
+          disabled: noteLocked || noteFiles.length >= MAX_FILES,
+          onSelect: () => noteFileInput?.click(),
+        },
+        {
+          key: 'quick',
+          icon: FlashIcon,
+          label: d.quick,
+          hint: discussion.quick ? t.quickAlways : canQuickNext ? t.quickNextHint : t.quickAfterFinal,
+          checked: Boolean(discussion.quick) || (canQuickNext && quickNext),
+          disabled: !canQuickNext,
+          onSelect: () => setQuickNext((value) => !value),
+        },
+        {
+          key: 'search',
+          icon: GlobalSearchIcon,
+          label: d.webSearch,
+          hint: searchAvailable ? d.webSearchMenuHint : d.webSearchUnavailable,
+          checked: Boolean(discussion.web_search),
+          disabled: !searchAvailable && !discussion.web_search,
+          onSelect: toggleSearch,
+        },
+      ]
+    : [];
 
   const handleSendNote = async (e) => {
     e.preventDefault();
     if (!canSendNote) return;
     setIsSending(true);
     try {
-      const data = await postNote(discussion.id, note.trim(), askEntry ? askEntry.key : '');
+      const data = await postNote(discussion.id, note.trim(), askEntry ? askEntry.key : '', {
+        quick: canQuickNext && quickNext,
+        attachments: noteFileIds,
+      });
       applyState({ ...data.discussion, messages: [data.message] });
       kicksRef.current = 0;
       setNote('');
+      clearNoteFiles();
       setActionError('');
       stickToBottomRef.current = true;
     } catch (err) {
@@ -1625,9 +1698,45 @@ export default function ChatPage() {
                 </div>
               )}
               <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
-                {/* режим видно, але після старту дискусії його вже не змінити */}
-                <ModePicker value={discussion.mode} locked />
-                <div className="debate__composer" inert={isComposerSmall}>
+                {/* формат видно, але після старту дискусії його вже не змінити;
+                    у тому ж меню — файли до уточнення, швидка відповідь і пошук */}
+                <ModePicker value={discussion.mode} locked extras={composerExtras} />
+                <div
+                  className={`debate__composer${isNoteDragging ? ' debate__composer--drop' : ''}`}
+                  inert={isComposerSmall}
+                  // файл можна просто перетягнути на поле, як і в новому питанні
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer?.types?.includes('Files') || noteLocked) return;
+                    e.preventDefault();
+                    setIsNoteDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) setIsNoteDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    if (!e.dataTransfer?.files?.length) return;
+                    e.preventDefault();
+                    setIsNoteDragging(false);
+                    if (!noteLocked) addNoteFiles(e.dataTransfer.files);
+                  }}
+                >
+                  {noteFiles.length > 0 && (
+                    <div className="debate__files" aria-live="polite">
+                      {noteFiles.map((file) => (
+                        <AttachmentCard
+                          key={file.key}
+                          file={file}
+                          title={
+                            file.status === 'reading'
+                              ? d.attachReading
+                              : file.truncated ? d.attachTruncated : file.name
+                          }
+                          onRemove={isSending ? undefined : () => removeNoteFile(file)}
+                          removeLabel={d.attachRemove(file.name)}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <textarea
                     ref={noteRef}
                     className="debate__composer-input"
@@ -1637,13 +1746,24 @@ export default function ChatPage() {
                     maxLength={MAX_NOTE}
                     rows={1}
                     placeholder={notePlaceholder}
-                    disabled={isSending || isFinalWriting || (isFinished && questionsLeft === 0)}
+                    disabled={noteLocked}
                     aria-label={noteHint}
                   />
                   <div className="debate__composer-bar">
                     <span className="debate__composer-count">
                       {note.length > 0 ? `${note.length} / ${MAX_NOTE}` : ''}
                     </span>
+                    <input
+                      ref={setNoteFileInput}
+                      type="file"
+                      accept={FILE_TYPES}
+                      multiple
+                      hidden
+                      onChange={(e) => {
+                        addNoteFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
                     {showStop ? (
                       // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
                       // щойно користувач почне писати — знову можна надіслати уточнення

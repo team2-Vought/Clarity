@@ -87,14 +87,17 @@ export function finishDiscussion(id) {
   return request(`/api/discussions/${id}/finish/`, { method: 'POST', auth: true });
 }
 
-/** Уточнення користувача: під час дискусії або після фіналу. */
-/** Уточнення; після висновку `target` — slug учасника, якому адресоване питання. */
-export function postNote(id, content, target = '') {
-  return request(`/api/discussions/${id}/messages/`, {
-    method: 'POST',
-    auth: true,
-    body: target ? { content, target } : { content },
-  });
+/**
+ * Уточнення під час дискусії або після фіналу. Після висновку `target` — slug
+ * учасника, якому адресоване питання, а `quick` просить коротку відповідь
+ * модератора замість ще одного раунду; `attachments` — id щойно завантажених файлів.
+ */
+export function postNote(id, content, target = '', { quick = false, attachments = [] } = {}) {
+  const body = { content };
+  if (target) body.target = target;
+  if (quick) body.quick = true;
+  if (attachments.length) body.attachments = attachments;
+  return request(`/api/discussions/${id}/messages/`, { method: 'POST', auth: true, body });
 }
 
 /** «Допомогло» / «Не допомогло» під висновком; порожнє value — скасувати. */
@@ -119,14 +122,15 @@ export function deleteCustomRole(id) {
   return request(`/api/personas/custom/${id}/`, { method: 'DELETE', auth: true });
 }
 
-/** Зміна моделей учасників і суддів, поки дискусія не виконується. */
-export function updateDiscussion(id, { personas, moderatorModel, devilModel, pinned, archived }) {
+/** Зміна моделей учасників і суддів (поки дискусія не виконується), закріплення, архіву й пошуку. */
+export function updateDiscussion(id, { personas, moderatorModel, devilModel, pinned, archived, webSearch }) {
   const body = {};
   if (personas) body.personas = personas;
   if (moderatorModel !== undefined) body.moderator_model = moderatorModel;
   if (devilModel !== undefined) body.devil_model = devilModel;
   if (pinned !== undefined) body.pinned = pinned;
   if (archived !== undefined) body.archived = archived;
+  if (webSearch !== undefined) body.web_search = webSearch;
   return request(`/api/discussions/${id}/`, { method: 'PATCH', auth: true, body });
 }
 

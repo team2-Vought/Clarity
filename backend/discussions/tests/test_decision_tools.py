@@ -126,6 +126,30 @@ class QuickModeTests(ToolsTestCase):
         self.assertEqual(len(self.provider.calls), 2)
         self.assertIn('А якщо зарплата та сама?', self.provider.calls[-1]['prompt'])
 
+    def test_follow_up_after_a_debate_can_ask_for_a_quick_answer(self):
+        discussion = self.run_discussion(self.create()['id'])
+        rounds = discussion.current_round
+        self.client.post(
+            f'/api/discussions/{discussion.pk}/messages/',
+            {'content': 'Коротко: а якщо зарплата та сама?', 'quick': True},
+            format='json',
+        )
+        discussion.refresh_from_db()
+        self.assertTrue(discussion.is_finished)
+        self.assertEqual(discussion.current_round, rounds)
+        self.assertEqual(discussion.final_summary['decision'], 'Швидке рішення')
+        self.assertEqual(discussion.messages.order_by('-seq').first().phase, 'quick')
+
+    def test_web_search_can_be_switched_during_the_discussion(self):
+        created = self.create()
+        with mock.patch('discussions.serializers.search.is_available', return_value=True):
+            response = self.client.patch(f'/api/discussions/{created["id"]}/', {'web_search': True}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(Discussion.objects.get(pk=created['id']).web_search)
+        with mock.patch('discussions.serializers.search.is_available', return_value=False):
+            response = self.client.patch(f'/api/discussions/{created["id"]}/', {'web_search': True}, format='json')
+        self.assertEqual(response.status_code, 400)
+
     def test_quick_answer_can_recognise_a_crisis(self):
         self.provider.topic = 'crisis'
         discussion = self.run_discussion(self.create(quick=True)['id'])

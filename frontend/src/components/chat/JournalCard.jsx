@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { BookOpen01Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { recordDecision } from '../../api/journal';
 import { refreshJournalDue } from '../../hooks/useJournalDue';
 import { useToasts } from '../../hooks/useToasts';
@@ -31,8 +31,9 @@ const prefill = (summary) => {
 };
 
 /**
- * Під висновком: записати рішення в журнал, щоб згодом Clarity спитала «Як воно?».
- * Уже записане — коротко показує, коли спитаємо, і веде в журнал.
+ * Під висновком, поруч з «Чи допомогло?»: невелика кнопка «У журнал», що
+ * розкриває форму, — щоб згодом Clarity спитала «Як воно?».
+ * Уже записане — така сама кнопка з галочкою, що веде в журнал.
  */
 export default function JournalCard({ discussion }) {
   const id = useId();
@@ -57,25 +58,29 @@ export default function JournalCard({ discussion }) {
   if (entry) {
     const reviewed = entry.status === 'reviewed';
     return (
-      <div className="chat__journal chat__journal--saved">
+      <button
+        type="button"
+        className="chat__journal-add chat__journal-add--saved"
+        onClick={() => navigate('/journal')}
+        title={t.journalOpen}
+      >
         <HugeiconsIcon icon={Tick02Icon} size={16} aria-hidden="true" />
-        <span>{reviewed ? t.journalReviewed : t.journalSaved(dateFormat.format(new Date(entry.check_at)))}</span>
-        <button type="button" className="chat__journal-link" onClick={() => navigate('/journal')}>
-          {t.journalOpen}
-          <HugeiconsIcon icon={ArrowRight01Icon} size={14} aria-hidden="true" />
-        </button>
-      </div>
+        {reviewed ? t.journalReviewed : t.journalSaved(dateFormat.format(new Date(entry.check_at)))}
+      </button>
     );
   }
 
   if (!open) {
     return (
-      <button type="button" className="chat__journal chat__journal--offer" onClick={() => setOpen(true)}>
-        <span className="chat__journal-text">
-          <span className="chat__journal-title">{t.journalTitle}</span>
-          <span className="chat__journal-lead">{t.journalLead}</span>
-        </span>
-        <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
+      <button
+        type="button"
+        className="chat__journal-add"
+        onClick={() => setOpen(true)}
+        aria-label={t.journalTitle}
+        title={t.journalLead}
+      >
+        <HugeiconsIcon icon={BookOpen01Icon} size={16} aria-hidden="true" />
+        {t.journalAdd}
       </button>
     );
   }
@@ -100,7 +105,19 @@ export default function JournalCard({ discussion }) {
 
   return (
     <form ref={formRef} className="chat__journal chat__journal--form" onSubmit={save}>
-      <label className="chat__journal-title" htmlFor={`${id}-decision`}>{t.journalDecision}</label>
+      <div className="chat__journal-head">
+        <label className="chat__journal-title" htmlFor={`${id}-decision`}>{t.journalDecision}</label>
+        <button
+          type="button"
+          className="chat__journal-close"
+          onClick={() => setOpen(false)}
+          aria-label={t.journalCancel}
+          title={t.journalCancel}
+          disabled={busy}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} size={16} aria-hidden="true" />
+        </button>
+      </div>
       <textarea
         id={`${id}-decision`}
         className="chat__journal-input"

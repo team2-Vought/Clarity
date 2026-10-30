@@ -433,7 +433,32 @@ describe('ChatPage', () => {
     const field = screen.getByRole('textbox', { name: /Питання для «Марта»/ });
     await user.type(field, 'А зарплата?');
     await user.click(screen.getByRole('button', { name: 'Надіслати' }));
-    expect(postNote).toHaveBeenCalledWith('d1', 'А зарплата?', 'emotional');
+    expect(postNote).toHaveBeenCalledWith('d1', 'А зарплата?', 'emotional', { quick: false, attachments: [] });
+  });
+
+  it('меню біля поля: швидка відповідь на уточнення й пошук посеред дискусії', async () => {
+    const user = userEvent.setup();
+    const done = { ...structuredClone(DISCUSSION), final_summary: { decision: 'Переходити варто.', answer: 'так' } };
+    vi.mocked(fetchDiscussion).mockResolvedValue(done);
+    vi.mocked(fetchPersonas).mockResolvedValue({ personas: [], search: { available: true } });
+    vi.mocked(updateDiscussion).mockResolvedValue({ ...done, web_search: true });
+    vi.mocked(postNote).mockResolvedValue({
+      message: { id: 'u2', seq: 5, role: 'user', phase: 'quick', content: 'А коротко?' },
+      discussion: { ...done, phase: 'quick', is_finished: false, is_running: true },
+    });
+    const { container } = renderPage();
+
+    await user.click(await screen.findByRole('button', { name: /Формат відповіді й параметри/ }));
+    const quick = screen.getByRole('menuitemcheckbox', { name: /Швидка відповідь/ });
+    expect(quick).toHaveAttribute('aria-checked', 'false');
+    await user.click(quick);
+    expect(quick).toHaveAttribute('aria-checked', 'true');
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /Пошук в інтернеті/ }));
+    expect(updateDiscussion).toHaveBeenCalledWith('d1', { webSearch: true });
+
+    await user.type(container.querySelector('.chat__composer-box textarea'), 'А коротко?');
+    await user.click(screen.getByRole('button', { name: 'Надіслати' }));
+    expect(postNote).toHaveBeenCalledWith('d1', 'А коротко?', '', { quick: true, attachments: [] });
   });
 
   it('криза: замість висновку — контакти допомоги', async () => {

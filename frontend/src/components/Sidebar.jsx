@@ -80,13 +80,11 @@ const LogoutIcon = () => (
   </svg>
 );
 
-// записник із галочкою — журнал рішень; та сама сітка 35×35 і штрих 2, що й в інших іконок меню
+// розгорнута книжка — журнал рішень; та сама сітка 35×35 і штрих 2, що й в інших іконок меню
 const JournalIcon = () => (
   <svg width="35" height="35" viewBox="0 0 35 35" fill="none" aria-hidden="true">
-    <path d="M10.4 10.6C10.4 9.0 11.7 7.7 13.3 7.7H22.6C24.2 7.7 25.5 9.0 25.5 10.6V24.0C25.5 25.6 24.2 26.9 22.6 26.9H13.3C11.7 26.9 10.4 25.6 10.4 24.0V10.6Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-    <path d="M14.4 8.2V26.4" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
-    <path d="M17.6 15.3L19.3 17L22.3 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M17.9 21.6H21.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <path d="M17.5 11.4C15.3 9.7 12.3 9.1 8.3 9.4V24.2C12.3 23.9 15.3 24.5 17.5 26.2C19.7 24.5 22.7 23.9 26.7 24.2V9.4C22.7 9.1 19.7 9.7 17.5 11.4Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M17.5 11.4V26.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 

@@ -360,6 +360,15 @@ class Attachment(models.Model):
         related_name='attachments',
         verbose_name='дискусія',
     )
+    # файл, доданий до уточнення в чаті; у файлів самого питання — порожньо
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attachments',
+        verbose_name='повідомлення',
+    )
     name = models.CharField('назва файлу', max_length=200)
     kind = models.CharField('тип', max_length=8, choices=Kind.choices)
     size = models.PositiveIntegerField('розмір, байт')

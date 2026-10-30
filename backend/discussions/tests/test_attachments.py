@@ -203,3 +203,40 @@ class AttachmentApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn('attachments', response.data)
+
+    def test_files_added_to_a_follow_up_reach_the_next_prompts(self):
+        created = self.create([])
+        self.client.post(f'/api/discussions/{created["id"]}/run/')
+        attachment_id = self.upload('lease.txt', 'Оренда: 18 000 грн'.encode()).data['id']
+        response = self.client.post(
+            f'/api/discussions/{created["id"]}/messages/',
+            {'content': 'Ось договір оренди', 'attachments': [str(attachment_id)]},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['message']['attachments'][0]['name'], 'lease.txt')
+        self.assertIn('<document name="lease.txt">', self.provider.calls[-1]['prompt'])
+
+        # у самому питанні файла немає — він при своєму уточненні
+        detail = self.client.get(f'/api/discussions/{created["id"]}/').data
+        self.assertEqual(detail['attachments'], [])
+        note = next(m for m in detail['messages'] if m['content'] == 'Ось договір оренди')
+        self.assertEqual(note['attachments'][0]['name'], 'lease.txt')
+
+        token = self.client.post(f'/api/discussions/{created["id"]}/share/').data['share_token']
+        shared = APIClient().get(f'/api/shared/{token}/')
+        self.assertNotIn('lease.txt', str(shared.data))
+
+    def test_a_discussion_holds_a_limited_number_of_files(self):
+        ids = [str(self.upload(f'{i}.txt', b'text').data['id']) for i in range(3)]
+        created = self.create(ids)
+        more = [str(self.upload(f'more{i}.txt', b'text').data['id']) for i in range(2)]
+        with override_settings(ATTACHMENTS_TOTAL_MAX=4):
+            response = self.client.post(
+                f'/api/discussions/{created["id"]}/messages/',
+                {'content': 'Ще файли', 'attachments': more},
+                format='json',
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'attachments_limit')
+        self.assertEqual(Attachment.objects.filter(discussion__isnull=True).count(), 2)
