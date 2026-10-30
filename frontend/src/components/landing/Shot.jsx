@@ -2,8 +2,11 @@ import PropTypes from 'prop-types';
 
 // Скрін застосунку у двох темах: CSS показує той, що пасує до теми сторінки.
 // Прихований <img loading="lazy"> браузер не завантажує, тож зайвого трафіку немає.
+// `eager` стосується лише скріна поточної теми — другий підтягнеться, коли тему перемкнуть.
 export default function Shot({ name, alt, width = 2880, height = 1800, eager = false }) {
-  const loading = eager ? 'eager' : 'lazy';
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const props = (shown) =>
+    eager && shown ? { loading: 'eager', fetchPriority: 'high' } : { loading: 'lazy' };
   return (
     <span className="shot">
       <img
@@ -12,7 +15,7 @@ export default function Shot({ name, alt, width = 2880, height = 1800, eager = f
         alt={alt}
         width={width}
         height={height}
-        loading={loading}
+        {...props(!dark)}
         decoding="async"
       />
       <img
@@ -21,7 +24,7 @@ export default function Shot({ name, alt, width = 2880, height = 1800, eager = f
         alt={alt}
         width={width}
         height={height}
-        loading={loading}
+        {...props(dark)}
         decoding="async"
       />
     </span>

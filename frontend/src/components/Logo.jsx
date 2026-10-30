@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import logo from '../assets/Clarity_logo_8.svg';
+import logo from '../assets/clarity-logo.webp';
 import { copy } from '../copy';
 
 export default function Logo({ onHome }) {

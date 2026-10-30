@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { animate, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
+import { animate, prefersReducedMotion } from '../utils/animate';
 import './ThoughtLine.css';
 
 const EASE_OUT = [0.23, 1, 0.32, 1];
@@ -63,7 +63,7 @@ export default function ThoughtLine({
   style,
 }) {
   // системне налаштування або «Менше анімації» в налаштуваннях застосунку
-  const reduce = useReducedMotion() || document.documentElement.dataset.motion === 'reduced';
+  const reduce = prefersReducedMotion();
   const [autoSettled, setAutoSettled] = useState(false);
   const [prevWorkingProp, setPrevWorkingProp] = useState(working);
   // новий запуск знімає автозавершення попереднього

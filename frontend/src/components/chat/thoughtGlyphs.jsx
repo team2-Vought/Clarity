@@ -1,4 +1,4 @@
-import logoStill from '../../assets/Clarity_logo_8.svg';
+import logoStill from '../../assets/clarity-logo.webp';
 import logoThinking from '../../assets/logo-thinking.svg';
 
 // сталі елементи: ThoughtLine перезапускає анімації гліфа, коли той змінюється

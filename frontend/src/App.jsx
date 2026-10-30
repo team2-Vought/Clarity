@@ -1,8 +1,9 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { copy } from './copy';
 import Layout from './components/Layout';
+import { getToken } from './api/client';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/auth.css';
@@ -14,17 +15,25 @@ import './styles/help.css';
 import './styles/journal.css';
 import './styles/tools.css';
 
+const loadLogin = () => import('./pages/LoginPage');
+const loadRegister = () => import('./pages/RegisterPage');
+const loadDebate = () => import('./pages/DebatePage');
+const loadJournal = () => import('./pages/JournalPage');
+const loadHistory = () => import('./pages/HistoryPage');
+const loadChat = () => import('./pages/ChatPage');
+const loadSettings = () => import('./pages/SettingsPage');
+
 const LandingPage = lazy(() => import('./pages/LandingPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const LoginPage = lazy(loadLogin);
+const RegisterPage = lazy(loadRegister);
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const DebatePage = lazy(() => import('./pages/DebatePage'));
+const DebatePage = lazy(loadDebate);
 const HelpPage = lazy(() => import('./pages/HelpPage'));
-const JournalPage = lazy(() => import('./pages/JournalPage'));
-const HistoryPage = lazy(() => import('./pages/HistoryPage'));
-const ChatPage = lazy(() => import('./pages/ChatPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const JournalPage = lazy(loadJournal);
+const HistoryPage = lazy(loadHistory);
+const ChatPage = lazy(loadChat);
+const SettingsPage = lazy(loadSettings);
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const SharedPage = lazy(() => import('./pages/SharedPage'));
 
@@ -38,7 +47,26 @@ function RouteFallback() {
   );
 }
 
+// Коли браузер звільнився після першого рендеру, тихо підтягуємо сторінки,
+// куди людина найімовірніше піде далі, — перехід стає миттєвим, без «Завантаження…».
+// Увійшовши — основні сторінки застосунку; інакше — лише вхід і реєстрацію.
+function usePreloadPages() {
+  useEffect(() => {
+    const pages = getToken()
+      ? [loadDebate, loadChat, loadHistory, loadJournal, loadSettings]
+      : [loadLogin, loadRegister];
+    const preload = () => pages.forEach((load) => load().catch(() => {}));
+    if ('requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(preload, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(preload, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+}
+
 export default function App() {
+  usePreloadPages();
   return (
     <ErrorBoundary>
       <BrowserRouter>

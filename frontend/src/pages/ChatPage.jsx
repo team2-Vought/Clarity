@@ -192,9 +192,9 @@ export default function ChatPage() {
   const [noteBox, setNoteBox] = useState({ width: 0, font: '' });
   const swipeRef = useRef(0);
   const panelRef = useRef(null);
-  const noteRef = useRef(null);
   // на телефоні панель виростає зі своєї кнопки, а її блоки вилітають хвилею
   usePanelMorph(isPanelOpen, panelRef);
+  const noteRef = useRef(null);
   const composerRef = useRef(null);
   const summaryRef = useRef(null);
   const [showJump, setShowJump] = useState(false);
@@ -837,14 +837,14 @@ export default function ChatPage() {
   // підсумок анімуємо, якщо дискусія хоч раз ішла на очах; рахуємо під час рендеру
   if (isRunning && !animateSummary) setAnimateSummary(true);
 
-  const handleCopyMessage = async (message) => {
+  const handleCopyMessage = useCallback(async (message) => {
     try {
       await navigator.clipboard.writeText(plainText(message.content));
       setCopiedId(message.id);
     } catch {
       setCopiedId(`error-${message.id}`);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!copiedId) return undefined;
@@ -853,13 +853,13 @@ export default function ChatPage() {
   }, [copiedId]);
 
   // клік по цитаті веде до репліки, на яку відповідають, і коротко підсвічує її
-  const jumpToMessage = (messageId) => {
+  const jumpToMessage = useCallback((messageId) => {
     const target = document.getElementById(`message-${messageId}`);
     if (!target) return;
     stickToBottomRef.current = false;
     target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
     setFlashId(messageId);
-  };
+  }, []);
 
   useEffect(() => {
     if (!flashId) return undefined;
@@ -1200,9 +1200,27 @@ export default function ChatPage() {
     }
   };
 
-  const expandMessage = (messageId) => {
+  const expandMessage = useCallback((messageId) => {
     setExpandedIds((current) => new Set(current).add(messageId));
-  };
+  }, []);
+
+  const handleSkipTyping = useCallback(() => setSkipTyping(true), []);
+
+  // репліки читають лише ці поля дискусії; окремий об'єкт не змінюється з
+  // кожним опитуванням, тож memo реплік не скидається щосекунди
+  const discussionMode = discussion?.mode;
+  const earlyStop = discussion?.early_stop;
+  const untilConsensus = discussion?.until_consensus;
+  const currentRound = discussion?.current_round;
+  const messageContext = useMemo(
+    () => ({
+      mode: discussionMode,
+      early_stop: earlyStop,
+      until_consensus: untilConsensus,
+      current_round: currentRound,
+    }),
+    [discussionMode, earlyStop, untilConsensus, currentRound]
+  );
 
 
   // «Завершити» має сенс, лише коли учасникам уже є що підсумувати
@@ -1558,16 +1576,16 @@ export default function ChatPage() {
             <ChatMessage
               key={message.id || `${speakerKeyOf(message)}-${message.seq}`}
               message={message}
-              index={index}
-              messages={renderedMessages}
+              previous={renderedMessages[index - 1]}
+              replyTarget={findReplyTarget(renderedMessages, index)}
               speakers={speakers}
               typing={message === typingMessage}
               streamed={message === typingMessage && streamedIds.has(message.id)}
               skipTyping={skipTyping}
               onTypingDone={handleTypingDone}
-              onSkipTyping={() => setSkipTyping(true)}
+              onSkipTyping={handleSkipTyping}
               models={models}
-              discussion={discussion}
+              discussion={messageContext}
               customNames={customNames}
               compact={compact}
               expanded={expandedIds.has(message.id)}

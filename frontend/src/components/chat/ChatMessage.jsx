@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -17,7 +18,6 @@ import { parseBlocks } from '../../utils/markdown';
 import { messageSources, modelNameOf, snippetOf } from '../../utils/chatMessages';
 import {
   USER_COLOR,
-  findReplyTarget,
   phaseLabel,
   speakerKeyOf,
   stanceLabel,
@@ -33,12 +33,16 @@ const WIDE_MESSAGE = 160;
  * Одна репліка чату з роздільником етапу над нею й рядком «Аналізовано за …»
  * під останньою реплікою запуску. `typing` — репліка саме «друкується»,
  * `streamed` — її текст уже показали чернеткою, тож друкувати вдруге не треба;
- * `message.draft` — модель ще пише цю репліку.
+ * `message.draft` — модель ще пише цю репліку. `previous` — репліка над цією,
+ * `replyTarget` — та, на яку відповідають.
+ *
+ * Обгорнута в memo: чат опитує сервер щосекунди-дві й перемальовується з кожною
+ * літерою в полі вводу, а незмінні репліки при цьому не рендеряться заново.
  */
-export default function ChatMessage({
+function ChatMessage({
   message,
-  index,
-  messages,
+  previous,
+  replyTarget = null,
   speakers,
   typing = false,
   streamed = false,
@@ -67,7 +71,6 @@ export default function ChatMessage({
   const messageModel =
     message.role === 'user' ? '' : modelNameOf(models, message.model_id);
   const searched = message.search_query || '';
-  const previous = messages[index - 1];
   const divider = phaseLabel(message);
   const showDivider =
     divider
@@ -80,7 +83,6 @@ export default function ChatMessage({
   // кілька реплік поспіль від одного автора — як у месенджері, без повтору імені
   const grouped =
     !showDivider && previous && speakerKeyOf(previous) === speakerKey && previous.role !== 'research';
-  const replyTarget = findReplyTarget(messages, index);
   const replyName = message.reply_to
     ? customNames.get(message.reply_to_slug) || message.reply_to
     : '';
@@ -293,8 +295,8 @@ export default function ChatMessage({
 
 ChatMessage.propTypes = {
   message: PropTypes.object.isRequired,
-  index: PropTypes.number.isRequired,
-  messages: PropTypes.arrayOf(PropTypes.object).isRequired,
+  previous: PropTypes.object,
+  replyTarget: PropTypes.object,
   speakers: PropTypes.instanceOf(Map).isRequired,
   typing: PropTypes.bool,
   streamed: PropTypes.bool,
@@ -318,3 +320,5 @@ ChatMessage.propTypes = {
     seconds: PropTypes.number,
   }),
 };
+
+export default memo(ChatMessage);

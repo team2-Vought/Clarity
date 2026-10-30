@@ -4166,8 +4166,8 @@ ol.chat__reveal {
 
 @media (prefers-reduced-motion: reduce) {
   .chat__row--enter,
-  .chat__bubble--typing,
-  .chat__bubble--draft,
+  .chat__bubble--typing::after,
+  .chat__bubble--draft::after,
   .chat__pending span,
   .chat__reveal,
   .chat__reveal > li {
@@ -5501,6 +5501,13 @@ ol.chat__reveal {
      Сам елемент ширший і довший за картку на запас --sheet-spare ліворуч
      і внизу: туди картка ледь перелітає, перш ніж стати на місце */
   .debate__form-panel {
+    --sheet-w: min(360px, calc(100vw - 72px));
+    --sheet-spare: 24px;
+    --sheet-top: 4px;
+    --sheet-left: calc(var(--sheet-spare) + var(--sheet-w) - 50px);
+    --sheet-bottom: calc(100vh - 66px);
+    --sheet-bottom: calc(100dvh - 66px);
+    --sheet-r: 25px;
     position: fixed;
     inset: 12px 12px 0 auto;
     z-index: 95;

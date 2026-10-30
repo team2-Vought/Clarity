@@ -6,7 +6,7 @@ import { getToken } from '../api/client';
 import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
 import SummaryDetails from '../components/SummaryDetails';
-import logo from '../assets/Clarity_logo_8.svg';
+import logo from '../assets/clarity-logo.webp';
 import { copy, locale } from '../copy';
 import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import {

@@ -13,7 +13,7 @@ import { describeSummary } from '../../utils/summary';
 import { parseBlocks } from '../../utils/markdown';
 import { roleIcon } from '../../utils/debateOptions';
 import logoThinking from '../../assets/logo-thinking.svg';
-import logoStill from '../../assets/Clarity_logo_8.svg';
+import logoStill from '../../assets/clarity-logo.webp';
 import { copy } from '../../copy';
 
 const t = copy.landing;

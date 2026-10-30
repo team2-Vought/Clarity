@@ -1,10 +1,13 @@
-import react from '@vitejs/plugin-react'
+import babel from '@rolldown/plugin-babel'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // React Compiler сам мемоізує компоненти: опитування чату й набір у полі
+  // вводу більше не перерендерюють (і не розбирають заново) усі репліки
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   server: {
     proxy: {
       '/api': {
