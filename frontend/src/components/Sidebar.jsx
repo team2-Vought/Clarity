@@ -80,13 +80,13 @@ const LogoutIcon = () => (
   </svg>
 );
 
-// записник із галочкою — журнал рішень; той самий штрих, що й в інших іконок меню
+// записник із галочкою — журнал рішень; та сама сітка 35×35 і штрих 2, що й в інших іконок меню
 const JournalIcon = () => (
-  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
-    <rect x="5.5" y="3.5" width="14" height="18" rx="2.5" stroke="currentColor" strokeWidth="2" />
-    <path d="M9.25 3.75V21.25" stroke="currentColor" strokeWidth="2" />
-    <path d="M12.25 10.25L13.75 11.75L16.5 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M12.5 15.5H16.25" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  <svg width="35" height="35" viewBox="0 0 35 35" fill="none" aria-hidden="true">
+    <path d="M10.4 10.6C10.4 9.0 11.7 7.7 13.3 7.7H22.6C24.2 7.7 25.5 9.0 25.5 10.6V24.0C25.5 25.6 24.2 26.9 22.6 26.9H13.3C11.7 26.9 10.4 25.6 10.4 24.0V10.6Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
+    <path d="M14.4 8.2V26.4" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
+    <path d="M17.6 15.3L19.3 17L22.3 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17.9 21.6H21.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 

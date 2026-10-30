@@ -1143,9 +1143,11 @@ body:has(.app-shell) {
 }
 
 .debate__composer {
-  /* текст і кнопка в одному ряду; кнопка тримається нижнього рядка тексту */
+  /* текст і кнопка в одному ряду; кнопка тримається нижнього рядка тексту,
+     а додані файли займають окремий рядок над ними */
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 10px;
   min-width: 0;
@@ -1315,6 +1317,52 @@ body:has(.app-shell) {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
+/* у полі нової дискусії в тому ж колі ще скріпка й «Про мене»: три іконки
+   купкою, трохи врізнобіч, ніби літають поряд */
+.debate__mode-trio {
+  position: relative;
+  width: 34px;
+  height: 32px;
+}
+
+.debate__mode-trio > svg {
+  position: absolute;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.debate__mode-trio > svg:nth-child(1) {
+  top: 1px;
+  left: 1px;
+}
+
+.debate__mode-trio > svg:nth-child(2) {
+  top: 2px;
+  right: 0;
+  transform: rotate(8deg);
+}
+
+.debate__mode-trio > svg:nth-child(3) {
+  bottom: 0;
+  left: 11px;
+  transform: rotate(-6deg);
+}
+
+/* при наведенні купка трохи розлітається */
+.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(1),
+.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(1) {
+  transform: translate(-1.5px, -1px);
+}
+
+.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(2),
+.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(2) {
+  transform: translate(1.5px, -1px) rotate(14deg);
+}
+
+.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(3),
+.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(3) {
+  transform: translateY(1.5px) rotate(-10deg);
+}
+
 .debate__mode-button:hover:not(:disabled),
 .debate__mode-button--open {
   --mode-fill: color-mix(in srgb, var(--ink) 6%, var(--card));
@@ -1439,6 +1487,192 @@ body:has(.app-shell) {
 .debate__mode-item-check {
   flex-shrink: 0;
   color: var(--ink);
+}
+
+/* Компактне меню з параметрами: формат — один рядок, режими виїжджають вбік,
+   а параметри — однорядкові пункти без підказок (підказка — у title) */
+.debate__mode-menu--compact {
+  width: min(264px, calc(100vw - 32px));
+}
+
+.debate__mode-item--row {
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 14px;
+}
+
+.debate__mode-item--row .debate__mode-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 11px;
+}
+
+.debate__mode-item--row .debate__mode-item-text span {
+  font-size: 0.875rem;
+}
+
+.debate__mode-item--row .debate__mode-item-text small {
+  font-size: 0.75rem;
+}
+
+.debate__mode-format {
+  position: relative;
+}
+
+.debate__mode-format--open > .debate__mode-item {
+  background: color-mix(in srgb, var(--ink) 5%, var(--card));
+}
+
+.debate__mode-item-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+/* три режими — окрема картка праворуч від меню, на рівні рядка формату */
+.debate__mode-sub {
+  position: absolute;
+  top: -6px;
+  left: calc(100% + 12px);
+  width: 300px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0.18s;
+}
+
+:root[data-theme='dark'] .debate__mode-sub {
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* місток через щілину між меню й підменю — курсор не «падає» з наведення */
+.debate__mode-sub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 100%;
+  bottom: 0;
+  width: 14px;
+}
+
+.debate__mode-format--open > .debate__mode-sub {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.debate__mode-sub-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* на телефоні вбік місця немає — режими розгортаються під рядком формату */
+@media (max-width: 639px) {
+  .debate__mode-sub {
+    position: static;
+    display: grid;
+    grid-template-rows: 0fr;
+    width: auto;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    transform: none;
+    transition:
+      grid-template-rows 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 0.14s ease,
+      visibility 0s linear 0.22s;
+  }
+
+  :root[data-theme='dark'] .debate__mode-sub {
+    box-shadow: none;
+  }
+
+  .debate__mode-sub::before {
+    display: none;
+  }
+
+  .debate__mode-format--open > .debate__mode-sub {
+    grid-template-rows: 1fr;
+    transition:
+      grid-template-rows 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 0.14s ease;
+  }
+
+  .debate__mode-sub-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .debate__mode-item-chevron {
+    transform: rotate(90deg);
+    transition: transform 0.2s;
+  }
+
+  .debate__mode-format--open .debate__mode-item-chevron {
+    transform: rotate(-90deg);
+  }
+}
+
+.debate__mode-menu-divider {
+  height: 1px;
+  margin: 4px 10px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.debate__mode-item--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.debate__mode-item--disabled:hover {
+  background: transparent;
+}
+
+/* перемикач у пункті меню — той самий вигляд, що й .debate__switch-input */
+.debate__mode-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--well);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  transition: background 0.2s;
+}
+
+.debate__mode-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.4;
+  transition: transform 0.22s ease, opacity 0.2s, background 0.2s;
+}
+
+.debate__mode-switch--on {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+.debate__mode-switch--on::before {
+  background: var(--card);
+  opacity: 1;
+  transform: translateX(14px);
 }
 
 /* після старту дискусії режим лише видно: пункти сірі й не обираються */
@@ -1588,35 +1822,6 @@ body:has(.app-shell) {
   }
 }
 
-/* скріпка в полі питання — поряд із кнопкою надсилання */
-.debate__attach {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s, var(--press);
-}
-
-.debate__attach:hover:not(:disabled) {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.debate__attach:active:not(:disabled) {
-  scale: var(--press-scale);
-}
-
-.debate__attach:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 /* файл тягнуть на поле — рамка підсвічується */
 .debate__composer--drop {
   background:
@@ -1624,12 +1829,254 @@ body:has(.app-shell) {
     linear-gradient(135deg, var(--ink), var(--ink)) border-box;
 }
 
+/* файли — верхній рядок усередині поля, як у Claude; відступ зліва — як справа
+   (на --files-pull лівіше за текст), а рядок усе одно займає всю ширину */
 .debate__files {
+  --files-pull: 12px;
   display: flex;
+  flex: 0 0 calc(100% + var(--files-pull));
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  margin-left: calc(-1 * var(--files-pull));
+  padding-bottom: 2px;
+  cursor: default;
+}
+
+/* Файл у полі питання — картка: фото з мініатюрою, документ з назвою й типом */
+.attachment-card {
+  position: relative;
+  flex: none;
+  height: 72px;
+  border-radius: 16px;
+  background: var(--soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  animation: debate-view-in 0.22s ease-out;
+}
+
+.attachment-card--doc {
+  width: 136px;
+}
+
+.attachment-card--image {
+  width: 72px;
+}
+
+.attachment-card__open {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 10px 11px;
+  overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: zoom-in;
+  transition: background 0.18s, var(--press);
+}
+
+.attachment-card__open:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.attachment-card__open:active:not(:disabled) {
+  scale: var(--press-scale);
+}
+
+.attachment-card__open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.attachment-card__open:disabled {
+  cursor: progress;
+}
+
+.attachment-card--image .attachment-card__open {
+  padding: 0;
+}
+
+.attachment-card__thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.attachment-card__name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.attachment-card__type {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* поки сервер читає файл — картка бліда, а поверх неї спінер */
+.attachment-card--reading .attachment-card__open > * {
+  opacity: 0.45;
+}
+
+.attachment-card__spinner {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--muted);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: debate-spin 0.7s linear infinite;
+}
+
+.attachment-card--image .attachment-card__spinner {
+  inset: 0;
+  margin: auto;
+}
+
+/* хрестик у куті — видно при наведенні; на сенсорних екранах завжди */
+.attachment-card__remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  box-shadow: 0 1px 4px rgba(18, 18, 18, 0.18);
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.attachment-card:hover .attachment-card__remove,
+.attachment-card:focus-within .attachment-card__remove {
+  opacity: 1;
+}
+
+.attachment-card__remove:hover {
+  background: var(--card);
+}
+
+.attachment-card__remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (hover: none) {
+  .attachment-card__remove {
+    opacity: 1;
+  }
+}
+
+/* перегляд вкладення: фото чи PDF у повний розмір, текст — прокручуваним блоком */
+.attachment-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: min(760px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 14px 18px 18px;
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
+}
+
+.attachment-viewer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attachment-viewer__title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-viewer__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  cursor: pointer;
+  transition: var(--press);
+}
+
+.attachment-viewer__close:active {
+  scale: var(--press-scale);
+}
+
+.attachment-viewer__image {
+  align-self: center;
+  max-width: 100%;
+  max-height: calc(100dvh - 120px);
+  border-radius: 16px;
+  object-fit: contain;
+}
+
+.attachment-viewer__frame {
+  width: 100%;
+  height: min(72dvh, 820px);
+  border: 0;
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.attachment-viewer__text {
+  min-height: 0;
+  max-height: 60dvh;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border-radius: 16px;
+  background: var(--soft);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.attachment-viewer__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 /* файл біля питання: тип, назва, хрестик */
@@ -1697,50 +2144,6 @@ body:has(.app-shell) {
 
 .chat__attachments .attachment-chip {
   padding-right: 12px;
-}
-
-/* «Про мене» під полем питання: тиха пігулка, щоб не відволікати від питання */
-.debate__profile {
-  display: flex;
-  justify-content: center;
-  width: min(760px, 100%);
-  margin-top: -4px;
-}
-
-.debate__profile-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s, var(--press);
-}
-
-.debate__profile-chip:hover:not(:disabled) {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.debate__profile-chip:active:not(:disabled) {
-  scale: var(--press-scale);
-}
-
-.debate__profile-chip--on {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.debate__profile-chip:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 .debate__mode-bar:empty {
@@ -2945,23 +3348,6 @@ body:has(.app-shell) {
   color: var(--muted);
 }
 
-/* перемикач у рядку з назвою поля */
-.debate__switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.debate__switch-row--off {
-  cursor: not-allowed;
-}
-
-.debate__switch-row--off .debate__field-title {
-  color: var(--muted);
-}
-
 .debate__switch-input {
   position: relative;
   flex-shrink: 0;
@@ -3015,6 +3401,8 @@ body:has(.app-shell) {
   }
 
   .debate__switch-input::before,
+  .debate__mode-switch::before,
+  .debate__mode-trio > svg,
   .debate__more-toggle > svg {
     transition: none;
   }
@@ -5186,11 +5574,19 @@ ol.chat__reveal {
     padding: 8px 8px 8px 12px;
   }
 
+  .debate__main .debate__files {
+    --files-pull: 4px;
+  }
+
   .debate__main .debate__composer-input {
     font-size: 1rem;
   }
 
   .debate__main .debate__mode-menu {
+    width: min(300px, calc(100vw - 32px));
+  }
+
+  .debate__main .debate__mode-menu--compact {
     width: min(300px, calc(100vw - 32px));
   }
 

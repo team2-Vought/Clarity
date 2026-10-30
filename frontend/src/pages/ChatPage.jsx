@@ -1601,22 +1601,27 @@ export default function ChatPage() {
                 </div>
               )}
               {canAskOne && participantEntries.length > 0 && (
-                // після висновку: питання всім (ще один раунд) чи одному учаснику
-                <div className="chat__ask" role="radiogroup" aria-label={t.askTo}>
-                  <span className="chat__ask-label">{t.askTo}</span>
-                  {[{ key: '', label: t.askAll }, ...participantEntries].map((item) => (
-                    <button
-                      key={item.key || 'all'}
-                      type="button"
-                      role="radio"
-                      aria-checked={askTarget === item.key}
-                      className={`chat__ask-chip ${askTarget === item.key ? 'chat__ask-chip--on' : ''}`}
-                      style={item.color ? { '--chip': item.color } : undefined}
-                      onClick={() => setAskTarget(item.key)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                // після висновку: питання всім (ще один раунд) чи одному учаснику;
+                // вибір виринає, лише поки фокус у полі вводу (або на самих пігулках)
+                <div className="chat__ask-reveal">
+                  <div className="chat__ask" role="radiogroup" aria-label={t.askTo}>
+                    <span className="chat__ask-label">{t.askTo}</span>
+                    {[{ key: '', label: t.askAll }, ...participantEntries].map((item) => (
+                      <button
+                        key={item.key || 'all'}
+                        type="button"
+                        role="radio"
+                        aria-checked={askTarget === item.key}
+                        className={`chat__ask-chip ${askTarget === item.key ? 'chat__ask-chip--on' : ''}`}
+                        style={item.color ? { '--chip': item.color } : undefined}
+                        // клік не забирає фокус із поля — пігулки не ховаються посеред кліку
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setAskTarget(item.key)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
@@ -101,10 +101,12 @@ describe('DebatePage', () => {
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
 
-    const chip = screen.getByRole('button', { name: 'З урахуванням «Про мене»' });
-    expect(chip).toHaveAttribute('aria-pressed', 'true');
-    await user.click(chip);
-    expect(screen.getByRole('button', { name: 'Без «Про мене»' })).toHaveAttribute('aria-pressed', 'false');
+    // «Про мене» — перемикач у меню формату біля поля питання
+    await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
+    const toggle = screen.getByRole('menuitemcheckbox', { name: /^Враховувати «Про мене»/ });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
 
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
     expect(vi.mocked(createDiscussion).mock.calls[0][0].useProfile).toBe(false);
@@ -116,9 +118,11 @@ describe('DebatePage', () => {
     setMyProfile({ name: 'Оксана', about: { enabled: true, age: '', values: [] } });
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
     expect(
-      screen.getByRole('button', { name: /Розкажіть про себе — поради стануть персональними/ })
+      screen.getByRole('menuitem', { name: 'Заповнити «Про мене»' })
     ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
 
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
     // профілю немає — сервер вирішить сам
@@ -144,6 +148,15 @@ describe('DebatePage', () => {
     expect(screen.getByRole('button', { name: 'Почати дискусію' })).toBeDisabled();
     finish({ id: 'f1', name: 'offer.pdf', kind: 'pdf' });
 
+    // картку файлу можна відкрити й переглянути
+    const open = screen.getByRole('button', { name: 'Переглянути «offer.pdf»' });
+    await waitFor(() => expect(open).toBeEnabled());
+    await user.click(open);
+    // PDF показуємо самим файлом — сервер його не зберігає
+    expect(within(screen.getByRole('dialog', { name: 'offer.pdf' })).getByTitle('offer.pdf')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Закрити' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
     await user.upload(input, new File(['x'], 'flat.txt', { type: 'text/plain' }));
     await user.click(await screen.findByRole('button', { name: 'Прибрати «flat.txt»' }));
     expect(removeAttachment).toHaveBeenCalledWith('f2');
@@ -158,8 +171,11 @@ describe('DebatePage', () => {
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
 
-    await user.click(screen.getByRole('button', { name: 'Швидка відповідь' }));
     await user.click(screen.getByRole('button', { name: /Формат відповіді/ }));
+    // перемикач лишає меню відкритим, вибір формату — закриває
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /^Швидка відповідь/ }));
+    // режими — у підменю рядка «Формат відповіді»
+    await user.click(screen.getByRole('menuitem', { name: /^Формат відповіді/ }));
     await user.click(screen.getByRole('menuitemradio', { name: /Один із варіантів/ }));
     const options = screen.getByRole('textbox', { name: 'Варіанти' });
     await user.type(options, 'Київ{Enter}Львів{Enter}');
@@ -250,22 +266,29 @@ describe('DebatePage', () => {
   it('формат відповіді обирається з меню біля поля питання', async () => {
     const user = userEvent.setup();
     renderPage();
-    const button = await screen.findByRole('button', { name: /^Формат відповіді:/ });
+    const button = await screen.findByRole('button', { name: /^Формат відповіді й параметри:/ });
 
     await user.click(button);
+    // режими — у підменю рядка «Формат відповіді»
+    await user.click(screen.getByRole('menuitem', { name: /^Формат відповіді/ }));
     await user.click(screen.getByRole('menuitemradio', { name: /Один із варіантів/ }));
 
-    expect(screen.getByRole('button', { name: 'Формат відповіді: Один із варіантів' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Формат відповіді й параметри: Один із варіантів' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Варіанти' })).toBeInTheDocument();
   });
 
-  it('«Додатково» — окремий екран: пошук увімкнено, раунди змінюються', async () => {
+  it('пошук в інтернеті увімкнено в меню формату, а «Додатково» змінює раунди', async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
 
+    await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
+    expect(screen.getByRole('menuitemcheckbox', { name: /^Пошук в інтернеті/ })).toHaveAttribute('aria-checked', 'true');
+    await user.keyboard('{Escape}');
+
     await user.click(screen.getByRole('button', { name: /^Додатково/ }));
-    expect(screen.getByRole('switch', { name: 'Пошук в інтернеті' })).toBeChecked();
     // одного раунду замало для дискусії — такого варіанта немає
     expect(screen.queryByRole('radio', { name: '1 раунд' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: '3 раунди' }));
