@@ -23,12 +23,14 @@ import {
   saveTeam,
 } from '../api/discussions';
 import { getToken } from '../api/client';
+import { updatePreferences } from '../api/settings';
 import {
   ArrowUpIcon,
   CloseIcon,
   PlusIcon,
 } from '../components/DebateIcons';
 import ErrorNotice from '../components/ErrorNotice';
+import OnboardingCard from '../components/OnboardingCard';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
@@ -187,6 +189,8 @@ export default function DebatePage() {
   const [isSavingTeam, setIsSavingTeam] = useState(false);
   const { pushToast } = useToasts();
   const [isLoading, setIsLoading] = useState(true);
+  // підказки першого запуску: показуємо, доки людина їх не закрила чи не почала дискусію
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState('');
   // вид картки для помилки запиту; решта помилок — перевірка введених даних
   const [failure, setFailure] = useState(null);
@@ -213,6 +217,12 @@ export default function DebatePage() {
     && participants.length >= MIN_PARTICIPANTS
     && allParticipantsHaveModels;
   const showSuggestions = !description.trim() && !isCreating;
+
+  // запам'ятовуємо в акаунті: на іншому пристрої підказки теж не повторяться
+  const finishOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    updatePreferences({ onboarding_done: true }).catch(() => {});
+  }, []);
   const canAddParticipant =
     participants.length < maxParticipants && participants.length < personas.length;
 
@@ -250,6 +260,8 @@ export default function DebatePage() {
       const template = templateRef.current;
       // параметри нової дискусії з «Налаштувань»; шаблон (повтор дискусії, команда) важливіший
       const prefs = mData.preferences || {};
+      // повтор дискусії чи команда — людина вже знає, як усе працює
+      setShowOnboarding(prefs.onboarding_done === false && !template);
       const startCount = Math.min(
         Math.max(Number(prefs.default_participants) || MIN_PARTICIPANTS, MIN_PARTICIPANTS),
         pData.max_ai || DEFAULT_MAX_PARTICIPANTS,
@@ -637,6 +649,7 @@ export default function DebatePage() {
         devilModel,
       });
       saveDraft('');
+      if (showOnboarding) finishOnboarding();
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
       failRequest(err, t.errorCreate);
@@ -1034,6 +1047,10 @@ export default function DebatePage() {
         <div className="debate__hero">
           <h1 className="debate__title">{TITLE}</h1>
         </div>
+
+        {showOnboarding && (
+          <OnboardingCard onDismiss={finishOnboarding} onMore={() => navigate('/help')} />
+        )}
 
         <div className="debate__prompt">
           <ModePicker

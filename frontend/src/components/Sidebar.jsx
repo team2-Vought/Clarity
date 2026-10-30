@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { logout } from '../api/auth';
 import { copy } from '../copy';
+import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
 
 const t = copy.nav;
 
@@ -63,6 +64,14 @@ const VolumeIcon = () => (
   </svg>
 );
 
+// той самий динамік, але замість хвиль — хрестик
+const VolumeOffIcon = () => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <path d="M17.2 9.6L22.2 14.6M22.2 9.6L17.2 14.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <path d="M12.4999 4.99983V19.9998C12.4999 21.2498 10.9999 21.9026 10.0833 21.0415L7.13883 18.2637C6.87495 18.0276 6.54161 17.8887 6.1805 17.8887H4.1805C3.04161 17.8887 2.09717 16.9582 2.09717 15.8054V9.19427C2.09717 8.0415 3.02772 7.11094 4.1805 7.11094H6.1805C6.52772 7.11094 6.87495 6.97205 7.13883 6.73594L10.0833 3.95816C10.9999 3.09705 12.4999 3.74983 12.4999 4.99983Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
     <path d="M11.5126 4.0625H7.2876C6.18303 4.0625 5.2876 4.95793 5.2876 6.0625V18.9375C5.2876 20.0421 6.18303 20.9375 7.2876 20.9375H11.5126" stroke="#FF8787" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -101,6 +110,7 @@ export default function Sidebar({
   onToggleTheme,
   onTogglePanel,
 }) {
+  const { sound, setSound } = useNotifyPrefs();
   const navigate = useNavigate();
   const themeActionLabel = theme === 'dark' ? t.themeLight : t.themeDark;
 
@@ -178,16 +188,17 @@ export default function Sidebar({
           {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
           <span className="sidebar__label">{themeActionLabel}</span>
         </button>
-        {/* звуку ще немає: кнопка лишається на місці, але не вдає, що щось робить */}
+        {/* звук, яким Clarity кличе назад, коли висновок готовий */}
         <button
           type="button"
-          className="sidebar__control"
+          className={`sidebar__control ${sound ? '' : 'sidebar__control--off'}`}
           style={{ '--i': NAV_ITEMS.length + 1 }}
-          aria-label={t.soundSoon}
-          aria-disabled="true"
-          title={t.soundSoon}
+          onClick={() => setSound(!sound)}
+          aria-pressed={sound}
+          aria-label={t.sound}
+          title={sound ? t.soundOn : t.soundOff}
         >
-          <VolumeIcon />
+          {sound ? <VolumeIcon /> : <VolumeOffIcon />}
           <span className="sidebar__label">{t.sound}</span>
         </button>
         <button

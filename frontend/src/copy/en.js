@@ -270,9 +270,137 @@ export const en = {
     failedToast: 'Error',
   },
 
-  account: {
-    title: 'Placeholder',
-    empty: 'This page is still under construction.',
+  help: {
+    title: 'How Clarity works',
+    lead: 'Several AIs with different characters discuss your question, and judges check the conclusion. Here is what to know to get the most out of it.',
+    contents: 'Contents',
+    start: 'Start a discussion',
+    disclaimer: 'Clarity is an assistant, not a professional. For health, legal or big money matters, check with a doctor, lawyer or financial advisor.',
+    sections: [
+      {
+        id: 'flow',
+        kind: 'steps',
+        title: 'How a discussion goes',
+        lead: 'From question to conclusion in seven steps. There is nothing to click: the discussion runs by itself, and you can step in at any time.',
+        items: [
+          { title: 'Clarification', text: 'The moderator reads the question and, if details are missing, asks up to four short questions. Your answers become part of the context.' },
+          { title: 'Opening', text: 'Each participant forms a first position. They write at the same time, so this is the fastest stage.' },
+          { title: 'Debate', text: 'Participants take turns replying to each other: agreeing, disputing, bringing arguments. The order changes every round.' },
+          { title: 'Moderator’s solution', text: 'The moderator brings the arguments together into one solution and marks where participants did not agree.' },
+          { title: 'AI Devil’s check', text: 'A separate critic looks for risks, false assumptions and gaps in the solution.' },
+          { title: 'Response to criticism', text: 'Participants answer the critique: they admit weak spots or defend the solution.' },
+          { title: 'Conclusion', text: 'A card with the decision, arguments for and against, risks, the minority view, confidence and the next step.' },
+        ],
+      },
+      {
+        id: 'modes',
+        kind: 'cards',
+        title: 'Answer format',
+        lead: 'Chosen with the button to the left of the input field. It shapes what the conclusion looks like.',
+        items: [
+          { title: 'Yes or no', text: 'For “should I…” questions. The moderator gives a clear verdict, and you see how many participants agree with it.' },
+          { title: 'One of the options', text: 'When there are 2 to 8 concrete options: cities, offers, laptop models. Participants compare them and pick one.' },
+          { title: 'Open answer', text: 'For open “how…” or “what to do…” questions. The conclusion is a detailed answer with an action plan.' },
+        ],
+      },
+      {
+        id: 'cast',
+        kind: 'cards',
+        title: 'Participants',
+        lead: 'A discussion has 2 to 5 participants. Each has a role and, optionally, character traits that change their tone and priorities. The line-up, models and traits are set in the “Participants” panel of the new chat page; a good line-up can be saved as a team.',
+        items: [
+          { title: 'Logician', text: 'Sticks to facts, chains of reasoning and evidence. Speaks in a measured, to-the-point way.' },
+          { title: 'Skeptic', text: 'Questions assumptions and looks for weak spots in other people’s arguments.' },
+          { title: 'Creative', text: 'Suggests non-obvious ideas, analogies and alternative approaches.' },
+          { title: 'Empath', text: 'Speaks openly and humanly, cares about values, people and the consequences of decisions.' },
+          { title: 'Pragmatist', text: 'Weighs costs, timelines and whether the solution can really be carried out.' },
+        ],
+      },
+      {
+        id: 'judges',
+        kind: 'cards',
+        title: 'Judges',
+        lead: 'Judges don’t argue — they assess. Their models can be changed under “More”.',
+        items: [
+          { title: 'Moderator', text: 'Asks clarifying questions, brings the arguments together into a solution and writes the final conclusion.' },
+          { title: 'AI Devil', text: 'A deliberate critic. It looks for where the solution could fail — so you learn about it before, not after.' },
+        ],
+      },
+      {
+        id: 'time',
+        kind: 'cards',
+        title: 'How long it takes',
+        lead: 'Participants write in turns, so the time depends on the line-up, the number of rounds and the speed of the models.',
+        items: [
+          { title: 'A regular discussion', text: 'Three participants and two rounds usually take 1–3 minutes. Every participant or round adds time, and busy models answer more slowly.' },
+          { title: 'Until agreement', text: 'The debate goes on until everyone takes the same position, but no longer than six rounds. If participants agree earlier, the remaining rounds are skipped.' },
+          { title: 'Feel free to switch away', text: 'The discussion runs on the server. While the chat is open in a tab, Clarity plays a sound and, if you allow it, sends a notification when the conclusion is ready or the moderator is waiting for you.' },
+        ],
+      },
+      {
+        id: 'during',
+        kind: 'cards',
+        title: 'During and after the discussion',
+        lead: 'You are not just a spectator: you can steer the discussion.',
+        items: [
+          { title: 'Add circumstances', text: 'Write in the field below right during the debate — participants take it into account in their next replies.' },
+          { title: 'Stop or finish', text: '“Stop” pauses the discussion — you can continue it later. “Finish” ends it right away, without the moderator’s conclusion.' },
+          { title: 'Follow-ups after the conclusion', text: 'Ask another question — participants discuss it for an extra round, and the moderator updates the conclusion. The number of follow-ups is limited.' },
+          { title: 'Share and save', text: 'The conclusion can be copied, downloaded as PDF or Markdown, or opened with a read-only link. “Repeat” creates a new discussion with the same line-up.' },
+        ],
+      },
+      {
+        id: 'tips',
+        kind: 'cards',
+        title: 'How to get a better answer',
+        lead: 'Participants only see what you wrote. The more specifics, the fewer generic tips.',
+        items: [
+          { title: 'Describe the situation', text: 'Not just “should I move”, but from where to where, with whom, on what budget and for how long.' },
+          { title: 'Say what matters', text: 'Money, time, stability, loved ones — participants will weigh exactly that.' },
+          { title: 'Add constraints', text: 'What can’t change: a deadline, an amount, commitments.' },
+          { title: 'Turn on search', text: 'For prices, laws or recent events: participants find sources, and links appear under their replies. The switch is under “More”.' },
+        ],
+      },
+      {
+        id: 'account',
+        kind: 'cards',
+        title: 'Models, limits and privacy',
+        lead: 'What happens to your data and requests.',
+        items: [
+          { title: 'Models and keys', text: 'Clarity works with models from different providers. You can add your own API keys in “Settings → Models & keys” — then requests are billed to your account with the provider.' },
+          { title: 'Daily limits', text: 'The number of new discussions and AI replies per day is limited. See what is left in “Settings → Usage”; counters reset at midnight.' },
+          { title: 'Privacy', text: 'Keys are stored encrypted and visible only to you. Only you see a discussion until you open a link to it — and you can close that access at any time.' },
+        ],
+      },
+    ],
+  },
+
+  onboarding: {
+    label: 'Getting started',
+    title: 'Welcome to Clarity',
+    lead: 'Describe a decision that is on your mind — the AIs will do the rest.',
+    steps: [
+      { title: 'Describe the situation', text: 'What you are deciding, what matters to you, what the constraints are. You can start from an example below.' },
+      { title: 'The AIs argue', text: 'Participants with different characters discuss the question, and AI Devil looks for weak spots.' },
+      { title: 'Get a conclusion', text: 'A decision with arguments, risks and the next step — usually in 1–3 minutes.' },
+    ],
+    defaults: 'Everything is already set up. The answer format is the button to the left of the field, the line-up is in the “Participants” panel.',
+    dismiss: 'Got it',
+    more: 'How it works',
+  },
+
+  notify: {
+    doneTitle: 'The conclusion is ready',
+    clarifyTitle: 'The moderator is waiting for you',
+    clarify: 'Answer a few questions and the discussion will start.',
+    failedTitle: 'The discussion stopped',
+    failed: 'Something went wrong. Open the chat to continue.',
+    tabDone: '✓',
+    tabWaiting: '•',
+    ask: 'Notify me when it’s ready',
+    askHint: 'You can switch to another tab — Clarity will call you back',
+    asked: 'Notifications are on',
+    dismiss: 'No thanks',
   },
 
   settings: {
@@ -354,6 +482,12 @@ export const en = {
     sendHintModEnter: 'Enter — new line, handy for long questions.',
     motionLabel: 'Reduce motion',
     motionHint: 'Turns off smooth transitions and interface motion.',
+    soundLabel: 'Sound signal',
+    soundHint: 'A short chime when the conclusion is ready and you are on another tab.',
+    notifyLabel: 'Notifications',
+    notifyHint: 'A system notification when the conclusion is ready or the moderator is waiting for your answers.',
+    notifyDenied: 'The browser has blocked notifications for Clarity. Allow them in the site settings of your browser.',
+    notifyUnsupported: 'This browser does not support notifications.',
 
     usageLead: 'Counters reset at midnight.',
     usageDiscussions: 'New discussions today',
@@ -502,7 +636,8 @@ export const en = {
     menu: 'Menu',
     mainNav: 'Main navigation',
     sound: 'Sound',
-    soundSoon: 'Sound is coming later',
+    soundOn: 'Notification sound is on — turn off',
+    soundOff: 'Notification sound is off — turn on',
   },
 
   debate: {

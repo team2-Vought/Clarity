@@ -63,6 +63,8 @@ import {
 } from '../utils/chatMessages';
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatSummary from '../components/chat/ChatSummary';
+import NotifyOffer from '../components/chat/NotifyOffer';
+import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
 
@@ -317,14 +319,18 @@ export default function ChatPage() {
     };
   }, [discussionId, shouldPoll, pollTick, applyState, startRunner]);
 
+  // людина пішла з вкладки, поки AI думали, — кличемо назад, коли вони закінчать
+  const alertBadge = useRunAlerts(discussion);
+
   useEffect(() => {
     if (!discussion?.title) return undefined;
     const previous = document.title;
-    document.title = `${discussion.title} · ${copy.appName}`;
+    const badge = alertBadge ? `${alertBadge} ` : '';
+    document.title = `${badge}${discussion.title} · ${copy.appName}`;
     return () => {
       document.title = previous;
     };
-  }, [discussion?.title]);
+  }, [discussion?.title, alertBadge]);
 
   const messages = discussion?.messages;
   const questionMessage = useMemo(
@@ -1475,6 +1481,7 @@ export default function ChatPage() {
               className="chat__thought"
             />
           )}
+          {showThoughtLine && <NotifyOffer />}
 
         </section>
 

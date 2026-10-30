@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import DebatePage from './DebatePage';
 import { createDiscussion, fetchModels, fetchPersonas, fetchTeams } from '../api/discussions';
+import { updatePreferences } from '../api/settings';
 
 vi.mock('../api/discussions', () => ({
   createDiscussion: vi.fn(),
@@ -14,6 +15,10 @@ vi.mock('../api/discussions', () => ({
   fetchPersonas: vi.fn(),
   fetchTeams: vi.fn(),
   saveTeam: vi.fn(),
+}));
+
+vi.mock('../api/settings', () => ({
+  updatePreferences: vi.fn(() => Promise.resolve({})),
 }));
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -62,6 +67,35 @@ beforeEach(() => {
 });
 
 describe('DebatePage', () => {
+  it('новачку показує підказки першого запуску й запам’ятовує, що їх закрито', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchModels).mockResolvedValue({
+      models: MODELS,
+      default_model: 'm1',
+      recommended: [],
+      preferences: { onboarding_done: false },
+    });
+    renderPage();
+    const card = await screen.findByRole('region', { name: 'Вітаємо в Clarity' });
+    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
+
+    await user.click(within(card).getByRole('button', { name: 'Зрозуміло' }));
+    expect(screen.queryByRole('region', { name: 'Вітаємо в Clarity' })).not.toBeInTheDocument();
+    expect(updatePreferences).toHaveBeenCalledWith({ onboarding_done: true });
+  });
+
+  it('тому, хто вже бачив підказки, їх не показує', async () => {
+    vi.mocked(fetchModels).mockResolvedValue({
+      models: MODELS,
+      default_model: 'm1',
+      recommended: [],
+      preferences: { onboarding_done: true },
+    });
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    expect(screen.queryByRole('region', { name: 'Вітаємо в Clarity' })).not.toBeInTheDocument();
+  });
+
   it('показує склад жетонами, а зайняту роль у меню — недоступною з підказкою, хто її має', async () => {
     const user = userEvent.setup();
     renderPage();

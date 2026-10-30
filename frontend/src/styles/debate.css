@@ -204,6 +204,11 @@ body:has(.app-shell) {
   height: var(--item-icon);
 }
 
+/* звук вимкнено — кнопка трохи блідша, як вимкнений перемикач */
+.sidebar__control--off svg {
+  opacity: 0.55;
+}
+
 .sidebar__control svg {
   flex-shrink: 0;
   width: var(--ctrl-icon);
@@ -795,11 +800,168 @@ body:has(.app-shell) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* вміст вищий за екран (підказки першого запуску) не обрізається зверху */
+  justify-content: safe center;
   gap: 14px;
   min-width: 0;
   min-height: 0;
   padding: 32px clamp(16px, 4vw, 48px);
   overflow-y: auto;
+}
+
+/* ---------- Підказки першого запуску ---------- */
+.debate__onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(760px, 100%);
+  margin-bottom: 6px;
+  padding: 20px 22px 18px;
+  border-radius: 28px;
+  background: var(--soft);
+  animation: debate-view-in 0.3s ease-out;
+}
+
+.debate__onboarding-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debate__onboarding-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.debate__onboarding-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.debate__onboarding-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.debate__onboarding-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debate__onboarding-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 16px;
+  border-radius: 20px;
+  background: var(--card);
+}
+
+.debate__onboarding-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.debate__onboarding-step-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.debate__onboarding-step-text {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.debate__onboarding-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.debate__onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.debate__onboarding-more,
+.debate__onboarding-dismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, opacity 0.18s, var(--press);
+}
+
+.debate__onboarding-more {
+  background: transparent;
+  color: var(--ink);
+}
+
+.debate__onboarding-more:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.debate__onboarding-dismiss {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.debate__onboarding-dismiss:hover {
+  opacity: 0.88;
+}
+
+.debate__onboarding-more:active,
+.debate__onboarding-dismiss:active {
+  scale: var(--press-scale);
+}
+
+@media (max-width: 639px) {
+  .debate__onboarding {
+    padding: 18px 16px 16px;
+  }
+
+  .debate__onboarding-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .debate__onboarding-step {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 12px;
+  }
+
+  .debate__onboarding-num {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
 }
 
 /* ---- фон порожнього чату: білий, під полем вводу — одна розмита пляма ----
@@ -3401,6 +3563,86 @@ ol.chat__reveal {
   max-width: 880px;
   padding: 2px 0 2px 44px;
   color: var(--muted);
+}
+
+/* пропозиція сповістити, коли висновок буде готовий — під рядком «Аналізуємо…» */
+.chat__notify-offer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  max-width: min(880px, 100%);
+  margin: 2px 0 0 44px;
+  padding: 4px 4px 4px 4px;
+  border-radius: 18px;
+  background: var(--soft);
+  animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.chat__notify-offer-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s, var(--press);
+}
+
+.chat__notify-offer-action:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.chat__notify-offer-action:active,
+.chat__notify-offer-close:active {
+  scale: var(--press-scale);
+}
+
+.chat__notify-offer-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chat__notify-offer-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.chat__notify-offer-hint {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chat__notify-offer-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.chat__notify-offer-close:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+@media (max-width: 639px) {
+  .chat__notify-offer {
+    margin-left: 0;
+  }
 }
 
 /* логотип ширший за рядок тексту: від'ємні поля не дають йому розсунути рядок */

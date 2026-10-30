@@ -10,6 +10,7 @@ import './styles/landing.css';
 import './styles/debate.css';
 import './styles/history.css';
 import './styles/settings.css';
+import './styles/help.css';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -17,7 +18,7 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DebatePage = lazy(() => import('./pages/DebatePage'));
-const AccountPage = lazy(() => import('./pages/AccountPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -52,7 +53,7 @@ export default function App() {
               <Route path="/account" element={<Navigate to="/settings" replace />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/help" element={<AccountPage />} />
+              <Route path="/help" element={<HelpPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

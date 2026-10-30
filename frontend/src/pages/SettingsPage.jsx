@@ -26,6 +26,7 @@ import {
   saveProviderKey,
   updatePreferences,
 } from '../api/settings';
+import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
 import { useToasts } from '../hooks/useToasts';
 import { LANGUAGES, copy, readLanguagePref, setLanguagePref } from '../copy';
 import {
@@ -381,6 +382,7 @@ function SettingsSkeleton() {
 }
 
 export default function SettingsPage() {
+  const notify = useNotifyPrefs();
   const navigate = useNavigate();
   const { themeMode, setThemeMode } = useOutletContext();
   const { pushToast } = useToasts();
@@ -646,6 +648,25 @@ export default function SettingsPage() {
           hint={t.motionHint}
           checked={reducedMotion}
           onChange={changeMotion}
+        />
+        <SwitchRow
+          title={t.soundLabel}
+          hint={t.soundHint}
+          checked={notify.sound}
+          onChange={notify.setSound}
+        />
+        <SwitchRow
+          title={t.notifyLabel}
+          hint={
+            notify.permission === 'unsupported'
+              ? t.notifyUnsupported
+              : notify.permission === 'denied'
+                ? t.notifyDenied
+                : t.notifyHint
+          }
+          checked={notify.system}
+          onChange={notify.setSystem}
+          disabled={notify.permission === 'unsupported' || notify.permission === 'denied'}
         />
       </div>
       <p className="settings__footnote">{t.appearanceLead}</p>

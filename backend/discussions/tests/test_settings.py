@@ -142,6 +142,17 @@ class SettingsApiTests(TestCase):
         self.assertEqual(models['default_model'], 'groq:openai/gpt-oss-20b')
         self.assertFalse(models['preferences']['web_search'])
 
+    def test_onboarding_is_remembered_per_account(self):
+        models = self.client.get('/api/models/').data
+        self.assertFalse(models['preferences']['onboarding_done'])
+        response = self.client.patch(
+            '/api/settings/', {'preferences': {'onboarding_done': True}}, format='json'
+        )
+        self.assertEqual(response.status_code, 200)
+        # інші налаштування не скидаються
+        self.assertEqual(response.data['preferences']['default_mode'], 'open')
+        self.assertTrue(self.client.get('/api/models/').data['preferences']['onboarding_done'])
+
     def test_invalid_preferences(self):
         for bad in (
             {'default_rounds': 9},
