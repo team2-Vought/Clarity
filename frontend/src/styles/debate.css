@@ -1317,52 +1317,6 @@ body:has(.app-shell) {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
-/* у полі нової дискусії в тому ж колі ще скріпка й «Про мене»: три іконки
-   купкою, трохи врізнобіч, ніби літають поряд */
-.debate__mode-trio {
-  position: relative;
-  width: 34px;
-  height: 32px;
-}
-
-.debate__mode-trio > svg {
-  position: absolute;
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.debate__mode-trio > svg:nth-child(1) {
-  top: 1px;
-  left: 1px;
-}
-
-.debate__mode-trio > svg:nth-child(2) {
-  top: 2px;
-  right: 0;
-  transform: rotate(8deg);
-}
-
-.debate__mode-trio > svg:nth-child(3) {
-  bottom: 0;
-  left: 11px;
-  transform: rotate(-6deg);
-}
-
-/* при наведенні купка трохи розлітається */
-.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(1),
-.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(1) {
-  transform: translate(-1.5px, -1px);
-}
-
-.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(2),
-.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(2) {
-  transform: translate(1.5px, -1px) rotate(14deg);
-}
-
-.debate__mode-button--trio:hover:not(:disabled) .debate__mode-trio > svg:nth-child(3),
-.debate__mode-button--trio.debate__mode-button--open .debate__mode-trio > svg:nth-child(3) {
-  transform: translateY(1.5px) rotate(-10deg);
-}
-
 .debate__mode-button:hover:not(:disabled),
 .debate__mode-button--open {
   --mode-fill: color-mix(in srgb, var(--ink) 6%, var(--card));
@@ -3402,7 +3356,6 @@ body:has(.app-shell) {
 
   .debate__switch-input::before,
   .debate__mode-switch::before,
-  .debate__mode-trio > svg,
   .debate__more-toggle > svg {
     transition: none;
   }

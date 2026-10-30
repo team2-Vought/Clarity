@@ -2,11 +2,10 @@ import { useRef, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowRight01Icon,
-  Attachment01Icon,
   BubbleChatIcon,
   CheckmarkCircle02Icon,
-  IdentityCardIcon,
   LeftToRightListBulletIcon,
+  SlidersHorizontalIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
@@ -118,11 +117,7 @@ export default function ModePicker({
       <button
         ref={triggerRef}
         type="button"
-        className={[
-          'debate__mode-button',
-          hasExtras && 'debate__mode-button--trio',
-          isOpen && 'debate__mode-button--open',
-        ].filter(Boolean).join(' ')}
+        className={`debate__mode-button ${isOpen ? 'debate__mode-button--open' : ''}`}
         onClick={() => {
           setIsSubOpen(false);
           setIsOpen((open) => !open);
@@ -133,16 +128,14 @@ export default function ModePicker({
         title={current.label}
         disabled={disabled}
       >
-        {/* у полі нової дискусії тут же файли й «Про мене» — три іконки купкою в одному колі */}
-        {hasExtras ? (
-          <span className="debate__mode-trio" aria-hidden="true">
-            <HugeiconsIcon icon={current.icon} size={18} strokeWidth={1.8} />
-            <HugeiconsIcon icon={Attachment01Icon} size={15} strokeWidth={1.8} />
-            <HugeiconsIcon icon={IdentityCardIcon} size={15} strokeWidth={1.8} />
-          </span>
-        ) : (
-          <HugeiconsIcon icon={current.icon} size={19} strokeWidth={1.8} aria-hidden="true" />
-        )}
+        {/* у полі нової дискусії в меню ще й файли, «Про мене», пошук — тож іконка
+            не режиму, а загальна «параметри питання» */}
+        <HugeiconsIcon
+          icon={hasExtras ? SlidersHorizontalIcon : current.icon}
+          size={19}
+          strokeWidth={1.8}
+          aria-hidden="true"
+        />
       </button>
       <div
         ref={menuRef}
