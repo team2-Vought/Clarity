@@ -66,6 +66,7 @@ import ChatMessage from '../components/chat/ChatMessage';
 import ChatSummary from '../components/chat/ChatSummary';
 import NotifyOffer from '../components/chat/NotifyOffer';
 import AttachmentChip from '../components/AttachmentChip';
+import { CrisisHelp, TopicNotice } from '../components/SafetyNotice';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
@@ -134,6 +135,8 @@ export default function ChatPage() {
   const [actionError, setActionError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [note, setNote] = useState('');
+  // кому адресоване питання після висновку: '' — усім, інакше slug учасника
+  const [askTarget, setAskTarget] = useState('');
   const [isSending, setIsSending] = useState(false);
   // відповіді на уточнювальні питання модератора: { [id]: { option, custom } }
   const [clarifyAnswers, setClarifyAnswers] = useState({});
@@ -382,7 +385,7 @@ export default function ChatPage() {
           persona.name
           || personaInfo.get(persona.slug)?.name
           || t.fallbackParticipant(index + 1),
-        role: personaInfo.get(persona.slug)?.name || '',
+        role: personaInfo.get(persona.slug)?.name || persona.custom?.name || '',
         model: persona.model || defaultModel || '',
         traits: Array.isArray(persona.traits) ? persona.traits : [],
         color: TRAIT_COLORS[index % TRAIT_COLORS.length],
@@ -464,8 +467,11 @@ export default function ChatPage() {
   // Завершені запуски лишають у чаті згорнутий рядок «Аналізовано за …» після
   // своєї останньої репліки — розгорнувши його, видно, що саме аналізували.
   // Тривалість — за часом сервера: від питання чи уточнення до останньої репліки.
+  const isCrisis = discussion?.safety === 'crisis';
   const runRecords = useMemo(() => {
     const records = new Map();
+    // у кризі ніхто нічого не аналізував — рядок «Аналізовано за …» був би недоречний
+    if (isCrisis) return records;
     const lastSettled = !isRunning && (isFinished || isFailed || isStopped);
     runs.forEach((run, index) => {
       const last = run.items[run.items.length - 1];
@@ -480,7 +486,7 @@ export default function ChatPage() {
       });
     });
     return records;
-  }, [runs, isRunning, isFinished, isFailed, isStopped, hiddenFinalId]);
+  }, [runs, isRunning, isFinished, isFailed, isStopped, hiddenFinalId, isCrisis]);
 
   // уточнення користувача показуємо одразу, без «друку»
   useEffect(() => {
@@ -917,6 +923,14 @@ export default function ChatPage() {
     0,
     (Number(discussion?.max_followups) || 0) - (Number(discussion?.followups) || 0)
   );
+  // після висновку можна звернутися до одного учасника: відповість лише він
+  const directLeft = Math.max(
+    0,
+    (Number(discussion?.max_direct) || 0) - (Number(discussion?.direct_questions) || 0)
+  );
+  const canAskOne = isFinished && !discussion?.quick && discussion?.safety !== 'crisis';
+  const askEntry = canAskOne ? participantEntries.find((item) => item.key === askTarget) : null;
+  const questionsLeft = askEntry ? directLeft : followupsLeft;
   // фінальний висновок уже пишеться: уточнення не потрапило б у нього й лишилося б без відповіді
   const isFinalWriting = discussion?.phase === 'final' && !isFinished;
   // ліміт уточнень вичерпано — поле вимкнене, і підказка в ньому пояснює чому
@@ -924,16 +938,22 @@ export default function ChatPage() {
   // а в самому полі коротший варіант (на телефоні — найкоротший)
   const noteHint = isAwaitingClarify
     ? t.clarifyNoteHint
+    : askEntry
+      ? directLeft > 0 ? t.askHint(askEntry.label) : t.askDone
     : isFinished
       ? followupsLeft > 0 ? t.followupPlaceholder : t.followupsDone
       : t.notePlaceholderByPhase[discussion?.phase] || t.notePlaceholder;
   const noteHintMid = isAwaitingClarify
     ? t.clarifyNoteHint
+    : askEntry
+      ? directLeft > 0 ? t.askHintShort(askEntry.label) : t.askDone
     : isFinished
       ? followupsLeft > 0 ? t.followupPlaceholderMid : t.followupsDoneMid
       : t.notePlaceholderByPhaseMid[discussion?.phase] || t.notePlaceholderMid;
   const noteHintShort = isAwaitingClarify
     ? t.clarifyNoteHintShort
+    : askEntry
+      ? directLeft > 0 ? t.askHintShort(askEntry.label) : t.askDone
     : isFinished
       ? followupsLeft > 0 ? t.followupPlaceholderShort : t.followupsDoneShort
       : t.notePlaceholderShort;
@@ -948,7 +968,7 @@ export default function ChatPage() {
     && !isFinalWriting
     && !isAwaitingClarify
     && note.trim().length > 0
-    && (!isFinished || followupsLeft > 0);
+    && (!isFinished || questionsLeft > 0);
   const showStop = isRunning && !isSending && note.trim().length === 0;
 
   const handleSendNote = async (e) => {
@@ -956,7 +976,7 @@ export default function ChatPage() {
     if (!canSendNote) return;
     setIsSending(true);
     try {
-      const data = await postNote(discussion.id, note.trim());
+      const data = await postNote(discussion.id, note.trim(), askEntry ? askEntry.key : '');
       applyState({ ...data.discussion, messages: [data.message] });
       kicksRef.current = 0;
       setNote('');
@@ -1028,6 +1048,25 @@ export default function ChatPage() {
           moderatorModel: discussion.moderator_model,
           devilModel: discussion.devil_model,
           personas: discussion.personas,
+          criteria: discussion.criteria,
+          quick: discussion.quick,
+        },
+      },
+    });
+  };
+
+  // швидка відповідь виявилась замалою — те саме питання, але з повними дебатами
+  const handleDeepen = () => {
+    navigate('/home', {
+      state: {
+        template: {
+          question: discussion.question,
+          mode: discussion.mode,
+          options: discussion.options,
+          criteria: discussion.criteria,
+          personas: discussion.personas,
+          webSearch: discussion.web_search,
+          quick: false,
         },
       },
     });
@@ -1412,6 +1451,7 @@ export default function ChatPage() {
                     ))}
                   </div>
                 )}
+                <TopicNotice topic={discussion.safety} className="chat__topic" />
                 {discussion.profile_used && (
                   // модератор і учасники знають про людину з «Про мене» — показуємо, що це враховано
                   <p className="chat__profile-note">
@@ -1480,7 +1520,13 @@ export default function ChatPage() {
               onShare={shareUrl ? () => copyLink(shareUrl) : handleShare}
               isSharing={isSharing}
               onRepeat={handleRepeat}
+              onDeepen={discussion.quick ? handleDeepen : undefined}
             />
+          )}
+
+          {discussion?.safety === 'crisis' && isFinished && !isRevealing && (
+            // криза: замість висновку — люди, які допоможуть просто зараз
+            <CrisisHelp className="chat__crisis" />
           )}
 
 
@@ -1554,6 +1600,25 @@ export default function ChatPage() {
                   />
                 </div>
               )}
+              {canAskOne && participantEntries.length > 0 && (
+                // після висновку: питання всім (ще один раунд) чи одному учаснику
+                <div className="chat__ask" role="radiogroup" aria-label={t.askTo}>
+                  <span className="chat__ask-label">{t.askTo}</span>
+                  {[{ key: '', label: t.askAll }, ...participantEntries].map((item) => (
+                    <button
+                      key={item.key || 'all'}
+                      type="button"
+                      role="radio"
+                      aria-checked={askTarget === item.key}
+                      className={`chat__ask-chip ${askTarget === item.key ? 'chat__ask-chip--on' : ''}`}
+                      style={item.color ? { '--chip': item.color } : undefined}
+                      onClick={() => setAskTarget(item.key)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
                 {/* режим видно, але після старту дискусії його вже не змінити */}
                 <ModePicker value={discussion.mode} locked />
@@ -1567,7 +1632,7 @@ export default function ChatPage() {
                     maxLength={MAX_NOTE}
                     rows={1}
                     placeholder={notePlaceholder}
-                    disabled={isSending || isFinalWriting || (isFinished && followupsLeft === 0)}
+                    disabled={isSending || isFinalWriting || (isFinished && questionsLeft === 0)}
                     aria-label={noteHint}
                   />
                   <div className="debate__composer-bar">

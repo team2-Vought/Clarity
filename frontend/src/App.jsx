@@ -12,6 +12,7 @@ import './styles/history.css';
 import './styles/settings.css';
 import './styles/help.css';
 import './styles/journal.css';
+import './styles/tools.css';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));

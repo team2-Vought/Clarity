@@ -322,3 +322,42 @@ def persona_public(persona):
         'temperament': persona['temperament'],
         'description': persona['description'],
     }
+
+
+CUSTOM_COLOR = '#6b7280'
+
+
+def custom_persona(slug, role):
+    """Своя роль людини у вигляді вбудованої персони: її назва й опис стають характером."""
+    name = str(role.get('name') or '').strip()
+    description = str(role.get('description') or '').strip()
+    return {
+        'slug': slug,
+        'name': name,
+        'avatar': '✦',
+        'color': CUSTOM_COLOR,
+        'temperament': L('Своя роль', 'Custom role'),
+        'description': description,
+        'style': L(
+            f'Ти — «{name}». {description} Міркуй і говори так, як міркувала б саме ця людина: '
+            'її досвід, пріоритети й звичні слова.',
+            f'You are “{name}”. {description} Think and speak the way this very person would: '
+            'their experience, priorities and usual words.',
+        ),
+        'custom': True,
+    }
+
+
+def custom_public(role):
+    """Своя роль (CustomPersona) для інтерфейсу — поруч із вбудованими."""
+    persona = custom_persona(role.slug, {'name': role.name, 'description': role.description})
+    return {
+        'slug': role.slug,
+        'id': str(role.id),
+        'name': role.name,
+        'avatar': persona['avatar'],
+        'color': persona['color'],
+        'temperament': persona['temperament'],
+        'description': role.description,
+        'custom': True,
+    }

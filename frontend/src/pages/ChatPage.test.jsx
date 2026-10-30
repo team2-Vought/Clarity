@@ -6,6 +6,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import ChatPage from './ChatPage';
 import {
+  postNote,
+  sendFeedback,
   answerClarify,
   fetchDiscussion,
   fetchModels,
@@ -22,6 +24,7 @@ vi.mock('../api/discussions', () => ({
   fetchPersonas: vi.fn(),
   finishDiscussion: vi.fn(),
   postNote: vi.fn(),
+  sendFeedback: vi.fn(),
   runDiscussion: vi.fn(),
   shareDiscussion: vi.fn(),
   stopDiscussion: vi.fn(),
@@ -407,5 +410,71 @@ describe('ChatPage', () => {
     expect(await screen.findByText('Дискусію зупинено')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Продовжити' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Завершити' })).not.toBeInTheDocument();
+  });
+
+  it('після висновку питання можна адресувати одному учаснику', async () => {
+    const user = userEvent.setup();
+    const done = {
+      ...structuredClone(DISCUSSION),
+      final_summary: { decision: 'Переходити варто.', answer: 'так' },
+      max_direct: 10,
+      direct_questions: 0,
+    };
+    vi.mocked(fetchDiscussion).mockResolvedValue(done);
+    vi.mocked(postNote).mockResolvedValue({
+      message: { id: 'u2', seq: 5, role: 'user', phase: 'answer', content: 'А зарплата?' },
+      discussion: { ...done, phase: 'answer', is_finished: false, is_running: true },
+    });
+    renderPage();
+    const chips = await screen.findByRole('radiogroup', { name: 'Кому' });
+    expect(within(chips).getByRole('radio', { name: 'Усім' })).toHaveAttribute('aria-checked', 'true');
+    await user.click(within(chips).getByRole('radio', { name: 'Марта' }));
+
+    const field = screen.getByRole('textbox', { name: /Питання для «Марта»/ });
+    await user.type(field, 'А зарплата?');
+    await user.click(screen.getByRole('button', { name: 'Надіслати' }));
+    expect(postNote).toHaveBeenCalledWith('d1', 'А зарплата?', 'emotional');
+  });
+
+  it('криза: замість висновку — контакти допомоги', async () => {
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      safety: 'crisis',
+      messages: DISCUSSION.messages.slice(0, 1),
+    });
+    renderPage();
+    const help = await screen.findByRole('region', { name: 'Вам не потрібно проходити через це наодинці' });
+    expect(within(help).getByText('7333')).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Кому' })).not.toBeInTheDocument();
+  });
+
+  it('висновок показує матрицю критеріїв, застереження й питає, чи допоміг', async () => {
+    const user = userEvent.setup();
+    vi.mocked(sendFeedback).mockResolvedValue({ feedback: 'not_helped', feedback_note: '' });
+    vi.mocked(fetchDiscussion).mockResolvedValue({
+      ...structuredClone(DISCUSSION),
+      mode: 'choose_one',
+      options: ['Київ', 'Львів'],
+      safety: 'financial',
+      final_summary: { decision: 'Обрати Київ.', answer: 'Київ' },
+      matrix: {
+        criteria: [{ name: 'Зарплата', weight: 5 }, { name: 'Сім’я', weight: 3 }],
+        rows: [
+          { option: 'Київ', scores: [9, 3], total: 6.8 },
+          { option: 'Львів', scores: [5, 9], total: 6.5 },
+        ],
+        winner: 'Київ',
+        participants: 2,
+      },
+    });
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByRole('columnheader', { name: /Зарплата/ })).toHaveTextContent('вага 5');
+    expect(within(table).getByRole('rowheader', { name: /Київ/ })).toHaveTextContent('лідер');
+    expect(screen.getAllByText(/Це не фінансова порада/).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: 'Не допомогло' }));
+    expect(sendFeedback).toHaveBeenCalledWith('d1', 'not_helped', '');
+    expect(await screen.findByRole('textbox', { name: 'Що було не так?' })).toBeInTheDocument();
   });
 });

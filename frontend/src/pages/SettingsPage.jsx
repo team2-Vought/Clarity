@@ -20,6 +20,7 @@ import {
 import ModelPicker from '../components/ModelPicker';
 import ProfileSettings from '../components/ProfileSettings';
 import AboutSettings from '../components/AboutSettings';
+import CustomRolesSettings from '../components/CustomRolesSettings';
 import { Pills, Row, SwitchRow } from '../components/SettingsControls';
 import ProviderLogo from '../components/ProviderLogo';
 import { getToken } from '../api/client';
@@ -536,6 +537,7 @@ export default function SettingsPage() {
         />
       </div>
       <p className="settings__footnote">{t.debateLead}</p>
+      <CustomRolesSettings />
     </>
   );
 

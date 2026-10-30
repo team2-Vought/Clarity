@@ -7,6 +7,9 @@ from .views import (
     DiscussionAdvanceView,
     DiscussionClarifyView,
     DiscussionDetailView,
+    CustomPersonaDetailView,
+    CustomPersonaListView,
+    DiscussionFeedbackView,
     DiscussionFinishView,
     DiscussionListCreateView,
     DiscussionMessageView,
@@ -24,6 +27,8 @@ app_name = 'discussions'
 
 urlpatterns = [
     path('personas/', PersonaListView.as_view(), name='personas'),
+    path('personas/custom/', CustomPersonaListView.as_view(), name='custom-personas'),
+    path('personas/custom/<uuid:pk>/', CustomPersonaDetailView.as_view(), name='custom-persona'),
     path('settings/', SettingsView.as_view(), name='settings'),
     path('settings/keys/<str:provider>/', ProviderKeyView.as_view(), name='settings-key'),
     path('models/', FreeModelListView.as_view(), name='models'),
@@ -56,6 +61,11 @@ urlpatterns = [
         name='discussion-messages',
     ),
     path('discussions/<uuid:pk>/share/', DiscussionShareView.as_view(), name='discussion-share'),
+    path(
+        'discussions/<uuid:pk>/feedback/',
+        DiscussionFeedbackView.as_view(),
+        name='discussion-feedback',
+    ),
     path('shared/<uuid:token>/', SharedDiscussionView.as_view(), name='shared-discussion'),
     path('attachments/', AttachmentUploadView.as_view(), name='attachments'),
     path('attachments/<uuid:pk>/', AttachmentDetailView.as_view(), name='attachment-detail'),

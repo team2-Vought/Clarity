@@ -17,7 +17,7 @@ from accounts.about import snapshot as about_snapshot
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
-from .models import Attachment, Discussion, Message, Team
+from .models import Attachment, CustomPersona, Discussion, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
@@ -27,10 +27,13 @@ from .personas import (
     MIN_AI,
     MIN_ROUNDS,
     PERSONAS,
+    custom_public,
     persona_public,
 )
 from .serializers import (
     NON_RETRYABLE_CODES,
+    CustomPersonaSerializer,
+    FeedbackSerializer,
     ClarifyAnswersSerializer,
     CreateDiscussionSerializer,
     DiscussionListSerializer,
@@ -41,6 +44,7 @@ from .serializers import (
     UpdateDiscussionSerializer,
 )
 from .services import engine, runner, search, usage
+from .services.safety import looks_like_crisis
 from .services.catalog import catalog, user_context
 
 logger = logging.getLogger(__name__)
@@ -168,6 +172,8 @@ class PersonaListView(APIView):
                 'max_rounds': MAX_ROUNDS,
                 'consensus_max_rounds': CONSENSUS_MAX_ROUNDS,
                 'personas': [persona_public(p) for p in PERSONAS],
+                # свої ролі людини — у тому ж вигляді, що й вбудовані
+                'custom': [custom_public(role) for role in CustomPersona.objects.filter(user=request.user)],
                 'devil': persona_public(DEVIL),
                 'search': search.status(),
                 'max_followups': int(settings.DISCUSSION_MAX_FOLLOWUPS),
@@ -240,12 +246,13 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
                 'Try again tomorrow.',
             ))
 
-        serializer = CreateDiscussionSerializer(data=request.data)
+        serializer = CreateDiscussionSerializer(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         about = about_of(request.user)
         use_profile = data.get('use_profile', about['enabled'])
+        quick = data.get('quick', False)
         discussion = Discussion.objects.create(
             user=request.user,
             question=data['question'],
@@ -260,7 +267,12 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             devil_model=data.get('devil_model', ''),
             # спершу модератор перевіряє, чи досить контексту; пошуку окремим
             # кроком немає — учасники шукають самі, коли їм бракує фактів
-            phase=Discussion.Phase.CLARIFY,
+            # швидкий режим одразу дає коротку відповідь, без перевірки контексту й дебатів
+            phase=Discussion.Phase.QUICK if quick else Discussion.Phase.CLARIFY,
+            quick=quick,
+            criteria=data.get('criteria') or [],
+            # криза видна з самого питання — дискусія не запуститься, людина побачить допомогу
+            safety=Discussion.Safety.CRISIS if looks_like_crisis(data['question']) else '',
             # мова інтерфейсу автора: нею відповідатимуть AI
             language=current(),
         )
@@ -473,6 +485,8 @@ class DiscussionMessageView(OwnedDiscussionView):
                 discussion.pk,
                 request.user.name or L('Користувач', 'User'),
                 request.data.get('content', ''),
+                # після висновку можна звернутися до одного учасника
+                target=str(request.data.get('target') or ''),
             )
         except engine.EngineError as exc:
             return Response(
@@ -568,7 +582,7 @@ class TeamListCreateView(UserModelsMixin, APIView):
         return Response({'results': TeamSerializer(teams, many=True).data}, status=status.HTTP_200_OK)
 
     def post(self, request):
-        serializer = TeamSerializer(data=request.data)
+        serializer = TeamSerializer(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         name = serializer.validated_data['name']
         existing = Team.objects.filter(user=request.user, name=name).first()
@@ -600,3 +614,71 @@ class TeamDetailView(UserModelsMixin, APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+CUSTOM_PERSONAS_MAX = 20
+
+
+class DiscussionFeedbackView(OwnedDiscussionView):
+    """«Допомогло / не допомогло» під висновком — так ми знаємо, чи Clarity корисний."""
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        serializer = FeedbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        value = serializer.validated_data['value']
+        Discussion.objects.filter(pk=discussion.pk).update(
+            feedback=value,
+            feedback_note=serializer.validated_data.get('note', '').strip() if value else '',
+            feedback_at=timezone.now() if value else None,
+        )
+        discussion.refresh_from_db()
+        return Response(
+            {'feedback': discussion.feedback, 'feedback_note': discussion.feedback_note},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CustomPersonaListView(APIView):
+    """Свої ролі: «юрист», «фінансовий консультант», «мій обережний тато»."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        roles = CustomPersona.objects.filter(user=request.user)
+        return Response(
+            {'results': CustomPersonaSerializer(roles, many=True).data}, status=status.HTTP_200_OK
+        )
+
+    def post(self, request):
+        if CustomPersona.objects.filter(user=request.user).count() >= CUSTOM_PERSONAS_MAX:
+            return Response(
+                {'detail': L(
+                    f'Можна створити не більше {CUSTOM_PERSONAS_MAX} своїх ролей.',
+                    f'You can create no more than {CUSTOM_PERSONAS_MAX} roles of your own.',
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = CustomPersonaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        role = serializer.save(user=request.user)
+        return Response(CustomPersonaSerializer(role).data, status=status.HTTP_201_CREATED)
+
+
+class CustomPersonaDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        role = CustomPersona.objects.filter(user=request.user, pk=pk).first()
+        if role is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = CustomPersonaSerializer(role, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        deleted, _ = CustomPersona.objects.filter(user=request.user, pk=pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT if deleted else status.HTTP_404_NOT_FOUND)

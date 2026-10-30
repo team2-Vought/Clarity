@@ -5,13 +5,17 @@ import {
   Copy01Icon,
   Download04Icon,
   FileExportIcon,
+  FlashIcon,
   Loading03Icon,
   RepeatIcon,
   Share08Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import SummaryDetails from '../SummaryDetails';
+import FeedbackBar from './FeedbackBar';
 import JournalCard from './JournalCard';
+import MatrixTable from './MatrixTable';
+import { TopicNotice } from '../SafetyNotice';
 import { SourceItems, SourcesLabel } from './Sources';
 import { copy } from '../../copy';
 import { inlinePlain } from '../../utils/markdown';
@@ -35,6 +39,7 @@ export default function ChatSummary({
   onShare,
   isSharing = false,
   onRepeat,
+  onDeepen,
 }) {
   const [copyState, setCopyState] = useState('');
   const [pdfState, setPdfState] = useState('');
@@ -115,6 +120,12 @@ export default function ChatSummary({
       ref={ref}
       aria-label={t.summary}
     >
+      {discussion.quick && (
+        <span className="chat__summary-quick">
+          <HugeiconsIcon icon={FlashIcon} size={14} aria-hidden="true" />
+          {t.quickLabel}
+        </span>
+      )}
       <SummaryDetails
         summary={summary}
         view={summaryView}
@@ -123,6 +134,11 @@ export default function ChatSummary({
         options={discussion.options}
         animate={animate}
       />
+      {discussion.matrix && (
+        <div style={summaryStep()}>
+          <MatrixTable matrix={discussion.matrix} />
+        </div>
+      )}
       <div className="chat__summary-actions" style={summaryStep()}>
         <button
           type="button"
@@ -175,6 +191,12 @@ export default function ChatSummary({
         >
           <HugeiconsIcon icon={RepeatIcon} size={18} />
         </button>
+        {onDeepen && (
+          // коротка відповідь — за кнопкою ті самі учасники в повних дебатах
+          <button type="button" className="chat__summary-deepen" onClick={onDeepen} title={t.deepenHint}>
+            {t.deepen}
+          </button>
+        )}
         {/* кнопка — праворуч у рядку дій, а список розкривається під рядком */}
         {discussion.sources?.length > 0 && (
           <button
@@ -206,6 +228,14 @@ export default function ChatSummary({
           {copyState === 'error' ? t.copyError : t.pdfError}
         </p>
       )}
+      <TopicNotice topic={discussion.safety} className="chat__summary-topic" />
+      <div style={summaryStep()}>
+        <FeedbackBar
+          discussionId={discussion.id}
+          initial={discussion.feedback || ''}
+          initialNote={discussion.feedback_note || ''}
+        />
+      </div>
       <div style={summaryStep()}>
         <JournalCard discussion={discussion} />
       </div>
@@ -223,4 +253,5 @@ ChatSummary.propTypes = {
   onShare: PropTypes.func,
   isSharing: PropTypes.bool,
   onRepeat: PropTypes.func,
+  onDeepen: PropTypes.func,
 };

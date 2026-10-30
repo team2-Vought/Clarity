@@ -35,7 +35,10 @@ export const duplicateFinalId = (messages, summaryShown) => {
   if (!summaryShown) return null;
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
-    if (message.role === 'moderator' && message.phase === 'final') return message.id;
+    // швидка відповідь — так само висновок у картці, тож її повтор у чаті зайвий
+    if (message.role === 'moderator' && (message.phase === 'final' || message.phase === 'quick')) {
+      return message.id;
+    }
   }
   return null;
 };
@@ -70,6 +73,10 @@ export const phaseLabel = (message) => {
       return t.phaseRebuttal;
     case 'final':
       return t.phaseFinal;
+    case 'quick':
+      return t.phaseQuick;
+    case 'answer':
+      return t.phaseAnswer;
     default:
       return '';
   }

@@ -64,5 +64,7 @@ class StepPlan:
     json_kind: str | None = None
     fallback_models: list = field(default_factory=list)
     can_search: bool = False
+    # своя перевірка JSON (data, mode, options) -> [проблеми], якщо кроку мало загальної
+    check: object = None
     # модель, яка справді відповіла (судді можуть перейти на запасну)
     used_model: str = ''

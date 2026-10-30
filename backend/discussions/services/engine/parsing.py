@@ -9,6 +9,7 @@ from backend.i18n import L
 
 from ...models import Discussion
 from .. import prompts, search
+from ..safety import normalize_topic
 from .base import STANCE_AGREE, STANCE_DISPUTE
 
 
@@ -290,7 +291,12 @@ def normalize_clarify(data):
         if len(questions) >= prompts.CLARIFY_MAX_QUESTIONS:
             break
     ready = _as_bool(data.get('ready'), True) or not questions
-    return {'ready': ready, 'questions': [] if ready else questions}
+    return {
+        'ready': ready,
+        'questions': [] if ready else questions,
+        # чутлива тема: криза зупиняє дискусію, решта — застереження в інтерфейсі
+        'topic': normalize_topic(data.get('topic')),
+    }
 
 
 def _answer_problems(data, mode, options):
@@ -354,7 +360,15 @@ def _clarify_problems(data, mode, options):
     return []
 
 
+def _quick_problems(data, mode, options):
+    if not isinstance(data, dict):
+        return [_not_json()]
+    problems = [] if _text(data.get('decision')) else [_empty_decision()]
+    return problems + _answer_problems(data, mode, options)
+
+
 PROBLEM_CHECKS = {
+    'quick': _quick_problems,
     'clarify': _clarify_problems,
     'solution': _solution_problems,
     'review': _review_problems,

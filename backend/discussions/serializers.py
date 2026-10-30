@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from backend.i18n import L, lazy_L
 
-from .models import Discussion, Message, Team
+from .models import CustomPersona, Discussion, Message, Team
 from .personas import (
     DEFAULT_ROUNDS,
     MAX_AI,
@@ -17,6 +17,8 @@ from .personas import (
     QUESTION_MIN,
 )
 from .attachment_views import attachment_payload
+from .services.criteria import CRITERIA_MAX, WEIGHT_MAX, WEIGHT_MIN
+from .services.criteria import NAME_MAX as CRITERION_NAME_MAX
 from .journal import journal_state
 from .services import engine, runner, search
 from .services.catalog import resolve_model
@@ -159,10 +161,40 @@ class CreateDiscussionSerializer(serializers.Serializer):
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
     # врахувати «Про мене»; без поля — як задано в самому профілі
     use_profile = serializers.BooleanField(required=False)
+    # швидкий режим: одна коротка відповідь без дебатів
+    quick = serializers.BooleanField(required=False, default=False)
+    # критерії для «Один із варіантів»: [{name, weight 1–5}]
+    criteria = serializers.ListField(child=serializers.DictField(), required=False, default=list)
     # завантажені заздалегідь вкладення (POST /api/attachments/)
     attachments = serializers.ListField(
         child=serializers.UUIDField(), required=False, default=list
     )
+
+    def validate_criteria(self, value):
+        if len(value) > CRITERIA_MAX:
+            raise serializers.ValidationError(L(
+                f'Можна задати не більше {CRITERIA_MAX} критеріїв',
+                f'You can set no more than {CRITERIA_MAX} criteria',
+            ))
+        cleaned, seen = [], set()
+        for item in value:
+            name = ' '.join(str(item.get('name') or '').split())
+            if not name:
+                continue
+            if len(name) > CRITERION_NAME_MAX:
+                raise serializers.ValidationError(L(
+                    f'Назва критерію — до {CRITERION_NAME_MAX} символів',
+                    f'A criterion name is up to {CRITERION_NAME_MAX} characters',
+                ))
+            if name.casefold() in seen:
+                raise serializers.ValidationError(L('Критерії мають бути різними', 'Criteria must be different'))
+            seen.add(name.casefold())
+            try:
+                weight = int(item.get('weight', 3))
+            except (TypeError, ValueError):
+                weight = 3
+            cleaned.append({'name': name, 'weight': max(WEIGHT_MIN, min(WEIGHT_MAX, weight))})
+        return cleaned
 
     def validate_attachments(self, value):
         value = list(dict.fromkeys(value))
@@ -207,6 +239,13 @@ class CreateDiscussionSerializer(serializers.Serializer):
             raise serializers.ValidationError(OPTION_DUPLICATE)
         return cleaned
 
+    def _custom_roles(self):
+        """Свої ролі автора: {slug: CustomPersona}; без користувача в контексті — жодних."""
+        user = self.context.get('user') if hasattr(self, 'context') else None
+        if user is None:
+            return {}
+        return {role.slug: role for role in CustomPersona.objects.filter(user=user)}
+
     def validate_personas(self, value):
         if not isinstance(value, list):
             raise serializers.ValidationError(PERSONAS_TYPE)
@@ -225,13 +264,17 @@ class CreateDiscussionSerializer(serializers.Serializer):
                 raise serializers.ValidationError(PERSONAS_TYPE)
             if slug == 'devil':
                 raise serializers.ValidationError(DEVIL_NOT_ALLOWED)
-            if slug not in PERSONA_BY_SLUG:
+            custom = self._custom_roles().get(slug)
+            if slug not in PERSONA_BY_SLUG and custom is None:
                 raise serializers.ValidationError(PERSONAS_UNKNOWN.format(slug=slug))
             if slug in seen:
                 raise serializers.ValidationError(PERSONAS_DUPLICATE.format(slug=slug))
             seen.add(slug)
 
             persona = {'slug': slug}
+            if custom is not None:
+                # копія ролі: зміна чи видалення ролі не переписує старих дискусій
+                persona['custom'] = {'name': custom.name, 'description': custom.description}
             name = ''
             if isinstance(item, dict):
                 name = item.get('name')
@@ -270,7 +313,8 @@ class CreateDiscussionSerializer(serializers.Serializer):
                     persona['model'] = model
             # Користувач не бачить архетипів персон («Логік», «Скептик»), лише
             # своїх учасників, тож безіменному даємо те саме ім'я, що й в UI.
-            effective_name = name or DEFAULT_NAME.format(index=index + 1)
+            # своя роль без окремого імені зветься назвою ролі — «Юрист», а не «Учасник 3»
+            effective_name = name or (custom.name if custom else DEFAULT_NAME.format(index=index + 1))
             persona['name'] = effective_name
             folded_name = effective_name.casefold()
             if folded_name in seen_names:
@@ -293,6 +337,9 @@ class CreateDiscussionSerializer(serializers.Serializer):
                 raise serializers.ValidationError({'options': OPTIONS_RANGE})
         elif options:
             raise serializers.ValidationError({'options': OPTION_NOT_ALLOWED})
+        # критерії мають сенс лише для вибору з варіантів
+        if mode != Discussion.Mode.CHOOSE_ONE:
+            attrs['criteria'] = []
         return attrs
 
 
@@ -397,6 +444,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     retryable = serializers.SerializerMethodField()
     search = serializers.SerializerMethodField()
     max_followups = serializers.SerializerMethodField()
+    max_direct = serializers.SerializerMethodField()
     thinking = serializers.SerializerMethodField()
     live = serializers.SerializerMethodField()
     # сам профіль клієнту не потрібен — лише те, що його враховано
@@ -434,6 +482,9 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_max_followups(self, obj):
         return int(settings.DISCUSSION_MAX_FOLLOWUPS)
+
+    def get_max_direct(self, obj):
+        return int(settings.DISCUSSION_MAX_DIRECT)
 
     def get_thinking(self, obj):
         return engine.describe_step(obj)
@@ -473,6 +524,14 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'devil_model',
             'followups',
             'max_followups',
+            'direct_questions',
+            'max_direct',
+            'quick',
+            'safety',
+            'criteria',
+            'matrix',
+            'feedback',
+            'feedback_note',
             'stop_requested',
             'pinned',
             'archived',
@@ -595,6 +654,9 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             'finished_early',
             'current_round',
             'sources',
+            'quick',
+            'criteria',
+            'matrix',
             'final_summary',
             'messages',
             'created_at',
@@ -644,7 +706,7 @@ class TeamSerializer(serializers.ModelSerializer):
         return name
 
     def validate_personas(self, value):
-        return CreateDiscussionSerializer().validate_personas(value)
+        return CreateDiscussionSerializer(context=self.context).validate_personas(value)
 
     def validate_moderator_model(self, value):
         return validate_model_id(value)
@@ -673,3 +735,34 @@ class ClarifyAnswersSerializer(serializers.Serializer):
                     {'question': question[:CLARIFICATION_QUESTION_MAX], 'answer': answer}
                 )
         return cleaned
+
+
+class CustomPersonaSerializer(serializers.ModelSerializer):
+    slug = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = CustomPersona
+        fields = ['id', 'slug', 'name', 'description', 'created_at']
+        read_only_fields = ['id', 'slug', 'created_at']
+
+    def validate_name(self, value):
+        name = ' '.join(value.split())
+        if len(name) < 2:
+            raise serializers.ValidationError(L('Назва ролі — щонайменше 2 символи', 'A role name needs at least 2 characters'))
+        return name
+
+    def validate_description(self, value):
+        text = ' '.join(value.split())
+        if len(text) < 10:
+            raise serializers.ValidationError(L(
+                'Опишіть роль хоча б одним реченням: хто це і як міркує',
+                'Describe the role in at least one sentence: who it is and how it thinks',
+            ))
+        return text
+
+
+class FeedbackSerializer(serializers.Serializer):
+    """«Допомогло / не допомогло» під висновком; порожнє value — скасувати оцінку."""
+
+    value = serializers.ChoiceField(choices=[('', ''), *Discussion.Feedback.choices])
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)

@@ -4,6 +4,7 @@ import json
 
 from backend.i18n import L
 
+from .criteria import matrix_block
 from .context import _context_block
 
 
@@ -73,6 +74,7 @@ def synthesis_prompt(
     sources=None,
     profile=None,
     documents=None,
+    matrix=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
@@ -81,6 +83,8 @@ def synthesis_prompt(
         documents=documents,
         consensus=consensus,
     )
+    if matrix_block(matrix):
+        ctx = f'{ctx}\n\n{matrix_block(matrix)}'
     if early_stop:
         early = L(
             'Учасники дійшли згоди раніше запланованого, тому дискусію завершено '
@@ -206,6 +210,7 @@ def final_prompt(
     sources=None,
     profile=None,
     documents=None,
+    matrix=None,
 ):
     ctx = _context_block(
         question, personas, messages, mode, options or [], rounds,
@@ -214,6 +219,8 @@ def final_prompt(
         documents=documents,
         consensus=consensus,
     )
+    if matrix_block(matrix):
+        ctx = f'{ctx}\n\n{matrix_block(matrix)}'
     solution = json.dumps(best_solution or {}, ensure_ascii=False)
     review = json.dumps(devil_review or {}, ensure_ascii=False)
     head = L(

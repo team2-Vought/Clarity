@@ -212,3 +212,56 @@ def rebuttal_prompt(
         ]
     )
     return '\n\n'.join(parts)
+
+
+def answer_prompt(
+    question,
+    persona,
+    personas,
+    messages,
+    asked,
+    mode='open',
+    options=None,
+    rounds=2,
+    consensus=False,
+    sources=None,
+    profile=None,
+    documents=None,
+):
+    """Після фіналу людина питає саме цього учасника — відповідає лише він."""
+    ctx = _context_block(
+        question,
+        personas,
+        messages,
+        mode,
+        options or [],
+        rounds,
+        full_tail=len(personas) + 2,
+        sources=sources,
+        profile=profile,
+        documents=documents,
+        consensus=consensus,
+    )
+    return '\n\n'.join([
+        ctx,
+        _speaker_line(persona),
+        L(
+            'Дискусія завершилась, і людина звертається саме до тебе:',
+            'The discussion has ended, and the person is addressing you directly:',
+        ) + f'\n<user_question>\n{asked}\n</user_question>',
+        L(
+            'Відповідай їй напряму, у своєму характері, спираючись на дискусію й висновок. '
+            'Дай пряму відповідь на це питання, а не переказ дискусії. Якщо відповідь '
+            'змінює висновок — так і скажи.',
+            'Answer them directly, in your character, building on the discussion and the '
+            'conclusion. Give a direct answer to this question, not a retelling of the '
+            'discussion. If the answer changes the conclusion, say so.',
+        ),
+        length_rule('debate'),
+        L(
+            'Після основного тексту додай службовий рядок (користувач його не побачить):\n'
+            'ТЕЗА: одне речення до 25 слів — головна думка цієї відповіді',
+            'After the main text add a service line (the user will not see it):\n'
+            'THESIS: one sentence of up to 25 words — the main point of this answer',
+        ),
+    ])
