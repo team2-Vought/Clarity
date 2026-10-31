@@ -1,5 +1,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import { Alert02Icon } from '@hugeicons/core-free-icons';
+import StatusPage, { homePath } from './StatusPage';
 import { copy } from '../copy';
 
 export default class ErrorBoundary extends Component {
@@ -18,16 +20,17 @@ export default class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      // роутер теж міг упасти — тож «на головну» звичайним посиланням
       return (
-        <main className="main main--auth">
-          <section className="card card--auth" aria-labelledby="error-title">
-            <h1 id="error-title">{copy.errors.crashTitle}</h1>
-            <p className="hero__text">{copy.errors.crashText}</p>
-            <button className="btn" type="button" onClick={() => window.location.reload()}>
-              {copy.errors.reload}
-            </button>
-          </section>
-        </main>
+        <StatusPage
+          icon={Alert02Icon}
+          title={copy.errors.crashTitle}
+          text={copy.errors.crashText}
+          actions={[
+            { label: copy.errors.reload, onClick: () => window.location.reload() },
+            { label: copy.common.goHome, href: homePath() },
+          ]}
+        />
       );
     }
     return this.props.children;

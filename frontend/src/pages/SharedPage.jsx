@@ -1,10 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { Alert02Icon, Unlink04Icon } from '@hugeicons/core-free-icons';
 import { fetchSharedDiscussion } from '../api/discussions';
 import { getToken } from '../api/client';
 import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
+import StatusPage from '../components/StatusPage';
 import SummaryDetails from '../components/SummaryDetails';
 import logo from '../assets/clarity-logo.webp';
 import { copy, locale } from '../copy';
@@ -29,8 +31,10 @@ const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'lon
 /** Дискусія за публічним посиланням: лише читання, без входу й без поля вводу. */
 export default function SharedPage() {
   const { token } = useParams();
+  const navigate = useNavigate();
   const [discussion, setDiscussion] = useState(null);
-  const [error, setError] = useState('');
+  // { closed, message }: закрите посилання — окремий стан, інша помилка — з її текстом
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -39,7 +43,7 @@ export default function SharedPage() {
         if (alive) setDiscussion(data);
       })
       .catch((err) => {
-        if (alive) setError(err.status === 404 ? t.notFound : err.message);
+        if (alive) setError({ closed: err.status === 404, message: err.message });
       });
     return () => {
       alive = false;
@@ -78,6 +82,23 @@ export default function SharedPage() {
   const speakers = useMemo(() => buildSpeakers(messages, participantColors), [messages, participantColors]);
   const names = (discussion?.personas || []).map((persona) => persona.name).filter(Boolean);
 
+  if (error) {
+    const signedIn = Boolean(getToken());
+    return (
+      <StatusPage
+        icon={error.closed ? Unlink04Icon : Alert02Icon}
+        title={error.closed ? t.unavailable : t.loadError}
+        text={error.closed ? t.notFound : error.message}
+        actions={[
+          {
+            label: signedIn ? t.ctaSignedIn : t.cta,
+            onClick: () => navigate(signedIn ? '/home' : '/register'),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <div className="shared">
       <header className="shared__bar">
@@ -92,8 +113,8 @@ export default function SharedPage() {
 
       <main className="shared__main">
         {!discussion && (
-          <p className="shared__status" role={error ? 'alert' : 'status'}>
-            {error || t.loading}
+          <p className="shared__status" role="status">
+            {t.loading}
           </p>
         )}
 

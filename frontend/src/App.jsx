@@ -14,6 +14,7 @@ import './styles/settings.css';
 import './styles/help.css';
 import './styles/journal.css';
 import './styles/tools.css';
+import './styles/status.css';
 
 const loadLogin = () => import('./pages/LoginPage');
 const loadRegister = () => import('./pages/RegisterPage');

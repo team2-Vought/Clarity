@@ -1,0 +1,182 @@
+/* Сторінки-стани: 404, збій застосунку, закрите посилання на дискусію.
+   Логотип угорі, по центру — великий код або іконка на пастельному сяйві,
+   заголовок, пояснення й до двох кнопок. */
+
+.status-page {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.status-page__bar {
+  padding: 18px clamp(16px, 4vw, 32px);
+}
+
+.status-page__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.status-page__brand img {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+
+.status-page__main {
+  display: grid;
+  place-items: center;
+  /* знизу — як висота шапки, щоб блок стояв по оптичному центру екрана */
+  padding: 0 16px 66px;
+}
+
+.status-page__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 480px;
+  text-align: center;
+  animation: status-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* код чи іконка — на розмитій пастельній плямі в кольорах бренду */
+.status-page__mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+
+.status-page__mark::before {
+  content: '';
+  position: absolute;
+  inset: 8% -6%;
+  z-index: -1;
+  border-radius: 50%;
+  background: linear-gradient(110deg, var(--pink), var(--peach), var(--sky), var(--lilac));
+  background-size: 200% 100%;
+  filter: blur(36px);
+  opacity: 0.75;
+  animation: gradient-shift 9s ease-in-out infinite alternate;
+}
+
+:root[data-theme='dark'] .status-page__mark::before {
+  opacity: 0.32;
+}
+
+.status-page__code {
+  font-size: clamp(6rem, 24vw, 9.5rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+}
+
+.status-page__icon {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--glass);
+  box-shadow: 0 18px 40px -18px rgba(18, 18, 18, 0.35);
+}
+
+.status-page__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4.5vw, 2rem);
+}
+
+.status-page__title::after {
+  margin: 12px auto 0;
+}
+
+.status-page__text {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+
+.status-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.status-page__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 13px 24px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.18s, opacity 0.18s, var(--press);
+}
+
+.status-page__button:hover {
+  background: color-mix(in srgb, var(--text) 6%, var(--glass));
+}
+
+.status-page__button--primary {
+  border-color: transparent;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+}
+
+.status-page__button--primary:hover {
+  background: var(--btn-bg);
+  opacity: 0.88;
+}
+
+.status-page__button:active {
+  scale: var(--press-scale);
+}
+
+.status-page__button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@keyframes status-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (max-width: 479px) {
+  /* на телефоні кнопки — на всю ширину, головна зверху */
+  .status-page__actions {
+    flex-direction: column;
+    align-self: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-page__body,
+  .status-page__mark::before {
+    animation: none;
+  }
+}

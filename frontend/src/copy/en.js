@@ -676,6 +676,8 @@ export const en = {
     label: 'A discussion on Clarity',
     loading: 'Loading the discussion…',
     notFound: 'The link is invalid or the author has closed access to the discussion.',
+    unavailable: 'Discussion unavailable',
+    loadError: 'Could not open the discussion',
     cta: 'Try Clarity',
     ctaSignedIn: 'New discussion',
     participants: (names) => `Participants: ${names}`,
@@ -1234,5 +1236,8 @@ export const en = {
     sessionExpired: 'Your session has ended — please sign in again',
     loading: 'Loading…',
     notFound: 'Page not found',
+    notFoundText: 'The link may be outdated, or the page has moved. Let’s get you back on track.',
+    goHome: 'Go home',
+    goBack: 'Go back',
   },
 };

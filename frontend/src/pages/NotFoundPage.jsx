@@ -1,20 +1,22 @@
 import { useNavigate } from 'react-router-dom';
-import { Background } from './AuthLayout';
+import StatusPage, { homePath } from '../components/StatusPage';
 import { copy } from '../copy';
+
+const t = copy.common;
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
+  // прийшли за зовнішнім посиланням — «назад» вивів би з сайту, тож лише «додому»
+  const canGoBack = window.history.state?.idx > 0;
   return (
-    <div className="page page--auth">
-      <Background />
-      <main className="main main--auth">
-        <section className="card card--auth" aria-labelledby="not-found-title">
-          <h1 id="not-found-title">{copy.common.notFound}</h1>
-          <button className="btn" type="button" onClick={() => navigate('/')}>
-            {copy.common.backHome}
-          </button>
-        </section>
-      </main>
-    </div>
+    <StatusPage
+      mark="404"
+      title={t.notFound}
+      text={t.notFoundText}
+      actions={[
+        { label: t.goHome, onClick: () => navigate(homePath()) },
+        ...(canGoBack ? [{ label: t.goBack, onClick: () => navigate(-1) }] : []),
+      ]}
+    />
   );
 }
