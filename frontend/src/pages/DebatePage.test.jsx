@@ -350,6 +350,14 @@ describe('DebatePage', () => {
     expect(group.closest('.debate__reveal')).toHaveAttribute('inert');
   });
 
+  it('вимкнені в налаштуваннях приклади запитів не показуються', async () => {
+    localStorage.setItem('clarity:suggestions', 'off');
+    renderPage();
+    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+
+    expect(screen.queryByRole('group', { name: 'Приклади питань' })).not.toBeInTheDocument();
+  });
+
   it('Enter у полі створює дискусію без стилю й креативності та відкриває чат', async () => {
     const user = userEvent.setup();
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });

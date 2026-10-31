@@ -1,9 +1,10 @@
-// Налаштування цього пристрою (не акаунта): як надсилати повідомлення
-// й чи зменшувати анімацію. Тема живе окремо — її ключ читає ще index.html.
+// Налаштування цього пристрою (не акаунта): як надсилати повідомлення,
+// чи зменшувати анімацію й чи показувати приклади запитів. Тема живе окремо — її ключ читає ще index.html.
 
 export const THEME_KEY = 'clarity-theme';
 const SEND_KEY = 'clarity:send-key';
 const MOTION_KEY = 'clarity:motion';
+const SUGGESTIONS_KEY = 'clarity:suggestions';
 
 const read = (key) => {
   try {
@@ -49,5 +50,10 @@ export const writeReducedMotion = (reduced) => {
   if (reduced) document.documentElement.dataset.motion = 'reduced';
   else delete document.documentElement.dataset.motion;
 };
+
+/** Приклади запитів під полем нової дискусії; за замовчуванням увімкнені. */
+export const readSuggestions = () => read(SUGGESTIONS_KEY) !== 'off';
+
+export const writeSuggestions = (on) => write(SUGGESTIONS_KEY, on ? '' : 'off');
 
 export const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');

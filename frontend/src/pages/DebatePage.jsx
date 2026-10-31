@@ -50,7 +50,7 @@ import TraitPicker from '../components/TraitPicker';
 import { copy } from '../copy';
 import { requestErrorKind } from '../utils/errorKind';
 import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
-import { isSendShortcut } from '../utils/devicePrefs';
+import { isSendShortcut, readSuggestions } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
 import { FILE_TYPES, MAX_FILES, useAttachmentDraft } from '../hooks/useAttachmentDraft';
 import { hasAbout, useMyProfile } from '../hooks/useMyProfile';
@@ -259,6 +259,8 @@ export default function DebatePage() {
     && description.trim().length > 0
     && participants.length >= MIN_PARTICIPANTS
     && allParticipantsHaveModels;
+  // приклади можна вимкнути в «Налаштування → Інтерфейс»
+  const [suggestionsOn] = useState(readSuggestions);
   const showSuggestions = !description.trim() && !isCreating;
 
   // те, що раніше було пігулками під полем і скріпкою в ньому, — тепер у меню формату
@@ -1314,35 +1316,37 @@ export default function DebatePage() {
         </div>
 
         {/* підказки згортаються плавно, щойно в полі з'являється текст */}
-        <div
-          className={`debate__reveal debate__suggestions-reveal ${showSuggestions ? 'debate__reveal--open' : ''}`}
-          inert={!showSuggestions}
-        >
-          <div className="debate__reveal-inner">
-            <div className="debate__suggestions" role="group" aria-label={t.suggestionsLabel}>
-              {SUGGESTIONS.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className="debate__suggestion"
-                  onClick={() => applySuggestion(item.text)}
-                >
-                  <span className="debate__suggestion-head">
-                    <span
-                      className="debate__suggestion-icon"
-                      style={{ '--tone': item.tone }}
-                      aria-hidden="true"
-                    >
-                      <HugeiconsIcon icon={item.icon} size={15} strokeWidth={1.8} />
+        {suggestionsOn && (
+          <div
+            className={`debate__reveal debate__suggestions-reveal ${showSuggestions ? 'debate__reveal--open' : ''}`}
+            inert={!showSuggestions}
+          >
+            <div className="debate__reveal-inner">
+              <div className="debate__suggestions" role="group" aria-label={t.suggestionsLabel}>
+                {SUGGESTIONS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className="debate__suggestion"
+                    onClick={() => applySuggestion(item.text)}
+                  >
+                    <span className="debate__suggestion-head">
+                      <span
+                        className="debate__suggestion-icon"
+                        style={{ '--tone': item.tone }}
+                        aria-hidden="true"
+                      >
+                        <HugeiconsIcon icon={item.icon} size={15} strokeWidth={1.8} />
+                      </span>
+                      {item.topic}
                     </span>
-                    {item.topic}
-                  </span>
-                  <span className="debate__suggestion-text">{item.text}</span>
-                </button>
-              ))}
+                    <span className="debate__suggestion-text">{item.text}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {error && (
           <ErrorNotice

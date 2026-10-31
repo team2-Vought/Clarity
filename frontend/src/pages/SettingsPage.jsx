@@ -37,8 +37,10 @@ import {
   isMac,
   readReducedMotion,
   readSendKey,
+  readSuggestions,
   writeReducedMotion,
   writeSendKey,
+  writeSuggestions,
 } from '../utils/devicePrefs';
 
 const t = copy.settings;
@@ -336,6 +338,7 @@ export default function SettingsPage() {
   const [filter, setFilter] = useState('all');
   const [sendKey, setSendKey] = useState(readSendKey);
   const [reducedMotion, setReducedMotion] = useState(readReducedMotion);
+  const [suggestions, setSuggestions] = useState(readSuggestions);
   const [language, setLanguage] = useState(readLanguagePref);
 
   // тексти читаються під час завантаження, тож нова мова — це перезавантаження
@@ -417,6 +420,11 @@ export default function SettingsPage() {
   const changeMotion = (value) => {
     setReducedMotion(value);
     writeReducedMotion(value);
+  };
+
+  const changeSuggestions = (value) => {
+    setSuggestions(value);
+    writeSuggestions(value);
   };
 
   const models = data?.models || [];
@@ -584,6 +592,12 @@ export default function SettingsPage() {
             ]}
           />
         </Row>
+        <SwitchRow
+          title={t.suggestionsLabel}
+          hint={t.suggestionsHint}
+          checked={suggestions}
+          onChange={changeSuggestions}
+        />
         <SwitchRow
           title={t.motionLabel}
           hint={t.motionHint}

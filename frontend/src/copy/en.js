@@ -545,6 +545,8 @@ export const en = {
     sendModEnter: (mod) => `${mod} + Enter`,
     sendHintEnter: 'Shift + Enter — new line.',
     sendHintModEnter: 'Enter — new line, handy for long questions.',
+    suggestionsLabel: 'Example questions',
+    suggestionsHint: 'Cards with sample questions under the field of a new discussion.',
     motionLabel: 'Reduce motion',
     motionHint: 'Turns off smooth transitions and interface motion.',
     soundLabel: 'Sound signal',

@@ -548,6 +548,8 @@ export const uk = {
     sendModEnter: (mod) => `${mod} + Enter`,
     sendHintEnter: 'Shift + Enter — новий рядок.',
     sendHintModEnter: 'Enter — новий рядок, зручно для довгих питань.',
+    suggestionsLabel: 'Приклади запитів',
+    suggestionsHint: 'Картки з прикладами питань під полем нової дискусії.',
     motionLabel: 'Менше анімації',
     motionHint: 'Вимикає плавні переходи й рухи інтерфейсу.',
     soundLabel: 'Звуковий сигнал',
