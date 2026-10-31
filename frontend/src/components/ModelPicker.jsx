@@ -156,10 +156,13 @@ export default function ModelPicker({
                   <span className="debate__model-option-icon">
                     <ModelIcon model={model} />
                   </span>
-                  <span className="debate__model-option-label">{modelLabel(model)}</span>
-                  {!model.available && (
-                    <span className="debate__model-option-note">{t.modelUnavailable}</span>
-                  )}
+                  {/* позначка — під назвою: поруч у вузькій панелі вона стискала назву до однієї літери в рядку */}
+                  <span className="debate__model-option-label">
+                    {modelLabel(model)}
+                    {!model.available && (
+                      <span className="debate__model-option-note">{t.modelUnavailable}</span>
+                    )}
+                  </span>
                   {active && <OptionCheck />}
                 </button>
               </li>
