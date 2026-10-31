@@ -55,6 +55,12 @@
   letter-spacing: 0;
 }
 
+/* висота — як у заголовка групи з лічильником */
+.journal__skeleton-title {
+  width: 180px;
+  height: 26px;
+}
+
 .journal__list {
   display: flex;
   flex-direction: column;

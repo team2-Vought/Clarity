@@ -258,7 +258,7 @@ export default function ProfileSettings() {
     setIsAvatarBusy(true);
     try {
       setUser(await updateProfile({ avatar }));
-      pushToast(message);
+      pushToast(message, 'success');
     } catch (err) {
       pushToast(err?.fieldErrors?.().avatar || err?.message || copy.settings.saveError);
     } finally {
@@ -289,7 +289,7 @@ export default function ProfileSettings() {
     async () => {
       setUser(await updateProfile({ name: form.name }));
       close();
-      pushToast(t.nameSaved);
+      pushToast(t.nameSaved, 'success');
     },
   );
 
@@ -313,7 +313,7 @@ export default function ProfileSettings() {
     async () => {
       setUser(await updateProfile({ email: form.email, current_password: form.current_password }));
       close();
-      pushToast(t.emailSaved);
+      pushToast(t.emailSaved, 'success');
     },
   );
 
@@ -331,7 +331,7 @@ export default function ProfileSettings() {
       await changePassword(form);
       setUser((current) => ({ ...current, has_password: true }));
       close();
-      pushToast(t.passwordSaved);
+      pushToast(t.passwordSaved, 'success');
     },
   );
 

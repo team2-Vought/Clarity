@@ -1163,7 +1163,7 @@ export default function ChatPage() {
   const copyLink = async (url) => {
     try {
       await navigator.clipboard.writeText(url);
-      pushToast(t.linkCopied);
+      pushToast(t.linkCopied, 'success');
     } catch {
       // без доступу до буфера посилання лишається в полі — його можна скопіювати вручну
     }
@@ -1190,7 +1190,7 @@ export default function ChatPage() {
     try {
       await unshareDiscussion(discussion.id);
       setDiscussion((current) => (current ? { ...current, share_token: null } : current));
-      pushToast(t.shareClosed);
+      pushToast(t.shareClosed, 'success');
     } catch (err) {
       setActionError(actionFailure(err, t.shareError));
     } finally {

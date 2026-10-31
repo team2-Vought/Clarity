@@ -121,7 +121,7 @@ body:has(.app-shell) {
   --nav-pad: clamp(10px, 1vw, 16px);
   --item-icon: clamp(28px, 2.3vw, 36px);
   --ctrl-icon: clamp(21px, 1.7vw, 24px);
-  --logo-w: clamp(34px, 2.6vw, 40px);
+  --logo-w: clamp(40px, 3vw, 46px);
   --sidebar-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   position: absolute;

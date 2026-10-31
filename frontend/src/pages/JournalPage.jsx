@@ -500,7 +500,7 @@ export default function JournalPage() {
     setEmails(value);
     try {
       await updatePreferences({ journal_emails: value });
-      pushToast(value ? t.emailsOnToast : t.emailsOffToast);
+      pushToast(value ? t.emailsOnToast : t.emailsOffToast, 'success');
     } catch (err) {
       setEmails(!value);
       pushToast(err?.message || t.saveError);
@@ -538,16 +538,21 @@ export default function JournalPage() {
             </div>
           )}
 
+          {/* скелет повторює розкладку групи разом із заголовком — інакше картки
+              після завантаження з'їжджали б униз на висоту заголовка */}
           {isLoading && (
-            <ul className="journal__list" aria-hidden="true">
-              {Array.from({ length: SKELETON_COUNT }, (_, index) => (
-                <li key={index} className="journal__entry journal__entry--skeleton">
-                  <span className="history__skeleton history__skeleton--date" />
-                  <span className="history__skeleton history__skeleton--title" />
-                  <span className="history__skeleton history__skeleton--title history__skeleton--short" />
-                </li>
-              ))}
-            </ul>
+            <div className="journal__group" aria-hidden="true">
+              <span className="history__skeleton journal__skeleton-title" />
+              <ul className="journal__list">
+                {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+                  <li key={index} className="journal__entry journal__entry--skeleton">
+                    <span className="history__skeleton history__skeleton--date" />
+                    <span className="history__skeleton history__skeleton--title" />
+                    <span className="history__skeleton history__skeleton--title history__skeleton--short" />
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {entries?.length === 0 && (

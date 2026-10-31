@@ -666,7 +666,7 @@ export default function DebatePage() {
       setTeams((current) => [team, ...current.filter((item) => item.id !== team.id)]);
       setTeamName('');
       setIsTeamFormOpen(false);
-      pushToast(t.teamSaved(team.name));
+      pushToast(t.teamSaved(team.name), 'success');
     } catch (err) {
       failRequest(err, t.teamSaveError);
     } finally {

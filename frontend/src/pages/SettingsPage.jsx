@@ -400,13 +400,16 @@ export default function SettingsPage() {
   const handleSaveKey = async (provider, key) => {
     const result = await saveProviderKey(provider.id, key);
     setData(result);
-    pushToast(result.verified === null ? t.keySavedUnverified(provider.label) : t.keySaved(provider.label));
+    pushToast(
+      result.verified === null ? t.keySavedUnverified(provider.label) : t.keySaved(provider.label),
+      'success'
+    );
   };
 
   const handleRemoveKey = async (provider) => {
     try {
       setData(await deleteProviderKey(provider.id));
-      pushToast(t.keyRemoved(provider.label));
+      pushToast(t.keyRemoved(provider.label), 'success');
     } catch (err) {
       pushToast(err?.message || t.saveError);
     }

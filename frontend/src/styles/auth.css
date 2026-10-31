@@ -261,7 +261,9 @@
   text-decoration-color: var(--text);
 }
 
-/* ---------- Toasts ---------- */
+/* ---------- Toasts ----------
+   Темна пігулка внизу по центру (у темній темі — світла): іконка за типом,
+   текст, хрестик і тонка смужка часу знизу, що зупиняється на наведенні */
 .toasts {
   position: fixed;
   bottom: 24px;
@@ -269,40 +271,121 @@
   transform: translateX(-50%);
   z-index: 100;
   display: grid;
-  gap: 10px;
-  width: min(360px, calc(100vw - 32px));
+  justify-items: center;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
 }
 
 .toast {
+  --toast-tone: #ff8fab;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 14px 14px 16px;
-  background: var(--toast-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.4);
-  animation: toast-in 0.28s ease-out;
+  gap: 10px;
+  max-width: 100%;
+  padding: 10px 8px 10px 10px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.45), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  animation: toast-in 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.toast p { flex: 1; margin: 0; font-size: 0.9375rem; font-weight: 500; }
-.toast__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--error); flex: none; }
+
+.toast--success { --toast-tone: #6fd3a3; }
+.toast--info { --toast-tone: var(--sky); }
+
+/* у темній темі пігулка світла — тони темніші, щоб іконку було видно */
+:root[data-theme='dark'] .toast { --toast-tone: #c93a62; }
+:root[data-theme='dark'] .toast--success { --toast-tone: #23855a; }
+:root[data-theme='dark'] .toast--info { --toast-tone: #3b7fa6; }
+
+.toast--leaving {
+  animation: toast-out 0.2s ease-in forwards;
+}
+
+.toast__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--toast-tone) 22%, transparent);
+  color: var(--toast-tone);
+}
+
+.toast p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+
 .toast__close {
-  width: 28px; height: 28px;
-  background: none; border: 0; border-radius: 50%;
-  color: var(--muted); font-size: 1.25rem; line-height: 1; cursor: pointer;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: color-mix(in srgb, var(--btn-text) 55%, transparent);
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s;
 }
-.toast__close:hover { color: var(--text); }
+
+.toast__close:hover {
+  background: color-mix(in srgb, var(--btn-text) 12%, transparent);
+  color: var(--btn-text);
+}
+
+.toast__close:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.toast__timer {
+  position: absolute;
+  right: 16px;
+  bottom: 0;
+  left: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--toast-tone);
+  opacity: 0.7;
+  transform-origin: left;
+  animation: toast-timer var(--toast-duration, 5s) linear forwards;
+}
+
+.toast__timer--paused {
+  animation-play-state: paused;
+}
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+}
+
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(6px) scale(0.96); }
+}
+
+@keyframes toast-timer {
+  to { transform: scaleX(0); }
 }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {
   .card { border-radius: 32px; }
   .toasts { top: auto; bottom: 12px; right: 16px; left: 16px; transform: none; width: auto; }
+  .toast { width: 100%; }
 }
 
 /* ПК: ширші auth-вікна + компактно без скролу */
@@ -367,4 +450,10 @@
   .card--register .form .btn {
     padding: 12px;
   }
+}
+
+/* менше анімації: смужка часу зникала б миттєво — краще її не показувати */
+:root[data-motion='reduced'] .toast__timer { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .toast__timer { display: none; }
 }

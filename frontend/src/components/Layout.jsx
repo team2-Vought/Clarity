@@ -45,7 +45,7 @@ export default function Layout() {
   // прострочена сесія з будь-якого запиту веде на вхід, а не лишає сторінку з помилкою
   useEffect(() => {
     const handleUnauthorized = () => {
-      pushToast(copy.common.sessionExpired);
+      pushToast(copy.common.sessionExpired, 'info');
       navigate('/login', { replace: true });
     };
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);

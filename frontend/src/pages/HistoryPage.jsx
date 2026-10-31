@@ -361,7 +361,7 @@ export default function HistoryPage() {
     setItems((current) => current.filter((entry) => entry.id !== item.id));
     try {
       await updateDiscussion(item.id, { archived, ...(archived ? { pinned: false } : {}) });
-      pushToast(archived ? t.archivedToast : t.unarchivedToast);
+      pushToast(archived ? t.archivedToast : t.unarchivedToast, 'success');
     } catch (err) {
       setItems((current) => {
         const next = [...current];
