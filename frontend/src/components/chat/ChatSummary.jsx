@@ -13,7 +13,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import SummaryDetails from '../SummaryDetails';
 import FeedbackBar from './FeedbackBar';
-import JournalCard from './JournalCard';
+import JournalForm, { JournalButton, useJournal } from './JournalCard';
 import MatrixTable from './MatrixTable';
 import { TopicNotice } from '../SafetyNotice';
 import { SourceItems, SourcesLabel } from './Sources';
@@ -44,6 +44,7 @@ export default function ChatSummary({
   const [copyState, setCopyState] = useState('');
   const [pdfState, setPdfState] = useState('');
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
+  const journal = useJournal(discussion);
   const summary = discussion.final_summary;
   const {
     decision: summaryDecision,
@@ -191,6 +192,7 @@ export default function ChatSummary({
         >
           <HugeiconsIcon icon={RepeatIcon} size={18} />
         </button>
+        <JournalButton journal={journal} />
         {onDeepen && (
           // коротка відповідь — за кнопкою ті самі учасники в повних дебатах
           <button type="button" className="chat__summary-deepen" onClick={onDeepen} title={t.deepenHint}>
@@ -223,20 +225,19 @@ export default function ChatSummary({
           </div>
         </div>
       )}
+      <JournalForm discussion={discussion} journal={journal} />
       {(copyState === 'error' || pdfState === 'error') && (
         <p className="chat__summary-note" role="alert">
           {copyState === 'error' ? t.copyError : t.pdfError}
         </p>
       )}
       <TopicNotice topic={discussion.safety} className="chat__summary-topic" />
-      {/* «Чи допомогло?» і «У журнал» — одним рядком під висновком */}
       <div className="chat__summary-after" style={summaryStep()}>
         <FeedbackBar
           discussionId={discussion.id}
           initial={discussion.feedback || ''}
           initialNote={discussion.feedback_note || ''}
         />
-        <JournalCard discussion={discussion} />
       </div>
     </section>
   );

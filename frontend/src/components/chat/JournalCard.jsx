@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BookOpen01Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { BookOpen01Icon, BookOpenCheckIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { recordDecision } from '../../api/journal';
 import { refreshJournalDue } from '../../hooks/useJournalDue';
 import { useToasts } from '../../hooks/useToasts';
@@ -31,16 +31,55 @@ const prefill = (summary) => {
 };
 
 /**
- * Під висновком, поруч з «Чи допомогло?»: невелика кнопка «У журнал», що
- * розкриває форму, — щоб згодом Clarity спитала «Як воно?».
- * Уже записане — така сама кнопка з галочкою, що веде в журнал.
+ * «У журнал» — іконка в рядку дій під висновком і форма, що розкривається під
+ * рядком, — щоб згодом Clarity спитала «Як воно?». Стан спільний: його тримає
+ * `useJournal`, а кнопка й форма стоять у різних місцях картки.
  */
-export default function JournalCard({ discussion }) {
-  const id = useId();
-  const navigate = useNavigate();
-  const { pushToast } = useToasts();
+export function useJournal(discussion) {
   const [entry, setEntry] = useState(discussion.journal || null);
   const [open, setOpen] = useState(false);
+  return { entry, setEntry, open, setOpen };
+}
+
+/** Іконка в рядку дій; уже записане — іконка з галочкою, що веде в журнал. */
+export function JournalButton({ journal }) {
+  const navigate = useNavigate();
+  const { entry, open, setOpen } = journal;
+
+  if (entry) {
+    const reviewed = entry.status === 'reviewed';
+    const label = reviewed ? t.journalReviewed : t.journalSaved(dateFormat.format(new Date(entry.check_at)));
+    return (
+      <button
+        type="button"
+        className="chat__icon-button chat__journal-saved"
+        onClick={() => navigate('/journal')}
+        aria-label={`${label}. ${t.journalOpen}`}
+        title={label}
+      >
+        <HugeiconsIcon icon={BookOpenCheckIcon} size={18} />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="chat__icon-button"
+      onClick={() => setOpen((value) => !value)}
+      aria-expanded={open}
+      aria-label={t.journalTitle}
+      title={t.journalAdd}
+    >
+      <HugeiconsIcon icon={BookOpen01Icon} size={18} />
+    </button>
+  );
+}
+
+export default function JournalForm({ discussion, journal }) {
+  const id = useId();
+  const { pushToast } = useToasts();
+  const { entry, setEntry, open, setOpen } = journal;
   const [decision, setDecision] = useState(() => prefill(discussion.final_summary));
   const [days, setDays] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -55,35 +94,7 @@ export default function JournalCard({ discussion }) {
     formRef.current?.querySelector('textarea')?.focus({ preventScroll: true });
   }, [open]);
 
-  if (entry) {
-    const reviewed = entry.status === 'reviewed';
-    return (
-      <button
-        type="button"
-        className="chat__journal-add chat__journal-add--saved"
-        onClick={() => navigate('/journal')}
-        title={t.journalOpen}
-      >
-        <HugeiconsIcon icon={Tick02Icon} size={16} aria-hidden="true" />
-        {reviewed ? t.journalReviewed : t.journalSaved(dateFormat.format(new Date(entry.check_at)))}
-      </button>
-    );
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="chat__journal-add"
-        onClick={() => setOpen(true)}
-        aria-label={t.journalTitle}
-        title={t.journalLead}
-      >
-        <HugeiconsIcon icon={BookOpen01Icon} size={16} aria-hidden="true" />
-        {t.journalAdd}
-      </button>
-    );
-  }
+  if (entry || !open) return null;
 
   const save = async (event) => {
     event.preventDefault();
@@ -95,6 +106,7 @@ export default function JournalCard({ discussion }) {
         remindInDays: days,
       });
       setEntry({ id: saved.id, check_at: saved.check_at, status: saved.status });
+      setOpen(false);
       refreshJournalDue();
     } catch (err) {
       pushToast(err?.fieldErrors?.().decision || err?.message || t.journalError);
@@ -150,14 +162,25 @@ export default function JournalCard({ discussion }) {
   );
 }
 
-JournalCard.propTypes = {
+const journalShape = PropTypes.shape({
+  entry: PropTypes.shape({
+    id: PropTypes.string,
+    check_at: PropTypes.string,
+    status: PropTypes.string,
+  }),
+  setEntry: PropTypes.func.isRequired,
+  open: PropTypes.bool.isRequired,
+  setOpen: PropTypes.func.isRequired,
+});
+
+JournalButton.propTypes = {
+  journal: journalShape.isRequired,
+};
+
+JournalForm.propTypes = {
   discussion: PropTypes.shape({
     id: PropTypes.string.isRequired,
     final_summary: PropTypes.object,
-    journal: PropTypes.shape({
-      id: PropTypes.string,
-      check_at: PropTypes.string,
-      status: PropTypes.string,
-    }),
   }).isRequired,
+  journal: journalShape.isRequired,
 };

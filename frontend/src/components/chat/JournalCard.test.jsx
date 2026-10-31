@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../Toast';
-import JournalCard from './JournalCard';
+import JournalForm, { JournalButton, useJournal } from './JournalCard';
 import { recordDecision } from '../../api/journal';
 
 vi.mock('../../api/journal', () => ({
@@ -17,6 +17,17 @@ const DISCUSSION = {
   final_summary: { answer: 'так', decision: '**Варто** переїжджати, якщо оренда до 15 000.' },
   journal: null,
 };
+
+// як у картці підсумку: кнопка в рядку дій, форма — під ним
+function JournalCard({ discussion }) {
+  const journal = useJournal(discussion);
+  return (
+    <>
+      <JournalButton journal={journal} />
+      <JournalForm discussion={discussion} journal={journal} />
+    </>
+  );
+}
 
 const renderCard = (discussion = DISCUSSION) =>
   render(
@@ -48,11 +59,11 @@ describe('JournalCard', () => {
       decision: 'Так. Варто переїжджати, якщо оренда до 15 000.',
       remindInDays: 7,
     });
-    expect(await screen.findByText(/У журналі · спитаємо/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /У журналі · спитаємо/ })).toBeInTheDocument();
   });
 
   it('уже записане рішення показує, коли спитаємо', () => {
     renderCard({ ...DISCUSSION, journal: { id: 'e1', check_at: '2026-11-29T10:00:00Z', status: 'waiting' } });
-    expect(screen.getByText(/У журналі · спитаємо 29 листопада/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /У журналі · спитаємо 29 листопада/ })).toBeInTheDocument();
   });
 });

@@ -4935,8 +4935,7 @@ ol.chat__reveal {
   color: var(--muted);
 }
 
-/* під висновком одним рядком: «Чи допомогло?» ліворуч, «У журнал» праворуч;
-   розкрита форма журналу переходить на окремий рядок на всю ширину */
+/* під висновком: «Чи допомогло?» */
 .chat__summary-after {
   display: flex;
   flex-wrap: wrap;
@@ -4951,12 +4950,9 @@ ol.chat__reveal {
   margin-top: 0;
 }
 
-/* на телефоні все одним рядком не вміщається: питання окремо, під ним
-   «Допомогло / Не допомогло», а «У журнал» — під ними, без розірваних рядків */
+/* на телефоні все одним рядком не вміщається: питання окремо,
+   під ним «Допомогло / Не допомогло» */
 @media (max-width: 639px) {
-  /* рядок лишається рядком із переносом (у колонці flex-basis форми став би
-     висотою, і вона виїхала б за екран): відгук і форма — на всю ширину,
-     кнопка «У журнал» — своєї ширини окремим рядком */
   .chat__summary-after > .chat__feedback {
     flex-basis: 100%;
   }
@@ -4968,46 +4964,8 @@ ol.chat__reveal {
 
 }
 
-/* «У журнал» — невелика кнопка, як «Допомогло» поруч */
-.chat__journal-add {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--soft);
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s, var(--press);
-}
-
-.chat__journal-add:hover {
-  background: color-mix(in srgb, var(--ink) 8%, var(--soft));
-}
-
-.chat__journal-add:active {
-  scale: var(--press-scale);
-}
-
-/* уже в журналі — без підкладки, тихіше, веде в журнал */
-.chat__journal-add--saved {
-  background: transparent;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.chat__journal-add--saved > svg {
-  color: var(--ink);
-}
-
-.chat__journal-add--saved:hover {
-  background: var(--soft);
+/* уже в журналі — іконка з галочкою темніша за сусідні */
+.chat__icon-button.chat__journal-saved {
   color: var(--ink);
 }
 
