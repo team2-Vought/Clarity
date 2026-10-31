@@ -119,9 +119,9 @@ body:has(.app-shell) {
      в обох станах, тож при розгортанні рухається лише ширина, а підписи
      плавно проявляються — без стрибків з центру до лівого краю. */
   --nav-pad: clamp(10px, 1vw, 16px);
-  --item-icon: clamp(28px, 2.3vw, 36px);
-  --ctrl-icon: clamp(21px, 1.7vw, 24px);
-  --logo-w: clamp(40px, 3vw, 46px);
+  --item-icon: clamp(26px, 2.1vw, 32px);
+  --ctrl-icon: clamp(20px, 1.55vw, 22px);
+  --logo-w: clamp(37px, 2.8vw, 43px);
   --sidebar-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   position: absolute;
