@@ -938,10 +938,10 @@ body:has(.app-shell) {
 .debate__onboarding {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   width: min(760px, 100%);
   margin-bottom: 6px;
-  padding: 20px 22px 18px;
+  padding: 16px 20px 14px;
   border-radius: 28px;
   background: var(--soft);
   animation: debate-view-in 0.3s ease-out;
@@ -962,9 +962,24 @@ body:has(.app-shell) {
 }
 
 .debate__onboarding-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.debate__onboarding-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.debate__onboarding-brand img {
+  display: block;
+  height: 1.15em;
+  width: auto;
 }
 
 .debate__onboarding-lead {
@@ -986,7 +1001,7 @@ body:has(.app-shell) {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 14px 16px;
+  padding: 12px 14px 14px;
   border-radius: 20px;
   background: var(--card);
 }

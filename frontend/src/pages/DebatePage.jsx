@@ -1127,9 +1127,12 @@ export default function DebatePage() {
         <div className="debate__glow" aria-hidden="true">
           <span className="debate__glow-blob" />
         </div>
-        <div className="debate__hero">
-          <h1 className="debate__title">{TITLE}</h1>
-        </div>
+        {/* картка першого запуску сама вітає — заголовок чату зайвий */}
+        {!showOnboarding && (
+          <div className="debate__hero">
+            <h1 className="debate__title">{TITLE}</h1>
+          </div>
+        )}
 
         {showOnboarding ? (
           <OnboardingCard onDismiss={finishOnboarding} onMore={() => navigate('/help')} />

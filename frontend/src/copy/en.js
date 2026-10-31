@@ -380,14 +380,15 @@ export const en = {
 
   onboarding: {
     label: 'Getting started',
-    title: 'Welcome to Clarity',
-    lead: 'Describe a decision that is on your mind — the AIs will do the rest.',
+    title: 'Welcome to',
+    brand: 'Clarity',
+    lead: 'Describe a decision — the AIs will do the rest.',
     steps: [
-      { title: 'Describe the situation', text: 'What you are deciding, what matters to you, what the constraints are. You can start from an example below.' },
-      { title: 'The AIs argue', text: 'Participants with different characters discuss the question, and AI Devil looks for weak spots.' },
-      { title: 'Get a conclusion', text: 'A decision with arguments, risks and the next step — usually in 1–3 minutes.' },
+      { title: 'Describe the situation', text: 'What you are deciding and what matters to you.' },
+      { title: 'The AIs argue', text: 'Different characters debate, AI Devil hunts for weak spots.' },
+      { title: 'Get a conclusion', text: 'Arguments, risks and a next step in 1–3 minutes.' },
     ],
-    defaults: 'Everything is already set up. The answer format is the button to the left of the field, the line-up is in the “Participants” panel. Tell us about yourself in “Settings → About me” and the advice becomes personal.',
+    defaults: 'Everything is set up. Fill in “Settings → About me” for personal advice.',
     dismiss: 'Got it',
     more: 'How it works',
   },
