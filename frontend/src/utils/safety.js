@@ -1,16 +1,32 @@
 // Ті самі ознаки кризи, що й на сервері (discussions/services/safety.py): щоб
 // показати допомогу ще до надсилання питання. Навмисно вузько.
+// «Не хочу жити» чи «hurt myself» — криза, лише коли фраза завершує речення:
+// «не хочу жити з батьками» чи «hurt myself financially» — звичайні питання.
+const END = '(?=[ \\t]*(?:[.!?…,;:)\\n]|$))';
 const CRISIS_RE = new RegExp(
   [
     'самогубств', 'суїцид', 'суицид', 'покінч\\S* (з|із) собою', 'покінчити з життям',
     'покончить с собой', 'наклас\\S* на себе руки', 'руки на себе наклас',
-    'не хочу (більше )?жити', 'не хочу (больше )?жить', 'хочу померти', 'хочу умереть',
+    `не хочу (більше |вже |далі )?жити${END}`, `не хочу (больше |уже )?жить${END}`,
+    'хочу померти', 'хочу умереть',
     'вбити себе', 'вбю себе', 'убить себя', 'убью себя',
     'самоушкодж', 'самоповрежд', 'різати себе', 'ріжу себе', 'порізати себе', 'резать себя',
-    '\\bsuicid', 'kill myself', 'end my life', 'take my (own )?life', 'want to die',
-    'self[- ]?harm', 'hurt myself', 'cut myself',
+    '\\bsuicid', 'kill myself', 'end my life', 'take my (own )?life(?! savings)',
+    'want to die(?! (my|his|her|their|the|it)\\b)',
+    'self[- ]?harm', `hurt myself${END}`, `cut myself${END}`,
   ].join('|'),
   'i'
 );
 
-export const looksLikeCrisis = (text) => CRISIS_RE.test(String(text || ''));
+// Згадки про запобігання самогубствам — не криза, а тема; їх прибираємо до перевірки.
+const NEUTRAL_RE = new RegExp(
+  [
+    '\\bsuicid\\w*[- ](prevention|hotline|helpline|awareness|squad|rates?)\\b',
+    '(профілактик|запобіганн|попередженн|профилактик|предотвращени|превенці)\\S* '
+      + '(самогубств|суїцид|суицид)\\S*',
+  ].join('|'),
+  'gi'
+);
+
+export const looksLikeCrisis = (text) =>
+  CRISIS_RE.test(String(text || '').replace(NEUTRAL_RE, ' '));

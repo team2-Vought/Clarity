@@ -436,6 +436,8 @@ export const en = {
   safety: {
     crisisTitle: 'You don’t have to go through this alone',
     crisisLead: 'If things feel very hard right now, or you have thoughts of hurting yourself, talk to a real person — it is free and without judgement.',
+    notCrisisHint: 'Did we get it wrong and your question is about something else?',
+    notCrisis: 'I’m asking about something else',
     hotlines: [
       { name: 'Find a helpline', contact: 'findahelpline.com', note: 'Free helplines in your country', href: 'https://findahelpline.com' },
       { name: 'US · Suicide & Crisis Lifeline', contact: '988', note: 'Call or text, 24/7', href: 'tel:988' },

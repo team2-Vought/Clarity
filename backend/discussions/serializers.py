@@ -163,6 +163,9 @@ class CreateDiscussionSerializer(serializers.Serializer):
     use_profile = serializers.BooleanField(required=False)
     # швидкий режим: одна коротка відповідь без дебатів
     quick = serializers.BooleanField(required=False, default=False)
+    # людина натиснула «Я питаю про інше»: збіг слів не зупиняє дискусію,
+    # кризу й далі може розпізнати модератор
+    not_crisis = serializers.BooleanField(required=False, default=False)
     # критерії для «Один із варіантів»: [{name, weight 1–5}]
     criteria = serializers.ListField(child=serializers.DictField(), required=False, default=list)
     # завантажені заздалегідь вкладення (POST /api/attachments/)

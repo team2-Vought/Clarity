@@ -34,6 +34,7 @@ export function createDiscussion({
   attachments = [],
   quick = false,
   criteria = [],
+  notCrisis = false,
 }) {
   return request('/api/discussions/', {
     method: 'POST',
@@ -53,6 +54,7 @@ export function createDiscussion({
       attachments,
       quick,
       criteria,
+      not_crisis: notCrisis,
     },
   });
 }
@@ -80,6 +82,11 @@ export function answerClarify(id, answers) {
 /** Зупинка після поточного кроку. */
 export function stopDiscussion(id) {
   return request(`/api/discussions/${id}/stop/`, { method: 'POST', auth: true });
+}
+
+/** «Я питаю про інше»: дискусію, яку зупинив збіг слів про кризу, запускаємо як звичайну. */
+export function notCrisisDiscussion(id) {
+  return request(`/api/discussions/${id}/not-crisis/`, { method: 'POST', auth: true });
 }
 
 /** «Завершити»: зупинена дискусія одразу переходить до висновку модератора. */

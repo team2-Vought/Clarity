@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, time, timedelta
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Count, OuterRef, Subquery
 from django.utils import timezone
 from rest_framework import status
@@ -150,6 +151,13 @@ def _engine_error_response(exc, discussion=None):
     }
     if discussion is not None:
         payload.update({'status': discussion.status, 'phase': discussion.phase})
+    if exc.code == 'daily_limit':
+        # крок не вмістився в ліміт ще до виклику моделей — це не збій провайдера
+        return Response(
+            payload,
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={'Retry-After': str(_retry_after_seconds())},
+        )
     return Response(payload, status=status.HTTP_502_BAD_GATEWAY)
 
 
@@ -251,6 +259,7 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        crisis_by_words = not data['not_crisis'] and looks_like_crisis(data['question'])
         about = about_of(request.user)
         use_profile = data.get('use_profile', about['enabled'])
         quick = data.get('quick', False)
@@ -273,7 +282,7 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             quick=quick,
             criteria=data.get('criteria') or [],
             # криза видна з самого питання — дискусія не запуститься, людина побачить допомогу
-            safety=Discussion.Safety.CRISIS if looks_like_crisis(data['question']) else '',
+            safety=Discussion.Safety.CRISIS if crisis_by_words else '',
             # мова інтерфейсу автора: нею відповідатимуть AI
             language=current(),
         )
@@ -291,7 +300,10 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             avatar='🧑',
             content=discussion.question,
         )
-        usage.record(request.user.pk, discussions=1)
+        # кризова дискусія не запускається й моделей не кличе — слот ліміту не витрачає;
+        # його спишемо, якщо людина скаже «Я питаю про інше»
+        if not crisis_by_words:
+            usage.record(request.user.pk, discussions=1)
         return Response(
             DiscussionSerializer(discussion).data,
             status=status.HTTP_201_CREATED,
@@ -446,6 +458,51 @@ class DiscussionStopView(OwnedDiscussionView):
         )
         discussion.refresh_from_db()
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)
+
+
+class DiscussionNotCrisisView(OwnedDiscussionView):
+    """«Я питаю про інше»: дискусію, яку зупинила криза ще до старту, запускаємо
+    як звичайну. Кризу й далі може розпізнати модератор під час перевірки контексту."""
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        roles = set(discussion.messages.values_list('role', flat=True))
+        started = (
+            roles - {Message.Role.USER, Message.Role.MODERATOR}
+            or discussion.messages.filter(role=Message.Role.USER).count() > 1
+        )
+        if discussion.safety != Discussion.Safety.CRISIS or not discussion.is_finished or started:
+            return Response(
+                {
+                    'detail': L(
+                        'Цю дискусію вже не можна перезапустити.',
+                        'This discussion can no longer be restarted.',
+                    ),
+                    'code': 'not_restartable',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if usage.over_discussion_limit(request.user):
+            limit = int(settings.DISCUSSION_DAILY_LIMIT)
+            return _too_many(L(
+                f'Денний ліміт створення дискусій вичерпано ({limit}). '
+                'Спробуйте завтра.',
+                f'The daily limit of new discussions has been reached ({limit}). '
+                'Try again tomorrow.',
+            ))
+        with transaction.atomic():
+            # відповідь про кризу більше не стосується питання
+            discussion.messages.filter(role=Message.Role.MODERATOR).delete()
+            discussion.safety = ''
+            discussion.phase = Discussion.Phase.QUICK if discussion.quick else Discussion.Phase.CLARIFY
+            discussion.status = Discussion.Status.NEW
+            discussion.finished_at = None
+            discussion.stop_requested = False
+            discussion.save()
+        usage.record(request.user.pk, discussions=1)
+        return Response(DiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
 
 
 class DiscussionFinishView(OwnedDiscussionView):

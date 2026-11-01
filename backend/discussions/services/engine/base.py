@@ -45,6 +45,18 @@ class EngineBusy(EngineError):
     """Інший запит уже виконує крок цієї дискусії."""
 
 
+def daily_limit_error():
+    """Крок не вміщується в денний ліміт AI-відповідей — повтор сьогодні не допоможе."""
+    from .. import usage
+
+    return EngineError(
+        'Денний ліміт AI-відповідей вичерпано.',
+        code='daily_limit',
+        public=usage.reply_limit_message(),
+        retryable=False,
+    )
+
+
 class EngineConflict(EngineError):
     """Стан дискусії змінився, поки виконувався LLM-виклик."""
 

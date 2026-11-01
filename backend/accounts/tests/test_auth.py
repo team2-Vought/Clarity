@@ -44,6 +44,23 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('password', response.data)
 
+    def test_login_sets_last_login(self):
+        self.assertIsNone(self.user.last_login)
+        self.login()
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.last_login)
+
+    def test_disabled_account_gets_no_token(self):
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': 'auth@test.com', 'password': 'pass123!A'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data['code'], 'inactive')
+        self.assertNotIn('token', response.data)
+
     def test_me_requires_auth(self):
         response = self.client.get('/api/auth/me/')
         self.assertEqual(response.status_code, 401)

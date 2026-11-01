@@ -15,7 +15,7 @@ from ...personas import devil, moderator
 from .. import usage
 from ..criteria import compute_matrix
 from ..safety import CRISIS, crisis_message
-from .base import EngineBusy, EngineConflict, EngineError, STANCE_AGREE
+from .base import EngineBusy, EngineConflict, EngineError, STANCE_AGREE, daily_limit_error
 from .context import _add_message, _list_messages, _resolved_personas, _speakers_done
 from .live import _DraftBoard, _drafts, _live
 from .calls import _run_plans
@@ -211,9 +211,9 @@ def _commit(discussion_id, token, phase, results, error=None):
             )
 
         personas = _resolved_personas(discussion)
+        # оцінки за критеріями — теж відповіді моделей, хоч і без повідомлень у чаті;
+        # у ліміт їх зараховано ще до виклику (_advance)
         stored = [_store(discussion, plan, payload, personas) for plan, payload in results]
-        # оцінки за критеріями — теж відповіді моделей, хоч і без повідомлень у чаті
-        usage.record(discussion.user_id, replies=len(stored))
         created = [message for message in stored if message is not None]
         if error is not None:
             _set_error(discussion, error)
@@ -288,7 +288,6 @@ def _advance(discussion, provider_factory):
         if claimed.safety == CRISIS:
             return _crisis_stop(discussion_id, token)
         if claimed.phase == Discussion.Phase.CLARIFY:
-            _start_ai_status(claimed, provider_factory)
             outcome = _clarify_step(claimed, token, provider_factory)
             if outcome == CRISIS:
                 return _crisis_stop(discussion_id, token)
@@ -296,11 +295,21 @@ def _advance(discussion, provider_factory):
                 return []
             # контексту досить — у тому ж кроці починаємо вступ
             claimed.phase = Discussion.Phase.OPENING
-        _start_ai_status(claimed, provider_factory)
         plans = _prepare_step(claimed)
-        results = _run_plans(plans, provider_factory, claimed) if plans else []
+        # ліміт резервується до викликів: інакше крок із кількох паралельних
+        # відповідей проходив понад ліміт, бо його рахували лише після кроку
+        if not usage.reserve_replies(claimed.user_id, len(plans)):
+            raise daily_limit_error()
+        _start_ai_status(claimed, provider_factory)
+        try:
+            results = _run_plans(plans, provider_factory, claimed) if plans else []
+        except Exception:
+            usage.release_replies(claimed.user_id, len(plans))
+            raise
         succeeded = [(plan, payload) for plan, payload, error in results if error is None]
         errors = [error for _, _, error in results if error is not None]
+        # невдалі виклики відповіді не дали — їх у ліміт не рахуємо
+        usage.release_replies(claimed.user_id, len(errors))
         if errors and not succeeded:
             raise errors[0]
         combined = None

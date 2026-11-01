@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from discussions.models import Discussion, Message
 from discussions.serializers import DiscussionSerializer
-from discussions.services import engine
+from discussions.services import engine, usage
 from discussions.services.providers import ProviderError
 
 from .fakes import FakeProvider
@@ -809,3 +809,45 @@ class DraftTextTests(TestCase):
 
     def test_ordinary_words_stay(self):
         self.assertEqual(engine.draft_text('Абзац.\nТак'), 'Абзац.\nТак')
+
+
+@override_settings(DISCUSSION_AI_STATUS=False)
+class ReplyLimitTests(EngineTests):
+    """Денний ліміт AI-відповідей резервується до викликів моделей."""
+
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=2)
+    def test_parallel_step_that_does_not_fit_makes_no_calls(self):
+        # вступ — три паралельні відповіді, а в ліміті лишилося дві
+        with self.assertRaises(engine.EngineError) as caught:
+            engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.assertEqual(caught.exception.code, 'daily_limit')
+        self.assertEqual(self.provider.calls, [])
+        self.assertEqual(usage.today(self.user).replies, 0)
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.error_code, 'daily_limit')
+
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=3)
+    def test_step_that_fits_is_counted_once(self):
+        engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.assertEqual(usage.today(self.user).replies, 3)
+
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=5)
+    def test_failed_calls_are_returned_to_the_limit(self):
+        with mock.patch.object(engine.calls, '_run_plan', side_effect=ProviderError('down')):
+            with self.assertRaises(Exception):
+                engine.advance(self.discussion, provider_factory=self.provider_factory)
+        self.assertEqual(usage.today(self.user).replies, 0)
+
+    @override_settings(DISCUSSION_AI_STATUS=True, DISCUSSION_DAILY_ADVANCE_LIMIT=1)
+    def test_status_line_counts_and_is_skipped_over_the_limit(self):
+        token = uuid.uuid4()
+        live = engine.live._live.set((self.discussion.pk, token))
+        try:
+            with mock.patch('discussions.services.engine.status.threading.Thread') as thread:
+                engine.status._start_ai_status(self.discussion, self.provider_factory)
+                self.assertEqual(thread.call_count, 1)
+                self.assertEqual(usage.today(self.user).replies, 1)
+                engine.status._start_ai_status(self.discussion, self.provider_factory)
+                self.assertEqual(thread.call_count, 1)
+        finally:
+            engine.live._live.reset(live)

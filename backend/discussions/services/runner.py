@@ -27,7 +27,7 @@ from django.conf import settings
 from django.db import connection
 from django.utils import timezone
 
-from backend.i18n import L, using
+from backend.i18n import using
 
 from ..models import Discussion
 from . import engine, usage
@@ -77,11 +77,7 @@ def over_daily_limit(user):
 
 
 def daily_limit_message():
-    limit = int(getattr(settings, 'DISCUSSION_DAILY_ADVANCE_LIMIT', 0) or 0)
-    return L(
-        f'Денний ліміт AI-відповідей вичерпано ({limit}). Спробуйте завтра.',
-        f'The daily limit of AI replies has been reached ({limit}). Try again tomorrow.',
-    )
+    return usage.reply_limit_message()
 
 
 def _fail_with_limit(discussion):

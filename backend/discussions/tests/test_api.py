@@ -516,7 +516,7 @@ class DiscussionApiTests(TestCase):
         limited = self.client.post('/api/discussions/', payload, format='json')
         self.assertEqual(limited.status_code, 429)
 
-    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=1)
+    @override_settings(DISCUSSION_DAILY_ADVANCE_LIMIT=3)
     def test_deleting_discussion_does_not_restore_reply_limit(self):
         self.auth()
         payload = {

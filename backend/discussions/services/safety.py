@@ -19,21 +19,36 @@ TOPICS = ('crisis', 'medical', 'legal', 'financial')
 
 # Слова й фрази, за якими питання точно кризове (українська, російська, англійська).
 # Навмисно вузько: краще пропустити до моделі, ніж зупинити звичайне питання про «ризик».
+# «Не хочу жити» чи «hurt myself» — криза, лише коли фраза завершує речення:
+# «не хочу жити з батьками» чи «hurt myself financially» — звичайні питання.
+_END = r'(?=[ \t]*(?:[.!?…,;:)\n]|$))'
 _CRISIS_RE = re.compile(
     r'(самогубств|суїцид|суицид|покінч\w* (з|із) собою|покінчити з життям|'
     r'покончить с собой|наклас\w* на себе руки|руки на себе наклас|'
-    r'не хочу (більше )?жити|не хочу (больше )?жить|хочу померти|хочу умереть|'
+    r'не хочу (більше |вже |далі )?жити' + _END + r'|'
+    r'не хочу (больше |уже )?жить' + _END + r'|'
+    r'хочу померти|хочу умереть|'
     r'вбити себе|вбю себе|убить себя|убью себя|'
     r'самоушкодж|самоповрежд|різати себе|ріжу себе|порізати себе|резать себя|'
-    r'\bsuicid|kill myself|end my life|take my (own )?life|want to die|'
-    r'self[- ]?harm|hurt myself|cut myself)',
+    r'\bsuicid|kill myself|end my life|take my (own )?life(?! savings)|'
+    r'want to die(?! (my|his|her|their|the|it)\b)|'
+    r'self[- ]?harm|hurt myself' + _END + r'|cut myself' + _END + r')',
+    re.IGNORECASE,
+)
+
+# Згадки про запобігання самогубствам — не криза, а тема (стартап, волонтерство, дослідження).
+# Їх прибираємо з тексту до перевірки.
+_NEUTRAL_RE = re.compile(
+    r'(\bsuicid\w*[- ](prevention|hotline|helpline|awareness|squad|rates?)\b|'
+    r'(профілактик|запобіганн|попередженн|профилактик|предотвращени|превенці)\w* '
+    r'(самогубств|суїцид|суицид)\w*)',
     re.IGNORECASE,
 )
 
 
 def looks_like_crisis(text):
     """Питання прямо говорить про самогубство чи самоушкодження."""
-    return bool(_CRISIS_RE.search(text or ''))
+    return bool(_CRISIS_RE.search(_NEUTRAL_RE.sub(' ', text or '')))
 
 
 def normalize_topic(value):

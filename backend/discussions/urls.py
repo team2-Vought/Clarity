@@ -13,6 +13,7 @@ from .views import (
     DiscussionFinishView,
     DiscussionListCreateView,
     DiscussionMessageView,
+    DiscussionNotCrisisView,
     DiscussionRunView,
     DiscussionShareView,
     DiscussionStopView,
@@ -50,6 +51,11 @@ urlpatterns = [
         name='discussion-clarify',
     ),
     path('discussions/<uuid:pk>/stop/', DiscussionStopView.as_view(), name='discussion-stop'),
+    path(
+        'discussions/<uuid:pk>/not-crisis/',
+        DiscussionNotCrisisView.as_view(),
+        name='discussion-not-crisis',
+    ),
     path(
         'discussions/<uuid:pk>/finish/',
         DiscussionFinishView.as_view(),

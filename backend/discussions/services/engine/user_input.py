@@ -17,11 +17,12 @@ from ...personas import moderator
 from ..attachments import documents_for_prompt
 from .. import prompts, usage
 from ..safety import CRISIS, looks_like_crisis
-from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG
+from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG, daily_limit_error
 from .parsing import _text, normalize_clarify
 from .context import _judge_models, _mode_ctx, _next_seq, _resolved_personas
 from .calls import _complete_json
 from .lease import _release
+from .status import _start_ai_status
 
 logger = logging.getLogger(__name__)
 
@@ -216,13 +217,15 @@ def _clarify_step(discussion, token, provider_factory=None):
     if discussion.clarify_questions:
         _release(discussion.pk, token)
         return False
+    if not usage.reserve_replies(discussion.user_id, 1):
+        raise daily_limit_error()
+    _start_ai_status(discussion, provider_factory)
     try:
         result = clarify(discussion, provider_factory)
     except EngineError:
+        usage.release_replies(discussion.user_id, 1)
         logger.warning('Context check failed', extra={'discussion': str(discussion.pk)}, exc_info=True)
         result = {'ready': True, 'questions': []}
-    else:
-        usage.record(discussion.user_id, replies=1)
     if result.get('topic'):
         Discussion.objects.filter(pk=discussion.pk, advance_token=token).update(safety=result['topic'])
         if result['topic'] == CRISIS:

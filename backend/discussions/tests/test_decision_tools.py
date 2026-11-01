@@ -104,6 +104,49 @@ class SafetyTests(ToolsTestCase):
         self.assertFalse(looks_like_crisis('Чи варто ризикнути й звільнитися?'))
         self.assertFalse(looks_like_crisis('Ця робота мене вбиває, змінювати?'))
 
+    def test_ordinary_questions_with_crisis_words_are_not_a_crisis(self):
+        for question in (
+            'Не хочу жити з батьками, чи орендувати квартиру?',
+            'Не хочу більше жити в Харкові — переїжджати?',
+            'Will I hurt myself financially if I quit?',
+            'Should I invest in a suicide-prevention startup?',
+            'Чи йти волонтером у профілактику самогубств?',
+            'Should I take my life savings out?',
+        ):
+            self.assertFalse(looks_like_crisis(question), question)
+        self.assertTrue(looks_like_crisis('Я не хочу жити'))
+        self.assertTrue(looks_like_crisis('Не хочу більше жити, все погано'))
+        self.assertTrue(looks_like_crisis('I want to hurt myself.'))
+
+    @override_settings(DISCUSSION_DAILY_LIMIT=1)
+    def test_crisis_by_words_does_not_spend_the_daily_slot(self):
+        self.create(question='Я не хочу жити')
+        self.create()
+
+    def test_not_crisis_flag_lets_the_debate_run(self):
+        created = self.create(question='Я не хочу жити', not_crisis=True)
+        self.assertEqual(created['safety'], '')
+        discussion = self.run_discussion(created['id'])
+        self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
+
+    @override_settings(DISCUSSION_DAILY_LIMIT=1)
+    def test_asking_about_something_else_restarts_a_crisis_stop(self):
+        created = self.create(question='Я не хочу жити')
+        self.run_discussion(created['id'])
+        response = self.client.post(f'/api/discussions/{created["id"]}/not-crisis/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['safety'], '')
+        self.assertEqual([m['role'] for m in response.data['messages']], ['user'])
+        discussion = self.run_discussion(created['id'])
+        self.assertTrue(discussion.is_finished)
+        self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
+        # тепер слот витрачено, і вдруге перезапустити не можна
+        self.assertEqual(self.client.post('/api/discussions/', {
+            'question': 'Чи варто?', 'personas': ['logician', 'skeptic'],
+        }, format='json').status_code, 429)
+        again = self.client.post(f'/api/discussions/{created["id"]}/not-crisis/')
+        self.assertEqual(again.status_code, 400)
+
 
 class QuickModeTests(ToolsTestCase):
     def test_one_short_answer_without_a_debate(self):

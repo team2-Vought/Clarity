@@ -13,7 +13,7 @@ from backend.i18n import L, using
 
 from ...models import Discussion, Message
 from ...personas import devil, moderator
-from .. import prompts
+from .. import prompts, usage
 from .context import (
     _default_model,
     _judge_models,
@@ -123,6 +123,7 @@ def _write_ai_status(discussion, focus, provider_factory):
         if text:
             _set_live(phase=discussion.phase, live_status=text[:120])
     except Exception:
+        usage.release_replies(discussion.user_id, 1)
         # статус — прикраса: інтерфейс лишиться з рядком за фазою
         logger.info('AI status skipped', extra={'discussion': str(discussion.pk)}, exc_info=True)
     finally:
@@ -135,6 +136,9 @@ def _start_ai_status(discussion, provider_factory):
         return
     focus = describe_step(discussion)
     if not focus:
+        return
+    # статус — теж виклик моделі за рахунок сервера; не вміщується в ліміт — без нього
+    if not usage.reserve_replies(discussion.user_id, 1):
         return
     _set_live(live_status='')
     context = contextvars.copy_context()

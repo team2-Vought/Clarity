@@ -1,5 +1,6 @@
 from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import update_last_login
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.authtoken.models import Token
@@ -65,6 +66,21 @@ def user_payload(user):
     }
 
 
+def inactive_response():
+    return Response(
+        {'detail': L('Акаунт вимкнено.', 'The account is disabled.'), 'code': 'inactive'},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def login_token(user):
+    """Токен для входу. Вхід іде повз django.contrib.auth.login, тож last_login
+    оновлюємо самі — інакше в адмінці поле лишається порожнім."""
+    token, _ = Token.objects.get_or_create(user=user)
+    update_last_login(None, user)
+    return token
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -92,7 +108,10 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user']
-        token, _ = Token.objects.get_or_create(user=user)
+        # вимкненому акаунту токен не видаємо: інакше кожен наступний запит дав би 401
+        if not user.is_active:
+            return inactive_response()
+        token = login_token(user)
         return Response(
             {
                 'token': token.key,
@@ -136,11 +155,8 @@ class GoogleLoginView(APIView):
                 user = User.objects.get(email__iexact=profile['email'])
                 created = False
         if not user.is_active:
-            return Response(
-                {'detail': L('Акаунт вимкнено.', 'The account is disabled.'), 'code': 'inactive'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        token, _ = Token.objects.get_or_create(user=user)
+            return inactive_response()
+        token = login_token(user)
         return Response(
             {'token': token.key, 'user': user_payload(user), 'created': created},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,

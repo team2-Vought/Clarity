@@ -5,8 +5,9 @@ import { copy } from '../copy';
 
 const t = copy.safety;
 
-/** Криза: замість дебатів — люди, які допоможуть просто зараз. */
-export function CrisisHelp({ className = '' }) {
+/** Криза: замість дебатів — люди, які допоможуть просто зараз.
+ *  `onNotCrisis` — кнопка «Я питаю про інше», якщо ознаки кризи — лише збіг слів. */
+export function CrisisHelp({ className = '', onNotCrisis, busy = false }) {
   return (
     <section className={`safety-help ${className}`} role="region" aria-labelledby="safety-help-title">
       <div className="safety-help__head">
@@ -34,11 +35,23 @@ export function CrisisHelp({ className = '' }) {
           </li>
         ))}
       </ul>
+      {onNotCrisis && (
+        <p className="safety-help__other">
+          <span>{t.notCrisisHint}</span>
+          <button type="button" className="safety-help__other-btn" onClick={onNotCrisis} disabled={busy}>
+            {t.notCrisis}
+          </button>
+        </p>
+      )}
     </section>
   );
 }
 
-CrisisHelp.propTypes = { className: PropTypes.string };
+CrisisHelp.propTypes = {
+  className: PropTypes.string,
+  onNotCrisis: PropTypes.func,
+  busy: PropTypes.bool,
+};
 
 /** Здоров'я, право, великі гроші: одним рядком — що це не заміна фахівця. */
 export function TopicNotice({ topic, className = '' }) {

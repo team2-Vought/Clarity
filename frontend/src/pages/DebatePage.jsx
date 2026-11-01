@@ -249,8 +249,12 @@ export default function DebatePage() {
   const [criteria, setCriteria] = useState([]);
   // своя роль: діалог створення відкривається з меню ролі
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  // питання схоже на кризу — допомогу показуємо ще до надсилання
-  const crisis = looksLikeCrisis(description);
+  // питання схоже на кризу — допомогу показуємо ще до надсилання;
+  // «Я питаю про інше» ховає її, доки поле не очистять
+  const [notCrisis, setNotCrisis] = useState(false);
+  const wordsLookLikeCrisis = looksLikeCrisis(description);
+  const crisis = wordsLookLikeCrisis && !notCrisis;
+  if (notCrisis && !description.trim()) setNotCrisis(false);
 
   const canStart =
     !isCreating
@@ -747,6 +751,7 @@ export default function DebatePage() {
         attachments: fileIds,
         quick,
         criteria: mode === 'choose_one' ? criteria : [],
+        notCrisis: notCrisis && wordsLookLikeCrisis,
       });
       saveDraft('');
       clearFiles();
@@ -1235,7 +1240,7 @@ export default function DebatePage() {
           </div>
         </div>
 
-        {crisis && <CrisisHelp className="debate__crisis" />}
+        {crisis && <CrisisHelp className="debate__crisis" onNotCrisis={() => setNotCrisis(true)} />}
 
         {isRoleDialogOpen && (
           <CustomRoleDialog

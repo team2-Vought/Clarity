@@ -48,16 +48,20 @@ def send_due_reminders(now=None):
     ).select_related('user')
     sent = 0
     for entry in entries:
-        # позначка ставиться навіть без листа: людина, що вимкнула листи, не отримає
-        # їх пачкою, якщо потім увімкне
-        if preferences_of(entry.user).get('journal_emails', True):
-            with using(entry.language):
-                subject, body = _letter(entry)
-            try:
-                send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [entry.user.email])
-                sent += 1
-            except Exception:
-                logger.exception('Decision reminder failed', extra={'decision': str(entry.pk)})
-                continue
-        Decision.objects.filter(pk=entry.pk).update(reminded_at=now)
+        # спершу захоплюємо запис умовним UPDATE: з кількох воркерів лист надішле
+        # лише той, чий UPDATE змінив рядок. Позначка ставиться й без листа:
+        # людина, що вимкнула листи, не отримає їх пачкою, якщо потім увімкне
+        if not Decision.objects.filter(pk=entry.pk, reminded_at__isnull=True).update(reminded_at=now):
+            continue
+        if not preferences_of(entry.user).get('journal_emails', True):
+            continue
+        with using(entry.language):
+            subject, body = _letter(entry)
+        try:
+            send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [entry.user.email])
+            sent += 1
+        except Exception:
+            logger.exception('Decision reminder failed', extra={'decision': str(entry.pk)})
+            # лист не пішов — знімаємо позначку, наступний прохід спробує знову
+            Decision.objects.filter(pk=entry.pk, reminded_at=now).update(reminded_at=None)
     return sent

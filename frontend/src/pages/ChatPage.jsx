@@ -23,6 +23,7 @@ import {
   shareDiscussion,
   finishDiscussion,
   stopDiscussion,
+  notCrisisDiscussion,
   unshareDiscussion,
   updateDiscussion,
 } from '../api/discussions';
@@ -116,6 +117,11 @@ const prefersReducedMotion = () =>
 const POLL_MS = 2000;
 // поки модель пише репліку, опитуємо частіше — текст росте майже наживо
 const STREAM_POLL_MS = 700;
+// у фоновій вкладці чернеток ніхто не читає — питаємо рідко
+const HIDDEN_POLL_MS = 10000;
+// після помилок пауза росте вдвічі (2, 4, 8… с), але не довше хвилини;
+// інакше кілька вкладок упираються в ліміт запитів і 429 ідуть по колу
+const MAX_POLL_BACKOFF_MS = 60000;
 // Скільки разів поспіль можна «підштовхнути» раннер, якщо сервер його втратив
 // (перезапуск процесу), перш ніж показати помилку.
 const MAX_KICKS = 3;
@@ -183,6 +189,7 @@ export default function ChatPage() {
   // репліки, які людина вже бачила чернеткою, з'являються одразу, без повторного «друку»
   const [streamedIds, setStreamedIds] = useState(() => new Set());
   const kicksRef = useRef(0);
+  const pollFailuresRef = useRef(0);
   const progressRef = useRef(0);
   const mainRef = useRef(null);
   const stickToBottomRef = useRef(true);
@@ -228,6 +235,7 @@ export default function ChatPage() {
     [myAvatar, myInitial]
   );
   const [isSharing, setIsSharing] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
@@ -315,10 +323,26 @@ export default function ChatPage() {
     discussionRef.current = discussion;
   });
 
+  // вкладку знову відкрили — не чекаємо довгої паузи фонового опитування
+  useEffect(() => {
+    if (!discussionId || !shouldPoll) return undefined;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !pollFailuresRef.current) {
+        setPollTick((tick) => tick + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [discussionId, shouldPoll]);
+
   useEffect(() => {
     if (!discussionId || !shouldPoll) return undefined;
     const controller = new AbortController();
-    const delay = discussionRef.current?.live?.drafts?.length ? STREAM_POLL_MS : POLL_MS;
+    const failures = pollFailuresRef.current;
+    let delay = POLL_MS;
+    if (failures) delay = Math.min(POLL_MS * 2 ** failures, MAX_POLL_BACKOFF_MS);
+    else if (document.visibilityState === 'hidden') delay = HIDDEN_POLL_MS;
+    else if (discussionRef.current?.live?.drafts?.length) delay = STREAM_POLL_MS;
     const timer = setTimeout(async () => {
       try {
         const known = lastSeqOf(discussionRef.current);
@@ -326,6 +350,7 @@ export default function ChatPage() {
           after: known,
           signal: controller.signal,
         });
+        pollFailuresRef.current = 0;
         applyState(data);
         const seq = Math.max(known, ...(data.messages || []).map((m) => m.seq));
         if (seq > progressRef.current) {
@@ -342,7 +367,10 @@ export default function ChatPage() {
           }
         }
       } catch (err) {
-        if (err?.name !== 'AbortError') setActionError(actionFailure(err, t.errorAdvance));
+        if (err?.name !== 'AbortError') {
+          pollFailuresRef.current += 1;
+          setActionError(actionFailure(err, t.errorAdvance));
+        }
       } finally {
         if (!controller.signal.aborted) setPollTick((tick) => tick + 1);
       }
@@ -914,6 +942,26 @@ export default function ChatPage() {
       applyState(await stopDiscussion(discussion.id));
     } catch (err) {
       setActionError(actionFailure(err, t.errorAdvance));
+    }
+  };
+
+  // «Я питаю про інше» — лише поки дискусія не почалася: є саме питання
+  // й відповідь модератора про кризу
+  const canNotCrisis = discussion?.safety === 'crisis'
+    && (discussion.messages || []).every((m) => m.role === 'moderator' || m.seq === questionMessage?.seq);
+
+  const handleNotCrisis = async () => {
+    if (!discussion) return;
+    setIsRestarting(true);
+    try {
+      // повна заміна стану: відповідь про кризу сервер прибрав
+      setDiscussion(await notCrisisDiscussion(discussion.id));
+      kicksRef.current = 0;
+      await startRunner(discussion.id);
+    } catch (err) {
+      setActionError(actionFailure(err, t.errorAdvance));
+    } finally {
+      setIsRestarting(false);
     }
   };
 
@@ -1628,7 +1676,11 @@ export default function ChatPage() {
 
           {discussion?.safety === 'crisis' && isFinished && !isRevealing && (
             // криза: замість висновку — люди, які допоможуть просто зараз
-            <CrisisHelp className="chat__crisis" />
+            <CrisisHelp
+              className="chat__crisis"
+              onNotCrisis={canNotCrisis ? handleNotCrisis : undefined}
+              busy={isRestarting}
+            />
           )}
 
 
