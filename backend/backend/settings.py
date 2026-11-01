@@ -238,6 +238,8 @@ FRONTEND_INDEX_HTML = Path(
 # Посилання на новий пароль діє 2 години
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 
+# Куди писати людям, якщо з акаунтом щось не так (у листі про зміну пошти). Порожньо — без адреси
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '').strip()
 # Пошта змінюється, лише коли власник нової адреси відкрив лист (24 год)
 EMAIL_CHANGE_TIMEOUT = int(os.getenv('EMAIL_CHANGE_TIMEOUT', str(24 * 3600)))
 

@@ -6,7 +6,8 @@ from rest_framework.test import APIClient
 
 from discussions.models import Discussion, Message
 from discussions.services.criteria import compute_matrix, normalize_scores
-from discussions.services.safety import looks_like_crisis
+from discussions.services.providers import ProviderError
+from discussions.services.safety import looks_like_crisis, looks_like_possible_crisis
 
 from .fakes import FakeProvider
 
@@ -146,6 +147,57 @@ class SafetyTests(ToolsTestCase):
         }, format='json').status_code, 429)
         again = self.client.post(f'/api/discussions/{created["id"]}/not-crisis/')
         self.assertEqual(again.status_code, 400)
+
+
+class ModeratorDownProvider(FakeProvider):
+    """Модератор не відповідає на перевірку контексту — решта моделей працює."""
+
+    def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
+        if '"ready"' in prompt:
+            raise ProviderError('moderator is down', config=True)
+        return super().complete(system=system, prompt=prompt, temperature=temperature, json_mode=json_mode)
+
+
+class CrisisFallbackTests(ToolsTestCase):
+    """Вузькі слова пропускають «не хочу жити і не бачу сенсу» до модератора.
+    Якщо він не відповів, кризу ловить ширша ознака — а не дебати."""
+
+    def setUp(self):
+        super().setUp()
+        self.provider = ModeratorDownProvider()
+
+    def test_wide_sign_is_only_a_fallback(self):
+        question = 'Я не хочу жити і не бачу сенсу'
+        self.assertFalse(looks_like_crisis(question))
+        self.assertTrue(looks_like_possible_crisis(question))
+        self.assertFalse(looks_like_possible_crisis('Should I invest in a suicide-prevention startup?'))
+
+    def test_crisis_is_caught_when_the_moderator_fails(self):
+        created = self.create(question='Я не хочу жити і не бачу сенсу')
+        self.assertEqual(created['safety'], '')
+        discussion = self.run_discussion(created['id'])
+        self.assertEqual(discussion.safety, 'crisis')
+        self.assertFalse(discussion.messages.filter(role=Message.Role.AI).exists())
+
+    def test_not_crisis_skips_the_wide_sign(self):
+        created = self.create(question='Я не хочу жити з батьками і не бачу сенсу орендувати', not_crisis=True)
+        discussion = self.run_discussion(created['id'])
+        self.assertEqual(discussion.safety, '')
+        self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
+
+    def test_asking_about_something_else_after_a_fallback_stop(self):
+        created = self.create(question='Я не хочу жити з батьками, переїжджати?')
+        self.assertEqual(self.run_discussion(created['id']).safety, 'crisis')
+        response = self.client.post(f'/api/discussions/{created["id"]}/not-crisis/')
+        self.assertEqual(response.status_code, 200, response.data)
+        discussion = self.run_discussion(created['id'])
+        self.assertTrue(discussion.crisis_dismissed)
+        self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
+
+    def test_ordinary_question_still_runs_without_the_moderator(self):
+        discussion = self.run_discussion(self.create()['id'])
+        self.assertEqual(discussion.safety, '')
+        self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
 
 
 class QuickModeTests(ToolsTestCase):

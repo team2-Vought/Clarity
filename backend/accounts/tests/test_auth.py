@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from accounts.login_limit import MAX_FAILED_ATTEMPTS
+from accounts.login_limit import ANY_IP, MAX_FAILED_ATTEMPTS
 from accounts.models import LoginAttempt
 
 User = get_user_model()
@@ -132,7 +132,8 @@ class LoginLockoutTests(TestCase):
 
         response = self.attempt_login('lock@test.com', password='pass123!A')
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(LoginAttempt.objects.filter(email='lock@test.com').exists())
+        # лічильник цієї адреси знято; загальна стеля пошти (ip='*') спадає з часом сама
+        self.assertFalse(LoginAttempt.objects.filter(email='lock@test.com').exclude(ip=ANY_IP).exists())
 
         # лічильник скинуто — знову є спроби
         response = self.attempt_login('lock@test.com')

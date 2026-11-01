@@ -16,7 +16,7 @@ from ...models import Attachment, Discussion, Message
 from ...personas import moderator
 from ..attachments import documents_for_prompt
 from .. import prompts, usage
-from ..safety import CRISIS, looks_like_crisis
+from ..safety import CRISIS, looks_like_crisis, looks_like_possible_crisis
 from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG, daily_limit_error
 from .parsing import _text, normalize_clarify
 from .context import _judge_models, _mode_ctx, _next_seq, _resolved_personas
@@ -237,6 +237,10 @@ def _clarify_step(discussion, token, provider_factory=None):
             raise
         logger.warning('Context check failed', extra={'discussion': str(discussion.pk)}, exc_info=True)
         result = {'ready': True, 'questions': []}
+        # модератор не перевірив питання — кризу, яку вузькі слова пропустили,
+        # нікому розпізнати. Тоді — ширша ознака, якщо людина ще не сказала «Я питаю про інше»
+        if not discussion.crisis_dismissed and looks_like_possible_crisis(discussion.question):
+            result['topic'] = CRISIS
     if result.get('topic'):
         Discussion.objects.filter(pk=discussion.pk, advance_token=token).update(safety=result['topic'])
         if result['topic'] == CRISIS:

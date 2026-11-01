@@ -1,7 +1,9 @@
 """Власні ключі й ліміти, експорт даних, відписка від листів, прев'ю посилання."""
 
 import json
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -92,6 +94,77 @@ class OwnKeyLimitTests(ApiCase):
         self.assertEqual(usage.today(self.user).discussions, 1)
 
 
+@override_settings(**ONLY_OWN_KEYS)
+class OwnKeySlotTests(ApiCase):
+    """Дискусія на власних ключах не займає слоту, але займає його, щойно
+    за неї починає платити сервер."""
+
+    def setUp(self):
+        super().setUp()
+        self.key = ProviderKey.objects.create(
+            user=self.user, provider='groq', encrypted_key=encrypt('gsk-own'), masked='gsk…own'
+        )
+
+    def to_server_models(self, discussion_id):
+        return self.client.patch(
+            f'/api/discussions/{discussion_id}/',
+            {'personas': [{'slug': 'logician', 'model': 'openai:gpt-6-luna'}]},
+            format='json',
+        )
+
+    def test_switching_to_server_models_takes_the_slot(self):
+        first = self.create()
+        self.assertEqual(first.data['billing'], 'own')
+        self.assertEqual(usage.today(self.user).discussions, 0)
+        second = self.create()
+        self.assertEqual(second.status_code, 201, second.data)
+        # сервер отримав власний ключ OpenAI — на нього можна перейти
+        with self.settings(LLM_OPENAI_API_KEY='sk-server'):
+            switched = self.to_server_models(first.data['id'])
+            self.assertEqual(switched.status_code, 200, switched.data)
+            self.assertNotEqual(switched.data['billing'], 'own')
+            self.assertEqual(usage.today(self.user).discussions, 1)
+            # повторна зміна моделей слот удруге не списує
+            self.assertEqual(self.to_server_models(first.data['id']).status_code, 200)
+            self.assertEqual(usage.today(self.user).discussions, 1)
+            # слотів більше немає: перейти на серверні моделі не можна
+            refused = self.to_server_models(second.data['id'])
+        self.assertEqual(refused.status_code, 429)
+        discussion = Discussion.objects.get(pk=second.data['id'])
+        self.assertFalse(discussion.limit_counted)
+        self.assertNotIn('openai:gpt-6-luna', json.dumps(discussion.personas))
+
+    def test_deleted_own_key_takes_the_slot_on_run(self):
+        created = self.create()
+        self.key.delete()
+        self.client.post(f'/api/discussions/{created.data["id"]}/run/')
+        self.assertEqual(usage.today(self.user).discussions, 1)
+        self.assertTrue(Discussion.objects.get(pk=created.data['id']).limit_counted)
+
+    def test_not_crisis_on_own_keys_does_not_need_a_slot(self):
+        usage.record(self.user.pk, discussions=1)
+        created = self.create(question='Я не хочу жити')
+        self.assertEqual(created.status_code, 201, created.data)
+        self.client.post(f'/api/discussions/{created.data["id"]}/run/')
+        response = self.client.post(f'/api/discussions/{created.data["id"]}/not-crisis/')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(usage.today(self.user).discussions, 1)
+
+    @override_settings(LLM_OPENAI_API_KEY='sk-server')
+    def test_not_crisis_on_server_models_needs_a_slot(self):
+        usage.record(self.user.pk, discussions=1)
+        created = self.create(
+            question='Я не хочу жити', personas=[{'slug': 'logician', 'model': 'openai:gpt-6-luna'}, 'skeptic'],
+        )
+        self.client.post(f'/api/discussions/{created.data["id"]}/run/')
+        response = self.client.post(f'/api/discussions/{created.data["id"]}/not-crisis/')
+        self.assertEqual(response.status_code, 429)
+        # відмова нічого не змінила: дискусія лишилась кризовою зупинкою
+        discussion = Discussion.objects.get(pk=created.data['id'])
+        self.assertEqual(discussion.safety, 'crisis')
+        self.assertTrue(discussion.messages.filter(role=Message.Role.MODERATOR).exists())
+
+
 class ExportAndSessionsTests(ApiCase):
     def test_export_has_everything_but_secrets(self):
         ProviderKey.objects.create(user=self.user, provider='groq', encrypted_key=encrypt('gsk-secret'), masked='gsk…ret')
@@ -177,6 +250,23 @@ class SharedPreviewTests(TestCase):
         self.assertIn('Переїжджати навесні', html)
         self.assertIn('<div id="root">', html)
         self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
+
+    def test_new_frontend_build_is_picked_up_without_restart(self):
+        user = User.objects.create_user(email='build@test.com', name='Оксана', password='pass123!A')
+        discussion = Discussion.objects.create(
+            user=user, question='Чи міняти роботу цього року?', personas=['logician'],
+            share_token='6f1c1f7e-4a7e-4a55-9a59-222222222222',
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            index = Path(folder) / 'index.html'
+            index.write_text('<html><head><title>x</title><script src="/assets/old.js"></script></head></html>', encoding='utf-8')
+            with self.settings(FRONTEND_INDEX_HTML=index):
+                self.assertIn('old.js', self.client.get(f'/shared/{discussion.share_token}').content.decode())
+                # нова збірка: інше ім'я бандла й інший розмір файлу
+                index.write_text('<html><head><title>x</title><script src="/assets/new-1234.js"></script></head></html>', encoding='utf-8')
+                html = self.client.get(f'/shared/{discussion.share_token}').content.decode()
+        self.assertIn('new-1234.js', html)
+        self.assertNotIn('old.js', html)
 
     def test_unknown_link_is_404_without_tags(self):
         response = self.client.get('/shared/6f1c1f7e-4a7e-4a55-9a59-000000000000')

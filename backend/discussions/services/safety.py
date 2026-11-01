@@ -51,6 +51,23 @@ def looks_like_crisis(text):
     return bool(_CRISIS_RE.search(_NEUTRAL_RE.sub(' ', text or '')))
 
 
+# Ширше: «не хочу жити» будь-де в реченні. Лише запасний варіант, коли модератор
+# не відповів і кризу нікому розпізнати: тоді краще зайвий раз показати допомогу
+# (людина натисне «Я питаю про інше»), ніж пропустити «не хочу жити і не бачу сенсу».
+_POSSIBLE_CRISIS_RE = re.compile(
+    r'(не хочу (більше |вже |далі )?жити|не хочу (больше |уже )?жить|'
+    r'want to die|hurt myself|cut myself|не бачу сенсу жити|не вижу смысла жить|'
+    r'no reason to live)',
+    re.IGNORECASE,
+)
+
+
+def looks_like_possible_crisis(text):
+    """Вузька ознака кризи або ширша — для випадку, коли модель не перевірила питання."""
+    text = _NEUTRAL_RE.sub(' ', text or '')
+    return bool(_CRISIS_RE.search(text) or _POSSIBLE_CRISIS_RE.search(text))
+
+
 def normalize_topic(value):
     value = str(value or '').strip().lower()
     return value if value in TOPICS else ''

@@ -169,6 +169,42 @@ def _too_many(message):
     )
 
 
+def _discussion_limit_response(own_key_hint=True):
+    limit = int(settings.DISCUSSION_DAILY_LIMIT)
+    if own_key_hint:
+        return _too_many(L(
+            f'Денний ліміт створення дискусій вичерпано ({limit}). '
+            'Спробуйте завтра або додайте власний API-ключ — з ним ліміту немає.',
+            f'The daily limit of new discussions has been reached ({limit}). '
+            'Try again tomorrow or add your own API key — there is no limit with it.',
+        ))
+    return _too_many(L(
+        f'Денний ліміт створення дискусій вичерпано ({limit}). Спробуйте завтра.',
+        f'The daily limit of new discussions has been reached ({limit}). Try again tomorrow.',
+    ))
+
+
+def _count_toward_limit(discussion):
+    """Зараховує дискусію в денний ліміт нових, щойно за неї платитиме сервер.
+
+    Дискусія лише на власних ключах слоту не займала. Але моделі можна змінити
+    (PATCH) чи видалити ключ — тоді вона йде на серверних, і слот списуємо тут.
+    Кризову не рахуємо: вона моделей не кличе. None — можна працювати далі,
+    інакше — відповідь 429."""
+    if discussion.limit_counted or discussion.safety == Discussion.Safety.CRISIS:
+        return None
+    with user_context(discussion.user):
+        if engine.billing(discussion) == engine.context.OWN:
+            return None
+    if usage.over_discussion_limit(discussion.user):
+        return _discussion_limit_response()
+    # умовний UPDATE: паралельні запити не спишуть слот двічі
+    if Discussion.objects.filter(pk=discussion.pk, limit_counted=False).update(limit_counted=True):
+        usage.record(discussion.user_id, discussions=1)
+    discussion.limit_counted = True
+    return None
+
+
 class PersonaListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -260,16 +296,12 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         )
         with user_context(request.user):
             own_keys = engine.billing(draft) == engine.context.OWN
-        if not own_keys and usage.over_discussion_limit(request.user):
-            limit = int(settings.DISCUSSION_DAILY_LIMIT)
-            return _too_many(L(
-                f'Денний ліміт створення дискусій вичерпано ({limit}). '
-                'Спробуйте завтра або додайте власний API-ключ — з ним ліміту немає.',
-                f'The daily limit of new discussions has been reached ({limit}). '
-                'Try again tomorrow or add your own API key — there is no limit with it.',
-            ))
-
         crisis_by_words = not data['not_crisis'] and looks_like_crisis(data['question'])
+        counted = not crisis_by_words and not own_keys
+        # людина в кризі бачить допомогу навіть тоді, коли ліміт дискусій вичерпано:
+        # моделей така дискусія не кличе
+        if counted and usage.over_discussion_limit(request.user):
+            return _discussion_limit_response()
         about = about_of(request.user)
         use_profile = data.get('use_profile', about['enabled'])
         quick = data.get('quick', False)
@@ -293,6 +325,8 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             criteria=data.get('criteria') or [],
             # криза видна з самого питання — дискусія не запуститься, людина побачить допомогу
             safety=Discussion.Safety.CRISIS if crisis_by_words else '',
+            crisis_dismissed=data['not_crisis'],
+            limit_counted=counted,
             # мова інтерфейсу автора: нею відповідатимуть AI
             language=current(),
         )
@@ -311,8 +345,8 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             content=discussion.question,
         )
         # кризова дискусія не запускається й моделей не кличе — слот ліміту не витрачає;
-        # його спишемо, якщо людина скаже «Я питаю про інше»
-        if not crisis_by_words and not own_keys:
+        # його спишемо, якщо людина скаже «Я питаю про інше» (_count_toward_limit)
+        if counted:
             usage.record(request.user.pk, discussions=1)
         return Response(
             DiscussionSerializer(discussion).data,
@@ -362,8 +396,16 @@ class DiscussionDetailView(OwnedDiscussionView):
             )
         serializer = UpdateDiscussionSerializer(discussion, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        discussion.refresh_from_db()
+        with transaction.atomic():
+            serializer.save()
+            discussion.refresh_from_db()
+            # перехід із власних ключів на серверні моделі займає слот денного ліміту;
+            # якщо слотів немає — зміну моделей відкочуємо
+            limited = _count_toward_limit(discussion) if changes_models else None
+            if limited is not None:
+                transaction.set_rollback(True)
+        if limited is not None:
+            return limited
         return Response(DiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
@@ -445,6 +487,10 @@ class DiscussionRunView(OwnedDiscussionView):
         if discussion.phase != Discussion.Phase.DONE:
             if runner.over_daily_limit(request.user, discussion):
                 return _daily_limit_response()
+            # власний ключ могли видалити — тоді дискусія йде на серверних моделях
+            limited = _count_toward_limit(discussion)
+            if limited is not None:
+                return limited
             Discussion.objects.filter(pk=discussion.pk).update(stop_requested=False)
             if not runner.start(discussion.pk) and not runner.is_active(discussion.pk):
                 # режим thread: усі потоки вебсервера зайняті іншими дискусіями
@@ -503,24 +549,23 @@ class DiscussionNotCrisisView(OwnedDiscussionView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if usage.over_discussion_limit(request.user):
-            limit = int(settings.DISCUSSION_DAILY_LIMIT)
-            return _too_many(L(
-                f'Денний ліміт створення дискусій вичерпано ({limit}). '
-                'Спробуйте завтра.',
-                f'The daily limit of new discussions has been reached ({limit}). '
-                'Try again tomorrow.',
-            ))
         with transaction.atomic():
             # відповідь про кризу більше не стосується питання
             discussion.messages.filter(role=Message.Role.MODERATOR).delete()
             discussion.safety = ''
+            # запасна (широка) ознака кризи більше не зупинить дискусію — лише модератор
+            discussion.crisis_dismissed = True
             discussion.phase = Discussion.Phase.QUICK if discussion.quick else Discussion.Phase.CLARIFY
             discussion.status = Discussion.Status.NEW
             discussion.finished_at = None
             discussion.stop_requested = False
             discussion.save()
-        usage.record(request.user.pk, discussions=1)
+            # тепер дискусія піде до моделей: слот ліміту — якщо платить сервер
+            limited = _count_toward_limit(discussion)
+            if limited is not None:
+                transaction.set_rollback(True)
+        if limited is not None:
+            return limited
         return Response(DiscussionSerializer(discussion).data, status=status.HTTP_200_OK)
 
 
@@ -557,6 +602,9 @@ class DiscussionMessageView(OwnedDiscussionView):
             return _not_found()
         if runner.over_daily_limit(request.user, discussion):
             return _daily_limit_response()
+        limited = _count_toward_limit(discussion)
+        if limited is not None:
+            return limited
         serializer = MessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

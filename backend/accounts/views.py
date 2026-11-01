@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, transaction
@@ -219,6 +220,8 @@ class MeView(APIView):
                     )},
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
+            # стара адреса дізнається одразу: якщо це не власниця, новий пароль скасує зміну
+            email_change.notify_old_address(user, new_email)
             payload['email_pending'] = new_email
         return Response(payload, status=status.HTTP_200_OK)
 
@@ -249,12 +252,20 @@ class EmailConfirmView(APIView):
                 ), 'code': 'invalid_link'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        old_email = user.email
         user.email = new_email
         user.email_verified = True
         try:
-            user.save(update_fields=['email', 'email_verified'])
+            with transaction.atomic():
+                user.save(update_fields=['email', 'email_verified'])
+                # акаунт переїхав на іншу адресу — виходимо з усіх пристроїв, окрім
+                # цього, якщо посилання відкрили там, де людина вже в акаунті
+                current = tokens.find(request.COOKIES.get(settings.AUTH_COOKIE_NAME))
+                keep = current if current is not None and current.user_id == user.pk else None
+                tokens.revoke_all(user, keep=keep)
         except IntegrityError:
             raise ValidationError({'email': [EMAIL_TAKEN]})
+        email_change.notify_changed(user, old_email)
         return Response(
             {'detail': L('Пошту змінено', 'Email changed'), 'email': user.email},
             status=status.HTTP_200_OK,

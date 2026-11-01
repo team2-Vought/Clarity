@@ -28,10 +28,17 @@ FALLBACK_HTML = (
 )
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=4)
+def _read_index(path, mtime_ns, size):
+    return Path(path).read_text(encoding='utf-8')
+
+
 def _index_html(path):
+    """index.html збірки. Кеш — за часом зміни й розміром файлу: після нового
+    `npm run build` сторінка бере свіжі імена бандлів без перезапуску бекенду."""
     try:
-        return Path(path).read_text(encoding='utf-8')
+        stat = Path(path).stat()
+        return _read_index(path, stat.st_mtime_ns, stat.st_size)
     except OSError:
         return FALLBACK_HTML
 

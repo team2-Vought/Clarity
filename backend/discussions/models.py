@@ -68,6 +68,13 @@ class Discussion(models.Model):
     quick = models.BooleanField('швидка відповідь', default=False)
     # чутлива тема: криза — без дебатів і з контактами допомоги; решта — застереження
     safety = models.CharField('чутлива тема', max_length=12, choices=Safety.choices, blank=True)
+    # людина сказала «Я питаю про інше»: збіг слів більше не зупиняє дискусію
+    # (кризу й далі може розпізнати модератор)
+    crisis_dismissed = models.BooleanField('криза — лише збіг слів', default=False)
+    # дискусію зараховано в денний ліміт нових. Ні — поки вона кризова або лише
+    # на власних ключах людини; зараховуємо, щойно платити почне сервер.
+    # Старі дискусії вже були враховані, тож типово — так.
+    limit_counted = models.BooleanField('враховано в денний ліміт', default=True)
     # критерії для «Один із варіантів»: [{name, weight 1–5}] і оцінки учасників
     criteria = models.JSONField('критерії', default=list, blank=True)
     scores = models.JSONField('оцінки учасників', default=dict, blank=True)

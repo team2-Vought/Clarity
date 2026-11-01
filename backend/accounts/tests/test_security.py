@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.login_limit import MAX_FAILED_ATTEMPTS
+from accounts.login_limit import EMAIL_MAX_FAILED, MAX_FAILED_ATTEMPTS, reset_login_attempts
 from accounts.models import AuthToken
 
 User = get_user_model()
@@ -97,6 +97,23 @@ class LoginPrivacyTests(TestCase):
         # власниця з іншої адреси входить як завжди
         self.assertEqual(self.login('known@test.com', 'pass123!A', REMOTE_ADDR='10.0.0.7').status_code, 200)
 
+    def test_many_addresses_hit_the_per_email_cap(self):
+        # з кожної адреси — менше за ліміт адреси, але разом — стеля пошти
+        per_address = MAX_FAILED_ATTEMPTS - 1
+        for index in range(EMAIL_MAX_FAILED):
+            self.login('known@test.com', REMOTE_ADDR=f'10.2.{index // per_address}.{index % per_address}')
+        locked = self.login('known@test.com', 'pass123!A', REMOTE_ADDR='10.9.9.9')
+        self.assertEqual(locked.status_code, 429)
+        # інші акаунти не зачеплено
+        User.objects.create_user(email='other@test.com', name='Інша', password='pass123!A')
+        self.assertEqual(self.login('other@test.com', 'pass123!A', REMOTE_ADDR='10.9.9.9').status_code, 200)
+
+    def test_password_reset_lifts_the_per_email_cap(self):
+        for index in range(EMAIL_MAX_FAILED):
+            self.login('known@test.com', REMOTE_ADDR=f'10.3.{index}.1')
+        reset_login_attempts('known@test.com')
+        self.assertEqual(self.login('known@test.com', 'pass123!A', REMOTE_ADDR='10.9.9.9').status_code, 200)
+
     def test_forwarded_for_is_ignored_without_a_proxy(self):
         for index in range(MAX_FAILED_ATTEMPTS):
             self.login('known@test.com', HTTP_X_FORWARDED_FOR=f'10.1.1.{index}')
@@ -179,8 +196,7 @@ class EmailChangeTests(TestCase):
             '/api/auth/me/', {'email': email, 'current_password': 'pass123!A'}, format='json'
         )
         self.assertEqual(response.status_code, 200, response.data)
-        letter = mail.outbox[-1]
-        self.assertEqual(letter.to, [email])
+        letter = next(item for item in reversed(mail.outbox) if item.to == [email])
         link = next(word for word in letter.body.split() if word.startswith('https://'))
         return link.rstrip('/').split('/')[-1]
 
@@ -202,3 +218,39 @@ class EmailChangeTests(TestCase):
         self.assertEqual(self.confirm(token).status_code, 200)
         self.assertEqual(self.confirm(token).status_code, 400)
         self.assertEqual(self.confirm(token[:-2] + 'xx').status_code, 400)
+
+    def test_old_address_is_warned_and_told(self):
+        token = self.request_change()
+        warning = next(item for item in mail.outbox if item.to == ['me@test.com'])
+        self.assertIn('new@test.com', warning.body)
+        self.assertIn('https://clarity.test/forgot-password', warning.body)
+        mail.outbox.clear()
+        self.assertEqual(self.confirm(token).status_code, 200)
+        self.assertEqual([item.to for item in mail.outbox], [['me@test.com']])
+        self.assertIn('new@test.com', mail.outbox[0].body)
+
+    def test_new_password_cancels_a_pending_change(self):
+        token = self.request_change()
+        self.user.set_password('other123!B')
+        self.user.save()
+        self.assertEqual(self.confirm(token).status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, 'me@test.com')
+
+    def test_confirming_signs_out_other_devices_but_not_this_one(self):
+        token = self.request_change()
+        phone = APIClient()
+        phone.post('/api/auth/login/', {'email': 'me@test.com', 'password': 'pass123!A'}, format='json')
+        laptop = APIClient()
+        laptop.post('/api/auth/login/', {'email': 'me@test.com', 'password': 'pass123!A'}, format='json')
+        self.assertEqual(laptop.post('/api/auth/email/confirm/', {'token': token}, format='json').status_code, 200)
+        self.assertEqual(laptop.get('/api/auth/me/').status_code, 200)
+        self.assertEqual(phone.get('/api/auth/me/').status_code, 401)
+
+    def test_confirming_without_a_session_signs_out_everywhere(self):
+        token = self.request_change()
+        phone = APIClient()
+        phone.post('/api/auth/login/', {'email': 'me@test.com', 'password': 'pass123!A'}, format='json')
+        self.assertEqual(self.confirm(token).status_code, 200)
+        self.assertEqual(phone.get('/api/auth/me/').status_code, 401)
+        self.assertFalse(AuthToken.objects.filter(user=self.user).exists())
