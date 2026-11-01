@@ -230,6 +230,17 @@ export const en = {
     toastLabels: { email: 'Email' },
   },
 
+  confirmEmail: {
+    title: 'New email',
+    checking: 'Confirming the email…',
+    doneTitle: 'Email changed',
+    done: (email) => `Your account is now ${email}. Use it to sign in.`,
+    invalidTitle: 'The link no longer works',
+    invalid: 'It has expired or has already been used. Change the email in the settings again.',
+    toSettings: 'Go to settings',
+    toLogin: 'Sign in',
+  },
+
   reset: {
     title: 'New password',
     lead: 'Come up with a new password — after saving you’ll be signed in right away.',
@@ -656,7 +667,7 @@ export const en = {
       save: 'Save',
       saving: 'Saving…',
       nameSaved: 'Name changed',
-      emailSaved: 'Email changed',
+      emailSent: (email) => `We have sent an email to ${email}. The address will change once you open the link in it.`,
       passwordSaved: 'Password changed',
       required: 'This field is required',
       nameShort: 'The name is too short',
@@ -1167,6 +1178,13 @@ export const en = {
     linkCopied: 'Link copied',
     unshare: 'Close access',
     shareClosed: 'Link access closed',
+    shareDialogTitle: 'View-only link',
+    shareDialogLead: 'Anyone with the link can see the discussion without signing in: the question, the AI replies and the conclusion. Your name is not shown.',
+    shareDialogProfile: 'The participants took “About me” into account — the AI replies may mention your age, family or money. Look through the discussion before sharing.',
+    shareDialogPersonal: 'Also show my answers to clarifying questions and my other messages',
+    shareDialogCancel: 'Cancel',
+    sharePersonalHidden: 'Your answers to clarifying questions and your messages are hidden in the link.',
+    sharePersonalShown: 'The link also shows your answers to clarifying questions and your messages.',
     shareError: 'Could not change link access',
     phaseResearch: 'Finding sources',
     phaseOpening: 'Opening positions',
@@ -1231,6 +1249,7 @@ export const en = {
     divider: 'or',
     error: 'Could not sign in with Google',
     popupClosed: 'The Google window closed before signing in',
+    passwordRemoved: 'Email confirmed. The password set earlier has been removed — set a new one in the settings if you need it.',
   },
 
   common: {

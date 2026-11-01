@@ -31,7 +31,7 @@ vi.mock('../api/settings', () => ({
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal()),
-  getToken: () => 'token',
+  getSession: () => 'token',
 }));
 
 const PERSONAS = [

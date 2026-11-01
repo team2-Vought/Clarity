@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import { fetchJournalDue } from '../api/journal';
 
 // Рішення, що чекають на «Як воно?», — одні на весь застосунок: значок у меню
@@ -17,15 +17,15 @@ const subscribe = (listener) => {
   return () => listeners.delete(listener);
 };
 
-const snapshot = () => (loadedFor === getToken() ? state : EMPTY);
+const snapshot = () => (loadedFor === getSession() ? state : EMPTY);
 
 /** Перечитати з сервера: після підсумку, «ще рано» чи нового запису. */
 export function refreshJournalDue() {
-  const token = getToken();
+  const token = getSession();
   if (!token || pending) return pending;
   pending = fetchJournalDue()
     .then((data) => {
-      if (getToken() !== token) return;
+      if (getSession() !== token) return;
       state = { count: data?.count || 0, next: data?.next || null };
       loadedFor = token;
       notify();

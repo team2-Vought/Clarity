@@ -436,7 +436,16 @@ class DiscussionRunView(OwnedDiscussionView):
             if runner.over_daily_limit(request.user):
                 return _daily_limit_response()
             Discussion.objects.filter(pk=discussion.pk).update(stop_requested=False)
-            runner.start(discussion.pk)
+            if not runner.start(discussion.pk) and not runner.is_active(discussion.pk):
+                # режим thread: усі потоки вебсервера зайняті іншими дискусіями
+                return Response(
+                    {'detail': L(
+                        'Сервер зараз зайнятий іншими дискусіями. Спробуйте за хвилину.',
+                        'The server is busy with other discussions. Try again in a minute.',
+                    ), 'code': 'busy'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    headers={'Retry-After': '30'},
+                )
         discussion.refresh_from_db()
         return Response(_discussion_state(discussion), status=status.HTTP_202_ACCEPTED)
 
@@ -602,10 +611,16 @@ class DiscussionShareView(OwnedDiscussionView):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
+        # особисте (відповіді на уточнення, інші повідомлення автора) — лише якщо
+        # автор явно погодився в діалозі перед створенням посилання
+        discussion.share_personal = request.data.get('personal') is True
         if discussion.share_token is None:
             discussion.share_token = uuid.uuid4()
-            discussion.save(update_fields=['share_token', 'updated_at'])
-        return Response({'share_token': discussion.share_token}, status=status.HTTP_200_OK)
+        discussion.save(update_fields=['share_token', 'share_personal', 'updated_at'])
+        return Response(
+            {'share_token': discussion.share_token, 'share_personal': discussion.share_personal},
+            status=status.HTTP_200_OK,
+        )
 
     def delete(self, request, pk):
         discussion = self.get_discussion(request, pk)

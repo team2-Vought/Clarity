@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Alert02Icon, Unlink04Icon } from '@hugeicons/core-free-icons';
 import { fetchSharedDiscussion } from '../api/discussions';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
 import StatusPage from '../components/StatusPage';
@@ -83,7 +83,7 @@ export default function SharedPage() {
   const names = (discussion?.personas || []).map((persona) => persona.name).filter(Boolean);
 
   if (error) {
-    const signedIn = Boolean(getToken());
+    const signedIn = Boolean(getSession());
     return (
       <StatusPage
         icon={error.closed ? Unlink04Icon : Alert02Icon}
@@ -106,8 +106,8 @@ export default function SharedPage() {
           <img src={logo} alt="" width="40" height="28" />
           <span>{copy.appName}</span>
         </Link>
-        <Link to={getToken() ? '/home' : '/register'} className="shared__cta">
-          {getToken() ? t.ctaSignedIn : t.cta}
+        <Link to={getSession() ? '/home' : '/register'} className="shared__cta">
+          {getSession() ? t.ctaSignedIn : t.cta}
         </Link>
       </header>
 

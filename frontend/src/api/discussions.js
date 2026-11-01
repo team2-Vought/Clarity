@@ -157,8 +157,9 @@ export function deleteDiscussion(id) {
 }
 
 /** Публічне посилання лише для читання: вмикає (або повертає наявне). */
-export function shareDiscussion(id) {
-  return request(`/api/discussions/${id}/share/`, { method: 'POST', auth: true });
+/** `personal` — показати й відповіді на уточнення та інші повідомлення автора. */
+export function shareDiscussion(id, { personal = false } = {}) {
+  return request(`/api/discussions/${id}/share/`, { method: 'POST', auth: true, body: { personal } });
 }
 
 /** Закриває доступ: старе посилання перестає відкриватися. */

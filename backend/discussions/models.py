@@ -101,6 +101,9 @@ class Discussion(models.Model):
     share_token = models.UUIDField(
         'токен публічного посилання', null=True, blank=True, unique=True, editable=False
     )
+    # чи показувати за посиланням відповіді автора на уточнення й інші його
+    # повідомлення: там буває особисте (гроші, сім'я, вік). Типово — ні
+    share_personal = models.BooleanField('посилання показує особисте', default=False)
 
     status = models.CharField(
         max_length=16,

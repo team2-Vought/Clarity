@@ -52,6 +52,16 @@ class AttachmentUploadView(APIView):
             discussion__isnull=True,
             created_at__lt=timezone.now() - timedelta(days=1),
         ).delete()
+        # файли без дискусії не рахуються в жоден ліміт дискусії — обмежуємо їх окремо
+        pending = Attachment.objects.filter(user=request.user, discussion__isnull=True).count()
+        if pending >= settings.ATTACHMENTS_PENDING_MAX:
+            return Response(
+                {'detail': L(
+                    'Забагато файлів, що ще не додані до питання. Приберіть зайві або надішліть питання.',
+                    'Too many files not yet added to a question. Remove some or send the question.',
+                ), 'code': 'attachments_pending'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         is_image = extension_of(upload.name) in IMAGE_TYPES
         if is_image and usage.over_reply_limit(request.user):
             return Response(

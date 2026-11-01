@@ -159,6 +159,11 @@ def start(discussion_id):
     with _active_lock:
         if key in _active:
             return False
+        # потоків у вебсервері не більше DISCUSSION_THREAD_MAX: решта дискусій
+        # почекає — інтерфейс попросить запустити їх знову під час опитування
+        if len(_active) >= settings.DISCUSSION_THREAD_MAX:
+            logger.warning('Discussion thread limit reached', extra={'discussion': key})
+            return False
         _active.add(key)
     thread = threading.Thread(
         target=_run_in_thread,

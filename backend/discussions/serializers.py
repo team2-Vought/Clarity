@@ -86,6 +86,7 @@ TEAM_NAME_TOO_LONG = lazy_L(
     'Назва команди задовга (максимум 64 символи)', 'The team name is too long (maximum 64 characters)'
 )
 SHARED_AUTHOR = lazy_L('Автор питання', 'Question author')
+SHARED_HIDDEN = lazy_L('Автор приховав це повідомлення.', 'The author has hidden this message.')
 CLARIFICATIONS_TYPE = lazy_L(
     'Уточнення мають бути списком пар «питання — відповідь»',
     'Clarifications must be a list of “question — answer” pairs',
@@ -572,6 +573,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'pinned',
             'archived',
             'share_token',
+            'share_personal',
             'status',
             'phase',
             'current_round',
@@ -665,6 +667,9 @@ class SharedMessageSerializer(MessageSerializer):
         data = super().to_representation(instance)
         if instance.role == Message.Role.USER:
             data['persona_name'] = SHARED_AUTHOR
+            # саме питання — тема посилання; решта повідомлень автора — лише з його згоди
+            if not self.context.get('personal') and instance.seq != self.context.get('question_seq'):
+                data['content'] = str(SHARED_HIDDEN)
         if instance.reply_to_slug == engine.USER_SLUG:
             data['reply_to'] = SHARED_AUTHOR
         return data
@@ -676,6 +681,7 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
     title = serializers.SerializerMethodField()
     personas = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
+    clarifications = serializers.SerializerMethodField()
 
     class Meta:
         model = Discussion
@@ -719,8 +725,15 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             if isinstance(item, dict)
         ]
 
+    def get_clarifications(self, obj):
+        # відповіді на уточнення — найособистіше в дискусії: лише з дозволу автора
+        return obj.clarifications if obj.share_personal else []
+
     def get_messages(self, obj):
-        return SharedMessageSerializer(obj.messages.order_by('seq'), many=True).data
+        messages = list(obj.messages.order_by('seq'))
+        first = next((m for m in messages if m.role == Message.Role.USER), None)
+        context = {'personal': obj.share_personal, 'question_seq': first.seq if first else None}
+        return SharedMessageSerializer(messages, many=True, context=context).data
 
 
 class TeamSerializer(serializers.ModelSerializer):

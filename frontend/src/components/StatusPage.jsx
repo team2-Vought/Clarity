@@ -1,12 +1,12 @@
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Background } from '../pages/AuthLayout';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import logo from '../assets/clarity-logo.webp';
 import { copy } from '../copy';
 
 // увійшли — «додому» означає до нової дискусії, інакше — на лендинг
-export const homePath = () => (getToken() ? '/home' : '/');
+export const homePath = () => (getSession() ? '/home' : '/');
 
 /**
  * Повноекранна сторінка-стан: 404, збій застосунку, недоступне посилання.

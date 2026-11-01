@@ -26,7 +26,7 @@ import {
   fetchTeams,
   saveTeam,
 } from '../api/discussions';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import { updatePreferences } from '../api/settings';
 import AttachmentCard from '../components/AttachmentCard';
 import CriteriaEditor from '../components/CriteriaEditor';
@@ -422,7 +422,7 @@ export default function DebatePage() {
   }, [failRequest]);
 
   useEffect(() => {
-    if (!getToken()) {
+    if (!getSession()) {
       navigate('/login', { replace: true });
       return undefined;
     }

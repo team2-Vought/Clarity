@@ -790,6 +790,34 @@
   cursor: default;
 }
 
+/* перед публічним посиланням */
+.share-dialog__warning {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.share-dialog__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.share-dialog__option input {
+  flex: none;
+  margin-top: 3px;
+}
+
+.debate__share-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted, var(--ink));
+}
+
 /* свої ролі в налаштуваннях */
 .settings__role-list {
   display: flex;

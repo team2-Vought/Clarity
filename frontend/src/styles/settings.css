@@ -627,7 +627,7 @@
 
 .settings__key-input::placeholder {
   color: var(--muted);
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans Variable', system-ui, sans-serif;
 }
 
 .settings__key-actions {

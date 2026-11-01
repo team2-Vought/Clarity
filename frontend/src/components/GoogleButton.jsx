@@ -88,6 +88,8 @@ export default function GoogleButton({ onSignedIn }) {
             }
             try {
               const data = await googleLogin(response.access_token);
+              // пароль, заданий до підтвердження пошти, міг задати хтось інший — сервер його скинув
+              if (data?.password_removed) latest.current.pushToast(t.passwordRemoved, 'success');
               latest.current.onSignedIn?.(data);
             } catch (err) {
               setBusy(false);

@@ -4,36 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- адреса сторінки (зокрема публічного посилання з токеном) не йде іншим сайтам -->
+    <meta name="referrer" content="same-origin" />
     <!-- колір верхньої й нижньої смуг браузера на телефоні; оновлюється з темою -->
     <meta name="theme-color" content="#ececec" />
     <title>Clarity</title>
-    <!-- шрифт — прямо з HTML: з @import у CSS браузер дізнавався про нього лише після завантаження всього бандла стилів -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"
-    />
-    <script>
-      (() => {
-        try {
-          const saved = localStorage.getItem('clarity-theme');
-          const theme = saved === 'light' || saved === 'dark'
-            ? saved
-            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-          document.documentElement.dataset.theme = theme;
-          if (theme === 'dark') {
-            document.querySelector('meta[name="theme-color"]').content = '#121212';
-          }
-          // «Менше анімації» з налаштувань — до першого кадру, щоб нічого не встигло поїхати
-          if (localStorage.getItem('clarity:motion') === 'reduced') {
-            document.documentElement.dataset.motion = 'reduced';
-          }
-        } catch {
-          document.documentElement.dataset.theme = 'light';
-        }
-      })();
-    </script>
+    <!-- шрифт — з власного сервера (@fontsource у main.jsx), без запитів до Google Fonts -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

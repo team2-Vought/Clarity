@@ -75,6 +75,7 @@ import NotifyOffer from '../components/chat/NotifyOffer';
 import AttachmentChip from '../components/AttachmentChip';
 import AttachmentCard from '../components/AttachmentCard';
 import { CrisisHelp, TopicNotice } from '../components/SafetyNotice';
+import ShareDialog from '../components/ShareDialog';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
@@ -235,6 +236,8 @@ export default function ChatPage() {
     [myAvatar, myInitial]
   );
   const [isSharing, setIsSharing] = useState(false);
+  // діалог перед публічним посиланням: що в ньому видно й чи показувати особисте
+  const [isShareAsking, setIsShareAsking] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
@@ -1217,13 +1220,23 @@ export default function ChatPage() {
     }
   };
 
-  // Вмикає посилання (або бере наявне) і одразу копіює його
-  const handleShare = async () => {
+  // Спершу діалог: посилання бачить будь-хто, тож людина вирішує, що в ньому буде
+  const handleShare = () => {
+    if (!isSharing) setIsShareAsking(true);
+  };
+
+  // Вмикає посилання і одразу копіює його
+  const createShare = async (personal) => {
     if (isSharing) return;
     setIsSharing(true);
     try {
-      const data = await shareDiscussion(discussion.id);
-      setDiscussion((current) => (current ? { ...current, share_token: data.share_token } : current));
+      const data = await shareDiscussion(discussion.id, { personal });
+      setDiscussion((current) => (current ? {
+        ...current,
+        share_token: data.share_token,
+        share_personal: data.share_personal,
+      } : current));
+      setIsShareAsking(false);
       await copyLink(`${window.location.origin}/shared/${data.share_token}`);
     } catch (err) {
       setActionError(actionFailure(err, t.shareError));
@@ -1517,6 +1530,9 @@ export default function ChatPage() {
                           <HugeiconsIcon icon={Copy01Icon} size={15} aria-hidden="true" />
                         </button>
                       </div>
+                      <p className="debate__share-note">
+                        {discussion.share_personal ? t.sharePersonalShown : t.sharePersonalHidden}
+                      </p>
                       <button
                         type="button"
                         className="debate__link-button"
@@ -1680,6 +1696,15 @@ export default function ChatPage() {
               className="chat__crisis"
               onNotCrisis={canNotCrisis ? handleNotCrisis : undefined}
               busy={isRestarting}
+            />
+          )}
+
+          {isShareAsking && (
+            <ShareDialog
+              profileUsed={Boolean(discussion?.profile_used)}
+              busy={isSharing}
+              onConfirm={createShare}
+              onClose={() => setIsShareAsking(false)}
             />
           )}
 

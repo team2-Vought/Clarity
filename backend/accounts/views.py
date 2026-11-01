@@ -1,9 +1,7 @@
 from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import update_last_login
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -11,9 +9,10 @@ from rest_framework.views import APIView
 
 from backend.i18n import L, lazy_L
 
-from . import google
+from . import email_change, google, tokens
 from .about import about_of
 from .login_limit import reset_login_attempts
+from .models import AuthToken
 from .password_reset import send_reset_email, user_from_link
 
 from .serializers import (
@@ -73,17 +72,18 @@ def inactive_response():
     )
 
 
-def login_token(user):
-    """Токен для входу. Вхід іде повз django.contrib.auth.login, тож last_login
-    оновлюємо самі — інакше в адмінці поле лишається порожнім."""
-    token, _ = Token.objects.get_or_create(user=user)
-    update_last_login(None, user)
-    return token
+def signed_in(request, user, data, code=status.HTTP_200_OK):
+    """Відповідь входу: ключ пристрою — лише в httpOnly-cookie, у тілі його немає.
+    Вхід іде повз django.contrib.auth.login, тож last_login оновлює tokens.issue."""
+    return tokens.sign_in(Response(data, status=code), user, request)
 
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    # окремий ліміт: інакше акаунти (зокрема на чужі адреси) можна створювати потоком
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'register'
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -104,21 +104,14 @@ class LoginView(APIView):
     authentication_classes = []
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
+        serializer = LoginSerializer(data=request.data, context={'ip': tokens.client_ip(request)})
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user']
         # вимкненому акаунту токен не видаємо: інакше кожен наступний запит дав би 401
         if not user.is_active:
             return inactive_response()
-        token = login_token(user)
-        return Response(
-            {
-                'token': token.key,
-                'user': user_payload(user),
-            },
-            status=status.HTTP_200_OK,
-        )
+        return signed_in(request, user, {'user': user_payload(user)})
 
 
 class GoogleLoginView(APIView):
@@ -156,10 +149,23 @@ class GoogleLoginView(APIView):
                 created = False
         if not user.is_active:
             return inactive_response()
-        token = login_token(user)
-        return Response(
-            {'token': token.key, 'user': user_payload(user), 'created': created},
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        password_removed = False
+        if not user.email_verified:
+            # Google підтвердив, що пошта належить цій людині. Якщо акаунт створили
+            # паролем без підтвердження, пароль міг задати хтось інший — скидаємо
+            # його й виходимо з усіх пристроїв; власниця задасть новий у налаштуваннях
+            with transaction.atomic():
+                if user.has_usable_password():
+                    user.set_unusable_password()
+                    password_removed = True
+                user.email_verified = True
+                user.save(update_fields=['password', 'email_verified'])
+                tokens.revoke_all(user)
+        return signed_in(
+            request,
+            user,
+            {'user': user_payload(user), 'created': created, 'password_removed': password_removed},
+            status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 
@@ -167,11 +173,13 @@ class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        Token.objects.filter(user=request.user).delete()
-        return Response(
+        # лише цей пристрій: інші входи лишаються
+        if isinstance(request.auth, AuthToken):
+            request.auth.delete()
+        return tokens.clear_cookie(Response(
             {'detail': L('Вихід виконано', 'Signed out')},
             status=status.HTTP_200_OK,
-        )
+        ))
 
 
 class MeView(APIView):
@@ -185,18 +193,29 @@ class MeView(APIView):
         serializer = ProfileSerializer(data=request.data, context={'user': user})
         serializer.is_valid(raise_exception=True)
 
-        changed = [field for field in ('name', 'email', 'avatar') if field in serializer.validated_data]
+        changed = [field for field in ('name', 'avatar') if field in serializer.validated_data]
         for field in changed:
             setattr(user, field, serializer.validated_data[field])
         if 'about' in serializer.validated_data:
             # часткова зміна: поля, яких немає в запиті, лишаються як були
             user.about = {**about_of(user), **serializer.validated_data['about']}
             changed.append('about')
-        try:
+        if changed:
             user.save(update_fields=changed)
-        except IntegrityError:
-            raise ValidationError({'email': [EMAIL_TAKEN]})
-        return Response(user_payload(user), status=status.HTTP_200_OK)
+        payload = user_payload(user)
+        new_email = serializer.validated_data.get('email')
+        if new_email and new_email != user.email:
+            # нова пошта діє лише після підтвердження з листа на неї
+            if not email_change.send_confirmation(user, new_email):
+                return Response(
+                    {'detail': L(
+                        'Не вдалося надіслати лист на нову пошту. Спробуйте пізніше.',
+                        'Could not send an email to the new address. Try again later.',
+                    )},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            payload['email_pending'] = new_email
+        return Response(payload, status=status.HTTP_200_OK)
 
     def delete(self, request):
         user = request.user
@@ -206,8 +225,39 @@ class MeView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class EmailConfirmView(APIView):
+    """POST {token} з листа — нова пошта набуває чинності. Посилання можна
+    відкрити й на іншому пристрої, тож входу не потребує."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        user, new_email = email_change.read_token(str(request.data.get('token', ''))[:512])
+        if user is None:
+            return Response(
+                {'detail': L(
+                    'Посилання недійсне або застаріле. Змініть пошту в налаштуваннях ще раз.',
+                    'The link is invalid or has expired. Change the email in the settings again.',
+                ), 'code': 'invalid_link'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.email = new_email
+        user.email_verified = True
+        try:
+            user.save(update_fields=['email', 'email_verified'])
+        except IntegrityError:
+            raise ValidationError({'email': [EMAIL_TAKEN]})
+        return Response(
+            {'detail': L('Пошту змінено', 'Email changed'), 'email': user.email},
+            status=status.HTTP_200_OK,
+        )
+
+
 class PasswordView(APIView):
-    """Новий пароль і новий токен: інші пристрої, що входили зі старим, вийдуть."""
+    """Новий пароль: інші пристрої виходять, поточний лишається."""
 
     permission_classes = [IsAuthenticated]
 
@@ -219,12 +269,9 @@ class PasswordView(APIView):
         with transaction.atomic():
             user.set_password(serializer.validated_data['password'])
             user.save(update_fields=['password'])
-            Token.objects.filter(user=user).delete()
-            token = Token.objects.create(user=user)
-        return Response(
-            {'detail': L('Пароль змінено', 'Password changed'), 'token': token.key},
-            status=status.HTTP_200_OK,
-        )
+            current = request.auth if isinstance(request.auth, AuthToken) else None
+            tokens.revoke_all(user, keep=current)
+        return Response({'detail': L('Пароль змінено', 'Password changed')}, status=status.HTTP_200_OK)
 
 
 class PasswordResetRequestView(APIView):
@@ -278,15 +325,13 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             user.set_password(serializer.validated_data['password'])
-            user.save(update_fields=['password'])
-            Token.objects.filter(user=user).delete()
-            token = Token.objects.create(user=user)
+            # лист дійшов — пошта справді цієї людини
+            user.email_verified = True
+            user.save(update_fields=['password', 'email_verified'])
+            tokens.revoke_all(user)
         reset_login_attempts(user.email)
-        return Response(
-            {
-                'detail': L('Пароль змінено', 'Password changed'),
-                'token': token.key,
-                'user': user_payload(user),
-            },
-            status=status.HTTP_200_OK,
+        return signed_in(
+            request,
+            user,
+            {'detail': L('Пароль змінено', 'Password changed'), 'user': user_payload(user)},
         )

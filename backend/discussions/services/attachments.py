@@ -17,6 +17,7 @@ from django.conf import settings
 
 from backend.i18n import L
 
+from . import pdf_text
 from .catalog import vision_model_ids
 from .providers import ProviderError, get_provider
 
@@ -79,25 +80,31 @@ def _read_text(data):
 
 
 def _read_pdf(data):
-    from pypdf import PdfReader
-
-    try:
-        reader = PdfReader(io.BytesIO(data))
-        if reader.is_encrypted:
-            raise AttachmentError(
-                L(
-                    'PDF захищено паролем — збережіть його без пароля або додайте фото сторінок.',
-                    'The PDF is password-protected — save it without a password or add photos of the pages.',
-                ),
-                code='encrypted',
-            )
-        pages = [page.extract_text() or '' for page in reader.pages]
-    except AttachmentError:
-        raise
-    except Exception as exc:
-        # пошкоджені PDF падають у pypdf різними помилками — для людини це одне й те саме
-        logger.info('PDF could not be read', extra={'error': repr(exc)})
-        raise AttachmentError(L('Не вдалося прочитати PDF.', 'Could not read the PDF.')) from exc
+    error, pages = pdf_text.extract_pages(
+        data,
+        timeout=settings.ATTACHMENTS_PDF_TIMEOUT_SECONDS,
+        max_pages=settings.ATTACHMENTS_PDF_MAX_PAGES,
+    )
+    if error == pdf_text.ENCRYPTED:
+        raise AttachmentError(
+            L(
+                'PDF захищено паролем — збережіть його без пароля або додайте фото сторінок.',
+                'The PDF is password-protected — save it without a password or add photos of the pages.',
+            ),
+            code='encrypted',
+        )
+    if error == pdf_text.TIMEOUT:
+        logger.warning('PDF parsing timed out')
+        raise AttachmentError(
+            L(
+                'PDF занадто складний, щоб його прочитати. Збережіть потрібні сторінки окремим файлом.',
+                'The PDF is too complex to read. Save the pages you need as a separate file.',
+            ),
+            code='pdf_timeout',
+        )
+    if error:
+        logger.info('PDF could not be read', extra={'error': pages})
+        raise AttachmentError(L('Не вдалося прочитати PDF.', 'Could not read the PDF.'))
     text = '\n\n'.join(page.strip() for page in pages if page.strip())
     if not text:
         raise AttachmentError(

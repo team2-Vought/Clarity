@@ -311,9 +311,11 @@ export default function ProfileSettings() {
       };
     },
     async () => {
-      setUser(await updateProfile({ email: form.email, current_password: form.current_password }));
+      // пошта зміниться після підтвердження з листа на нову адресу
+      const data = await updateProfile({ email: form.email, current_password: form.current_password });
+      setUser(data);
       close();
-      pushToast(t.emailSaved, 'success');
+      pushToast(t.emailSent(data.email_pending || form.email.trim()), 'success');
     },
   );
 

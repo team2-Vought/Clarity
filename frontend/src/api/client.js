@@ -1,7 +1,11 @@
 import { copy, lang } from '../copy';
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
-const TOKEN_KEY = 'clarity_token';
+// Ключ входу живе в httpOnly-cookie: JavaScript (а отже й XSS) його не бачить.
+// Тут — лише позначка, що на цьому пристрої увійшли: випадковий id входу, не секрет.
+const SESSION_KEY = 'clarity_session';
+// колишній токен у localStorage — прибираємо, щоб не лежав там вічно
+const LEGACY_TOKEN_KEY = 'clarity_token';
 // Подія для Layout: токен прострочено або відкликано — треба знову увійти
 export const UNAUTHORIZED_EVENT = 'clarity:unauthorized';
 
@@ -25,18 +29,30 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken() {
+try {
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+} catch {
+  /* ignore (приватний режим тощо) */
+}
+
+/** Id поточного входу або null — чи показувати сторінки для тих, хто увійшов. */
+export function getSession() {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(SESSION_KEY);
   } catch {
     return null;
   }
 }
 
-export function setToken(token) {
+/** true — щойно увійшли (новий id), false — вийшли. */
+export function setSession(signedIn) {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (signedIn) {
+      const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      localStorage.setItem(SESSION_KEY, id);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
   } catch {
     /* ignore (приватний режим тощо) */
   }
@@ -46,13 +62,10 @@ export async function request(path, { method = 'GET', body, auth = false, signal
   // мова інтерфейсу: нею сервер пише помилки, а AI — відповіді нових дискусій
   // файли йдуть як multipart: заголовок із межею частин ставить сам браузер
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  // X-Requested-With — захист від CSRF: чужий сайт не може поставити цей заголовок
   const headers = isForm
-    ? { 'Accept-Language': lang }
-    : { 'Content-Type': 'application/json', 'Accept-Language': lang };
-  if (auth) {
-    const token = getToken();
-    if (token) headers.Authorization = `Token ${token}`;
-  }
+    ? { 'Accept-Language': lang, 'X-Requested-With': 'XMLHttpRequest' }
+    : { 'Content-Type': 'application/json', 'Accept-Language': lang, 'X-Requested-With': 'XMLHttpRequest' };
 
   let res;
   try {
@@ -60,6 +73,8 @@ export async function request(path, { method = 'GET', body, auth = false, signal
       method,
       headers,
       body: body === undefined || isForm ? body : JSON.stringify(body),
+      // cookie входу — і тоді, коли API на іншому origin (VITE_API_URL)
+      credentials: 'include',
       signal,
     });
   } catch (err) {
@@ -69,7 +84,7 @@ export async function request(path, { method = 'GET', body, auth = false, signal
 
   const data = await res.json().catch(() => null);
   if (res.status === 401 && auth) {
-    setToken(null);
+    setSession(false);
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
   if (!res.ok) throw new ApiError(res.status, data);

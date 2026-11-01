@@ -46,7 +46,9 @@ class DiscussionApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 200)
-        return response.data['token']
+        # клієнт входить заголовком (auth()), а не cookie, що лишився від входу
+        self.client.cookies.clear()
+        return response.cookies['clarity_auth'].value
 
     def auth(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token}')

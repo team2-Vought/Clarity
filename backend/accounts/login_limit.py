@@ -1,7 +1,9 @@
-"""Ліміт спроб входу: окремий лічильник для кожного акаунта (пошти).
+"""Ліміт спроб входу: окремий лічильник для пари «IP + пошта».
 
-Інші акаунти не залежать від блокування — ліміт застосовується лише
-до тієї пошти, з якої помилково вводили пароль.
+Раніше лічильник був на саму пошту: п'ять неправильних паролів від будь-кого
+блокували вхід власникові акаунта. Тепер блокується лише та адреса, з якої
+помилялися; перебір з однієї адреси по багатьох акаунтах стримують ліміти
+запитів (DEFAULT_THROTTLE_RATES).
 """
 
 from datetime import timedelta
@@ -17,9 +19,9 @@ MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_MINUTES = 10
 
 
-def check_login_allowed(email):
-    """Кидає Throttled (429), якщо акаунт тимчасово заблоковано."""
-    attempt = LoginAttempt.objects.filter(email=email).first()
+def check_login_allowed(ip, email):
+    """Кидає Throttled (429), якщо з цієї адреси вхід у цей акаунт тимчасово заблоковано."""
+    attempt = LoginAttempt.objects.filter(ip=ip, email=email).first()
     if attempt is None:
         return
 
@@ -30,10 +32,8 @@ def check_login_allowed(email):
             minutes = max(1, (seconds + 59) // 60)
             raise Throttled(
                 detail=L(
-                    'Ліміт спроб вичерпано для цього акаунта. '
-                    f'Спробуйте через {minutes} хв.',
-                    'Too many attempts for this account. '
-                    f'Try again in {minutes} min.',
+                    f'Забагато невдалих спроб. Спробуйте через {minutes} хв.',
+                    f'Too many failed attempts. Try again in {minutes} min.',
                 )
             )
         # блокування минуло — знімаємо лічильник
@@ -46,8 +46,8 @@ def check_login_allowed(email):
         attempt.save(update_fields=['failed_count', 'updated_at'])
 
 
-def register_failed_login(email):
-    attempt, _ = LoginAttempt.objects.get_or_create(email=email)
+def register_failed_login(ip, email):
+    attempt, _ = LoginAttempt.objects.get_or_create(ip=ip, email=email)
     now = timezone.now()
     if attempt.locked_until and attempt.locked_until <= now:
         attempt.failed_count = 0
@@ -59,5 +59,9 @@ def register_failed_login(email):
     return attempt
 
 
-def reset_login_attempts(email):
-    LoginAttempt.objects.filter(email=email).delete()
+def reset_login_attempts(email, ip=None):
+    """Успішний вхід знімає лічильник цієї адреси; новий пароль — усі лічильники пошти."""
+    attempts = LoginAttempt.objects.filter(email=email)
+    if ip is not None:
+        attempts = attempts.filter(ip=ip)
+    attempts.delete()

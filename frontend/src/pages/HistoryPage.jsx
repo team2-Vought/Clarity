@@ -15,7 +15,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { deleteDiscussion, fetchDiscussions, updateDiscussion } from '../api/discussions';
 import { useToasts } from '../hooks/useToasts';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import { copy, locale } from '../copy';
 
 const t = copy.history;
@@ -241,7 +241,7 @@ export default function HistoryPage() {
   );
 
   useEffect(() => {
-    if (!getToken()) {
+    if (!getSession()) {
       navigate('/login', { replace: true });
       return undefined;
     }

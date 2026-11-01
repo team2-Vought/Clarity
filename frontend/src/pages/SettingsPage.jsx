@@ -23,7 +23,7 @@ import AboutSettings from '../components/AboutSettings';
 import CustomRolesSettings from '../components/CustomRolesSettings';
 import { Pills, Row, SwitchRow } from '../components/SettingsControls';
 import ProviderLogo from '../components/ProviderLogo';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import {
   deleteProviderKey,
   fetchSettings,
@@ -361,7 +361,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!getToken()) {
+    if (!getSession()) {
       navigate('/login', { replace: true });
       return undefined;
     }

@@ -24,7 +24,7 @@ class AuthApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 200)
-        return response.data['token']
+        return response.cookies['clarity_auth'].value
 
     def test_login_by_email_only(self):
         response = self.client.post(
@@ -33,7 +33,7 @@ class AuthApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn('token', response.data)
+        self.assertIn('clarity_auth', response.cookies)
 
     def test_login_wrong_password(self):
         response = self.client.post(
@@ -59,7 +59,7 @@ class AuthApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data['code'], 'inactive')
-        self.assertNotIn('token', response.data)
+        self.assertNotIn('clarity_auth', response.cookies)
 
     def test_me_requires_auth(self):
         response = self.client.get('/api/auth/me/')
@@ -115,7 +115,7 @@ class LoginLockoutTests(TestCase):
         # акаунт заблоковано — навіть з правильним паролем 429
         response = self.attempt_login('lock@test.com', password='pass123!A')
         self.assertEqual(response.status_code, 429)
-        self.assertIn('Ліміт спроб', str(response.data))
+        self.assertIn('Забагато', str(response.data))
 
     def test_other_account_not_affected_by_lockout(self):
         for _ in range(MAX_FAILED_ATTEMPTS):
@@ -124,7 +124,7 @@ class LoginLockoutTests(TestCase):
         # інший акаунт логіниться без обмежень
         response = self.attempt_login('other@test.com', password='pass123!A')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('token', response.data)
+        self.assertIn('clarity_auth', response.cookies)
 
     def test_successful_login_resets_counter(self):
         for _ in range(MAX_FAILED_ATTEMPTS - 1):
@@ -161,7 +161,7 @@ class ProfileApiTests(TestCase):
             {'email': 'me@test.com', 'password': 'pass123!A'},
             format='json',
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.cookies['clarity_auth'].value}")
 
     def test_me_has_join_date(self):
         response = self.client.get('/api/auth/me/')
@@ -214,7 +214,8 @@ class ProfileApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], 'new@test.com')
+        self.assertEqual(response.data['email'], 'me@test.com')
+        self.assertEqual(response.data['email_pending'], 'new@test.com')
 
     def test_email_taken(self):
         response = self.client.patch(
@@ -225,7 +226,10 @@ class ProfileApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', response.data)
 
-    def test_password_change_rotates_token(self):
+    def test_password_change_signs_out_other_devices(self):
+        other = APIClient().post(
+            '/api/auth/login/', {'email': 'me@test.com', 'password': 'pass123!A'}, format='json'
+        ).cookies['clarity_auth'].value
         response = self.client.post(
             '/api/auth/password/',
             {'current_password': 'pass123!A', 'password': 'newPass9!x', 'confirm_password': 'newPass9!x'},
@@ -235,10 +239,11 @@ class ProfileApiTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('newPass9!x'))
 
-        # старий токен більше не діє, новий — діє
-        self.assertEqual(self.client.get('/api/auth/me/').status_code, 401)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+        # цей пристрій лишається в акаунті, інший — виходить
         self.assertEqual(self.client.get('/api/auth/me/').status_code, 200)
+        stranger = APIClient()
+        stranger.credentials(HTTP_AUTHORIZATION=f'Token {other}')
+        self.assertEqual(stranger.get('/api/auth/me/').status_code, 401)
 
     def test_password_change_wrong_current(self):
         response = self.client.post(
@@ -310,7 +315,7 @@ class GoogleLoginTests(TestCase):
             response = self.post()
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.data['created'])
-        self.assertIn('token', response.data)
+        self.assertIn('clarity_auth', response.cookies)
         user = User.objects.get(email='olena@gmail.com')
         self.assertEqual(user.name, 'Олена Коваль')
         self.assertFalse(user.has_usable_password())
@@ -356,7 +361,7 @@ class GoogleLoginTests(TestCase):
 
     def test_passwordless_account_can_set_password_and_delete(self):
         with self.google():
-            token = self.post().data['token']
+            token = self.post().cookies['clarity_auth'].value
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
         response = self.client.post(
             '/api/auth/password/',
@@ -368,14 +373,13 @@ class GoogleLoginTests(TestCase):
         self.assertTrue(user.check_password('newPass123!'))
 
         # тепер пароль є — видалення вимагає його
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {response.data["token"]}')
         self.assertEqual(self.client.delete('/api/auth/me/', {}, format='json').status_code, 400)
         response = self.client.delete('/api/auth/me/', {'password': 'newPass123!'}, format='json')
         self.assertEqual(response.status_code, 204)
 
     def test_passwordless_account_deletes_without_password(self):
         with self.google():
-            token = self.post().data['token']
+            token = self.post().cookies['clarity_auth'].value
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
         response = self.client.delete('/api/auth/me/', {}, format='json')
         self.assertEqual(response.status_code, 204)
@@ -429,7 +433,7 @@ class PasswordResetTests(TestCase):
         self.assertTrue(check.data['valid'])
         response = self.confirm(uid, token)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertIn('token', response.data)
+        self.assertIn('clarity_auth', response.cookies)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password('newPass1!'))
 
@@ -444,7 +448,7 @@ class PasswordResetTests(TestCase):
         login = self.client.post(
             '/api/auth/login/', {'email': 'reset@test.com', 'password': 'pass123!A'}, format='json'
         )
-        old_token = login.data['token']
+        old_token = login.cookies['clarity_auth'].value
         uid, token = self.link_parts()
         self.confirm(uid, token)
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {old_token}')

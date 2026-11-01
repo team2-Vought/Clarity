@@ -101,6 +101,9 @@ FRONTEND_URL=https://clarity.example.com
 DATABASE_URL=postgres://clarity:password@db:5432/clarity
 DISCUSSION_RUNNER=worker
 
+DJANGO_BEHIND_PROXY=true
+DJANGO_ADMIN_URL=<нестандартна-адреса>/
+
 DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.example.com
 EMAIL_HOST_USER=...
@@ -111,7 +114,12 @@ DEFAULT_FROM_EMAIL=Clarity <no-reply@clarity.example.com>
 **База.** З `DATABASE_URL` бекенд працює з Postgres (драйвер `psycopg` уже в
 `requirements.txt`). SQLite лишається для розробки.
 
-**Воркер дискусій.** З `DISCUSSION_RUNNER=worker` вебсервер не виконує
+**Воркер дискусій — у продакшні обов'язково.** Режим `thread` (типовий для
+розробки) веде дискусії потоками вебсервера: перезапуск їх обриває, а кількість
+обмежує лише `DISCUSSION_THREAD_MAX` (типово 4, решта отримує «сервер зайнятий»).
+`manage.py check --deploy` попереджає, якщо воркер не ввімкнено.
+
+З `DISCUSSION_RUNNER=worker` вебсервер не виконує
 дискусії сам, а ставить їх у чергу в базі. Виконує їх окремий процес:
 
 ```bash
@@ -133,7 +141,9 @@ DEFAULT_FROM_EMAIL=Clarity <no-reply@clarity.example.com>
 ```
 
 **Вкладення.** До питання можна додати до `ATTACHMENTS_MAX` файлів (PDF, Word,
-текст, фото) по 10 МБ. Сервер зберігає лише витягнутий текст. Фото читає
+текст, фото) по 10 МБ. Файлів, ще не доданих до питання, — до
+`ATTACHMENTS_PENDING_MAX` (10) на людину. PDF розбирається в окремому процесі й
+не довше `ATTACHMENTS_PDF_TIMEOUT_SECONDS` (15 с). Сервер зберігає лише витягнутий текст. Фото читає
 модель, що бачить зображення (OpenAI, Anthropic, Gemini, Qwen на Groq), —
 без такої моделі приймаються лише файли з текстом. Файли можна додати й до
 уточнення в чаті; усього на дискусію — до `ATTACHMENTS_TOTAL_MAX` (6).
@@ -149,6 +159,49 @@ DEFAULT_FROM_EMAIL=Clarity <no-reply@clarity.example.com>
 
 **Вхід через Google** — `GOOGLE_CLIENT_ID` з Google Cloud Console; адресу
 фронтенду додайте в «Authorized JavaScript origins».
+
+**nginx.** Інтерфейс і API мають бути на одному домені: вхід живе в
+httpOnly-cookie з `SameSite=Lax`. Мінімальний сервер:
+
+```nginx
+server {
+    server_name clarity.example.com;
+    root /srv/clarity/frontend/dist;
+
+    # найбільший запит — файл вкладення (10 МБ) із запасом
+    client_max_body_size 11m;
+
+    add_header Referrer-Policy same-origin always;
+    add_header X-Content-Type-Options nosniff always;
+    # решту CSP збірка кладе в <meta>; frame-ancestors там не діє
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location / {
+        try_files $uri /index.html;
+    }
+}
+```
+
+Перед Django рівно один проксі — тому `DJANGO_BEHIND_PROXY=true`
+(`DJANGO_NUM_PROXIES=1`). Без проксі цей прапорець не вмикайте: тоді
+`X-Forwarded-*` підробляє будь-хто.
+
+**Адмінка** доступна лише на `DJANGO_ADMIN_URL` (у продакшні без неї вимкнена),
+з тим самим лімітом спроб входу, що й API. Двофакторного входу в ній немає —
+обмежте адресу ще й за IP у nginx (`allow`/`deny`) або через VPN.
+
+**Безпека входу.** Вхід — окремий ключ на кожен пристрій у httpOnly-cookie,
+діє `AUTH_TOKEN_DAYS` (30) днів; «Вийти» виходить лише на цьому пристрої,
+зміна пароля — на всіх інших. Нова пошта діє після підтвердження листом. Якщо
+акаунт зареєстрували паролем, а потім у нього вперше входять через Google,
+пароль скидається, а всі входи відкликаються: його міг задати хтось, хто не
+володіє поштою.
 
 ## Ліміти
 

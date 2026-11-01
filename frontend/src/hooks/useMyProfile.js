@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { getToken } from '../api/client';
+import { getSession } from '../api/client';
 import { me } from '../api/auth';
 
 // фото, ім'я й «Про мене» поточного користувача — одні на весь застосунок;
@@ -18,21 +18,21 @@ const subscribe = (listener) => {
   return () => listeners.delete(listener);
 };
 
-const snapshot = () => (loadedFor === getToken() ? profile : EMPTY);
+const snapshot = () => (loadedFor === getSession() ? profile : EMPTY);
 
 /** Профіль змінив фото, ім'я чи «Про мене» — сторінки підхоплюють це без перезавантаження. */
 export function setMyProfile(user) {
   profile = { avatar: user?.avatar || '', name: user?.name || '', about: user?.about || null };
-  loadedFor = getToken();
+  loadedFor = getSession();
   notify();
 }
 
 function load() {
-  const token = getToken();
+  const token = getSession();
   if (!token || loadedFor === token || pending) return;
   pending = me()
     .then((user) => {
-      if (getToken() === token) setMyProfile(user);
+      if (getSession() === token) setMyProfile(user);
     })
     .catch(() => {
       /* без профілю лишається іконка */

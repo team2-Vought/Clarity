@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { copy } from './copy';
 import Layout from './components/Layout';
-import { getToken } from './api/client';
+import { getSession } from './api/client';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/auth.css';
@@ -29,6 +29,7 @@ const LoginPage = lazy(loadLogin);
 const RegisterPage = lazy(loadRegister);
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage'));
 const DebatePage = lazy(loadDebate);
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const JournalPage = lazy(loadJournal);
@@ -53,7 +54,7 @@ function RouteFallback() {
 // Увійшовши — основні сторінки застосунку; інакше — лише вхід і реєстрацію.
 function usePreloadPages() {
   useEffect(() => {
-    const pages = getToken()
+    const pages = getSession()
       ? [loadDebate, loadChat, loadHistory, loadJournal, loadSettings]
       : [loadLogin, loadRegister];
     const preload = () => pages.forEach((load) => load().catch(() => {}));
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+            <Route path="/confirm-email/:token" element={<ConfirmEmailPage />} />
             <Route path="/shared/:token" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />

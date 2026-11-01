@@ -49,7 +49,13 @@ if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
         'DJANGO_SECRET_KEY must be set to a strong unique value when DEBUG=False.'
     )
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# За зворотним проксі (nginx, балансувальник): лише тоді X-Forwarded-* заголовкам
+# можна вірити. Без проксі їх підробляє будь-хто — і «https», і IP для лімітів входу.
+BEHIND_PROXY = env_bool('DJANGO_BEHIND_PROXY', False)
+if BEHIND_PROXY:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# скільки проксі стоїть перед Django: з X-Forwarded-For береться адреса перед ними
+NUM_PROXIES = int(os.getenv('DJANGO_NUM_PROXIES', '1' if BEHIND_PROXY else '0'))
 SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', not DEBUG)
 SESSION_COOKIE_SECURE = env_bool('DJANGO_SESSION_COOKIE_SECURE', not DEBUG)
 CSRF_COOKIE_SECURE = env_bool('DJANGO_CSRF_COOKIE_SECURE', not DEBUG)
@@ -57,6 +63,17 @@ SECURE_HSTS_SECONDS = int(os.getenv('DJANGO_SECURE_HSTS_SECONDS', '31536000' if 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
 SECURE_HSTS_PRELOAD = env_bool('DJANGO_SECURE_HSTS_PRELOAD', not DEBUG)
 X_FRAME_OPTIONS = 'DENY'
+# посилання з публічної дискусії на джерела не передають її адресу (з токеном) іншим сайтам
+SECURE_REFERRER_POLICY = 'same-origin'
+# API віддає JSON, а адмінка — свої скрипти й стилі: чужого не вантажимо нічого.
+# CSP самого інтерфейсу ставить збірка фронтенду (frontend/vite.config.js) і nginx.
+SECURE_CSP = {
+    'default-src': ["'self'"],
+    'base-uri': ["'self'"],
+    'object-src': ["'none'"],
+    'frame-ancestors': ["'none'"],
+    'form-action': ["'self'"],
+}
 
 
 # Application definition
@@ -70,16 +87,18 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'rest_framework.authtoken',
     'accounts',
     'discussions',
 ]
 
 MIDDLEWARE = [
+    # завеликий запит відкидаємо одразу, ще до читання тіла (вкладення — до 10 МБ)
+    'backend.middleware.RequestSizeLimitMiddleware',
     # чат опитує стан дискусії щосекунди-дві — стиснений JSON у кілька разів менший
     'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -215,22 +234,39 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', '').strip() or 'http://localhost:5173'
 # Посилання на новий пароль діє 2 години
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 
+# Пошта змінюється, лише коли власник нової адреси відкрив лист (24 год)
+EMAIL_CHANGE_TIMEOUT = int(os.getenv('EMAIL_CHANGE_TIMEOUT', str(24 * 3600)))
+
+# Типово localhost дозволено лише в розробці: у продакшні — тільки задані адреси
 CORS_ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv(
         'CORS_ALLOWED_ORIGINS',
-        'http://localhost:5173,http://localhost:3000',
+        'http://localhost:5173,http://localhost:3000' if DEBUG else '',
     ).split(',')
     if o.strip()
 ]
+# вхід — у cookie: браузер надсилає його іншому origin лише з credentials
+CORS_ALLOW_CREDENTIALS = True
+
+# Вхід на пристрої: ключ у httpOnly-cookie, діє AUTH_TOKEN_DAYS днів (accounts.tokens)
+AUTH_TOKEN_DAYS = int(os.getenv('AUTH_TOKEN_DAYS', '30'))
+AUTH_COOKIE_NAME = 'clarity_auth'
+AUTH_COOKIE_SECURE = env_bool('DJANGO_AUTH_COOKIE_SECURE', not DEBUG)
+
+# Адмінка: не на стандартній /admin/. Порожньо — вимкнена (типово в продакшні).
+ADMIN_URL = os.getenv('DJANGO_ADMIN_URL', 'admin/' if DEBUG else '').strip().strip('/')
+ADMIN_URL = f'{ADMIN_URL}/' if ADMIN_URL else ''
 
 AUTH_USER_MODEL = 'accounts.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'accounts.authentication.DeviceTokenAuthentication',
+        # сесія — лише для адмінки; DRF перевіряє для неї CSRF
         'rest_framework.authentication.SessionAuthentication',
     ],
+    'NUM_PROXIES': NUM_PROXIES,
     'UNAUTHENTICATED_USER': None,
     'EXCEPTION_HANDLER': 'accounts.exceptions.api_exception_handler',
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
@@ -249,6 +285,8 @@ REST_FRAMEWORK = {
         # перевірка ключа — запит до провайдера; не даємо перебирати ключі
         'api_keys': '20/min',
         'google_login': '20/min',
+        # реєстрація з однієї адреси: живій людині вистачить із запасом
+        'register': '5/hour',
         # лист на чужу пошту — не даємо розсилати їх потоком
         'password_reset': '5/min',
         # фото читає модель — не даємо завантажувати потоком
@@ -292,6 +330,8 @@ DISCUSSION_RUNNER = os.getenv('DISCUSSION_RUNNER', 'thread').strip().lower()
 if DISCUSSION_RUNNER not in {'thread', 'worker'}:
     raise ImproperlyConfigured('DISCUSSION_RUNNER must be "thread" or "worker".')
 DISCUSSION_WORKER_CONCURRENCY = int(os.getenv('DISCUSSION_WORKER_CONCURRENCY', '4'))
+# у режимі thread — скільки дискусій вебсервер веде одночасно; решта чекає
+DISCUSSION_THREAD_MAX = int(os.getenv('DISCUSSION_THREAD_MAX', '4'))
 DISCUSSION_WORKER_POLL_SECONDS = float(os.getenv('DISCUSSION_WORKER_POLL_SECONDS', '1'))
 # як часто воркер надсилає листи журналу рішень, секунд (0 — не надсилати)
 DISCUSSION_REMINDER_INTERVAL = float(os.getenv('DISCUSSION_REMINDER_INTERVAL', '600'))
@@ -315,6 +355,13 @@ ATTACHMENTS_MAX = int(os.getenv('ATTACHMENTS_MAX', '3'))
 # усього на дискусію: файли питання й ті, що додано до уточнень у чаті
 ATTACHMENTS_TOTAL_MAX = int(os.getenv('ATTACHMENTS_TOTAL_MAX', '6'))
 ATTACHMENTS_PROMPT_CHARS = int(os.getenv('ATTACHMENTS_PROMPT_CHARS', '12000'))
+# файлів, що ще не потрапили в дискусію, на користувача: інакше ними засмічують базу
+ATTACHMENTS_PENDING_MAX = int(os.getenv('ATTACHMENTS_PENDING_MAX', '10'))
+# PDF розбирається в окремому процесі: зловмисний файл не займе вебсервер надовго
+ATTACHMENTS_PDF_TIMEOUT_SECONDS = float(os.getenv('ATTACHMENTS_PDF_TIMEOUT_SECONDS', '15'))
+ATTACHMENTS_PDF_MAX_PAGES = int(os.getenv('ATTACHMENTS_PDF_MAX_PAGES', '200'))
+# найбільший запит: файл вкладення з запасом на multipart. Те саме — client_max_body_size у nginx
+REQUEST_MAX_BYTES = ATTACHMENTS_MAX_BYTES + 512 * 1024
 
 # Пошук в інтернеті для моделей. SEARCH_PROVIDER: auto | tavily | brave |
 # searxng | wikipedia | off. auto — перший налаштований, інакше Wikipedia.

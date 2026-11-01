@@ -31,7 +31,9 @@ RESET_LINK_INVALID = lazy_L(
     'Посилання недійсне або застаріле. Попросіть новий лист.',
     'The link is invalid or has expired. Request a new email.',
 )
-WRONG_EMAIL = lazy_L('Неправильна пошта', 'Wrong email')
+# одне повідомлення для невідомої пошти й неправильного пароля: інакше за входом
+# можна було б перевіряти, чи зареєстрована адреса (як і відновлення пароля, не розкриваємо)
+WRONG_CREDENTIALS = lazy_L('Неправильна пошта або пароль', 'Wrong email or password')
 WRONG_PASSWORD = lazy_L('Невірний пароль', 'Wrong password')
 PASSWORD_SAME = lazy_L('Новий пароль збігається з поточним', 'The new password is the same as the current one')
 
@@ -194,19 +196,20 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs['email'].strip().lower()
         password = attrs['password']
+        ip = self.context.get('ip', '')
 
-        # 429, якщо для цього акаунта вичерпано спроби (інші акаунти не блокуються)
-        check_login_allowed(email)
+        # 429, якщо з цієї адреси вичерпано спроби для цього акаунта
+        check_login_allowed(ip, email)
 
         user = User.objects.filter(email=email).first()
         if user is None:
-            register_failed_login(email)
-            raise ValidationError({'email': WRONG_EMAIL})
-        if not user.check_password(password):
-            register_failed_login(email)
-            raise ValidationError({'password': WRONG_PASSWORD})
+            # хешуємо пароль і для невідомої пошти: інакше її видавав би час відповіді
+            User().set_password(password)
+        if user is None or not user.check_password(password):
+            register_failed_login(ip, email)
+            raise ValidationError({'password': WRONG_CREDENTIALS})
 
-        reset_login_attempts(email)
+        reset_login_attempts(email, ip=ip)
         attrs['user'] = user
         return attrs
 
