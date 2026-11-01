@@ -246,18 +246,28 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         )
 
     def post(self, request):
-        if usage.over_discussion_limit(request.user):
-            limit = int(settings.DISCUSSION_DAILY_LIMIT)
-            return _too_many(L(
-                f'Денний ліміт створення дискусій вичерпано ({limit}). '
-                'Спробуйте завтра.',
-                f'The daily limit of new discussions has been reached ({limit}). '
-                'Try again tomorrow.',
-            ))
-
         serializer = CreateDiscussionSerializer(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+
+        # дискусія лише на власних ключах людини не впирається в денний ліміт:
+        # за її виклики платить вона сама, а не сервер
+        draft = Discussion(
+            user=request.user,
+            personas=data['personas'],
+            moderator_model=data.get('moderator_model', ''),
+            devil_model=data.get('devil_model', ''),
+        )
+        with user_context(request.user):
+            own_keys = engine.billing(draft) == engine.context.OWN
+        if not own_keys and usage.over_discussion_limit(request.user):
+            limit = int(settings.DISCUSSION_DAILY_LIMIT)
+            return _too_many(L(
+                f'Денний ліміт створення дискусій вичерпано ({limit}). '
+                'Спробуйте завтра або додайте власний API-ключ — з ним ліміту немає.',
+                f'The daily limit of new discussions has been reached ({limit}). '
+                'Try again tomorrow or add your own API key — there is no limit with it.',
+            ))
 
         crisis_by_words = not data['not_crisis'] and looks_like_crisis(data['question'])
         about = about_of(request.user)
@@ -302,7 +312,7 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         )
         # кризова дискусія не запускається й моделей не кличе — слот ліміту не витрачає;
         # його спишемо, якщо людина скаже «Я питаю про інше»
-        if not crisis_by_words:
+        if not crisis_by_words and not own_keys:
             usage.record(request.user.pk, discussions=1)
         return Response(
             DiscussionSerializer(discussion).data,
@@ -375,7 +385,7 @@ class DiscussionAdvanceView(OwnedDiscussionView):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
-        if runner.over_daily_limit(request.user):
+        if runner.over_daily_limit(request.user, discussion):
             return _daily_limit_response()
 
         try:
@@ -433,7 +443,7 @@ class DiscussionRunView(OwnedDiscussionView):
         if discussion is None:
             return _not_found()
         if discussion.phase != Discussion.Phase.DONE:
-            if runner.over_daily_limit(request.user):
+            if runner.over_daily_limit(request.user, discussion):
                 return _daily_limit_response()
             Discussion.objects.filter(pk=discussion.pk).update(stop_requested=False)
             if not runner.start(discussion.pk) and not runner.is_active(discussion.pk):
@@ -545,7 +555,7 @@ class DiscussionMessageView(OwnedDiscussionView):
         discussion = self.get_discussion(request, pk)
         if discussion is None:
             return _not_found()
-        if runner.over_daily_limit(request.user):
+        if runner.over_daily_limit(request.user, discussion):
             return _daily_limit_response()
         serializer = MessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -598,7 +608,7 @@ class DiscussionClarifyView(OwnedDiscussionView):
                 {'detail': exc.public or engine.generic_public_error(), 'code': exc.code},
                 status=status.HTTP_409_CONFLICT,
             )
-        if not runner.over_daily_limit(request.user):
+        if not runner.over_daily_limit(request.user, discussion):
             runner.start(discussion.pk)
         discussion.refresh_from_db()
         return Response(DiscussionSerializer(discussion).data, status=status.HTTP_200_OK)

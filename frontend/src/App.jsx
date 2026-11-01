@@ -30,6 +30,7 @@ const RegisterPage = lazy(loadRegister);
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage'));
+const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'));
 const DebatePage = lazy(loadDebate);
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const JournalPage = lazy(loadJournal);
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
             <Route path="/confirm-email/:token" element={<ConfirmEmailPage />} />
+            <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
             <Route path="/shared/:token" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />

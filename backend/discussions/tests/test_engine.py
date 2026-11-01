@@ -693,7 +693,11 @@ class LiveStatusTests(EngineTests):
             # фоновий потік закриває своє з'єднання; у тесті воно спільне
             with mock.patch('discussions.services.engine.status.connection'):
                 engine.status._write_ai_status(
-                    self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
+                    self.discussion,
+                    engine.describe_step(self.discussion),
+                    lambda model_id: provider,
+                    engine.status._status_model(self.discussion),
+                    False,
                 )
             prompt = provider.complete.call_args.kwargs['prompt']
             self.assertIn('Чи варто змінювати роботу на стартап?', prompt)
@@ -725,7 +729,11 @@ class LiveStatusTests(EngineTests):
         try:
             with mock.patch('discussions.services.engine.status.connection'):
                 engine.status._write_ai_status(
-                    self.discussion, engine.describe_step(self.discussion), lambda model_id: provider
+                    self.discussion,
+                    engine.describe_step(self.discussion),
+                    lambda model_id: provider,
+                    engine.status._status_model(self.discussion),
+                    False,
                 )
         finally:
             engine.live._live.reset(live)

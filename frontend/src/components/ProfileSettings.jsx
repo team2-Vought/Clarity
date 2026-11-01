@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Camera01Icon, Delete02Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons';
 import { changePassword, deleteAccount, me, updateProfile } from '../api/auth';
+import { downloadAccountExport } from '../utils/accountExport';
 import { setMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import { validateEmail, validatePassword } from '../utils/validate';
@@ -512,6 +513,16 @@ export default function ProfileSettings() {
               {...bind('password')}
             />
           )}
+          <p className="settings__key-hint">
+            {t.deleteExportHint}{' '}
+            <button
+              type="button"
+              className="settings__link-button"
+              onClick={() => downloadAccountExport().catch((err) => pushToast(err?.message || copy.settings.saveError))}
+            >
+              {t.deleteExport}
+            </button>
+          </p>
           <p className="settings__key-hint">
             {hasPassword ? t.deleteConfirmHint : t.deleteConfirmNoPassword}
           </p>

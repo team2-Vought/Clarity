@@ -1,5 +1,8 @@
-from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import IntegrityError, transaction
+from django.http import JsonResponse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,6 +14,8 @@ from backend.i18n import L, lazy_L
 
 from . import email_change, google, tokens
 from .about import about_of
+from .devices import describe_device
+from .export import export_user
 from .login_limit import reset_login_attempts
 from .models import AuthToken
 from .password_reset import send_reset_email, user_from_link
@@ -335,3 +340,59 @@ class PasswordResetConfirmView(APIView):
             user,
             {'detail': L('Пароль змінено', 'Password changed'), 'user': user_payload(user)},
         )
+
+
+class AccountExportView(APIView):
+    """Усі дані людини одним JSON-файлом (GDPR: доступ і перенесення)."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'export'
+
+    def get(self, request):
+        data = export_user(request.user)
+        response = JsonResponse(data, encoder=DjangoJSONEncoder, json_dumps_params={'ensure_ascii': False, 'indent': 1})
+        name = f'clarity-export-{timezone.localdate().isoformat()}.json'
+        response['Content-Disposition'] = f'attachment; filename="{name}"'
+        response['Cache-Control'] = 'no-store'
+        return response
+
+
+def session_payload(token, current):
+    return {
+        'id': token.pk,
+        'device': describe_device(token.label),
+        'created_at': token.created_at,
+        'last_used_at': token.last_used_at or token.created_at,
+        'expires_at': token.expires_at,
+        'current': current is not None and token.pk == current.pk,
+    }
+
+
+class SessionListView(APIView):
+    """Входи на пристроях: де людина зараз в акаунті."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        current = request.auth if isinstance(request.auth, AuthToken) else None
+        sessions = AuthToken.objects.filter(user=request.user, expires_at__gt=timezone.now())
+        return Response(
+            [session_payload(token, current) for token in sessions.order_by('-last_used_at', '-created_at')],
+            status=status.HTTP_200_OK,
+        )
+
+
+class SessionDetailView(APIView):
+    """DELETE — вийти на одному пристрої (зокрема на цьому)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        deleted, _ = AuthToken.objects.filter(user=request.user, pk=pk).delete()
+        if not deleted:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        if isinstance(request.auth, AuthToken) and request.auth.pk == pk:
+            tokens.clear_cookie(response)
+        return response

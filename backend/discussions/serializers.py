@@ -21,7 +21,7 @@ from .services.criteria import CRITERIA_MAX, WEIGHT_MAX, WEIGHT_MIN
 from .services.criteria import NAME_MAX as CRITERION_NAME_MAX
 from .journal import journal_state
 from .services import engine, runner, search
-from .services.catalog import resolve_model
+from .services.catalog import resolve_model, user_context
 
 REQUIRED = lazy_L('Це поле обов’язкове', 'This field is required')
 QUESTION_TOO_SHORT = lazy_L(
@@ -485,6 +485,8 @@ class DiscussionSerializer(serializers.ModelSerializer):
     live = serializers.SerializerMethodField()
     # сам профіль клієнту не потрібен — лише те, що його враховано
     profile_used = serializers.SerializerMethodField()
+    # хто платить: own — усе на ключах людини (без денного ліміту), server чи mixed
+    billing = serializers.SerializerMethodField()
     journal = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
 
@@ -500,6 +502,10 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_profile_used(self, obj):
         return bool(obj.profile)
+
+    def get_billing(self, obj):
+        with user_context(obj.user):
+            return engine.billing(obj)
 
     def get_journal(self, obj):
         return journal_state(obj)
@@ -550,6 +556,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'clarifications',
             'clarify_questions',
             'profile_used',
+            'billing',
             'journal',
             'attachments',
             'personas',

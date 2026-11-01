@@ -18,9 +18,13 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+from discussions.share_page import shared_page
+
 urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/', include('discussions.urls')),
+    # прев'ю публічного посилання для месенджерів (nginx віддає /shared/ бекенду)
+    path('shared/<uuid:token>', shared_page, name='shared-page'),
 ]
 # адмінка — на адресі з DJANGO_ADMIN_URL (не стандартній), порожньо — вимкнена
 if settings.ADMIN_URL:

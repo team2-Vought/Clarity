@@ -72,8 +72,15 @@ def daily_usage(user):
     return usage.today(user).replies
 
 
-def over_daily_limit(user):
-    return usage.over_reply_limit(user)
+def over_daily_limit(user, discussion=None):
+    """Ліміт AI-відповідей вичерпано. Дискусія лише на власних ключах людини
+    в ліміт не впирається: за її виклики платить сама людина."""
+    if not usage.over_reply_limit(user):
+        return False
+    if discussion is None:
+        return True
+    with user_context(user):
+        return engine.billing(discussion) != engine.context.OWN
 
 
 def daily_limit_message():
@@ -105,7 +112,7 @@ def run(discussion_id, provider_factory=None, should_stop=None):
             return
         if discussion.stop_requested or discussion.awaiting_clarification:
             return
-        if over_daily_limit(discussion.user):
+        if over_daily_limit(discussion.user, discussion):
             _fail_with_limit(discussion)
             return
         try:

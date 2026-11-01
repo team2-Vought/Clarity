@@ -132,6 +132,11 @@ DEFAULT_FROM_EMAIL=Clarity <no-reply@clarity.example.com>
 них. Скільки дискусій веде кожен воркер, задає `DISCUSSION_WORKER_CONCURRENCY`.
 Воркер завершується за `SIGTERM`, доробивши поточні кроки.
 
+**Моніторинг помилок.** Задайте `SENTRY_DSN` (Sentry чи сумісний, напр.
+GlitchTip) — туди підуть необроблені помилки API й усе, що воркер пише в лог
+з рівнем ERROR. Пошта, IP, cookie й тіла запитів не надсилаються.
+Додатково: `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE`.
+
 **Нагадування журналу рішень.** Листи «Як ваше рішення?» надсилає той самий
 воркер раз на `DISCUSSION_REMINDER_INTERVAL` секунд (типово 10 хвилин). Без
 воркера (`DISCUSSION_RUNNER=thread`) запускайте їх, напр., із cron:
@@ -182,11 +187,22 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+    # публічні посилання: бекенд додає OG-теги для прев'ю в месенджерах
+    location /shared/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
     location / {
         try_files $uri /index.html;
     }
 }
 ```
+
+Для `/shared/` бекенд читає зібраний `frontend/dist/index.html` (інший шлях —
+`FRONTEND_INDEX_HTML`) і додає в нього назву й висновок дискусії: так
+Telegram, Slack чи Viber показують прев'ю, а не просто «Clarity».
 
 Перед Django рівно один проксі — тому `DJANGO_BEHIND_PROXY=true`
 (`DJANGO_NUM_PROXIES=1`). Без проксі цей прапорець не вмикайте: тоді
@@ -195,6 +211,14 @@ server {
 **Адмінка** доступна лише на `DJANGO_ADMIN_URL` (у продакшні без неї вимкнена),
 з тим самим лімітом спроб входу, що й API. Двофакторного входу в ній немає —
 обмежте адресу ще й за IP у nginx (`allow`/`deny`) або через VPN.
+
+**Листи журналу** мають посилання «відписатися» й заголовки `List-Unsubscribe`
+та `List-Unsubscribe-Post` (RFC 8058): Gmail і Outlook показують кнопку відписки,
+а листи рідше потрапляють у спам.
+
+**Дані людини.** У «Налаштування → Дані й входи» — список пристроїв, де людина
+в акаунті (вийти можна на кожному окремо), і експорт усіх даних одним
+JSON-файлом. Його ж пропонує форма видалення акаунта.
 
 **Безпека входу.** Вхід — окремий ключ на кожен пристрій у httpOnly-cookie,
 діє `AUTH_TOKEN_DAYS` (30) днів; «Вийти» виходить лише на цьому пристрої,
@@ -206,5 +230,8 @@ server {
 ## Ліміти
 
 Денні ліміти на користувача — `DISCUSSION_DAILY_LIMIT` (нових дискусій) і
-`DISCUSSION_DAILY_ADVANCE_LIMIT` (AI-відповідей). Користувачі можуть додати
+`DISCUSSION_DAILY_ADVANCE_LIMIT` (AI-відповідей). Рахуються лише виклики, за
+які платить сервер: відповіді моделей на власних ключах людини в ліміт не
+йдуть, а дискусія цілком на її ключах не впирається в жоден ліміт. Чат
+показує, хто платить за дискусію. Користувачі можуть додати
 власні API-ключі в налаштуваннях; ключі зберігаються зашифрованими.

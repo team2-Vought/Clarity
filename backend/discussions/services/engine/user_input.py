@@ -20,7 +20,7 @@ from ..safety import CRISIS, looks_like_crisis
 from .base import EngineConflict, EngineError, JSON_TEMPERATURE, StepPlan, USER_SLUG, daily_limit_error
 from .parsing import _text, normalize_clarify
 from .context import _judge_models, _mode_ctx, _next_seq, _resolved_personas
-from .calls import _complete_json
+from .calls import _bill, _complete_json
 from .lease import _release
 from .status import _start_ai_status
 
@@ -197,13 +197,24 @@ def clarify(discussion, provider_factory=None):
         json_kind='clarify',
     )
     last_error = None
-    for model_id in _judge_models(discussion, personas, 'moderator')[:2]:
-        try:
-            data = _complete_json(provider_factory, plan, model_id, mode, options)
-        except EngineError as exc:
-            last_error = exc
-            continue
-        return normalize_clarify(data)
+    try:
+        for model_id in _judge_models(discussion, personas, 'moderator')[:2]:
+            # виклик власним ключем — без ліміту; серверний — зараховуємо перед викликом
+            if not _bill(plan, model_id, discussion.user_id):
+                last_error = daily_limit_error()
+                continue
+            try:
+                data = _complete_json(provider_factory, plan, model_id, mode, options)
+            except EngineError as exc:
+                last_error = exc
+                continue
+            return normalize_clarify(data)
+    except BaseException:
+        if plan.billed:
+            usage.release_replies(discussion.user_id, 1)
+        raise
+    if plan.billed:
+        usage.release_replies(discussion.user_id, 1)
     raise last_error or EngineError('Немає доступної моделі модератора.', code='provider_config')
 
 
@@ -217,13 +228,13 @@ def _clarify_step(discussion, token, provider_factory=None):
     if discussion.clarify_questions:
         _release(discussion.pk, token)
         return False
-    if not usage.reserve_replies(discussion.user_id, 1):
-        raise daily_limit_error()
     _start_ai_status(discussion, provider_factory)
     try:
         result = clarify(discussion, provider_factory)
-    except EngineError:
-        usage.release_replies(discussion.user_id, 1)
+    except EngineError as exc:
+        # ліміт вичерпано — перевірку контексту не пропускаємо мовчки, а зупиняємось
+        if exc.code == 'daily_limit':
+            raise
         logger.warning('Context check failed', extra={'discussion': str(discussion.pk)}, exc_info=True)
         result = {'ready': True, 'questions': []}
     if result.get('topic'):

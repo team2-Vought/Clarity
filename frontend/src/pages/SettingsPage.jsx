@@ -14,11 +14,13 @@ import {
   StarIcon,
   Sun03Icon,
   UserIcon,
+  SecurityLockIcon,
   ViewIcon,
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import ModelPicker from '../components/ModelPicker';
 import ProfileSettings from '../components/ProfileSettings';
+import PrivacySettings from '../components/PrivacySettings';
 import AboutSettings from '../components/AboutSettings';
 import CustomRolesSettings from '../components/CustomRolesSettings';
 import { Pills, Row, SwitchRow } from '../components/SettingsControls';
@@ -52,6 +54,7 @@ const TABS = [
   { key: 'debate', icon: SlidersHorizontalIcon },
   { key: 'appearance', icon: PaintBoardIcon },
   { key: 'usage', icon: Analytics01Icon },
+  { key: 'privacy', icon: SecurityLockIcon },
 ];
 
 // де провайдер видає ключі — посилання «Де взяти ключ»
@@ -646,7 +649,7 @@ export default function SettingsPage() {
 
   // профіль і інтерфейс не залежать від /api/settings/
   // профіль і «Про мене» завантажують дані самі
-  const needsData = !['appearance', 'profile', 'about'].includes(tab);
+  const needsData = !['appearance', 'profile', 'about', 'privacy'].includes(tab);
   let content;
   if (needsData && isLoading && !data) content = <SettingsSkeleton />;
   else if (needsData && error && !data) {
@@ -663,6 +666,7 @@ export default function SettingsPage() {
   else if (tab === 'debate') content = renderDebate();
   else if (tab === 'appearance') content = renderAppearance();
   else if (tab === 'usage') content = renderUsage();
+  else if (tab === 'privacy') content = <PrivacySettings />;
   else content = renderModels();
 
   // коротка підказка праворуч на картці розділу

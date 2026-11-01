@@ -99,6 +99,11 @@ class Command(BaseCommand):
     def handle(self, *args, concurrency, poll, once, **options):
         concurrency = max(1, concurrency)
         stopping = threading.Event()
+        if settings.SENTRY_DSN:
+            import sentry_sdk
+
+            # помилки воркера в Sentry видно окремо від помилок вебсервера
+            sentry_sdk.set_tag('process', 'discussion_worker')
 
         def request_stop(signum, frame):
             # поточні кроки доробляються, нових не беремо; позначки лишаються в базі

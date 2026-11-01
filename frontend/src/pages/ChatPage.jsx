@@ -1508,6 +1508,13 @@ export default function ChatPage() {
                   </div>
                 </div>
 
+                {discussion?.billing && (
+                  <div className="debate__field">
+                    <h3 className="debate__field-title">{t.billingTitle}</h3>
+                    <p className="debate__share-note">{t.billing[discussion.billing]}</p>
+                  </div>
+                )}
+
                 <div className="debate__field">
                   <h3 className="debate__field-title">{t.share}</h3>
                   {shareUrl ? (

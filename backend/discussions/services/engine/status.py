@@ -14,6 +14,7 @@ from backend.i18n import L, using
 from ...models import Discussion, Message
 from ...personas import devil, moderator
 from .. import prompts, usage
+from ..catalog import paid_by_user
 from .context import (
     _default_model,
     _judge_models,
@@ -106,10 +107,13 @@ STAGE_NOTES_EN = {
 }
 
 
-def _write_ai_status(discussion, focus, provider_factory):
+def _status_model(discussion):
+    personas = _resolved_personas(discussion)
+    return (_judge_models(discussion, personas, 'moderator') or [_default_model()])[0]
+
+
+def _write_ai_status(discussion, focus, provider_factory, model_id, billed):
     try:
-        personas = _resolved_personas(discussion)
-        model_id = (_judge_models(discussion, personas, 'moderator') or [_default_model()])[0]
         raw = _complete(
             provider_factory,
             model_id,
@@ -123,7 +127,8 @@ def _write_ai_status(discussion, focus, provider_factory):
         if text:
             _set_live(phase=discussion.phase, live_status=text[:120])
     except Exception:
-        usage.release_replies(discussion.user_id, 1)
+        if billed:
+            usage.release_replies(discussion.user_id, 1)
         # статус — прикраса: інтерфейс лишиться з рядком за фазою
         logger.info('AI status skipped', extra={'discussion': str(discussion.pk)}, exc_info=True)
     finally:
@@ -137,14 +142,17 @@ def _start_ai_status(discussion, provider_factory):
     focus = describe_step(discussion)
     if not focus:
         return
-    # статус — теж виклик моделі за рахунок сервера; не вміщується в ліміт — без нього
-    if not usage.reserve_replies(discussion.user_id, 1):
+    # статус — теж виклик моделі; за рахунок сервера він рахується в ліміт,
+    # а не вміщується — обходимось без нього. Власним ключем людини — без ліміту
+    model_id = _status_model(discussion)
+    billed = not paid_by_user(model_id)
+    if billed and not usage.reserve_replies(discussion.user_id, 1):
         return
     _set_live(live_status='')
     context = contextvars.copy_context()
     threading.Thread(
         target=context.run,
-        args=(_write_ai_status, discussion, focus, provider_factory),
+        args=(_write_ai_status, discussion, focus, provider_factory, model_id, billed),
         daemon=True,
     ).start()
 

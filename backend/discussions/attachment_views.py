@@ -16,7 +16,7 @@ from backend.i18n import L
 from .models import Attachment
 from .services import usage
 from .services.attachments import NAME_MAX, AttachmentError, extension_of, extract, IMAGE_TYPES
-from .services.catalog import user_context
+from .services.catalog import paid_by_user, user_context, vision_model_ids
 
 PREVIEW_CHARS = 160
 
@@ -63,7 +63,11 @@ class AttachmentUploadView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
         is_image = extension_of(upload.name) in IMAGE_TYPES
-        if is_image and usage.over_reply_limit(request.user):
+        # фото читає модель; першою береться модель на власному ключі — тоді без ліміту
+        with user_context(request.user):
+            vision = vision_model_ids() if is_image else []
+            server_paid = is_image and not (vision and paid_by_user(vision[0]))
+        if server_paid and usage.over_reply_limit(request.user):
             return Response(
                 {'detail': L(
                     'Денний ліміт AI-відповідей вичерпано — фото прочитати не вийде. PDF і текст працюють.',
@@ -77,8 +81,8 @@ class AttachmentUploadView(APIView):
                 kind, text, truncated = extract(upload.name, data)
         except AttachmentError as exc:
             return Response({'detail': exc.public, 'code': exc.code}, status=status.HTTP_400_BAD_REQUEST)
-        if kind == 'image':
-            # фото читає модель — це така сама AI-відповідь, як репліка учасника
+        if kind == 'image' and server_paid:
+            # фото читає модель за рахунок сервера — це така сама AI-відповідь, як репліка
             usage.record(request.user.pk, replies=1)
         attachment = Attachment.objects.create(
             user=request.user,

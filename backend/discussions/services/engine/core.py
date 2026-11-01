@@ -18,7 +18,7 @@ from ..safety import CRISIS, crisis_message
 from .base import EngineBusy, EngineConflict, EngineError, STANCE_AGREE, daily_limit_error
 from .context import _add_message, _list_messages, _resolved_personas, _speakers_done
 from .live import _DraftBoard, _drafts, _live
-from .calls import _run_plans
+from .calls import _run_plans, server_paid_count
 from .planning import _prepare_step
 from .status import _start_ai_status
 from .texts import _agreement, _devil_text, _final_text, _merge_sources, _moderator_text
@@ -297,19 +297,22 @@ def _advance(discussion, provider_factory):
             claimed.phase = Discussion.Phase.OPENING
         plans = _prepare_step(claimed)
         # ліміт резервується до викликів: інакше крок із кількох паралельних
-        # відповідей проходив понад ліміт, бо його рахували лише після кроку
-        if not usage.reserve_replies(claimed.user_id, len(plans)):
+        # відповідей проходив понад ліміт, бо його рахували лише після кроку.
+        # Виклики власними ключами людини не рахуються — за них платить вона
+        if not usage.reserve_replies(claimed.user_id, server_paid_count(plans)):
             raise daily_limit_error()
         _start_ai_status(claimed, provider_factory)
         try:
             results = _run_plans(plans, provider_factory, claimed) if plans else []
         except Exception:
-            usage.release_replies(claimed.user_id, len(plans))
+            usage.release_replies(claimed.user_id, sum(plan.billed for plan in plans))
             raise
         succeeded = [(plan, payload) for plan, payload, error in results if error is None]
         errors = [error for _, _, error in results if error is not None]
         # невдалі виклики відповіді не дали — їх у ліміт не рахуємо
-        usage.release_replies(claimed.user_id, len(errors))
+        usage.release_replies(
+            claimed.user_id, sum(plan.billed for plan, _, error in results if error is not None)
+        )
         if errors and not succeeded:
             raise errors[0]
         combined = None

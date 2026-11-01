@@ -7,13 +7,14 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from backend.i18n import L, lazy_L
 
 from .models import Decision, Discussion
+from .services import reminders
 
 REMIND_CHOICES = (7, 30, 90)
 DECISION_MAX = 2000
@@ -184,6 +185,30 @@ class JournalDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         entry.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class JournalUnsubscribeView(APIView):
+    """POST — відписка від листів журналу за посиланням із листа, без входу.
+
+    Ту саму адресу поштові клієнти викликають за List-Unsubscribe-Post
+    (RFC 8058). GET нічого не змінює: посилання в листах заздалегідь відкривають
+    антивіруси й прев'ю, тож людина підтверджує відписку на сторінці."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request, token):
+        user = reminders.user_from_unsubscribe(token)
+        if user is None:
+            return Response(
+                {'detail': L('Посилання недійсне.', 'The link is invalid.'), 'code': 'invalid_link'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reminders.unsubscribe(user)
+        return Response(
+            {'detail': L('Листи журналу вимкнено.', 'Journal emails are turned off.')},
+            status=status.HTTP_200_OK,
+        )
 
 
 class JournalDueView(APIView):

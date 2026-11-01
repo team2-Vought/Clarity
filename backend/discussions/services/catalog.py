@@ -266,6 +266,13 @@ def user_context(user):
         _user_prefs.reset(prefs_token)
 
 
+def paid_by_user(model_id):
+    """Виклик іде власним ключем користувача — платить він, а не сервер.
+    Такі виклики не рахуються в денний ліміт AI-відповідей."""
+    provider_id = str(model_id or '').split(':', 1)[0]
+    return bool(provider_id) and provider_id in (_user_keys.get() or {})
+
+
 def server_has_key(provider_id):
     key_setting = PROVIDERS[provider_id].get('key_setting')
     return bool(key_setting and getattr(settings, key_setting, ''))
@@ -392,6 +399,8 @@ def _public_spec(spec):
         'requires_key': provider['requires_key'],
         'key_env': provider.get('key_env', ''),
         'local': spec['provider_id'] in {'ollama', 'custom'},
+        # власний ключ користувача: платить він, денний ліміт на ці виклики не діє
+        'own_key': spec['provider_id'] in (_user_keys.get() or {}),
         # бачить зображення — може прочитати фото документа
         'vision': bool(spec.get('vision')),
     }
@@ -487,4 +496,5 @@ def vision_model_ids():
     """Доступні моделі, що бачать зображення; модель за замовчуванням — першою."""
     default = default_model_id()
     ids = [spec['id'] for spec in _all_specs() if spec.get('vision') and _is_available(spec)]
-    return sorted(ids, key=lambda model_id: model_id != default)
+    # спершу — власні ключі людини (без ліміту), далі модель за замовчуванням
+    return sorted(ids, key=lambda model_id: (not paid_by_user(model_id), model_id != default))

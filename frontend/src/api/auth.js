@@ -1,4 +1,4 @@
-import { request, setSession } from './client';
+import { forgetSession, request, setSession } from './client';
 
 // Сервер ставить ключ входу в httpOnly-cookie сам; тут лише позначаємо, що увійшли
 
@@ -40,8 +40,23 @@ export async function logout() {
   } catch {
     /* вихід локально навіть якщо сервер недоступний */
   } finally {
-    setSession(false);
+    forgetSession();
   }
+}
+
+/** Усі дані акаунта (GDPR): профіль, дискусії, журнал, вкладення, входи. */
+export function exportAccount() {
+  return request('/api/auth/export/', { auth: true });
+}
+
+/** Входи на пристроях: [{ id, device, last_used_at, current }]. */
+export function listSessions() {
+  return request('/api/auth/sessions/', { auth: true });
+}
+
+/** Вийти на одному пристрої. */
+export function revokeSession(id) {
+  return request(`/api/auth/sessions/${id}/`, { method: 'DELETE', auth: true });
 }
 
 export function me() {
@@ -91,5 +106,5 @@ export async function confirmPasswordReset({ uid, token, password, confirm_passw
 
 export async function deleteAccount(password) {
   await request('/api/auth/me/', { method: 'DELETE', auth: true, body: { password } });
-  setSession(false);
+  forgetSession();
 }

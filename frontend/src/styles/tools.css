@@ -865,3 +865,24 @@
     animation: none;
   }
 }
+
+/* хто платить за дискусію: власні ключі людини чи сервер */
+.debate__billing {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted, var(--ink));
+}
+
+/* посилання-кнопка в підказках налаштувань */
+.settings__link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

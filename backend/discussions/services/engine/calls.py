@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from backend.i18n import L
 
 from ...models import Message
-from .. import search
-from ..catalog import model_label
+from .. import search, usage
+from ..catalog import model_label, paid_by_user
 from ..providers import ProviderError, get_provider
 from ..criteria import normalize_scores
 from ..safety import normalize_topic
@@ -25,6 +25,7 @@ from .base import (
     MAX_DEVIL_QUERIES,
     MAX_ERROR_PUBLIC,
     MAX_PARALLEL_CALLS,
+    daily_limit_error,
     generic_public_error,
 )
 from .parsing import (
@@ -205,12 +206,37 @@ def _search_all(queries):
         return list(pool.map(run, queries))
 
 
+def server_paid_count(plans):
+    """Скільки викликів кроку оплачує сервер: виклики власними ключами людини
+    в денний ліміт не рахуються. Позначає такі плани як зараховані."""
+    count = 0
+    for plan in plans:
+        if not paid_by_user(plan.model_id):
+            plan.billed = True
+            count += 1
+    return count
+
+
+def _bill(plan, model_id, user_id):
+    """Перед викликом запасної моделі: якщо за неї платить сервер, а план ще не
+    зараховано в ліміт, — зараховуємо. False — ліміт вичерпано, модель пропускаємо."""
+    if plan.billed or paid_by_user(model_id):
+        return True
+    if not usage.reserve_replies(user_id, 1):
+        return False
+    plan.billed = True
+    return True
+
+
 def _run_json_plan(plan, provider_factory, discussion):
     """JSON-крок судді з перемиканням на наступну модель, якщо поточна впала."""
     mode, options = _mode_ctx(discussion)
     models = [plan.model_id, *[m for m in plan.fallback_models if m != plan.model_id]]
     last_error = None
     for model_id in models:
+        if not _bill(plan, model_id, discussion.user_id):
+            last_error = daily_limit_error()
+            continue
         try:
             data = _complete_json(provider_factory, plan, model_id, mode, options)
         except EngineError as exc:

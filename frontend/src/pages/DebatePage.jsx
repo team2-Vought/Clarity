@@ -229,6 +229,10 @@ export default function DebatePage() {
   const allParticipantsHaveModels =
     participants.length > 0
     && participants.every((p) => models.some((m) => m.id === p.model && m.available));
+  // хто платить: якщо в людини є власні ключі, показуємо, чи вийде дискусія без ліміту
+  const chosenModels = participants.map((p) => models.find((m) => m.id === p.model)).filter(Boolean);
+  const hasOwnKeys = models.some((m) => m.own_key);
+  const allOwnKeys = chosenModels.length > 0 && chosenModels.every((m) => m.own_key);
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
   // файли до питання: сервер одразу читає з них текст; поки читає — старт чекає
@@ -1241,6 +1245,10 @@ export default function DebatePage() {
         </div>
 
         {crisis && <CrisisHelp className="debate__crisis" onNotCrisis={() => setNotCrisis(true)} />}
+
+        {hasOwnKeys && chosenModels.length > 0 && (
+          <p className="debate__billing">{allOwnKeys ? t.billingOwn : t.billingServer}</p>
+        )}
 
         {isRoleDialogOpen && (
           <CustomRoleDialog

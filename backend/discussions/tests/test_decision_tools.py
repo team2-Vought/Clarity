@@ -142,7 +142,7 @@ class SafetyTests(ToolsTestCase):
         self.assertTrue(discussion.messages.filter(role=Message.Role.AI).exists())
         # тепер слот витрачено, і вдруге перезапустити не можна
         self.assertEqual(self.client.post('/api/discussions/', {
-            'question': 'Чи варто?', 'personas': ['logician', 'skeptic'],
+            'question': 'Чи варто переходити на нову роботу?', 'personas': ['logician', 'skeptic'], 'rounds': 2,
         }, format='json').status_code, 429)
         again = self.client.post(f'/api/discussions/{created["id"]}/not-crisis/')
         self.assertEqual(again.status_code, 400)

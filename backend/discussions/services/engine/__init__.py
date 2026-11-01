@@ -48,6 +48,7 @@ from .base import (
     EngineError,
     generic_public_error,
 )
+from .context import billing
 from .core import advance
 from .lease import is_running
 from .live import clean_status, draft_text
@@ -65,6 +66,7 @@ __all__ = [
     'add_user_message',
     'advance',
     'answer_clarification',
+    'billing',
     'clarify',
     'clean_status',
     'describe_step',

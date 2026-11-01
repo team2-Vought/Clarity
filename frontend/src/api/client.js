@@ -35,6 +35,23 @@ try {
   /* ignore (приватний режим тощо) */
 }
 
+// Особисте, що лишається в браузері: чернетка питання. На спільному пристрої
+// наступна людина не має її побачити, тож вихід її стирає.
+// Налаштування пристрою (тема, мова, звук) — не особисті, лишаються.
+const PRIVATE_KEYS = ['clarity:draft-question'];
+
+/** Вийшли з акаунта: стираємо позначку входу й особисте з цього браузера. */
+export function forgetSession() {
+  setSession(false);
+  for (const key of PRIVATE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore (приватний режим тощо) */
+    }
+  }
+}
+
 /** Id поточного входу або null — чи показувати сторінки для тих, хто увійшов. */
 export function getSession() {
   try {

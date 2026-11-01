@@ -9,7 +9,6 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from discussions.models import Decision, Discussion
-from discussions.services import reminders
 from discussions.services.reminders import send_due_reminders
 
 User = get_user_model()
@@ -130,7 +129,7 @@ class JournalTests(TestCase):
     def test_failed_email_is_retried_later(self):
         entry_id = self.record().data['id']
         Decision.objects.filter(pk=entry_id).update(check_at=timezone.now() - timedelta(minutes=1))
-        with mock.patch.object(reminders, 'send_mail', side_effect=OSError('smtp down')):
+        with mock.patch('django.core.mail.EmailMessage.send', side_effect=OSError('smtp down')):
             self.assertEqual(send_due_reminders(), 0)
         self.assertIsNone(Decision.objects.get(pk=entry_id).reminded_at)
         self.assertEqual(send_due_reminders(), 1)

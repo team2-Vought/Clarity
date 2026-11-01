@@ -8,7 +8,7 @@ from django.conf import settings
 
 from ...models import Discussion, Message
 from ...personas import localize, moderator
-from ..catalog import available_model_ids, default_model_id, resolve_model
+from ..catalog import available_model_ids, default_model_id, paid_by_user, resolve_model
 from .base import DEFAULT_TEMPERATURE, MAX_SEQ_STEP, USER_SLUG
 from .parsing import _text, _text_list
 
@@ -189,6 +189,28 @@ def _judge_models(discussion, personas, role):
     if not candidates:
         candidates = [model_id for model_id in [*persona_models, _default_model()] if model_id]
     return candidates
+
+
+OWN = 'own'
+SERVER = 'server'
+MIXED = 'mixed'
+
+
+def billing(discussion):
+    """Хто платить за дискусію: 'own' — усі моделі на власних ключах людини
+    (денний ліміт AI-відповідей не діє), 'server' — усі серверні, 'mixed' — частина.
+
+    Викликати всередині user_context власника: саме там видно його ключі."""
+    personas = _resolved_personas(discussion)
+    models = {persona.get('model') for persona in personas if persona.get('model')}
+    for role in ('moderator', 'devil'):
+        judges = _judge_models(discussion, personas, role)
+        if judges:
+            models.add(judges[0])
+    own = [paid_by_user(model_id) for model_id in models]
+    if own and all(own):
+        return OWN
+    return MIXED if any(own) else SERVER
 
 
 def _resolved_personas(discussion):

@@ -231,6 +231,10 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '').strip() or 'Clarity <no
 
 # Адреса фронтенду: на неї ведуть посилання в листах
 FRONTEND_URL = os.getenv('FRONTEND_URL', '').strip() or 'http://localhost:5173'
+# зібраний index.html: у нього /shared/<token> додає OG-теги для прев'ю в месенджерах
+FRONTEND_INDEX_HTML = Path(
+    os.getenv('FRONTEND_INDEX_HTML', '').strip() or BASE_DIR.parent / 'frontend' / 'dist' / 'index.html'
+)
 # Посилання на новий пароль діє 2 години
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 
@@ -287,6 +291,8 @@ REST_FRAMEWORK = {
         'google_login': '20/min',
         # реєстрація з однієї адреси: живій людині вистачить із запасом
         'register': '5/hour',
+        # повний експорт даних — важкий запит, живій людині досить кількох на годину
+        'export': '5/hour',
         # лист на чужу пошту — не даємо розсилати їх потоком
         'password_reset': '5/min',
         # фото читає модель — не даємо завантажувати потоком
@@ -409,3 +415,23 @@ LLM_CUSTOM_API_KEY = os.getenv('CUSTOM_LLM_API_KEY', '').strip()
 API_KEYS_SECRET = os.getenv('API_KEYS_SECRET', '').strip()
 # Перед збереженням ключ перевіряється запитом до провайдера (список моделей)
 API_KEYS_VERIFY = os.getenv('API_KEYS_VERIFY', 'true').strip().lower() in {'1', 'true', 'yes'}
+
+# Моніторинг помилок (Sentry чи сумісний, напр. GlitchTip). Порожньо — вимкнено.
+# Ловить необроблені винятки запитів і все, що пишеться в лог з рівнем ERROR,
+# зокрема logger.exception воркера дискусій і нагадувань.
+SENTRY_DSN = os.getenv('SENTRY_DSN', '').strip()
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        environment=os.getenv('SENTRY_ENVIRONMENT', 'development' if DEBUG else 'production'),
+        release=os.getenv('SENTRY_RELEASE', '') or None,
+        traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0')),
+        # без пошти, IP, cookie й тіл запитів: там питання людей і ключ входу
+        send_default_pii=False,
+        max_request_body_size='never',
+    )
+

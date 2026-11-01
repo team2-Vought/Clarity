@@ -1,6 +1,9 @@
 from django.urls import path
 
 from .views import (
+    AccountExportView,
+    SessionDetailView,
+    SessionListView,
     EmailConfirmView,
     GoogleLoginView,
     LoginView,
@@ -21,6 +24,9 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('me/', MeView.as_view(), name='me'),
     path('email/confirm/', EmailConfirmView.as_view(), name='email-confirm'),
+    path('export/', AccountExportView.as_view(), name='export'),
+    path('sessions/', SessionListView.as_view(), name='sessions'),
+    path('sessions/<int:pk>/', SessionDetailView.as_view(), name='session'),
     path('password/', PasswordView.as_view(), name='password'),
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path(

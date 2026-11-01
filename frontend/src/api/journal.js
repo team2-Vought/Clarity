@@ -27,3 +27,8 @@ export function updateDecision(id, changes) {
 export function deleteDecision(id) {
   return request(`/api/journal/${id}/`, { method: 'DELETE', auth: true });
 }
+
+/** Відписка від листів журналу за посиланням із листа — без входу. */
+export function unsubscribeJournal(token) {
+  return request(`/api/journal/unsubscribe/${encodeURIComponent(token)}/`, { method: 'POST' });
+}
