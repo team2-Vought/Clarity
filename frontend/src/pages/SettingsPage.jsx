@@ -23,6 +23,7 @@ import ProfileSettings from '../components/ProfileSettings';
 import PrivacySettings from '../components/PrivacySettings';
 import AboutSettings from '../components/AboutSettings';
 import CustomRolesSettings from '../components/CustomRolesSettings';
+import VisionPanel from '../components/VisionPanel';
 import { Pills, Row, SwitchRow } from '../components/SettingsControls';
 import ProviderLogo from '../components/ProviderLogo';
 import { getSession } from '../api/client';
@@ -37,10 +38,8 @@ import { useToasts } from '../hooks/useToasts';
 import { LANGUAGES, copy, readLanguagePref, setLanguagePref } from '../copy';
 import {
   isMac,
-  readReducedMotion,
   readSendKey,
   readSuggestions,
-  writeReducedMotion,
   writeSendKey,
   writeSuggestions,
 } from '../utils/devicePrefs';
@@ -53,6 +52,7 @@ const TABS = [
   { key: 'models', icon: Key01Icon },
   { key: 'debate', icon: SlidersHorizontalIcon },
   { key: 'appearance', icon: PaintBoardIcon },
+  { key: 'accessibility', icon: ViewIcon },
   { key: 'usage', icon: Analytics01Icon },
   { key: 'privacy', icon: SecurityLockIcon },
 ];
@@ -340,7 +340,6 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
   const [sendKey, setSendKey] = useState(readSendKey);
-  const [reducedMotion, setReducedMotion] = useState(readReducedMotion);
   const [suggestions, setSuggestions] = useState(readSuggestions);
   const [language, setLanguage] = useState(readLanguagePref);
 
@@ -421,11 +420,6 @@ export default function SettingsPage() {
   const changeSendKey = (value) => {
     setSendKey(value);
     writeSendKey(value);
-  };
-
-  const changeMotion = (value) => {
-    setReducedMotion(value);
-    writeReducedMotion(value);
   };
 
   const changeSuggestions = (value) => {
@@ -605,12 +599,6 @@ export default function SettingsPage() {
           onChange={changeSuggestions}
         />
         <SwitchRow
-          title={t.motionLabel}
-          hint={t.motionHint}
-          checked={reducedMotion}
-          onChange={changeMotion}
-        />
-        <SwitchRow
           title={t.soundLabel}
           hint={t.soundHint}
           checked={notify.sound}
@@ -649,7 +637,7 @@ export default function SettingsPage() {
 
   // профіль і інтерфейс не залежать від /api/settings/
   // профіль і «Про мене» завантажують дані самі
-  const needsData = !['appearance', 'profile', 'about', 'privacy'].includes(tab);
+  const needsData = !['appearance', 'accessibility', 'profile', 'about', 'privacy'].includes(tab);
   let content;
   if (needsData && isLoading && !data) content = <SettingsSkeleton />;
   else if (needsData && error && !data) {
@@ -665,6 +653,7 @@ export default function SettingsPage() {
   else if (tab === 'about') content = <AboutSettings />;
   else if (tab === 'debate') content = renderDebate();
   else if (tab === 'appearance') content = renderAppearance();
+  else if (tab === 'accessibility') content = <VisionPanel onAnnounce={(text) => pushToast(text, 'success')} />;
   else if (tab === 'usage') content = renderUsage();
   else if (tab === 'privacy') content = <PrivacySettings />;
   else content = renderModels();

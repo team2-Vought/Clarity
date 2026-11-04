@@ -7,6 +7,7 @@ import { getSession } from '../api/client';
 import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
 import StatusPage from '../components/StatusPage';
+import { VisionTrigger } from '../components/VisionDialog';
 import SummaryDetails from '../components/SummaryDetails';
 import logo from '../assets/clarity-logo.webp';
 import { copy, locale } from '../copy';
@@ -106,9 +107,12 @@ export default function SharedPage() {
           <img src={logo} alt="" width="40" height="28" />
           <span>{copy.appName}</span>
         </Link>
-        <Link to={getSession() ? '/home' : '/register'} className="shared__cta">
-          {getSession() ? t.ctaSignedIn : t.cta}
-        </Link>
+        <div className="shared__actions">
+          <VisionTrigger compact />
+          <Link to={getSession() ? '/home' : '/register'} className="shared__cta">
+            {getSession() ? t.ctaSignedIn : t.cta}
+          </Link>
+        </div>
       </header>
 
       <main className="shared__main">

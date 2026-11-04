@@ -5,6 +5,7 @@ import { logout } from '../api/auth';
 import { copy } from '../copy';
 import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
 import { useJournalDue } from '../hooks/useJournalDue';
+import { openVisionPanel } from '../utils/vision';
 
 const t = copy.nav;
 
@@ -42,6 +43,14 @@ const ThemeIcon = () => (
   <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
     <path d="M12.4999 3.12516V2.0835M12.4999 22.9168V21.8752M21.8749 12.5002H22.9166M2.08325 12.5002H3.12492M19.2708 5.72933L20.8333 4.16683M4.16659 20.8335L5.72909 19.271M4.16659 4.16683L5.72909 5.72933M19.2708 19.271L20.8333 20.8335" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     <path d="M16.6666 12.5002C16.6666 14.8013 14.8011 16.6668 12.4999 16.6668C10.1987 16.6668 8.33325 14.8013 8.33325 12.5002C8.33325 10.199 10.1987 8.3335 12.4999 8.3335C14.8011 8.3335 16.6666 10.199 16.6666 12.5002Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+// око — режим для людей із порушеннями зору
+const VisionIcon = () => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <path d="M2.6 12.5C4.4 8.3 8.1 5.7 12.5 5.7s8.1 2.6 9.9 6.8c-1.8 4.2-5.5 6.8-9.9 6.8s-8.1-2.6-9.9-6.8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M15.6 12.5a3.1 3.1 0 1 1-6.2 0 3.1 3.1 0 0 1 6.2 0Z" stroke="currentColor" strokeWidth="2" />
   </svg>
 );
 
@@ -207,11 +216,23 @@ export default function Sidebar({
           {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
           <span className="sidebar__label">{themeActionLabel}</span>
         </button>
+        <button
+          type="button"
+          className="sidebar__control"
+          style={{ '--i': NAV_ITEMS.length + 1 }}
+          onClick={openVisionPanel}
+          aria-haspopup="dialog"
+          aria-label={copy.vision.triggerAria}
+          title={collapsed ? copy.vision.triggerAria : undefined}
+        >
+          <VisionIcon />
+          <span className="sidebar__label">{copy.vision.trigger}</span>
+        </button>
         {/* звук, яким Clarity кличе назад, коли висновок готовий */}
         <button
           type="button"
           className={`sidebar__control ${sound ? '' : 'sidebar__control--off'}`}
-          style={{ '--i': NAV_ITEMS.length + 1 }}
+          style={{ '--i': NAV_ITEMS.length + 2 }}
           onClick={() => setSound(!sound)}
           aria-pressed={sound}
           aria-label={t.sound}
@@ -223,7 +244,7 @@ export default function Sidebar({
         <button
           type="button"
           className="sidebar__control sidebar__control--logout"
-          style={{ '--i': NAV_ITEMS.length + 2 }}
+          style={{ '--i': NAV_ITEMS.length + 3 }}
           onClick={handleLogout}
           aria-label={t.logout}
           title={collapsed ? t.logout : undefined}

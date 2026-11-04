@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
+import { VisionTrigger } from '../components/VisionDialog';
 import { copy } from '../copy';
 
 export function Background() {
@@ -34,6 +35,9 @@ export function AuthPage({ title, form, variant, lead = '' }) {
               {copy.common.backHome}
             </button>
           </p>
+          <div className="card__vision">
+            <VisionTrigger />
+          </div>
         </section>
       </main>
     </div>

@@ -7,6 +7,7 @@ import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
 import { readThemeMode } from '../utils/devicePrefs';
+import { VisionTrigger } from './VisionDialog';
 import { copy } from '../copy';
 
 const t = copy.landing;
@@ -88,6 +89,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
           ))}
         </nav>
         <div className="lp-header__actions">
+          <VisionTrigger compact />
           {!signedIn && (
             <button type="button" className="btn-ghost lp-header__login" onClick={onLogin}>
               {t.login}

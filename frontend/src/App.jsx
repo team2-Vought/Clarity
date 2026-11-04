@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { copy } from './copy';
 import Layout from './components/Layout';
+import VisionDialog from './components/VisionDialog';
 import { getSession } from './api/client';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -15,6 +16,8 @@ import './styles/help.css';
 import './styles/journal.css';
 import './styles/tools.css';
 import './styles/status.css';
+// останнім: режим для слабозорих перебиває стилі сторінок
+import './styles/vision.css';
 
 const loadLogin = () => import('./pages/LoginPage');
 const loadRegister = () => import('./pages/RegisterPage');
@@ -95,6 +98,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
+        <VisionDialog />
       </BrowserRouter>
     </ErrorBoundary>
   );

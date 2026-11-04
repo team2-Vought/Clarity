@@ -1,0 +1,528 @@
+/* ---------- Режим для людей із порушеннями зору ----------
+   Кожна опція — атрибут на <html> (ставить public/theme.js до першого кадру
+   і src/utils/vision.js під час роботи). Файл підключається останнім і
+   свідомо перебиває стилі сторінок: інакше кожен компонент довелося б правити окремо. */
+
+/* ---- Розмір тексту: усі шрифти сайту задані в rem, тож досить кореня ---- */
+:root[data-text-scale='125'] { font-size: 125%; }
+:root[data-text-scale='150'] { font-size: 150%; }
+:root[data-text-scale='175'] { font-size: 175%; }
+
+/* збільшений текст не має вилазити за краї: довгі слова переносяться */
+:root[data-text-scale] :where(p, li, h1, h2, h3, h4, label, span, a, button, td, th) {
+  overflow-wrap: anywhere;
+}
+
+/* великий чи ширший шрифт не має розпирати сітки сторінок ширше за екран */
+:root:is([data-text-scale], [data-font='readable']) :is(.lp-main, .lp-hero) > * {
+  min-width: 0;
+}
+
+/* величезні заголовки лендингу й так помітні — на телефоні їх обмежує ширина екрана */
+@media (max-width: 640px) {
+  :root:is([data-text-scale], [data-font='readable']) .lp-hero__title {
+    font-size: min(2.6rem, 12vw);
+  }
+}
+
+/* ---- Висока контрастність (WCAG AAA: текст ≥ 7:1, межі елементів ≥ 3:1) ---- */
+:root[data-contrast='high']:not([data-theme='dark']) {
+  --bg: #ffffff;
+  --text: #000000;
+  --muted: #1f1f1f;
+  --glass: #ffffff;
+  --glass-border: #000000;
+  --input-bg: #ffffff;
+  --input-border: #000000;
+  --btn-bg: #000000;
+  --btn-text: #ffffff;
+  --focus: #0040c1;
+  --error: #9b0029;
+  --toast-bg: #ffffff;
+  --blob-opacity: 0;
+  --vision-line: #000000;
+  --vision-ring: #0040c1;
+  --vision-halo: #ffffff;
+}
+
+:root[data-contrast='high'][data-theme='dark'] {
+  --bg: #000000;
+  --text: #ffffff;
+  --muted: #ececec;
+  --glass: #000000;
+  --glass-border: #ffffff;
+  --input-bg: #000000;
+  --input-border: #ffffff;
+  --btn-bg: #ffffff;
+  --btn-text: #000000;
+  --focus: #ffd60a;
+  --error: #ff9bb3;
+  --toast-bg: #000000;
+  --blob-opacity: 0;
+  --vision-line: #ffffff;
+  --vision-ring: #ffd60a;
+  --vision-halo: #000000;
+}
+
+/* поверхні застосунку, лендингового демо й діалогів мають власні змінні —
+   перебиваємо їх тим самим набором (специфічність вища за :root[data-theme] .app-shell) */
+:root[data-contrast='high']:not([data-theme='dark'])
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog) {
+  --panel: #ececec;
+  --card: #ffffff;
+  --main-bg: #ffffff;
+  --soft: #f3f3f3;
+  --ink: #000000;
+  --muted: #1f1f1f;
+  --divider: #000000;
+  --well: #ffffff;
+}
+
+:root[data-contrast='high'][data-theme='dark']
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog) {
+  --panel: #0b0b0b;
+  --card: #1c1c1c;
+  --main-bg: #000000;
+  --soft: #121212;
+  --ink: #ffffff;
+  --muted: #ececec;
+  --divider: #ffffff;
+  --well: #000000;
+}
+
+/* лінії налаштувань і рамки карток стають помітними */
+:root[data-contrast='high'] :is(.settings, .vision-dialog) {
+  --s-line: color-mix(in srgb, var(--ink) 55%, transparent);
+  --s-control-hover: color-mix(in srgb, var(--ink) 14%, var(--card));
+}
+
+:root[data-contrast='high'] body:has(.app-shell) {
+  background: var(--main-bg);
+}
+
+/* розмиті плями тла й скло за текстом заважають читати */
+:root[data-contrast='high'] .bg {
+  display: none;
+}
+
+:root[data-contrast='high'] *,
+:root[data-contrast='high'] *::before,
+:root[data-contrast='high'] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+
+:root[data-contrast='high'] ::placeholder {
+  color: var(--muted, #1f1f1f);
+  opacity: 1;
+}
+
+/* поля вводу й пігулки отримують чітку межу */
+:root[data-contrast='high']
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='hidden']), textarea, select) {
+  border-color: var(--vision-line) !important;
+  border-width: 2px;
+}
+
+:root[data-contrast='high'] .settings__pill:not(.settings__pill--active) {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
+}
+
+:root[data-contrast='high'] .debate__switch-input {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
+}
+
+:root[data-contrast='high'] .debate__switch-input::before {
+  opacity: 1;
+}
+
+:root[data-contrast='high'] .settings__sheet {
+  box-shadow: inset 0 0 0 1px var(--vision-line);
+}
+
+/* градієнтна риска під заголовком декоративна — суцільна читається краще */
+:root[data-contrast='high'] h1::after {
+  background: var(--vision-line);
+  animation: none;
+}
+
+/* ---- Розбірливий шрифт: Andika (SIL) — розрізняє І/l/1, О/0, має кирилицю ---- */
+:root[data-font='readable'] body,
+:root[data-font='readable'] :where(button, input, textarea, select, h1, h2, h3, h4, h5, h6, p, span, a, li, label, td, th, div) {
+  font-family: 'Andika', Verdana, Tahoma, system-ui, sans-serif !important;
+}
+
+:root[data-font='readable'] :is(code, kbd, samp, pre, pre *) {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace !important;
+}
+
+/* ---- Більші інтервали (WCAG 1.4.12 «Інтервали тексту») ---- */
+:root[data-spacing='wide'] body {
+  letter-spacing: 0.04em;
+  word-spacing: 0.16em;
+}
+
+:root[data-spacing='wide'] :where(p, li, dd, blockquote, td, th, label, textarea) {
+  line-height: 1.7 !important;
+}
+
+:root[data-spacing='wide'] :where(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: 0.01em !important;
+  line-height: 1.3 !important;
+}
+
+:root[data-spacing='wide'] :where(p + p, li + li) {
+  margin-top: 0.75em;
+}
+
+/* ---- Підкреслені посилання: не лише колір відрізняє посилання від тексту ---- */
+:root[data-links='underline'] :is(a[href]:not([class]), p a[href], li a[href], td a[href], .link) {
+  text-decoration: underline !important;
+  text-decoration-thickness: max(2px, 0.08em) !important;
+  text-underline-offset: 0.2em;
+}
+
+/* ---- Помітний фокус клавіатури: товста рамка з контрастним ореолом ----
+   (за високої контрастності кольори кільця задають блоки вище — їхня специфічність більша) */
+:root[data-focus='strong'] {
+  --vision-ring: var(--focus);
+  --vision-halo: var(--bg);
+}
+
+:root[data-focus='strong'] :focus-visible {
+  outline: 3px solid var(--vision-ring) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px var(--vision-halo) !important;
+}
+
+/* ---- Великий курсор ---- */
+:root[data-cursor='large'],
+:root[data-cursor='large'] * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M5 3v30l8-7.5 6.5 13 5-2.4-6.4-12.6H29z' fill='%23000' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E") 5 3, auto !important;
+}
+
+:root[data-cursor='large'] :is(a[href], button:not(:disabled), summary, label, select, [role='button'], [role='tab'], [role='radio'], [role='switch'], [role='menuitem'], [role='menuitemradio'], [role='option'], input[type='checkbox'], input[type='radio']),
+:root[data-cursor='large'] :is(a[href], button:not(:disabled), summary, label, [role='button'], [role='tab'], [role='radio'], [role='menuitem'], [role='option']) * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M5 3v30l8-7.5 6.5 13 5-2.4-6.4-12.6H29z' fill='%230040c1' stroke='%23fff' stroke-width='2.5' stroke-linejoin='round'/%3E%3Ccircle cx='31' cy='31' r='6' fill='%23ffd60a' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") 5 3, pointer !important;
+}
+
+:root[data-cursor='large'] :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit']), textarea, [contenteditable='true']) {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M13 4h14M13 36h14M20 4v32' fill='none' stroke='%23fff' stroke-width='7' stroke-linecap='round'/%3E%3Cpath d='M13 4h14M13 36h14M20 4v32' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 20 20, text !important;
+}
+
+/* ---------- Панель «Зір» ---------- */
+
+.vision-dialog {
+  --card: #ffffff;
+  --soft: #f2f2f3;
+  --ink: #121212;
+  --muted: rgba(18, 18, 18, 0.62);
+  --well: #ffffff;
+  --s-line: color-mix(in srgb, var(--ink) 8%, transparent);
+  --s-sheet: var(--soft);
+  --s-control: var(--card);
+  --s-control-hover: color-mix(in srgb, var(--ink) 4%, var(--card));
+  width: min(560px, calc(100vw - 24px));
+  /* у браузерного <dialog> max-width залежить від em — зі збільшеним текстом він звужувався б */
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .vision-dialog {
+  --card: #2b2b31;
+  --soft: #1f1f23;
+  --ink: #f4f4f4;
+  --muted: rgba(244, 244, 244, 0.62);
+  --well: #1f1f23;
+  --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--card));
+}
+
+:root[data-contrast='high'] .vision-dialog {
+  box-shadow: 0 0 0 3px var(--vision-line);
+}
+
+.vision-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: vision-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.vision-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+@keyframes vision-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+
+.vision-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 12px 24px;
+}
+
+.vision-dialog__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.vision-dialog__close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.vision-dialog__close:hover {
+  background: color-mix(in srgb, var(--ink) 10%, var(--soft));
+}
+
+.vision-dialog__body {
+  padding: 0 20px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---- сам набір налаштувань (і в діалозі, і в «Налаштуваннях») ---- */
+
+.vision-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vision-panel__master {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: var(--ink);
+  color: var(--card);
+  cursor: pointer;
+}
+
+.vision-panel__master-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card) 16%, transparent);
+}
+
+.vision-panel__master-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vision-panel__master-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.vision-panel__master-hint {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+/* перемикач на темній плашці — інвертовані кольори */
+.vision-panel__master .debate__switch-input {
+  --ink: var(--card);
+  --card: #000;
+  background: color-mix(in srgb, var(--card) 20%, transparent);
+}
+
+:root[data-theme='dark'] .vision-panel__master .debate__switch-input {
+  --card: #fff;
+}
+
+.vision-panel__master .debate__switch-input:checked {
+  background: var(--card);
+}
+
+.vision-panel__master .debate__switch-input:checked::before {
+  background: var(--ink);
+}
+
+:root[data-contrast='high'] .vision-panel__master {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
+}
+
+.vision-panel__scale-sample {
+  font-weight: 600;
+}
+
+.vision-panel__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.vision-panel__reset {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vision-panel__reset:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 10%, var(--soft));
+}
+
+.vision-panel__reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:root[data-contrast='high'] .vision-panel__reset,
+:root[data-contrast='high'] .vision-dialog__close {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
+}
+
+.vision-panel .settings__sheet {
+  background: var(--s-sheet);
+}
+
+/* телефон: панель на всю ширину, плашка режиму без іконки — більше місця тексту */
+@media (max-width: 480px) {
+  .vision-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    border-radius: 22px;
+  }
+
+  .vision-dialog__head {
+    padding: 14px 12px 10px 16px;
+  }
+
+  .vision-dialog__body {
+    padding: 0 10px 12px;
+  }
+
+  .vision-panel__master {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .vision-panel__master-icon {
+    display: none;
+  }
+
+  .vision-panel .settings__sheet {
+    padding: 4px 14px;
+  }
+
+  /* чотири розміри тексту — два рядки по дві пігулки */
+  .vision-panel .settings__pills--fill {
+    flex-wrap: wrap;
+  }
+
+  .vision-panel .settings__pills--fill .settings__pill {
+    flex-basis: calc(50% - 3px);
+  }
+}
+
+/* ---- кнопка «Для слабозорих» на сторінках без меню ---- */
+
+.vision-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.vision-trigger:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.vision-trigger:focus-visible,
+.vision-dialog__close:focus-visible,
+.vision-panel__reset:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.vision-panel__master:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+:root[data-contrast='high'] .vision-trigger {
+  border: 2px solid var(--vision-line);
+}
+
+/* на вузькому екрані в шапці лендингу лишається тільки іконка */
+@media (max-width: 640px) {
+  .vision-trigger--compact .vision-trigger__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .vision-trigger--compact {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+/* картка входу: кнопка під посиланням «На головну» */
+.card__vision {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* публічна сторінка дискусії: кнопка поруч із закликом у шапці */
+.shared__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
