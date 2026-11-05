@@ -8,6 +8,7 @@ import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
 import { readThemeMode } from '../utils/devicePrefs';
 import { VisionTrigger } from './VisionDialog';
+import { openBugReport } from '../utils/bugReport';
 import { copy } from '../copy';
 
 const t = copy.landing;
@@ -128,6 +129,9 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
 
       <footer className="lp-footer">
         <span>{t.footer}</span>
+        <button type="button" className="report-link" onClick={() => openBugReport()}>
+          {copy.report.trigger}
+        </button>
       </footer>
     </div>
   );

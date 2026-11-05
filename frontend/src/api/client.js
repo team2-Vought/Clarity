@@ -1,3 +1,4 @@
+import { recordError } from '../utils/diagnostics';
 import { copy, lang } from '../copy';
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
@@ -96,6 +97,7 @@ export async function request(path, { method = 'GET', body, auth = false, signal
     });
   } catch (err) {
     if (err?.name === 'AbortError') throw err;
+    recordError('network', `${method} ${path.split('?')[0]}: ${err?.message || 'failed'}`);
     throw new ApiError(0, { detail: copy.errors.noConnection });
   }
 
@@ -104,6 +106,8 @@ export async function request(path, { method = 'GET', body, auth = false, signal
     setSession(false);
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
+  // збої сервера потрапляють у технічні дані звернення «Знайшли баги?» (без query — там бувають токени)
+  if (res.status >= 500) recordError('api', `${method} ${path.split('?')[0]} → ${res.status}`);
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
 }

@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => ({
     babel({ presets: [reactCompilerPreset()] }),
     cspPlugin(loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL),
   ],
+  // дата збірки — у технічних даних звернення «Знайшли баги?»
+  define: {
+    __APP_BUILD__: JSON.stringify(process.env.VITE_APP_BUILD || new Date().toISOString().slice(0, 10)),
+  },
   server: {
     proxy: {
       '/api': {

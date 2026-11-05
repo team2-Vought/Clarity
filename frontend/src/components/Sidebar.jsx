@@ -6,6 +6,7 @@ import { copy } from '../copy';
 import { useNotifyPrefs } from '../hooks/useNotifyPrefs';
 import { useJournalDue } from '../hooks/useJournalDue';
 import { openVisionPanel } from '../utils/vision';
+import { openBugReport } from '../utils/bugReport';
 
 const t = copy.nav;
 
@@ -51,6 +52,14 @@ const VisionIcon = () => (
   <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
     <path d="M2.6 12.5C4.4 8.3 8.1 5.7 12.5 5.7s8.1 2.6 9.9 6.8c-1.8 4.2-5.5 6.8-9.9 6.8s-8.1-2.6-9.9-6.8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
     <path d="M15.6 12.5a3.1 3.1 0 1 1-6.2 0 3.1 3.1 0 0 1 6.2 0Z" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+// жучок — «Знайшли баги?»
+const BugIcon = () => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <path d="M8.3 9.4h8.4v5.2a4.2 4.2 0 0 1-8.4 0V9.4Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M9.6 9.4V8.2a2.9 2.9 0 0 1 5.8 0v1.2M12.5 13v5.7M8.3 13H4.6m15.8 0h-3.7M8.6 10.6 5.6 8.5m13.8 0-3 2.1M8.6 16.5l-3 2.2m13.8 0-3-2.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
@@ -243,8 +252,20 @@ export default function Sidebar({
         </button>
         <button
           type="button"
-          className="sidebar__control sidebar__control--logout"
+          className="sidebar__control"
           style={{ '--i': NAV_ITEMS.length + 3 }}
+          onClick={() => openBugReport()}
+          aria-haspopup="dialog"
+          aria-label={copy.report.triggerAria}
+          title={collapsed ? copy.report.trigger : undefined}
+        >
+          <BugIcon />
+          <span className="sidebar__label">{copy.report.trigger}</span>
+        </button>
+        <button
+          type="button"
+          className="sidebar__control sidebar__control--logout"
+          style={{ '--i': NAV_ITEMS.length + 4 }}
           onClick={handleLogout}
           aria-label={t.logout}
           title={collapsed ? t.logout : undefined}

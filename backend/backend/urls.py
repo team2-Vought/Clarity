@@ -22,6 +22,7 @@ from discussions.share_page import shared_page
 
 urlpatterns = [
     path('api/auth/', include('accounts.urls')),
+    path('api/support/', include('support.urls')),
     path('api/', include('discussions.urls')),
     # прев'ю публічного посилання для месенджерів (nginx віддає /shared/ бекенду)
     path('shared/<uuid:token>', shared_page, name='shared-page'),

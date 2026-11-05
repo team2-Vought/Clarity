@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts',
     'discussions',
+    'support',
 ]
 
 MIDDLEWARE = [
@@ -240,6 +241,9 @@ PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 
 # Куди писати людям, якщо з акаунтом щось не так (у листі про зміну пошти). Порожньо — без адреси
 SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '').strip()
+# Куди надсилати звернення «Знайшли баги?». Порожньо — на SUPPORT_EMAIL;
+# якщо й там порожньо — звернення лише в адмінці
+BUG_REPORT_EMAIL = os.getenv('BUG_REPORT_EMAIL', '').strip() or SUPPORT_EMAIL
 # Пошта змінюється, лише коли власник нової адреси відкрив лист (24 год)
 EMAIL_CHANGE_TIMEOUT = int(os.getenv('EMAIL_CHANGE_TIMEOUT', str(24 * 3600)))
 
@@ -299,6 +303,10 @@ REST_FRAMEWORK = {
         'password_reset': '5/min',
         # фото читає модель — не даємо завантажувати потоком
         'attachments': '20/min',
+        # реакції й виділення в чаті: людина може клацати швидко, але не тисячами
+        'message_marks': '120/min',
+        # звіти про баги: і гостям, тож не даємо засипати скриньку спамом
+        'bug_report': '10/hour',
     },
 }
 

@@ -4,6 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { copy } from './copy';
 import Layout from './components/Layout';
 import VisionDialog from './components/VisionDialog';
+import BugReportDialog from './components/BugReportDialog';
 import { getSession } from './api/client';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -16,6 +17,8 @@ import './styles/help.css';
 import './styles/journal.css';
 import './styles/tools.css';
 import './styles/status.css';
+import './styles/report.css';
+import './styles/marks.css';
 // останнім: режим для слабозорих перебиває стилі сторінок
 import './styles/vision.css';
 
@@ -99,6 +102,7 @@ export default function App() {
           </Routes>
         </Suspense>
         <VisionDialog />
+        <BugReportDialog />
       </BrowserRouter>
     </ErrorBoundary>
   );

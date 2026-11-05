@@ -56,7 +56,8 @@ def _add_message(
 
 
 def _list_messages(discussion):
-    return list(discussion.messages.order_by('seq'))
+    # виділення людини потрапляють у промпт (prompts.context.reader_marks)
+    return list(discussion.messages.order_by('seq').prefetch_related('highlights'))
 
 
 def _question_message(messages):

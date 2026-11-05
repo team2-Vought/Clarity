@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, Bug02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
 import { roleIcon } from '../utils/debateOptions';
+import { openBugReport } from '../utils/bugReport';
 
 const t = copy.help;
 
@@ -83,6 +84,19 @@ export default function HelpPage() {
             )}
           </section>
         ))}
+
+        <section className="help__report" aria-labelledby="help-report-title">
+          <span className="help__report-icon" aria-hidden="true">
+            <HugeiconsIcon icon={Bug02Icon} size={22} />
+          </span>
+          <div className="help__report-text">
+            <h2 id="help-report-title" className="help__report-title">{copy.report.trigger}</h2>
+            <p className="help__item-text">{copy.report.helpText}</p>
+          </div>
+          <button type="button" className="help__report-button" onClick={() => openBugReport()}>
+            {copy.report.helpAction}
+          </button>
+        </section>
 
         <footer className="help__foot">
           <p className="help__disclaimer">{t.disclaimer}</p>

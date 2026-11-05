@@ -67,7 +67,7 @@
 /* поверхні застосунку, лендингового демо й діалогів мають власні змінні —
    перебиваємо їх тим самим набором (специфічність вища за :root[data-theme] .app-shell) */
 :root[data-contrast='high']:not([data-theme='dark'])
-  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog) {
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog) {
   --panel: #ececec;
   --card: #ffffff;
   --main-bg: #ffffff;
@@ -79,7 +79,7 @@
 }
 
 :root[data-contrast='high'][data-theme='dark']
-  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog) {
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog) {
   --panel: #0b0b0b;
   --card: #1c1c1c;
   --main-bg: #000000;
@@ -245,8 +245,12 @@
   --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--card));
 }
 
-:root[data-contrast='high'] .vision-dialog {
+:root[data-contrast='high'] :is(.vision-dialog, .report-dialog) {
   box-shadow: 0 0 0 3px var(--vision-line);
+}
+
+:root[data-contrast='high'] :is(.report-dialog__close, .report-dialog__button:not(.report-dialog__button--primary), .report-dialog__tech-list) {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
 }
 
 .vision-dialog[open] {

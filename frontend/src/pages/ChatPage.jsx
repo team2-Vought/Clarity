@@ -9,6 +9,7 @@ import {
   Copy01Icon,
   FlashIcon,
   GlobalSearchIcon,
+  HighlighterIcon,
   IdentityCardIcon,
   Link01Icon,
   PencilEdit02Icon,
@@ -26,6 +27,10 @@ import {
   notCrisisDiscussion,
   unshareDiscussion,
   updateDiscussion,
+  setMessageReaction,
+  createHighlight,
+  updateHighlight,
+  deleteHighlight,
 } from '../api/discussions';
 import { useIsPhone } from '../hooks/useIsPhone';
 import { useMyProfile } from '../hooks/useMyProfile';
@@ -70,6 +75,11 @@ import {
   thinkingStep,
 } from '../utils/chatMessages';
 import ChatMessage from '../components/chat/ChatMessage';
+import MarksLayer from '../components/chat/MarksLayer';
+import MarksPanel from '../components/chat/MarksPanel';
+import { markEntries, marksMarkdown, patchMessage } from '../utils/marks';
+import { locateHighlights, shortQuote } from '../utils/highlights';
+import { openBugReport } from '../utils/bugReport';
 import ChatSummary from '../components/chat/ChatSummary';
 import NotifyOffer from '../components/chat/NotifyOffer';
 import AttachmentChip from '../components/AttachmentChip';
@@ -82,6 +92,7 @@ import { isSendShortcut } from '../utils/devicePrefs';
 
 const t = copy.chat;
 const d = copy.debate;
+const m = copy.marks;
 
 // помилка дії — текст і вид картки; мережеву пояснюємо своїми словами
 function actionFailure(err, fallback) {
@@ -212,6 +223,10 @@ export default function ChatPage() {
   // результат з'являється з анімацією лише тоді, коли дискусія йшла на очах
   const [animateSummary, setAnimateSummary] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  // «Мої позначки» в бічній панелі й редактор виділення поверх чату
+  const [isMarksOpen, setIsMarksOpen] = useState(false);
+  const [marksFocus, setMarksFocus] = useState(null);
+  const [editingMark, setEditingMark] = useState(null);
   const advancedRef = useRef(null);
   const [composerHeight, setComposerHeight] = useState(0);
   // «Лише тези»: AI-репліки стиснуті до головної думки, повний текст — за кліком
@@ -1165,7 +1180,12 @@ export default function ChatPage() {
     (message.role === 'ai' && customNames.get(message.persona_slug)) || message.persona_name;
 
   const handleExportMarkdown = () => {
-    const text = discussionMarkdown(discussion, { labels: t, phaseLabel, authorOf });
+    const text = discussionMarkdown(discussion, {
+      labels: t,
+      phaseLabel,
+      authorOf,
+      appendix: marksMarkdown(markEntries(discussion.messages, authorOf)),
+    });
     downloadText(text, markdownFileName(discussion.title));
   };
 
@@ -1272,6 +1292,141 @@ export default function ChatPage() {
     setExpandedIds((current) => new Set(current).add(messageId));
   }, []);
 
+  // ---- реакції й виділення: зміна одразу на екрані, а якщо сервер не прийняв — назад ----
+  const marksStateRef = useRef({});
+  useLayoutEffect(() => {
+    marksStateRef.current = {
+      canAskOne,
+      participantKeys: participantEntries.map((item) => item.key),
+      customNames,
+      isPhone,
+      panelCollapsed,
+    };
+  });
+
+  const patchMessageState = useCallback((messageId, change) => {
+    setDiscussion((current) =>
+      current ? { ...current, messages: patchMessage(current.messages, messageId, change) } : current
+    );
+  }, []);
+
+  const handleReact = useCallback(async (message, reaction) => {
+    const previous = message.reaction || '';
+    patchMessageState(message.id, () => ({ reaction }));
+    try {
+      await setMessageReaction(discussionRef.current.id, message.id, reaction);
+    } catch (err) {
+      patchMessageState(message.id, () => ({ reaction: previous }));
+      pushToast(err?.message || m.reactionError);
+    }
+  }, [patchMessageState, pushToast]);
+
+  const locateMark = useCallback((messageId, highlight) => {
+    const root = document.querySelector(`[data-marks-root="${messageId}"]`);
+    if (!root || !highlight) return null;
+    const [item] = locateHighlights(root, [highlight]);
+    return item ? item.range.getBoundingClientRect() : null;
+  }, []);
+
+  const handleCreateHighlight = useCallback(async (messageId, info, color, withNote) => {
+    try {
+      const highlight = await createHighlight(discussionRef.current.id, messageId, {
+        quote: info.quote,
+        prefix: info.prefix,
+        suffix: info.suffix,
+        color,
+      });
+      patchMessageState(messageId, (message) => ({
+        highlights: [...(message.highlights || []), highlight],
+      }));
+      if (withNote) setEditingMark({ messageId, highlightId: highlight.id, focusNote: true });
+    } catch (err) {
+      pushToast(err?.message || m.highlightError);
+    }
+  }, [patchMessageState, pushToast]);
+
+  const handleUpdateHighlight = useCallback(async (message, highlight, changes) => {
+    const apply = (values) =>
+      patchMessageState(message.id, (current) => ({
+        highlights: (current.highlights || []).map((item) =>
+          item.id === highlight.id ? { ...item, ...values } : item
+        ),
+      }));
+    apply(changes);
+    try {
+      await updateHighlight(discussionRef.current.id, highlight.id, changes);
+    } catch (err) {
+      apply({ color: highlight.color, note: highlight.note });
+      pushToast(err?.message || m.highlightError);
+    }
+  }, [patchMessageState, pushToast]);
+
+  const handleDeleteHighlight = useCallback(async (message, highlight) => {
+    patchMessageState(message.id, (current) => ({
+      highlights: (current.highlights || []).filter((item) => item.id !== highlight.id),
+    }));
+    try {
+      await deleteHighlight(discussionRef.current.id, highlight.id);
+    } catch (err) {
+      patchMessageState(message.id, (current) => ({
+        highlights: [...(current.highlights || []), highlight].sort((a, b) =>
+          String(a.created_at).localeCompare(String(b.created_at))
+        ),
+      }));
+      pushToast(err?.message || m.highlightError);
+    }
+  }, [patchMessageState, pushToast]);
+
+  const handleOpenHighlight = useCallback((message, highlight) => {
+    setEditingMark({ messageId: message.id, highlightId: highlight.id, focusNote: false });
+  }, []);
+
+  const closeEditingMark = useCallback(() => setEditingMark(null), []);
+
+  // текст у поле уточнення; після висновку — адресуємо автору репліки, якщо можна
+  const prefillNote = useCallback((messageId, text) => {
+    const message = (discussionRef.current?.messages || []).find((item) => item.id === messageId);
+    const { canAskOne: canAsk, participantKeys } = marksStateRef.current;
+    if (canAsk && message?.role === 'ai' && participantKeys.includes(message.persona_slug)) {
+      setAskTarget(message.persona_slug);
+    }
+    setIsComposerMin(false);
+    setNote((current) => (current.trim() ? `${current.trimEnd()}\n${text}` : text));
+    requestAnimationFrame(() => {
+      const el = noteRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
+  }, []);
+
+  const handleAskQuote = useCallback(
+    (messageId, quote) => prefillNote(messageId, m.askText(shortQuote(quote, 200))),
+    [prefillNote]
+  );
+
+  const handleExplain = useCallback((message) => {
+    const gist = shortQuote(message.thesis || plainText(message.content), 140);
+    prefillNote(message.id, `${m.explainText}«${gist}» `);
+  }, [prefillNote]);
+
+  const handleReportWrong = useCallback((message) => {
+    const name =
+      (message.role === 'ai' && marksStateRef.current.customNames.get(message.persona_slug))
+      || message.persona_name;
+    openBugReport({ kind: 'ai_answer', messageId: message.id, text: m.reportWrongText(name) });
+  }, []);
+
+  const handleShowMarks = useCallback((messageId = null) => {
+    setIsAdvancedOpen(false);
+    setIsMarksOpen(true);
+    setMarksFocus(messageId);
+    panelRef.current?.scrollTo({ top: 0 });
+    const { isPhone: phone, panelCollapsed: hidden } = marksStateRef.current;
+    if (phone) setIsPanelOpen(true);
+    else if (hidden) togglePanel?.();
+  }, [togglePanel]);
+
   const handleSkipTyping = useCallback(() => setSkipTyping(true), []);
 
   // репліки читають лише ці поля дискусії; окремий об'єкт не змінюється з
@@ -1342,6 +1497,20 @@ export default function ChatPage() {
   const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
 
   // Додаткові налаштування — окремий екран панелі, як на сторінці нової дискусії
+  const marksEntries = markEntries(visibleMessages, authorOf);
+  const marksTotal = marksEntries.reduce(
+    (sum, entry) => sum + entry.highlights.length + (entry.message.reaction ? 1 : 0),
+    0
+  );
+  const editingMessage = editingMark
+    ? (messages || []).find((item) => item.id === editingMark.messageId)
+    : null;
+  const editingHighlight =
+    editingMessage?.highlights?.find((item) => item.id === editingMark.highlightId) || null;
+  const editingMarkView = editingHighlight
+    ? { message: editingMessage, highlight: editingHighlight, focusNote: Boolean(editingMark.focusNote) }
+    : null;
+
   const toggleAdvanced = () => {
     setIsAdvancedOpen((open) => !open);
     panelRef.current?.scrollTo({ top: 0 });
@@ -1360,7 +1529,30 @@ export default function ChatPage() {
         />
       )}
       <aside className="debate__form-panel chat__sidebar" id="chat-settings" ref={panelRef}>
-        {discussion && (isAdvancedOpen ? (
+        {discussion && (isMarksOpen && !isAdvancedOpen ? (
+          <MarksPanel
+            entries={marksEntries}
+            focusId={marksFocus}
+            onBack={() => {
+              setIsMarksOpen(false);
+              setMarksFocus(null);
+            }}
+            onJump={(messageId) => {
+              if (isPhone) setIsPanelOpen(false);
+              jumpToMessage(messageId);
+            }}
+            onOpen={(message, highlight) => {
+              if (compact && message.thesis) expandMessage(message.id);
+              if (isPhone) setIsPanelOpen(false);
+              jumpToMessage(message.id);
+              // редактор — коли репліка докрутилась і підсвітка на місці
+              setTimeout(
+                () => setEditingMark({ messageId: message.id, highlightId: highlight.id, focusNote: false }),
+                prefersReducedMotion() ? 0 : 420
+              );
+            }}
+          />
+        ) : isAdvancedOpen ? (
           <section
             className="debate__panel-view"
             id="chat-advanced"
@@ -1566,6 +1758,16 @@ export default function ChatPage() {
 
             <button
               type="button"
+              className="debate__more-toggle debate__marks-toggle"
+              onClick={() => handleShowMarks(null)}
+            >
+              <HugeiconsIcon icon={HighlighterIcon} size={16} aria-hidden="true" />
+              <span className="debate__more-toggle-text">{m.panelTitle}</span>
+              {marksTotal > 0 && <span className="debate__cast-count">{marksTotal}</span>}
+              <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
               className="debate__more-toggle"
               onClick={toggleAdvanced}
               aria-expanded={isAdvancedOpen}
@@ -1577,6 +1779,16 @@ export default function ChatPage() {
           </div>
         ))}
       </aside>
+
+      <MarksLayer
+        editing={editingMarkView}
+        locate={locateMark}
+        onCloseEdit={closeEditingMark}
+        onCreate={handleCreateHighlight}
+        onUpdate={handleUpdateHighlight}
+        onDelete={handleDeleteHighlight}
+        onAsk={handleAskQuote}
+      />
 
       <div className="chat__column" style={{ '--composer-h': `${composerHeight}px` }}>
         <section
@@ -1675,6 +1887,11 @@ export default function ChatPage() {
               onJump={jumpToMessage}
               userAvatar={userAvatar}
               runRecord={runRecords.get(message.id)}
+              onReact={handleReact}
+              onOpenHighlight={handleOpenHighlight}
+              onExplain={handleExplain}
+              onReportWrong={handleReportWrong}
+              onShowMarks={handleShowMarks}
             />
           ))}
 

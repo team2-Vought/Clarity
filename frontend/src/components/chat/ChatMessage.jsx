@@ -1,9 +1,10 @@
-import { memo } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowTurnBackwardIcon,
   Copy01Icon,
+  HighlighterIcon,
   Search01Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
@@ -24,8 +25,13 @@ import {
   stanceTone,
 } from '../../utils/chatView';
 import AttachmentChip from '../AttachmentChip';
+import ReactionPicker from './ReactionPicker';
+import { highlightAtPoint, locateHighlights, paintHighlights } from '../../utils/highlights';
 
 const t = copy.chat;
+const m = copy.marks;
+const MARKABLE_ROLES = ['ai', 'moderator', 'devil'];
+const NO_HIGHLIGHTS = [];
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;
 
@@ -62,6 +68,11 @@ function ChatMessage({
   onJump,
   userAvatar,
   runRecord,
+  onReact,
+  onOpenHighlight,
+  onExplain,
+  onReportWrong,
+  onShowMarks,
 }) {
   const speakerKey = speakerKeyOf(message);
   const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
@@ -139,6 +150,37 @@ function ChatMessage({
     <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
   );
   const ownSources = typing || draft ? [] : messageSources(message, sourcesById);
+  // реакції й виділення — лише для готових реплік AI у власній дискусії
+  const markable =
+    Boolean(onReact) && MARKABLE_ROLES.includes(message.role) && !typing && !draft && Boolean(message.id);
+  const highlights = (markable && message.highlights) || NO_HIGHLIGHTS;
+  const contentRef = useRef(null);
+  const locatedRef = useRef([]);
+
+  // знаходимо виділення в показаному тексті й віддаємо їх спільній підсвітці;
+  // у стислому вигляді (лише тези) повного тексту немає — тоді й підсвічувати нічого
+  useLayoutEffect(() => {
+    const key = message.id;
+    if (!markable || collapsed || !contentRef.current || !highlights.length) {
+      locatedRef.current = [];
+      paintHighlights(key, []);
+      return undefined;
+    }
+    locatedRef.current = locateHighlights(contentRef.current, highlights);
+    paintHighlights(key, locatedRef.current);
+    return () => paintHighlights(key, []);
+  }, [markable, collapsed, highlights, message.id, message.content]);
+
+  // клік по вже виділеному фрагменту відкриває його: значення, нотатка, «Прибрати»
+  const handleContentClick = (event) => {
+    if (!markable || !onOpenHighlight || !locatedRef.current.length) return;
+    const selection = window.getSelection?.();
+    if (selection && !selection.isCollapsed) return;
+    const found = highlightAtPoint(contentRef.current, locatedRef.current, event.clientX, event.clientY);
+    if (!found) return;
+    const item = locatedRef.current.find((entry) => entry.highlight.id === found.id);
+    onOpenHighlight(message, found, item?.range.getBoundingClientRect() || null);
+  };
   const copyStatus =
     copiedId === message.id ? 'done' : copiedId === `error-${message.id}` ? 'error' : '';
   const copyMessageLabel =
@@ -239,7 +281,14 @@ function ChatMessage({
                   )}
                 </button>
               )}
-              {text}
+              <div
+                ref={contentRef}
+                className="chat__content"
+                data-marks-root={markable ? message.id : undefined}
+                onClick={markable ? handleContentClick : undefined}
+              >
+                {text}
+              </div>
             </div>
             {/* файли, додані до уточнення, — під ним, як під самим питанням */}
             {message.attachments?.length > 0 && (
@@ -262,6 +311,25 @@ function ChatMessage({
                 >
                   <HugeiconsIcon icon={copyStatus === 'done' ? Tick02Icon : Copy01Icon} size={16} />
                 </button>
+                {markable && (
+                  <ReactionPicker
+                    reaction={message.reaction || ''}
+                    onChange={(next) => onReact(message, next)}
+                    onExplain={onExplain ? () => onExplain(message) : undefined}
+                    onReport={onReportWrong ? () => onReportWrong(message) : undefined}
+                  />
+                )}
+                {highlights.length > 0 && (
+                  <button
+                    type="button"
+                    className="chat__marks-count"
+                    onClick={() => onShowMarks?.(message.id)}
+                    title={m.panelTitle}
+                  >
+                    <HugeiconsIcon icon={HighlighterIcon} size={14} aria-hidden="true" />
+                    {m.hasHighlights(highlights.length)}
+                  </button>
+                )}
                 {ownSources.length > 0 ? (
                   <SourceList sources={ownSources} query={searched} compact />
                 ) : (
@@ -319,6 +387,11 @@ ChatMessage.propTypes = {
     steps: PropTypes.arrayOf(PropTypes.string),
     seconds: PropTypes.number,
   }),
+  onReact: PropTypes.func,
+  onOpenHighlight: PropTypes.func,
+  onExplain: PropTypes.func,
+  onReportWrong: PropTypes.func,
+  onShowMarks: PropTypes.func,
 };
 
 export default memo(ChatMessage);

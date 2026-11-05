@@ -1,0 +1,540 @@
+/* ---------- Реакції й виділення в репліках AI ---------- */
+
+:root {
+  --mark-important: rgba(255, 204, 0, 0.42);
+  --mark-agree: rgba(52, 199, 89, 0.32);
+  --mark-doubt: rgba(255, 82, 120, 0.3);
+  --mark-important-dot: #e6b800;
+  --mark-agree-dot: #2fa55a;
+  --mark-doubt-dot: #e0466e;
+}
+
+:root[data-theme='dark'] {
+  --mark-important: rgba(255, 214, 10, 0.32);
+  --mark-agree: rgba(80, 220, 120, 0.28);
+  --mark-doubt: rgba(255, 110, 145, 0.3);
+}
+
+/* підсвітка через CSS Custom Highlight API — без зміни DOM */
+::highlight(clarity-important) { background-color: var(--mark-important); }
+::highlight(clarity-agree) { background-color: var(--mark-agree); }
+::highlight(clarity-doubt) { background-color: var(--mark-doubt); }
+
+/* висока контрастність: колір фону плюс товсте підкреслення — не лише колір */
+:root[data-contrast='high'] {
+  --mark-important: rgba(255, 214, 0, 0.75);
+  --mark-agree: rgba(70, 230, 120, 0.6);
+  --mark-doubt: rgba(255, 120, 150, 0.65);
+}
+
+:root[data-contrast='high'] ::highlight(clarity-important),
+:root[data-contrast='high'] ::highlight(clarity-agree),
+:root[data-contrast='high'] ::highlight(clarity-doubt) {
+  color: #000;
+  text-decoration: underline 2px;
+}
+
+.marks__dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.marks__dot--important { background: var(--mark-important-dot); }
+.marks__dot--agree { background: var(--mark-agree-dot); }
+.marks__dot--doubt { background: var(--mark-doubt-dot); }
+
+/* ---- реакція під реплікою ---- */
+
+.chat__reaction {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat__actions .chat__react {
+  width: 28px;
+  height: 28px;
+}
+
+.chat__reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.chat__reaction-chip:hover {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.chat__reaction-chip--convincing,
+.chat__reaction-chip--insight { background: var(--mark-agree); }
+.chat__reaction-chip--unconvincing,
+.chat__reaction-chip--wrong { background: var(--mark-doubt); }
+.chat__reaction-chip--unclear { background: var(--mark-important); }
+
+.chat__reaction-next,
+.chat__marks-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.chat__marks-count {
+  text-decoration: none;
+}
+
+.chat__reaction-next:hover,
+.chat__marks-count:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.chat__reaction-menu {
+  position: fixed;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  width: min(290px, calc(100vw - 16px));
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.chat__reaction-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat__reaction-option:hover,
+.chat__reaction-option:focus-visible {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  outline: none;
+}
+
+.chat__reaction-option[aria-checked='true'] {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.chat__reaction-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.chat__reaction-option--convincing .chat__reaction-icon,
+.chat__reaction-option--insight .chat__reaction-icon { background: var(--mark-agree); }
+.chat__reaction-option--unconvincing .chat__reaction-icon,
+.chat__reaction-option--wrong .chat__reaction-icon { background: var(--mark-doubt); }
+.chat__reaction-option--unclear .chat__reaction-icon { background: var(--mark-important); }
+
+.chat__reaction-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.chat__reaction-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.chat__reaction-hint {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.chat__reaction-option--remove {
+  margin-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 0 0 12px 12px;
+}
+
+/* ---- панель над виділеним текстом і редактор виділення ---- */
+
+.marks__toolbar,
+.marks__editor {
+  position: fixed;
+  z-index: 130;
+  background: var(--card, #fff);
+  color: var(--ink, #121212);
+  box-shadow: 0 16px 44px -10px rgba(0, 0, 0, 0.38), 0 0 0 1px color-mix(in srgb, var(--ink, #121212) 8%, transparent);
+}
+
+.marks__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.marks__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.marks__tool--icon {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+.marks__tool:hover,
+.marks__tool:focus-visible {
+  background: color-mix(in srgb, var(--ink, #121212) 8%, transparent);
+  outline: none;
+}
+
+.marks__divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: color-mix(in srgb, var(--ink, #121212) 14%, transparent);
+}
+
+.marks__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 16px));
+  padding: 14px;
+  border-radius: 20px;
+}
+
+.marks__quote {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.marks__quote--important { background: var(--mark-important); }
+.marks__quote--agree { background: var(--mark-agree); }
+.marks__quote--doubt { background: var(--mark-doubt); }
+
+.marks__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.marks__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.marks__color--active {
+  box-shadow: inset 0 0 0 2px var(--ink, #121212);
+  font-weight: 600;
+}
+
+.marks__note-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.marks__note {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  outline: none;
+  background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.marks__note:focus-visible {
+  border-color: var(--focus);
+}
+
+.marks__editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.marks__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted, inherit);
+  cursor: pointer;
+}
+
+.marks__icon:hover {
+  background: color-mix(in srgb, var(--ink, #121212) 8%, transparent);
+  color: var(--ink, #121212);
+}
+
+.marks__save {
+  margin-left: auto;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink, #121212);
+  color: var(--card, #fff);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.marks__color:focus-visible,
+.marks__icon:focus-visible,
+.marks__save:focus-visible,
+.chat__reaction-chip:focus-visible,
+.chat__reaction-next:focus-visible,
+.chat__marks-count:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .marks__tool-label {
+    display: none;
+  }
+
+  .marks__tool:not(.marks__tool--icon) {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .marks__tool .marks__dot {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ---- «Мої позначки» в бічній панелі ---- */
+
+.debate__marks-toggle {
+  margin-bottom: 8px;
+}
+
+.debate__marks-toggle .debate__cast-count {
+  margin-right: 4px;
+}
+
+.marks-panel__empty {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--card);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.marks-panel__empty p {
+  margin: 0;
+}
+
+.marks-panel__hint {
+  margin-top: 6px !important;
+  color: var(--muted);
+}
+
+.marks-panel__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.marks-panel__filters .debate__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.marks-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-panel__group {
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--card);
+}
+
+.marks-panel__group--focus {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.marks-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.marks-panel__author {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.marks-panel__author:hover {
+  text-decoration: underline;
+}
+
+.marks-panel__reaction {
+  cursor: default;
+}
+
+.marks-panel__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marks-panel__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 10px 8px 12px;
+  border: 0;
+  border-left: 4px solid var(--mark-important-dot);
+  border-radius: 6px 12px 12px 6px;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.marks-panel__item:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.marks-panel__item--agree { border-left-color: var(--mark-agree-dot); }
+.marks-panel__item--doubt { border-left-color: var(--mark-doubt-dot); }
+
+.marks-panel__quote {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.marks-panel__note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.marks-panel__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.marks-panel__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.marks-panel__notes p {
+  margin: 0;
+}
+
+:root[data-contrast='high'] :is(.marks__toolbar, .marks__editor, .chat__reaction-menu, .marks-panel__group) {
+  box-shadow: 0 0 0 2px var(--vision-line);
+}

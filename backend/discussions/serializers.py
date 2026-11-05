@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from backend.i18n import L, lazy_L
 
-from .models import CustomPersona, Discussion, Message, Team
+from .models import CustomPersona, Discussion, Highlight, Message, Team
 from .personas import (
     DEFAULT_ROUNDS,
     MAX_AI,
@@ -347,9 +347,46 @@ class CreateDiscussionSerializer(serializers.Serializer):
         return attrs
 
 
+HIGHLIGHT_FIELDS = ['id', 'quote', 'prefix', 'suffix', 'color', 'note', 'created_at']
+
+
+class HighlightSerializer(serializers.ModelSerializer):
+    """Виділений фрагмент репліки: цитата з контекстом до й після, колір і нотатка."""
+
+    quote = serializers.CharField(max_length=1000, trim_whitespace=False)
+    prefix = serializers.CharField(max_length=64, required=False, allow_blank=True, trim_whitespace=False)
+    suffix = serializers.CharField(max_length=64, required=False, allow_blank=True, trim_whitespace=False)
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+    class Meta:
+        model = Highlight
+        fields = HIGHLIGHT_FIELDS
+        read_only_fields = ['id', 'created_at']
+
+    def validate_quote(self, value):
+        if not value.strip():
+            raise serializers.ValidationError(L('Виділіть текст репліки', 'Select some text in the reply'))
+        return value
+
+
+class HighlightUpdateSerializer(serializers.Serializer):
+    """Змінити можна лише значення й нотатку — сам фрагмент лишається тим самим."""
+
+    color = serializers.ChoiceField(choices=Highlight.Color.choices, required=False)
+    note = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+
+class ReactionSerializer(serializers.Serializer):
+    """Порожнє значення знімає реакцію."""
+
+    reaction = serializers.ChoiceField(choices=[('', ''), *Message.Reaction.choices])
+
+
 class MessageSerializer(serializers.ModelSerializer):
     # файли, додані до уточнення в чаті (без самого тексту документа)
     attachments = serializers.SerializerMethodField()
+    # позначки людини: бачить лише вона сама (у публічному посиланні їх немає)
+    highlights = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -373,10 +410,15 @@ class MessageSerializer(serializers.ModelSerializer):
             'model_id',
             'created_at',
             'attachments',
+            'reaction',
+            'highlights',
         ]
 
     def get_attachments(self, obj):
         return [attachment_payload(item) for item in obj.attachments.all()]
+
+    def get_highlights(self, obj):
+        return HighlightSerializer(obj.highlights.all(), many=True).data
 
 
 class MessageCreateSerializer(serializers.Serializer):
@@ -491,7 +533,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
 
     def get_messages(self, obj):
-        queryset = obj.messages.order_by('seq').prefetch_related('attachments')
+        queryset = obj.messages.order_by('seq').prefetch_related('attachments', 'highlights')
         after = self.context.get('after')
         if after is not None:
             queryset = queryset.filter(seq__gt=after)
@@ -668,7 +710,12 @@ class SharedMessageSerializer(MessageSerializer):
     а файлів уточнень не показуємо зовсім."""
 
     class Meta(MessageSerializer.Meta):
-        fields = [name for name in MessageSerializer.Meta.fields if name != 'attachments']
+        # файли й особисті позначки (реакції, виділення, нотатки) — лише для автора
+        fields = [
+            name
+            for name in MessageSerializer.Meta.fields
+            if name not in ('attachments', 'reaction', 'highlights')
+        ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

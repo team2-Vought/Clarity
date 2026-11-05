@@ -1,0 +1,457 @@
+/* ---------- «Знайшли баги?» ---------- */
+
+.report-dialog {
+  --card: #ffffff;
+  --soft: #f2f2f3;
+  --ink: #121212;
+  --muted: rgba(18, 18, 18, 0.62);
+  --s-control: var(--soft);
+  --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--soft));
+  width: min(560px, calc(100vw - 24px));
+  /* у браузерного <dialog> max-width залежить від em — зі збільшеним текстом він звужувався б */
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .report-dialog {
+  --card: #2b2b31;
+  --soft: #1f1f23;
+  --ink: #f4f4f4;
+  --muted: rgba(244, 244, 244, 0.62);
+}
+
+.report-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: report-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.report-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+@keyframes report-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+
+.report-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 4px 24px;
+}
+
+.report-dialog__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.report-dialog__close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.report-dialog__close:hover {
+  background: color-mix(in srgb, var(--ink) 10%, var(--soft));
+}
+
+.report-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 24px 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.report-dialog__lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.report-dialog__notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--soft);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.report-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-dialog__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.report-dialog__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.report-dialog__optional,
+.report-dialog__counter {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.report-dialog .settings__pills {
+  gap: 6px;
+}
+
+.report-dialog .settings__pill {
+  height: 36px;
+  font-size: 0.875rem;
+}
+
+.report-dialog__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  outline: none;
+  background: var(--soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.report-dialog__input--area {
+  min-height: 132px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.report-dialog__input::placeholder {
+  color: var(--muted);
+}
+
+.report-dialog__input:focus-visible {
+  border-color: var(--focus);
+}
+
+.report-dialog__input[aria-invalid='true'] {
+  border-color: var(--error, #c93a62);
+}
+
+.report-dialog__error {
+  margin: 0;
+  color: var(--error, #c93a62);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.report-dialog__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.report-dialog__check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.report-dialog__check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.report-dialog__check-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.report-dialog__hint {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.report-dialog__tech {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.report-dialog__link {
+  align-self: flex-start;
+  margin-left: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.report-dialog__tech-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 0 32px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--soft);
+  font-size: 0.8125rem;
+}
+
+.report-dialog__tech-row {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) 1fr;
+  gap: 12px;
+}
+
+.report-dialog__tech-row dt {
+  color: var(--muted);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+.report-dialog__tech-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-dialog__tech-row--error dd {
+  color: var(--error, #c93a62);
+}
+
+/* пастка для ботів — поза екраном, а не display: none (деякі боти його пропускають) */
+.report-dialog__trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.report-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.report-dialog__button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-dialog__button:hover:not(:disabled) {
+  background: var(--soft);
+}
+
+.report-dialog__button--primary,
+.report-dialog__button--primary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.report-dialog__button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.report-dialog__close:focus-visible,
+.report-dialog__button:focus-visible,
+.report-dialog__link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.report-dialog__thanks {
+  align-items: center;
+  padding-top: 12px;
+  text-align: center;
+}
+
+.report-dialog__thanks-icon {
+  color: #23855a;
+}
+
+:root[data-theme='dark'] .report-dialog__thanks-icon {
+  color: #6fd3a3;
+}
+
+.report-dialog__reference {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-dialog__thanks .report-dialog__actions {
+  justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .report-dialog {
+    width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    border-radius: 22px;
+  }
+
+  .report-dialog__head {
+    padding: 14px 12px 4px 18px;
+  }
+
+  .report-dialog__body {
+    padding: 4px 16px 16px;
+  }
+
+  .report-dialog__link,
+  .report-dialog__tech-list {
+    margin-left: 0;
+  }
+}
+
+/* ---------- кнопки «Знайшли баги?» на сторінках без меню ---------- */
+
+.report-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.report-link:hover {
+  text-decoration-color: currentColor;
+}
+
+.report-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* картка внизу лендингу й сторінки входу */
+.lp-footer .report-link {
+  margin-left: 12px;
+}
+
+.card__report {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* «Допомога»: картка «Знайшли баги?» перед підсумком сторінки */
+.help__report {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: var(--h-sheet);
+}
+
+.help__report-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.help__report-text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.help__report-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.help__report-text .help__item-text {
+  margin: 0;
+}
+
+.help__report-button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.help__report-button:hover {
+  opacity: 0.88;
+}
+
+.help__report-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+:root[data-contrast='high'] .help__report {
+  box-shadow: inset 0 0 0 2px var(--vision-line);
+}

@@ -179,6 +179,18 @@ class Message(models.Model):
         DEVIL = 'devil', 'AI Devil'
         RESEARCH = 'research', 'Пошук'
 
+    class Reaction(models.TextChoices):
+        """Як людина сприйняла репліку AI. Учасники бачать це в історії дискусії."""
+
+        CONVINCING = 'convincing', 'Переконливо'
+        UNCONVINCING = 'unconvincing', 'Не переконує'
+        INSIGHT = 'insight', 'Нова думка'
+        UNCLEAR = 'unclear', 'Незрозуміло'
+        WRONG = 'wrong', 'Помилка у фактах'
+
+    # реагувати й виділяти можна лише репліки AI: людина оцінює їх, а не себе
+    MARKABLE_ROLES = ('ai', 'moderator', 'devil')
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     discussion = models.ForeignKey(
         Discussion,
@@ -207,6 +219,10 @@ class Message(models.Model):
     search_query = models.CharField('пошуковий запит', max_length=300, blank=True, default='')
     source_ids = models.JSONField('додані джерела', default=list, blank=True)
     model_id = models.CharField('модель', max_length=120, blank=True, default='')
+    reaction = models.CharField(
+        'реакція людини', max_length=16, choices=Reaction.choices, blank=True, default=''
+    )
+    reaction_at = models.DateTimeField('реакцію поставлено', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -222,6 +238,45 @@ class Message(models.Model):
 
     def __str__(self):
         return f'#{self.seq} {self.persona_name}: {self.content[:40]}'
+
+
+class Highlight(models.Model):
+    """Виділений людиною фрагмент репліки AI — з кольором-значенням і нотаткою.
+
+    Місце фрагмента зберігається як сама цитата з кількома символами до й після
+    неї (як TextQuoteSelector у W3C Web Annotation): так виділення знаходиться
+    в тексті без прив'язки до розмітки, у якій його показали.
+    """
+
+    class Color(models.TextChoices):
+        IMPORTANT = 'important', 'Важливо'
+        AGREE = 'agree', 'Згоден'
+        DOUBT = 'doubt', 'Сумнів'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name='highlights',
+        verbose_name='повідомлення',
+    )
+    quote = models.TextField('виділений текст', max_length=1000)
+    prefix = models.CharField('текст перед виділенням', max_length=64, blank=True, default='')
+    suffix = models.CharField('текст після виділення', max_length=64, blank=True, default='')
+    color = models.CharField(
+        'значення', max_length=12, choices=Color.choices, default=Color.IMPORTANT
+    )
+    note = models.TextField('нотатка', max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'виділення'
+        verbose_name_plural = 'виділення'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.get_color_display()}: {self.quote[:40]}'
 
 
 class DailyUsage(models.Model):

@@ -188,3 +188,36 @@ export function saveTeam({ name, personas, moderatorModel, devilModel }) {
 export function deleteTeam(id) {
   return request(`/api/teams/${id}/`, { method: 'DELETE', auth: true });
 }
+
+/** Реакція на репліку AI; порожній рядок знімає її. */
+export function setMessageReaction(discussionId, messageId, reaction) {
+  return request(`/api/discussions/${discussionId}/messages/${messageId}/reaction/`, {
+    method: 'PUT',
+    auth: true,
+    body: { reaction },
+  });
+}
+
+/** Нове виділення: цитата з кількома символами до й після неї, значення й нотатка. */
+export function createHighlight(discussionId, messageId, { quote, prefix, suffix, color, note = '' }) {
+  return request(`/api/discussions/${discussionId}/messages/${messageId}/highlights/`, {
+    method: 'POST',
+    auth: true,
+    body: { quote, prefix, suffix, color, note },
+  });
+}
+
+export function updateHighlight(discussionId, highlightId, changes) {
+  return request(`/api/discussions/${discussionId}/highlights/${highlightId}/`, {
+    method: 'PATCH',
+    auth: true,
+    body: changes,
+  });
+}
+
+export function deleteHighlight(discussionId, highlightId) {
+  return request(`/api/discussions/${discussionId}/highlights/${highlightId}/`, {
+    method: 'DELETE',
+    auth: true,
+  });
+}

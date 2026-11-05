@@ -4,9 +4,20 @@
 скорочений ключ, замість входів на пристроях — дата й пристрій без ключа.
 """
 
+from django.db.models import F
 from django.utils import timezone
 
-from discussions.models import Attachment, CustomPersona, DailyUsage, Decision, Discussion, Message, Team
+from discussions.models import (
+    Attachment,
+    CustomPersona,
+    DailyUsage,
+    Decision,
+    Discussion,
+    Highlight,
+    Message,
+    Team,
+)
+from support.models import BugReport
 
 from .models import AuthToken, ProviderKey
 
@@ -21,7 +32,7 @@ DISCUSSION_FIELDS = [
 ]
 MESSAGE_FIELDS = [
     'seq', 'phase', 'role', 'persona_slug', 'persona_name', 'round', 'stance', 'content',
-    'model_id', 'created_at',
+    'model_id', 'reaction', 'created_at',
 ]
 
 
@@ -76,4 +87,18 @@ def export_user(user):
         'teams': _all_fields(Team.objects.filter(user=user)),
         'custom_roles': _all_fields(CustomPersona.objects.filter(user=user)),
         'daily_usage': _all_fields(DailyUsage.objects.filter(user=user).order_by('date')),
+        # виділені фрагменти реплік із нотатками; message_seq — номер репліки в дискусії
+        'highlights': list(
+            Highlight.objects.filter(message__discussion__user=user)
+            .order_by('created_at')
+            .values(
+                'quote', 'color', 'note', 'created_at',
+                discussion_id=F('message__discussion_id'), message_seq=F('message__seq'),
+            )
+        ),
+        'bug_reports': list(
+            BugReport.objects.filter(user=user)
+            .order_by('created_at')
+            .values('kind', 'description', 'contact_email', 'page', 'status', 'created_at')
+        ),
     }

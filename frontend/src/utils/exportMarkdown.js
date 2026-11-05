@@ -14,9 +14,10 @@ const quote = (text) =>
 
 /**
  * `labels` — тексти з copy (copy.chat), `phaseLabel(message)` — назва етапу,
- * `authorOf(message)` — ім'я автора так, як його видно в чаті.
+ * `authorOf(message)` — ім'я автора так, як його видно в чаті,
+ * `appendix` — готовий Markdown, що додається після висновку (наприклад, «Мої позначки»).
  */
-export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf }) {
+export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf, appendix = '' }) {
   const lines = [`# ${discussion.title || labels.exportTitle}`, '', quote(discussion.question), ''];
   const messages = (discussion.messages || []).filter((message, index, all) => {
     // перше повідомлення користувача — саме запитання, воно вже є вгорі
@@ -65,6 +66,9 @@ export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf })
       lines.push(`**${labels.summaryTriggers}:**`, '', ...triggers.map((item) => `- ${item}`), '');
     }
   }
+
+  // позначки людини (utils/marks.js) — після висновку, перед джерелами
+  if (appendix) lines.push(appendix.trim(), '');
 
   const sources = discussion.sources || [];
   if (sources.length) {

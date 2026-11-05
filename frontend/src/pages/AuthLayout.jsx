@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
 import { VisionTrigger } from '../components/VisionDialog';
 import { copy } from '../copy';
+import { openBugReport } from '../utils/bugReport';
 
 export function Background() {
   return (
@@ -38,6 +39,12 @@ export function AuthPage({ title, form, variant, lead = '' }) {
           <div className="card__vision">
             <VisionTrigger />
           </div>
+          {/* проблеми зі входом — найчастіша причина написати нам */}
+          <p className="card__report">
+            <button type="button" className="report-link" onClick={() => openBugReport()}>
+              {copy.report.trigger}
+            </button>
+          </p>
         </section>
       </main>
     </div>

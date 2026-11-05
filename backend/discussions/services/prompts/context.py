@@ -189,13 +189,67 @@ def _line_prefix(message):
     )
 
 
+REACTION_LABELS = {
+    'convincing': ('переконливо', 'convincing'),
+    'unconvincing': ('не переконує', 'not convincing'),
+    'insight': ('нова для неї думка', 'a new idea to them'),
+    'unclear': ('незрозуміло', 'unclear'),
+    'wrong': ('схоже на помилку у фактах', 'looks like a factual error'),
+}
+HIGHLIGHT_LABELS = {
+    'important': ('важливо', 'important'),
+    'agree': ('згоден', 'agree'),
+    'doubt': ('сумнів', 'doubt'),
+}
+# у промпт — лише кілька виділень із кожної репліки й коротко, щоб не роздувати контекст
+MARKS_PER_MESSAGE = 3
+MARK_QUOTE_LIMIT = 160
+MARK_NOTE_LIMIT = 160
+
+
+def _clip(text, limit):
+    text = _inline(text)
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + '…'
+
+
+def _highlights_of(message):
+    """Лише вже завантажені виділення: рушій бере їх prefetch_related, а сторонні
+    об'єкти (тести, чернетки) без кешу не мають робити запитів до бази."""
+    cache = getattr(message, '_prefetched_objects_cache', None) or {}
+    return list(cache.get('highlights', ()))
+
+
+def reader_marks(message):
+    """Як людина позначила репліку: реакція й виділені фрагменти з нотатками."""
+    parts = []
+    reaction = REACTION_LABELS.get(getattr(message, 'reaction', '') or '')
+    if reaction:
+        parts.append(L(f'реакція: {reaction[0]}', f'reaction: {reaction[1]}'))
+    for highlight in _highlights_of(message)[:MARKS_PER_MESSAGE]:
+        label = HIGHLIGHT_LABELS.get(highlight.color, HIGHLIGHT_LABELS['important'])
+        quote = _clip(highlight.quote, MARK_QUOTE_LIMIT)
+        note = _clip(highlight.note, MARK_NOTE_LIMIT)
+        note_part = L(f'; нотатка: {note}', f'; note: {note}') if note else ''
+        parts.append(L(
+            f'виділила «{quote}» ({label[0]}{note_part})',
+            f'highlighted “{quote}” ({label[1]}{note_part})',
+        ))
+    if not parts:
+        return ''
+    return L(' [позначки людини: ', ' [the user’s marks: ') + '; '.join(parts) + ']'
+
+
 def _message_line(message):
-    return f'{_line_prefix(message)}: {message.content}'
+    return f'{_line_prefix(message)}{reader_marks(message)}: {message.content}'
 
 
 def _compact_line(message):
     thesis = _inline(getattr(message, 'thesis', '')) or fallback_thesis(message.content)
-    return f'{_line_prefix(message)} — {L("коротко", "in short")}: {thesis}'
+    return f'{_line_prefix(message)}{reader_marks(message)} — {L("коротко", "in short")}: {thesis}'
+
+
+def has_reader_marks(messages):
+    return any(reader_marks(message) for message in messages or ())
 
 
 def _without_question(messages):
@@ -359,6 +413,22 @@ def _context_block(
     block = sources_block(sources)
     if block:
         lines.extend(['', block])
+    if messages is not None and has_reader_marks(messages):
+        lines.extend([
+            '',
+            L(
+                'Людина позначала репліки під час читання — це видно в історії як '
+                '[позначки людини: …]. Це її сигнали, а не нові факти: розвивай те, що '
+                'її переконало; простіше поясни незрозуміле; перевір і чесно виправ те, '
+                'де вона бачить помилку чи має сумнів. Не дякуй за позначки й не '
+                'переказуй їх дослівно.',
+                'The user marked replies while reading — the history shows this as '
+                '[the user’s marks: …]. These are their signals, not new facts: build on '
+                'what convinced them; explain the unclear more simply; check and honestly '
+                'correct what they see as an error or doubt. Do not thank them for the '
+                'marks or repeat them verbatim.',
+            ),
+        ])
     if messages is not None:
         lines.extend(
             [

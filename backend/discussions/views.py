@@ -18,7 +18,7 @@ from accounts.about import snapshot as about_snapshot
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
-from .models import Attachment, CustomPersona, Discussion, Message, Team
+from .models import Attachment, CustomPersona, Discussion, Highlight, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
@@ -35,6 +35,9 @@ from .serializers import (
     NON_RETRYABLE_CODES,
     CustomPersonaSerializer,
     FeedbackSerializer,
+    HighlightSerializer,
+    HighlightUpdateSerializer,
+    ReactionSerializer,
     ClarifyAnswersSerializer,
     CreateDiscussionSerializer,
     DiscussionListSerializer,
@@ -775,6 +778,132 @@ class DiscussionFeedbackView(OwnedDiscussionView):
             {'feedback': discussion.feedback, 'feedback_note': discussion.feedback_note},
             status=status.HTTP_200_OK,
         )
+
+
+# стільки виділень вистачить на найдовшу репліку й не дасть роздути базу
+HIGHLIGHTS_PER_MESSAGE = 30
+HIGHLIGHTS_PER_DISCUSSION = 300
+
+
+def _message_not_found():
+    return Response(
+        {'detail': L('Репліку не знайдено', 'Reply not found')},
+        status=status.HTTP_404_NOT_FOUND,
+    )
+
+
+class MarkableMessageMixin:
+    """Репліка AI у власній дискусії — лише такі можна оцінювати й виділяти."""
+
+    def get_markable(self, request, pk, message_pk):
+        return (
+            Message.objects.filter(
+                pk=message_pk,
+                discussion_id=pk,
+                discussion__user=request.user,
+                role__in=Message.MARKABLE_ROLES,
+            )
+            .select_related('discussion')
+            .first()
+        )
+
+
+class MessageReactionView(MarkableMessageMixin, APIView):
+    """Реакція на репліку AI: «переконливо», «незрозуміло», «помилка у фактах»…
+
+    Учасники бачать реакції в історії дискусії й враховують їх у наступних репліках.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'message_marks'
+    throttle_classes = [ScopedRateThrottle]
+
+    def put(self, request, pk, message_pk):
+        message = self.get_markable(request, pk, message_pk)
+        if message is None:
+            return _message_not_found()
+        serializer = ReactionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        value = serializer.validated_data['reaction']
+        Message.objects.filter(pk=message.pk).update(
+            reaction=value, reaction_at=timezone.now() if value else None
+        )
+        return Response({'id': message.pk, 'reaction': value}, status=status.HTTP_200_OK)
+
+
+class MessageHighlightListView(MarkableMessageMixin, APIView):
+    """Нове виділення у репліці AI."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'message_marks'
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request, pk, message_pk):
+        message = self.get_markable(request, pk, message_pk)
+        if message is None:
+            return _message_not_found()
+        serializer = HighlightSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if message.highlights.count() >= HIGHLIGHTS_PER_MESSAGE:
+            return Response(
+                {'detail': L(
+                    f'В одній репліці можна виділити не більше {HIGHLIGHTS_PER_MESSAGE} фрагментів.',
+                    f'You can highlight no more than {HIGHLIGHTS_PER_MESSAGE} passages in one reply.',
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if Highlight.objects.filter(message__discussion_id=pk).count() >= HIGHLIGHTS_PER_DISCUSSION:
+            return Response(
+                {'detail': L(
+                    f'В одній дискусії можна виділити не більше {HIGHLIGHTS_PER_DISCUSSION} фрагментів.',
+                    f'You can highlight no more than {HIGHLIGHTS_PER_DISCUSSION} passages in one discussion.',
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        data = serializer.validated_data
+        highlight = Highlight.objects.create(
+            message=message,
+            quote=data['quote'],
+            prefix=data.get('prefix', ''),
+            suffix=data.get('suffix', ''),
+            color=data.get('color', Highlight.Color.IMPORTANT),
+            note=data.get('note', '').strip(),
+        )
+        return Response(HighlightSerializer(highlight).data, status=status.HTTP_201_CREATED)
+
+
+class HighlightDetailView(APIView):
+    """Змінити значення чи нотатку виділення або прибрати його."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = 'message_marks'
+    throttle_classes = [ScopedRateThrottle]
+
+    def get_highlight(self, request, pk, highlight_pk):
+        return Highlight.objects.filter(
+            pk=highlight_pk, message__discussion_id=pk, message__discussion__user=request.user
+        ).first()
+
+    def patch(self, request, pk, highlight_pk):
+        highlight = self.get_highlight(request, pk, highlight_pk)
+        if highlight is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = HighlightUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if 'color' in data:
+            highlight.color = data['color']
+        if 'note' in data:
+            highlight.note = data['note'].strip()
+        highlight.save(update_fields=['color', 'note', 'updated_at'])
+        return Response(HighlightSerializer(highlight).data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk, highlight_pk):
+        highlight = self.get_highlight(request, pk, highlight_pk)
+        if highlight is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        highlight.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CustomPersonaListView(APIView):
