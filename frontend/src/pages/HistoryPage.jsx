@@ -17,6 +17,9 @@ import { deleteDiscussion, fetchDiscussions, updateDiscussion } from '../api/dis
 import { useToasts } from '../hooks/useToasts';
 import { getSession } from '../api/client';
 import { copy, locale } from '../copy';
+import LoadError from '../components/LoadError';
+import ErrorNotice from '../components/ErrorNotice';
+import { describeError } from '../utils/errorKind';
 
 const t = copy.history;
 
@@ -131,7 +134,8 @@ export default function HistoryPage() {
   const [nextOffset, setNextOffset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState('');
+  // { kind, text } або null
+  const [error, setError] = useState(null);
   // архів — окремий розділ: архівні дискусії не змішуються з рештою
   const [isArchive, setIsArchive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,14 +157,14 @@ export default function HistoryPage() {
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    setError('');
+    setError(null);
     try {
       const data = await fetchDiscussions({ archived: isArchive, q: searchTerm });
       setItems(data?.results || []);
       setNextOffset(data?.next_offset ?? null);
       setNow(new Date());
     } catch (err) {
-      setError(err.message || t.loadError);
+      setError(describeError(err, t.loadError));
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +181,7 @@ export default function HistoryPage() {
       });
       setNextOffset(data?.next_offset ?? null);
     } catch (err) {
-      setError(err.message || t.loadError);
+      setError(describeError(err, t.loadError));
     } finally {
       setIsLoadingMore(false);
     }
@@ -228,7 +232,7 @@ export default function HistoryPage() {
         next.splice(Math.min(pending.index, next.length), 0, pending.item);
         return next;
       });
-      setError(err.message || t.deleteError);
+      setError(describeError(err, t.deleteError));
     }
   }, []);
 
@@ -318,7 +322,7 @@ export default function HistoryPage() {
     const index = items.findIndex((item) => item.id === id);
     if (index < 0) return;
     if (pendingRef.current) commitDelete(pendingRef.current);
-    setError('');
+    setError(null);
     const pending = { item: items[index], index };
     pending.timer = setTimeout(() => commitDelete(pending), UNDO_MS);
     pendingRef.current = pending;
@@ -350,7 +354,7 @@ export default function HistoryPage() {
       await updateDiscussion(item.id, { pinned });
     } catch (err) {
       apply(!pinned);
-      setError(err.message || t.updateError);
+      setError(describeError(err, t.updateError));
     }
   };
 
@@ -368,7 +372,7 @@ export default function HistoryPage() {
         next.splice(Math.min(index, next.length), 0, item);
         return next;
       });
-      setError(err.message || t.updateError);
+      setError(describeError(err, t.updateError));
     }
   };
 
@@ -465,15 +469,18 @@ export default function HistoryPage() {
         <div className="history__inner">
           <h1 className="history__sr-only">{t.title}</h1>
 
-          {error && (
-            <div className="history__error" role="alert">
-              <p>{error}</p>
-              {!isLoading && (
-                <button type="button" className="history__retry" onClick={load}>
-                  {t.retry}
-                </button>
-              )}
-            </div>
+          {/* не завантажилось нічого — великий блок замість сторінки; збій дії над
+              наявними дискусіями — картка над ними, щоб список лишався на місці */}
+          {error && !isLoading && items.length === 0 && (
+            <LoadError kind={error.kind} text={error.text} onRetry={load} />
+          )}
+          {error && !isLoading && items.length > 0 && (
+            <ErrorNotice
+              kind={error.kind}
+              text={error.text}
+              className="history__notice"
+              actions={[{ label: t.retry, onClick: load }]}
+            />
           )}
 
           {isLoading && <p className="history__sr-only" role="status">{t.loading}</p>}

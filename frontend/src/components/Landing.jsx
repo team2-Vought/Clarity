@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import Logo from './Logo';
 import Hero from './landing/Hero';
@@ -6,48 +6,18 @@ import HowItWorks from './landing/HowItWorks';
 import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
-import { readThemeMode } from '../utils/devicePrefs';
-import { VisionTrigger } from './VisionDialog';
+import { useDeviceTheme } from '../hooks/useDeviceTheme';
 import { openBugReport } from '../utils/bugReport';
 import { copy } from '../copy';
 
 const t = copy.landing;
 const NAV = ['how', 'team', 'demo', 'features'];
-const DARK_QUERY = '(prefers-color-scheme: dark)';
-
-const subscribeScheme = (onChange) => {
-  const query = window.matchMedia?.(DARK_QUERY);
-  query?.addEventListener('change', onChange);
-  return () => query?.removeEventListener('change', onChange);
-};
-
-const systemPrefersDark = () => Boolean(window.matchMedia?.(DARK_QUERY).matches);
-
-const applyTheme = (theme) => {
-  document.documentElement.dataset.theme = theme;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === 'dark' ? '#121212' : '#ececec';
-};
-
 export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart }) {
   // лендинг завжди в темі пристрою, а не в тій, що обрана в застосунку
-  const systemDark = useSyncExternalStore(subscribeScheme, systemPrefersDark);
+  useDeviceTheme();
   const [question, setQuestion] = useState('');
   const [scrolled, setScrolled] = useState(false);
   const rootRef = useRef(null);
-
-  useEffect(() => {
-    applyTheme(systemDark ? 'dark' : 'light');
-  }, [systemDark]);
-
-  // поза лендингом повертаємо тему, збережену в налаштуваннях застосунку
-  useEffect(
-    () => () => {
-      const mode = readThemeMode();
-      if (mode !== 'system') applyTheme(mode);
-    },
-    []
-  );
 
   // блоки з data-reveal плавно з'являються, коли доходять до екрана
   useEffect(() => {
@@ -90,7 +60,6 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
           ))}
         </nav>
         <div className="lp-header__actions">
-          <VisionTrigger compact />
           {!signedIn && (
             <button type="button" className="btn-ghost lp-header__login" onClick={onLogin}>
               {t.login}

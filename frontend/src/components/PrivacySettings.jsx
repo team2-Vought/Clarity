@@ -17,7 +17,7 @@ const when = (value) =>
     minute: '2-digit',
   });
 
-/** «Дані й входи»: де людина зараз в акаунті та всі її дані одним файлом. */
+/** Частина «Безпеки й даних»: де людина зараз в акаунті та всі її дані одним файлом. */
 export default function PrivacySettings() {
   const navigate = useNavigate();
   const { pushToast } = useToasts();

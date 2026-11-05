@@ -2,13 +2,14 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Analytics01Icon,
   ArrowUpRight01Icon,
   ComputerIcon,
+  CustomerSupportIcon,
   Delete02Icon,
   IdentityCardIcon,
   Key01Icon,
   Moon02Icon,
+  Notification01Icon,
   PaintBoardIcon,
   SlidersHorizontalIcon,
   StarIcon,
@@ -19,6 +20,8 @@ import {
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import ModelPicker from '../components/ModelPicker';
+import LoadError from '../components/LoadError';
+import { describeError } from '../utils/errorKind';
 import ProfileSettings from '../components/ProfileSettings';
 import PrivacySettings from '../components/PrivacySettings';
 import AboutSettings from '../components/AboutSettings';
@@ -27,6 +30,7 @@ import VisionPanel from '../components/VisionPanel';
 import { Pills, Row, SwitchRow } from '../components/SettingsControls';
 import ProviderLogo from '../components/ProviderLogo';
 import { getSession } from '../api/client';
+import { openBugReport } from '../utils/bugReport';
 import {
   deleteProviderKey,
   fetchSettings,
@@ -46,16 +50,46 @@ import {
 
 const t = copy.settings;
 
-const TABS = [
-  { key: 'profile', icon: UserIcon },
-  { key: 'about', icon: IdentityCardIcon },
-  { key: 'models', icon: Key01Icon },
-  { key: 'debate', icon: SlidersHorizontalIcon },
-  { key: 'appearance', icon: PaintBoardIcon },
-  { key: 'accessibility', icon: ViewIcon },
-  { key: 'usage', icon: Analytics01Icon },
-  { key: 'privacy', icon: SecurityLockIcon },
+// Розділи згруповані за тим, що людина шукає: хто вона й як захищений акаунт,
+// як іде дискусія, як поводиться застосунок на цьому пристрої, і де попросити допомоги.
+const GROUPS = [
+  {
+    key: 'account',
+    tabs: [
+      { key: 'profile', icon: UserIcon },
+      { key: 'security', icon: SecurityLockIcon },
+    ],
+  },
+  {
+    key: 'discussions',
+    tabs: [
+      { key: 'debate', icon: SlidersHorizontalIcon },
+      { key: 'about', icon: IdentityCardIcon },
+      { key: 'models', icon: Key01Icon },
+    ],
+  },
+  {
+    key: 'app',
+    tabs: [
+      { key: 'appearance', icon: PaintBoardIcon },
+      { key: 'notifications', icon: Notification01Icon },
+      { key: 'accessibility', icon: ViewIcon },
+    ],
+  },
+  {
+    key: 'support',
+    tabs: [{ key: 'support', icon: CustomerSupportIcon }],
+  },
 ];
+
+const TABS = GROUPS.flatMap((group) => group.tabs);
+
+// старі адреси розділів (закладки, посилання з інших сторінок) ведуть туди, де це тепер лежить
+const TAB_ALIASES = {
+  privacy: 'security',
+  usage: 'models',
+  report: 'support',
+};
 
 // де провайдер видає ключі — посилання «Де взяти ключ»
 const KEY_URLS = {
@@ -332,12 +366,12 @@ export default function SettingsPage() {
   const { themeMode, setThemeMode } = useOutletContext();
   const { pushToast } = useToasts();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requested = searchParams.get('tab');
+  const requested = TAB_ALIASES[searchParams.get('tab')] || searchParams.get('tab');
   const tab = TABS.some((item) => item.key === requested) ? requested : TABS[0].key;
 
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [sendKey, setSendKey] = useState(readSendKey);
   const [suggestions, setSuggestions] = useState(readSuggestions);
@@ -352,11 +386,11 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    setError('');
+    setError(null);
     try {
       setData(await fetchSettings());
     } catch (err) {
-      setError(err?.message || t.loadError);
+      setError(describeError(err, t.loadError));
     } finally {
       setIsLoading(false);
     }
@@ -430,6 +464,7 @@ export default function SettingsPage() {
   const models = data?.models || [];
   const availableModels = models.filter((model) => model.available);
   const prefs = data?.preferences || {};
+  const usage = data?.usage || {};
   // збережена модель могла стати недоступною (ключ видалено) — тоді «автоматично»
   const chosenDefault = availableModels.some((model) => model.id === prefs.default_model)
     ? prefs.default_model
@@ -440,20 +475,16 @@ export default function SettingsPage() {
   const shownProviders =
     filter === 'available' ? providers.filter((provider) => provider.available) : providers;
 
+  // ліміти — угорі: власний ключ їх знімає, тож вони поруч із ключами
   const renderModels = () => (
     <>
       <div className="settings__sheet">
-        <Row title={t.defaultModel} hint={t.defaultModelHint} wide>
-          <ModelPicker
-            models={availableModels}
-            value={chosenDefault}
-            onChange={(value) => savePreference({ default_model: value })}
-            label={t.defaultModel}
-            autoLabel={t.defaultModelAuto}
-            disabled={!availableModels.length}
-          />
-        </Row>
+        <UsageMeter title={t.usageDiscussions} used={usage.discussions || 0} limit={usage.discussions_limit || 0} />
+        <UsageMeter title={t.usageReplies} used={usage.replies || 0} limit={usage.replies_limit || 0} />
       </div>
+      <p className="settings__footnote">
+        {t.usageLead} {t.usageKeysNote}
+      </p>
 
       <div className="settings__toolbar">
         <span className="settings__count">{t.availableCount(availableModels.length, models.length)}</span>
@@ -493,6 +524,16 @@ export default function SettingsPage() {
   const renderDebate = () => (
     <>
       <div className="settings__sheet">
+        <Row title={t.defaultModel} hint={t.defaultModelHint} wide>
+          <ModelPicker
+            models={availableModels}
+            value={chosenDefault}
+            onChange={(value) => savePreference({ default_model: value })}
+            label={t.defaultModel}
+            autoLabel={t.defaultModelAuto}
+            disabled={!availableModels.length}
+          />
+        </Row>
         <Row title={t.modeLabel} hint={copy.debate.modeHints[prefs.default_mode]} stacked>
           <Pills
             fill
@@ -598,6 +639,15 @@ export default function SettingsPage() {
           checked={suggestions}
           onChange={changeSuggestions}
         />
+      </div>
+      <p className="settings__footnote">{t.appearanceLead}</p>
+    </>
+  );
+
+  // звук і системні сповіщення — на цьому пристрої; листи з журналу — налаштування акаунта
+  const renderNotifications = () => (
+    <>
+      <div className="settings__sheet">
         <SwitchRow
           title={t.soundLabel}
           hint={t.soundHint}
@@ -617,53 +667,72 @@ export default function SettingsPage() {
           onChange={notify.setSystem}
           disabled={notify.permission === 'unsupported' || notify.permission === 'denied'}
         />
+        {data && (
+          <SwitchRow
+            title={t.journalEmailsLabel}
+            hint={copy.journal.emailsHint}
+            checked={prefs.journal_emails !== false}
+            onChange={(value) => savePreference({ journal_emails: value })}
+          />
+        )}
       </div>
-      <p className="settings__footnote">{t.appearanceLead}</p>
+      <p className="settings__footnote">{t.notificationsLead}</p>
     </>
   );
 
-  const renderUsage = () => {
-    const usage = data?.usage || {};
-    return (
-      <>
-        <div className="settings__sheet">
-          <UsageMeter title={t.usageDiscussions} used={usage.discussions || 0} limit={usage.discussions_limit || 0} />
-          <UsageMeter title={t.usageReplies} used={usage.replies || 0} limit={usage.replies_limit || 0} />
-        </div>
-        <p className="settings__footnote">{t.usageLead} {t.usageKeysNote}</p>
-      </>
-    );
-  };
+  // довідка й «Знайшли баги?» — те саме вікно звернення, що й на сторінці допомоги
+  const renderSupport = () => (
+    <div className="settings__sheet">
+      <Row title={t.helpLabel} hint={t.helpHint} wide>
+        <button type="button" className="settings__button settings__button--soft" onClick={() => navigate('/help')}>
+          {t.helpOpen}
+        </button>
+      </Row>
+      <Row title={copy.report.title} hint={copy.report.helpText} wide>
+        <button
+          type="button"
+          className="settings__button settings__button--primary"
+          onClick={() => openBugReport()}
+          aria-haspopup="dialog"
+        >
+          {copy.report.helpAction}
+        </button>
+      </Row>
+    </div>
+  );
 
-  // профіль і інтерфейс не залежать від /api/settings/
-  // профіль і «Про мене» завантажують дані самі
-  const needsData = !['appearance', 'accessibility', 'profile', 'about', 'privacy'].includes(tab);
+  // інтерфейс, сповіщення, доступність і підтримка не залежать від /api/settings/;
+  // профіль, безпека й «Про мене» завантажують своє самі
+  const needsData = ['debate', 'models'].includes(tab);
   let content;
   if (needsData && isLoading && !data) content = <SettingsSkeleton />;
   else if (needsData && error && !data) {
     content = (
-      <div className="settings__error" role="alert">
-        <p>{error}</p>
-        <button type="button" className="settings__button settings__button--primary" onClick={load}>
-          {t.retry}
-        </button>
-      </div>
+      <LoadError
+        kind={error.kind}
+        text={error.text}
+        onRetry={load}
+        busy={isLoading}
+        className="settings__load-error"
+      />
     );
   } else if (tab === 'profile') content = <ProfileSettings />;
-  else if (tab === 'about') content = <AboutSettings />;
+  else if (tab === 'security') {
+    content = (
+      <ProfileSettings section="security">
+        <PrivacySettings />
+      </ProfileSettings>
+    );
+  } else if (tab === 'about') content = <AboutSettings />;
   else if (tab === 'debate') content = renderDebate();
   else if (tab === 'appearance') content = renderAppearance();
-  else if (tab === 'accessibility') content = <VisionPanel onAnnounce={(text) => pushToast(text, 'success')} />;
-  else if (tab === 'usage') content = renderUsage();
-  else if (tab === 'privacy') content = <PrivacySettings />;
+  else if (tab === 'notifications') content = renderNotifications();
+  else if (tab === 'accessibility') {
+    content = <VisionPanel showMaster={false} onAnnounce={(text) => pushToast(text, 'success')} />;
+  }
+  else if (tab === 'support') content = renderSupport();
   else content = renderModels();
 
-  // коротка підказка праворуч на картці розділу
-  const usage = data?.usage;
-  const tabAside = {
-    models: data ? `${availableModels.length}/${models.length}` : '',
-    usage: usage?.replies_limit ? `${usage.replies}/${usage.replies_limit}` : '',
-  };
 
   return (
     <div className="settings">
@@ -677,26 +746,33 @@ export default function SettingsPage() {
           aria-orientation="vertical"
           onKeyDown={handleTabsKeyDown}
         >
-          {TABS.map((item) => {
-            const active = item.key === tab;
-            return (
-              <button
-                key={item.key}
-                id={`settings-tab-${item.key}`}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                aria-controls="settings-panel"
-                tabIndex={active ? 0 : -1}
-                className={`settings__tab ${active ? 'settings__tab--active' : ''}`}
-                onClick={() => selectTab(item.key)}
-              >
-                <HugeiconsIcon icon={item.icon} size={18} aria-hidden="true" />
-                <span className="settings__tab-label">{t.tabs[item.key]}</span>
-                {tabAside[item.key] && <span className="settings__tab-aside">{tabAside[item.key]}</span>}
-              </button>
-            );
-          })}
+          {GROUPS.map((group) => (
+            // назва групи — лише підпис для очей; вкладки лишаються в одному tablist
+            <div key={group.key} className="settings__group" role="presentation">
+              <span className="settings__group-title" aria-hidden="true">
+                {t.groups[group.key]}
+              </span>
+              {group.tabs.map((item) => {
+                const active = item.key === tab;
+                return (
+                  <button
+                    key={item.key}
+                    id={`settings-tab-${item.key}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls="settings-panel"
+                    tabIndex={active ? 0 : -1}
+                    className={`settings__tab ${active ? 'settings__tab--active' : ''}`}
+                    onClick={() => selectTab(item.key)}
+                  >
+                    <HugeiconsIcon icon={item.icon} size={18} aria-hidden="true" />
+                    <span className="settings__tab-label">{t.tabs[item.key]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </aside>
 

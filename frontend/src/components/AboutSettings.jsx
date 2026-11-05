@@ -6,6 +6,8 @@ import { me, updateProfile } from '../api/auth';
 import { setMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import { Pills, Row, SwitchRow } from './SettingsControls';
+import LoadError from './LoadError';
+import { describeError } from '../utils/errorKind';
 import { copy } from '../copy';
 
 const t = copy.settings.about;
@@ -59,19 +61,20 @@ TextField.propTypes = {
 export default function AboutSettings() {
   const [saved, setSaved] = useState(null);
   const [draft, setDraft] = useState(null);
-  const [loadError, setLoadError] = useState('');
+  // { kind, text } або null
+  const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const { pushToast } = useToasts();
 
   const load = useCallback(async () => {
-    setLoadError('');
+    setLoadError(null);
     try {
       const user = await me();
       setSaved(user.about);
       setDraft(user.about);
     } catch (err) {
-      setLoadError(err?.message || t.loadError);
+      setLoadError(describeError(err, t.loadError));
     }
   }, []);
 
@@ -88,12 +91,7 @@ export default function AboutSettings() {
 
   if (loadError) {
     return (
-      <div className="settings__error" role="alert">
-        <p>{loadError}</p>
-        <button type="button" className="settings__button settings__button--primary" onClick={load}>
-          {copy.settings.retry}
-        </button>
-      </div>
+      <LoadError kind={loadError.kind} text={loadError.text} onRetry={load} className="settings__load-error" />
     );
   }
 
