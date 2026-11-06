@@ -146,10 +146,10 @@ def _read_image(data, mime, provider_factory=None):
         raise AttachmentError(
             L(
                 'Щоб прочитати фото, потрібна модель, яка бачить зображення: додайте ключ OpenAI, '
-                'Anthropic, Gemini чи Groq у «Налаштування → Моделі й ключі». PDF, Word і текст '
+                'Anthropic, Gemini чи Groq у «Налаштування → Моделі, ключі й ліміти». PDF, Word і текст '
                 'працюють і без неї.',
                 'To read a photo you need a model that can see images: add an OpenAI, Anthropic, '
-                'Gemini or Groq key in “Settings → Models & keys”. PDF, Word and text files work '
+                'Gemini or Groq key in “Settings → Models, keys & limits”. PDF, Word and text files work '
                 'without it.',
             ),
             code='no_vision',

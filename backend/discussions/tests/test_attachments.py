@@ -127,7 +127,7 @@ class AttachmentApiTests(TestCase):
             response = self.upload('flat.jpg', b'\xff\xd8fake', 'image/jpeg')
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['code'], 'no_vision')
-        self.assertIn('Моделі й ключі', response.data['detail'])
+        self.assertIn('Моделі, ключі й ліміти', response.data['detail'])
 
     def test_photo_is_transcribed_by_a_vision_model(self):
         vision = VisionProvider()

@@ -221,3 +221,16 @@ export function deleteHighlight(discussionId, highlightId) {
     auth: true,
   });
 }
+
+/**
+ * Дерево рішень за висновком: { tree, state: 'ready' | 'building' | 'error' | 'none', error }.
+ * Готове дерево POST просто повертає; інакше запускає побудову у фоні — тоді
+ * state 'building', і стан треба опитувати через GET. Скласти дерево вдруге не можна.
+ */
+export function buildDecisionTree(id, { signal } = {}) {
+  return request(`/api/discussions/${id}/tree/`, { method: 'POST', auth: true, signal });
+}
+
+export function fetchDecisionTree(id, { signal } = {}) {
+  return request(`/api/discussions/${id}/tree/`, { auth: true, signal });
+}

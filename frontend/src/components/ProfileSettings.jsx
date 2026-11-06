@@ -8,6 +8,8 @@ import { downloadAccountExport } from '../utils/accountExport';
 import { setMyProfile } from '../hooks/useMyProfile';
 import { useToasts } from '../hooks/useToasts';
 import { validateEmail, validatePassword } from '../utils/validate';
+import LoadError from './LoadError';
+import { describeError } from '../utils/errorKind';
 import { copy, locale } from '../copy';
 
 const t = copy.settings.profile;
@@ -168,6 +170,11 @@ function EditRow({ title, value, hint, open, onOpen, onClose, onSubmit, busy, su
   );
 }
 
+ProfileSettings.propTypes = {
+  section: PropTypes.oneOf(['profile', 'security']),
+  children: PropTypes.node,
+};
+
 EditRow.propTypes = {
   title: PropTypes.string.isRequired,
   value: PropTypes.string,
@@ -183,11 +190,17 @@ EditRow.propTypes = {
   children: PropTypes.node,
 };
 
-export default function ProfileSettings() {
+/**
+ * Дані акаунта у двох вкладках, але з одним станом форм:
+ * `profile` — аватар, ім'я й пошта; `security` — пароль, вкладені `children`
+ * (сесії й експорт) і видалення акаунта наприкінці.
+ */
+export default function ProfileSettings({ section = 'profile', children = null }) {
   const navigate = useNavigate();
   const { pushToast } = useToasts();
   const [user, setUser] = useState(null);
-  const [loadError, setLoadError] = useState('');
+  // { kind, text } або null
+  const [loadError, setLoadError] = useState(null);
   // відкрита лише одна форма: 'name' | 'email' | 'password' | 'delete'
   const [editing, setEditing] = useState('');
   const [form, setForm] = useState(EMPTY);
@@ -197,11 +210,11 @@ export default function ProfileSettings() {
   const fileRef = useRef(null);
 
   const load = useCallback(async () => {
-    setLoadError('');
+    setLoadError(null);
     try {
       setUser(await me());
     } catch (err) {
-      setLoadError(err?.message || t.loadError);
+      setLoadError(describeError(err, t.loadError));
     }
   }, []);
 
@@ -356,12 +369,7 @@ export default function ProfileSettings() {
       );
     }
     return (
-      <div className="settings__error" role="alert">
-        <p>{loadError}</p>
-        <button type="button" className="settings__button settings__button--primary" onClick={load}>
-          {copy.settings.retry}
-        </button>
-      </div>
+      <LoadError kind={loadError.kind} text={loadError.text} onRetry={load} className="settings__load-error" />
     );
   }
 
@@ -372,6 +380,85 @@ export default function ProfileSettings() {
     onClose: close,
     busy: isBusy,
   });
+
+  if (section === 'security') {
+    return (
+      <>
+        <div className="settings__sheet">
+          <EditRow
+            {...rowProps('password')}
+            title={t.passwordLabel}
+            value={hasPassword ? '••••••••' : t.passwordNone}
+            onSubmit={submitPassword}
+            submitLabel={isBusy ? t.saving : t.save}
+          >
+            {hasPassword && (
+              <Input
+                label={t.currentPasswordLabel}
+                type="password"
+                autoComplete="current-password"
+                error={errors.current_password}
+                {...bind('current_password')}
+              />
+            )}
+            <Input
+              label={t.newPasswordLabel}
+              type="password"
+              autoComplete="new-password"
+              error={errors.password}
+              {...bind('password')}
+            />
+            <Input
+              label={t.confirmPasswordLabel}
+              type="password"
+              autoComplete="new-password"
+              error={errors.confirm_password}
+              {...bind('confirm_password')}
+            />
+            <p className="settings__key-hint">
+              {t.passwordRules} {hasPassword ? t.passwordHint : t.passwordSetHint}
+            </p>
+          </EditRow>
+        </div>
+        {children}
+
+        <div className="settings__sheet settings__sheet--quiet">
+          <EditRow
+            {...rowProps('delete')}
+            danger
+            title={t.deleteLabel}
+            hint={t.deleteHint}
+            openLabel={t.deleteOpen}
+            onSubmit={submitDelete}
+            submitLabel={isBusy ? t.deleting : t.deleteSubmit}
+          >
+            {hasPassword && (
+              <Input
+                label={t.currentPasswordLabel}
+                type="password"
+                autoComplete="current-password"
+                error={errors.password}
+                {...bind('password')}
+              />
+            )}
+            <p className="settings__key-hint">
+              {t.deleteExportHint}{' '}
+              <button
+                type="button"
+                className="settings__link-button"
+                onClick={() =>
+                  downloadAccountExport().catch((err) => pushToast(err?.message || copy.settings.saveError))
+                }
+              >
+                {t.deleteExport}
+              </button>
+            </p>
+            <p className="settings__key-hint">{hasPassword ? t.deleteConfirmHint : t.deleteConfirmNoPassword}</p>
+          </EditRow>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -392,13 +479,7 @@ export default function ProfileSettings() {
             <HugeiconsIcon icon={Camera01Icon} size={14} />
           </span>
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={AVATAR_TYPES.join(',')}
-          onChange={pickAvatar}
-          hidden
-        />
+        <input ref={fileRef} type="file" accept={AVATAR_TYPES.join(',')} onChange={pickAvatar} hidden />
         <div className="settings__identity-text">
           <h2 className="settings__identity-name">{user.name}</h2>
           {joined && <span className="settings__identity-meta">{t.joined(joined)}</span>}
@@ -456,76 +537,6 @@ export default function ProfileSettings() {
               <p className="settings__key-hint">{t.emailConfirmHint}</p>
             </>
           )}
-        </EditRow>
-
-        <EditRow
-          {...rowProps('password')}
-          title={t.passwordLabel}
-          value={hasPassword ? '••••••••' : t.passwordNone}
-          onSubmit={submitPassword}
-          submitLabel={isBusy ? t.saving : t.save}
-        >
-          {hasPassword && (
-            <Input
-              label={t.currentPasswordLabel}
-              type="password"
-              autoComplete="current-password"
-              error={errors.current_password}
-              {...bind('current_password')}
-            />
-          )}
-          <Input
-            label={t.newPasswordLabel}
-            type="password"
-            autoComplete="new-password"
-            error={errors.password}
-            {...bind('password')}
-          />
-          <Input
-            label={t.confirmPasswordLabel}
-            type="password"
-            autoComplete="new-password"
-            error={errors.confirm_password}
-            {...bind('confirm_password')}
-          />
-          <p className="settings__key-hint">
-            {t.passwordRules} {hasPassword ? t.passwordHint : t.passwordSetHint}
-          </p>
-        </EditRow>
-      </div>
-
-      <div className="settings__sheet settings__sheet--quiet">
-        <EditRow
-          {...rowProps('delete')}
-          danger
-          title={t.deleteLabel}
-          hint={t.deleteHint}
-          openLabel={t.deleteOpen}
-          onSubmit={submitDelete}
-          submitLabel={isBusy ? t.deleting : t.deleteSubmit}
-        >
-          {hasPassword && (
-            <Input
-              label={t.currentPasswordLabel}
-              type="password"
-              autoComplete="current-password"
-              error={errors.password}
-              {...bind('password')}
-            />
-          )}
-          <p className="settings__key-hint">
-            {t.deleteExportHint}{' '}
-            <button
-              type="button"
-              className="settings__link-button"
-              onClick={() => downloadAccountExport().catch((err) => pushToast(err?.message || copy.settings.saveError))}
-            >
-              {t.deleteExport}
-            </button>
-          </p>
-          <p className="settings__key-hint">
-            {hasPassword ? t.deleteConfirmHint : t.deleteConfirmNoPassword}
-          </p>
         </EditRow>
       </div>
     </>

@@ -3,7 +3,11 @@
 (() => {
   const root = document.documentElement;
   try {
-    const saved = localStorage.getItem('clarity-theme');
+    // лендинг і сторінки входу завжди в темі пристрою (src/hooks/useDeviceTheme.js)
+    const path = location.pathname.replace(/\/+$/, '') || '/';
+    const deviceThemePage = path === '/'
+      || /^\/(login|register|forgot-password|reset-password|confirm-email|unsubscribe)(\/|$)/.test(path);
+    const saved = deviceThemePage ? null : localStorage.getItem('clarity-theme');
     const theme = saved === 'light' || saved === 'dark'
       ? saved
       : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');

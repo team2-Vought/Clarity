@@ -86,6 +86,8 @@ import AttachmentChip from '../components/AttachmentChip';
 import AttachmentCard from '../components/AttachmentCard';
 import { CrisisHelp, TopicNotice } from '../components/SafetyNotice';
 import ShareDialog from '../components/ShareDialog';
+import DecisionTreeDialog from '../components/tree/DecisionTreeDialog';
+import { treeColorOf } from '../utils/treeView';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
@@ -471,6 +473,15 @@ export default function ChatPage() {
   const participantColors = useMemo(
     () => new Map(participantEntries.map((participant) => [participant.key, participant.color])),
     [participantEntries]
+  );
+
+  // дерево рішень: кольори учасників — ті самі, що в бульбашках чату
+  // дерево відкрите: '' — без вибраного шляху, id гілки — одразу з її деталями; null — закрите
+  const [treeFocus, setTreeFocus] = useState(null);
+  const colorOfPerson = useMemo(() => treeColorOf(participantColors), [participantColors]);
+  const handleTree = useCallback(
+    (tree) => setDiscussion((current) => (current ? { ...current, decision_tree: tree } : current)),
+    []
   );
 
   const activeParticipant =
@@ -1181,7 +1192,7 @@ export default function ChatPage() {
 
   const handleExportMarkdown = () => {
     const text = discussionMarkdown(discussion, {
-      labels: t,
+      labels: { ...t, tree: copy.tree },
       phaseLabel,
       authorOf,
       appendix: marksMarkdown(markEntries(discussion.messages, authorOf)),
@@ -1911,6 +1922,7 @@ export default function ChatPage() {
               isSharing={isSharing}
               onRepeat={handleRepeat}
               onDeepen={discussion.quick ? handleDeepen : undefined}
+              onOpenTree={(branchId) => setTreeFocus(branchId || '')}
             />
           )}
 
@@ -1920,6 +1932,17 @@ export default function ChatPage() {
               className="chat__crisis"
               onNotCrisis={canNotCrisis ? handleNotCrisis : undefined}
               busy={isRestarting}
+            />
+          )}
+
+          {treeFocus !== null && discussion && (
+            <DecisionTreeDialog
+              discussionId={discussion.id}
+              initialTree={discussion.decision_tree || null}
+              initialBranch={treeFocus}
+              colorOf={colorOfPerson}
+              onTree={handleTree}
+              onClose={() => setTreeFocus(null)}
             />
           )}
 

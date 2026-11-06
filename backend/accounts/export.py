@@ -26,8 +26,8 @@ FORMAT_VERSION = 1
 DISCUSSION_FIELDS = [
     'id', 'question', 'language', 'mode', 'options', 'personas', 'rounds', 'until_consensus',
     'web_search', 'moderator_model', 'devil_model', 'profile', 'clarifications', 'criteria',
-    'matrix', 'scores', 'sources', 'best_solution', 'devil_review', 'final_summary', 'feedback',
-    'feedback_note', 'safety', 'quick', 'status', 'phase', 'pinned', 'archived', 'share_token',
+    'matrix', 'scores', 'sources', 'best_solution', 'devil_review', 'final_summary', 'decision_tree',
+    'feedback', 'feedback_note', 'safety', 'quick', 'status', 'phase', 'pinned', 'archived', 'share_token',
     'share_personal', 'created_at', 'finished_at',
 ]
 MESSAGE_FIELDS = [

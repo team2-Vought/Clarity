@@ -780,6 +780,73 @@ class DiscussionFeedbackView(OwnedDiscussionView):
         )
 
 
+def _tree_payload(discussion):
+    """Стан дерева для вікна: ready — є дерево, building — складається,
+    error — не вдалося (зокрема побудову обірвав перезапуск сервера), none — ще не просили."""
+    if runner.tree_is_building(discussion):
+        return {'tree': discussion.decision_tree, 'state': 'building', 'error': ''}
+    if discussion.tree_state == 'building':
+        return {
+            'tree': discussion.decision_tree,
+            'state': 'error',
+            'error': L(
+                'Побудову перервано. Спробуйте ще раз.',
+                'The build was interrupted. Please try again.',
+            ),
+        }
+    if discussion.tree_state == 'error':
+        return {'tree': discussion.decision_tree, 'state': 'error', 'error': discussion.tree_error}
+    if discussion.decision_tree:
+        return {'tree': discussion.decision_tree, 'state': 'ready', 'error': ''}
+    return {'tree': None, 'state': 'none', 'error': ''}
+
+
+class DiscussionTreeView(OwnedDiscussionView):
+    """Дерево рішень за висновком: GET — стан і збережене дерево, POST — скласти.
+
+    Модель може думати довго, тож POST лише запускає побудову у фоні (202),
+    а вікно опитує GET. Дерево складається один раз: якщо воно вже є, POST
+    просто його повертає й модель не кличе. Новий висновок дерево скидає."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'discussion_tree'
+
+    def get_throttles(self):
+        # опитувати стан можна скільки завгодно; ліміт — лише на запуск побудови
+        return super().get_throttles() if self.request.method == 'POST' else []
+
+    def get(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        return Response(_tree_payload(discussion), status=status.HTTP_200_OK)
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        if runner.tree_is_building(discussion):
+            return Response(_tree_payload(discussion), status=status.HTTP_202_ACCEPTED)
+        if discussion.decision_tree:
+            return Response(_tree_payload(discussion), status=status.HTTP_200_OK)
+        if discussion.phase != Discussion.Phase.DONE or not discussion.final_summary:
+            return Response(
+                {
+                    'detail': L(
+                        'Дерево рішень з’явиться, коли дискусія дійде висновку.',
+                        'The decision tree appears once the discussion reaches a conclusion.',
+                    ),
+                    'code': 'not_ready',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        runner.start_tree(discussion)
+        discussion.refresh_from_db()
+        # у синхронному режимі (тести) дерево вже готове
+        code = status.HTTP_202_ACCEPTED if discussion.tree_state == 'building' else status.HTTP_200_OK
+        return Response(_tree_payload(discussion), status=code)
+
+
 # стільки виділень вистачить на найдовшу репліку й не дасть роздути базу
 HIGHLIGHTS_PER_MESSAGE = 30
 HIGHLIGHTS_PER_DISCUSSION = 300

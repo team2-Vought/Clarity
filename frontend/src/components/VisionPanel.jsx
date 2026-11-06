@@ -20,7 +20,9 @@ const t = copy.vision;
 const matchesPreset = (prefs) => Object.keys(VISION_PRESET).every((key) => prefs[key] === VISION_PRESET[key]);
 
 /** Набір налаштувань для зору: у діалозі поверх будь-якої сторінки й у «Налаштуваннях». */
-export default function VisionPanel({ onAnnounce }) {
+// `showMaster` — плашка «Режим для слабозорих» з одним перемикачем; у швидкому
+// діалозі вона потрібна, а в «Налаштуваннях» — лише окремі параметри
+export default function VisionPanel({ onAnnounce, showMaster = true }) {
   const prefs = useVision();
   const switchId = useId();
   const modeOn = matchesPreset(prefs);
@@ -39,23 +41,25 @@ export default function VisionPanel({ onAnnounce }) {
 
   return (
     <div className="vision-panel">
-      <label className="vision-panel__master" htmlFor={switchId}>
-        <span className="vision-panel__master-icon" aria-hidden="true">
-          <HugeiconsIcon icon={ViewIcon} size={24} />
-        </span>
-        <span className="vision-panel__master-text">
-          <span className="vision-panel__master-title">{t.modeLabel}</span>
-          <span className="vision-panel__master-hint">{t.modeHint}</span>
-        </span>
-        <input
-          id={switchId}
-          type="checkbox"
-          role="switch"
-          className="debate__switch-input"
-          checked={modeOn}
-          onChange={(e) => toggleMode(e.target.checked)}
-        />
-      </label>
+      {showMaster && (
+        <label className="vision-panel__master" htmlFor={switchId}>
+          <span className="vision-panel__master-icon" aria-hidden="true">
+            <HugeiconsIcon icon={ViewIcon} size={24} />
+          </span>
+          <span className="vision-panel__master-text">
+            <span className="vision-panel__master-title">{t.modeLabel}</span>
+            <span className="vision-panel__master-hint">{t.modeHint}</span>
+          </span>
+          <input
+            id={switchId}
+            type="checkbox"
+            role="switch"
+            className="debate__switch-input"
+            checked={modeOn}
+            onChange={(e) => toggleMode(e.target.checked)}
+          />
+        </label>
+      )}
 
       <section className="settings__sheet" aria-label={t.detailsLabel}>
         <Row title={t.scaleLabel} hint={t.scaleHint} stacked>
@@ -64,7 +68,10 @@ export default function VisionPanel({ onAnnounce }) {
             label={t.scaleLabel}
             value={prefs.scale}
             onChange={(scale) => updateVision({ scale })}
-            options={TEXT_SCALES.map((scale) => ({ value: scale, label: `${scale} %` }))}
+            options={TEXT_SCALES.map((scale) => ({
+              value: scale,
+              label: `${scale} %`,
+            }))}
           />
         </Row>
         <Row title={t.contrastLabel} hint={t.contrastHint} stacked>
@@ -140,4 +147,5 @@ export default function VisionPanel({ onAnnounce }) {
 
 VisionPanel.propTypes = {
   onAnnounce: PropTypes.func,
+  showMaster: PropTypes.bool,
 };

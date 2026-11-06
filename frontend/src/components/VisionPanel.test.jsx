@@ -30,6 +30,12 @@ describe('панель «Зручність для зору»', () => {
     expect(announced).toEqual(['Режим для слабозорих увімкнено']);
   });
 
+  it('у «Налаштуваннях» — лише окремі параметри, без плашки режиму', () => {
+    render(<VisionPanel showMaster={false} />);
+    expect(screen.queryByRole('switch', { name: /Режим для слабозорих/ })).toBeNull();
+    expect(screen.getByRole('radio', { name: '125 %' })).toBeInTheDocument();
+  });
+
   it('окремі опції змінюються незалежно, а «Скинути все» повертає звичайний вигляд', async () => {
     render(<VisionPanel />);
     const reset = screen.getByRole('button', { name: 'Скинути все' });

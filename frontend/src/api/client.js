@@ -10,9 +10,12 @@ const LEGACY_TOKEN_KEY = 'clarity_token';
 // Подія для Layout: токен прострочено або відкликано — треба знову увійти
 export const UNAUTHORIZED_EVENT = 'clarity:unauthorized';
 
+// відповідь без пояснення (502 від проксі віддає HTML, а не JSON) — зрозумілий текст за кодом
+const statusText = (status) => copy.errors.http[status] || copy.errors.httpOther(status);
+
 export class ApiError extends Error {
   constructor(status, data) {
-    super(data?.detail || `Request failed with status ${status}`);
+    super(data?.detail || statusText(status));
     this.name = 'ApiError';
     this.status = status;
     this.data = data;

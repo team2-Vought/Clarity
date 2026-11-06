@@ -67,7 +67,7 @@
 /* поверхні застосунку, лендингового демо й діалогів мають власні змінні —
    перебиваємо їх тим самим набором (специфічність вища за :root[data-theme] .app-shell) */
 :root[data-contrast='high']:not([data-theme='dark'])
-  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog) {
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog, .tree-dialog) {
   --panel: #ececec;
   --card: #ffffff;
   --main-bg: #ffffff;
@@ -76,10 +76,11 @@
   --muted: #1f1f1f;
   --divider: #000000;
   --well: #ffffff;
+  --line: color-mix(in srgb, #000000 55%, transparent);
 }
 
 :root[data-contrast='high'][data-theme='dark']
-  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog) {
+  :is(.app-shell, .shared, .lp-chat, .role-dialog__backdrop, .vision-dialog, .report-dialog, .tree-dialog) {
   --panel: #0b0b0b;
   --card: #1c1c1c;
   --main-bg: #000000;
@@ -88,6 +89,7 @@
   --muted: #ececec;
   --divider: #ffffff;
   --well: #000000;
+  --line: color-mix(in srgb, #ffffff 55%, transparent);
 }
 
 /* лінії налаштувань і рамки карток стають помітними */
@@ -245,7 +247,7 @@
   --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--card));
 }
 
-:root[data-contrast='high'] :is(.vision-dialog, .report-dialog) {
+:root[data-contrast='high'] :is(.vision-dialog, .report-dialog, .tree-dialog) {
   box-shadow: 0 0 0 3px var(--vision-line);
 }
 

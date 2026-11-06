@@ -15,6 +15,7 @@ import SummaryDetails from '../SummaryDetails';
 import FeedbackBar from './FeedbackBar';
 import JournalForm, { JournalButton, useJournal } from './JournalCard';
 import MatrixTable from './MatrixTable';
+import TreePaths from './TreePaths';
 import { TopicNotice } from '../SafetyNotice';
 import { SourceItems, SourcesLabel } from './Sources';
 import { copy } from '../../copy';
@@ -40,6 +41,7 @@ export default function ChatSummary({
   isSharing = false,
   onRepeat,
   onDeepen,
+  onOpenTree,
 }) {
   const [copyState, setCopyState] = useState('');
   const [pdfState, setPdfState] = useState('');
@@ -134,6 +136,7 @@ export default function ChatSummary({
         mode={discussion.mode}
         options={discussion.options}
         animate={animate}
+        paths={onOpenTree ? <TreePaths tree={discussion.decision_tree} onOpen={onOpenTree} /> : null}
       />
       {discussion.matrix && (
         <div style={summaryStep()}>
@@ -254,4 +257,5 @@ ChatSummary.propTypes = {
   isSharing: PropTypes.bool,
   onRepeat: PropTypes.func,
   onDeepen: PropTypes.func,
+  onOpenTree: PropTypes.func,
 };

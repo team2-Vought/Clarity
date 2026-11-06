@@ -69,7 +69,21 @@
 .settings__tabs {
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+/* група розділів із тихим підписом над нею */
+.settings__group {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.settings__group-title {
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 /* розділ — біла картка, як «Додатково» внизу панелі нового чату */
@@ -1109,17 +1123,9 @@
   }
 }
 
-.settings__error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  color: var(--muted);
-  font-size: 1rem;
-}
-
-.settings__error p {
-  margin: 0;
+/* розділ не завантажився — блок помилки трохи нижче верху панелі */
+.settings__load-error {
+  margin-top: clamp(16px, 6vh, 64px);
 }
 
 /* ---- планшет: панель вужча ---- */
@@ -1150,6 +1156,15 @@
     flex-direction: row;
     gap: 6px;
     width: max-content;
+  }
+
+  /* у стрічці вкладки йдуть підряд, без підписів груп */
+  .settings__group {
+    display: contents;
+  }
+
+  .settings__group-title {
+    display: none;
   }
 
   .settings__tab {

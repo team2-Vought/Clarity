@@ -1,3 +1,4 @@
+import { copy } from '../copy';
 import { describe, expect, it } from 'vitest';
 import { discussionMarkdown, markdownFileName } from './exportMarkdown';
 
@@ -66,6 +67,43 @@ describe('план дій у Markdown', () => {
     expect(text).toContain('**План на тиждень:**\n\n1. Порахувати бюджет\n2. Подзвонити рієлтору');
     expect(text).toContain('- Якщо оренда дорожча — переглянути');
     expect(text).not.toContain('Що робити далі');
+  });
+});
+
+describe('дерево рішень у Markdown', () => {
+  it('додає шляхи з позначкою обраного, розвилки й хід думок', () => {
+    const text = discussionMarkdown(
+      {
+        ...discussion,
+        decision_tree: {
+          branches: [
+            {
+              title: 'Переїхати',
+              status: 'chosen',
+              fit: 80,
+              summary: 'Вигідно',
+              why: 'Зарплата вища',
+              outcomes: [{ condition: 'Якщо пройти випробувальний', result: 'Ріст' }],
+            },
+            { title: 'Лишитися', status: 'rejected', fit: null, summary: '', why: '', outcomes: [] },
+          ],
+          path: [{ stage: 'turn', title: 'Віддалений місяць', text: 'Спершу з дому', who: { name: 'Прагматик' } }],
+        },
+      },
+      { labels: { ...labels, tree: copy.tree }, phaseLabel: () => '', authorOf: (m) => m.persona_name }
+    );
+    expect(text).toContain('## Дерево рішень');
+    expect(text).toContain('### ✅ Переїхати');
+    expect(text).toContain('_Обраний шлях · Пасує вам: 80%_');
+    expect(text).toContain('**Чому обрали:** Зарплата вища');
+    expect(text).toContain('- Якщо пройти випробувальний → Ріст');
+    expect(text).toContain('### ✖️ Лишитися');
+    expect(text).toContain('1. **Віддалений місяць** (Прагматик) — Спершу з дому');
+  });
+
+  it('без дерева розділу немає', () => {
+    const text = discussionMarkdown(discussion, { labels: { ...labels, tree: copy.tree }, phaseLabel: () => '', authorOf: (m) => m.persona_name });
+    expect(text).not.toContain('Дерево рішень');
   });
 });
 

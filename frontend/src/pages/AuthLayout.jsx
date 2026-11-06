@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
 import { VisionTrigger } from '../components/VisionDialog';
 import { copy } from '../copy';
+import { useDeviceTheme } from '../hooks/useDeviceTheme';
 import { openBugReport } from '../utils/bugReport';
 
 export function Background() {
@@ -18,6 +19,8 @@ export function Background() {
 
 export function AuthPage({ title, form, variant, lead = '' }) {
   const navigate = useNavigate();
+  // вхід і реєстрація — у темі пристрою, як і лендинг
+  useDeviceTheme();
   return (
     <div className="page page--auth">
       <Background />

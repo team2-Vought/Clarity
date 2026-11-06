@@ -19,6 +19,7 @@ import './styles/tools.css';
 import './styles/status.css';
 import './styles/report.css';
 import './styles/marks.css';
+import './styles/tree.css';
 // останнім: режим для слабозорих перебиває стилі сторінок
 import './styles/vision.css';
 

@@ -91,6 +91,13 @@ from .judges import (
     devil_prompt,
     final_prompt,
 )
+from .tree import (
+    TREE_MAX_BRANCHES,
+    TREE_MAX_OUTCOMES,
+    TREE_MAX_STEPS,
+    TREE_MIN_BRANCHES,
+    tree_prompt,
+)
 from .clarify import (
     CLARIFY_MAX_QUESTIONS,
     CLARIFY_MAX_OPTIONS,
@@ -102,6 +109,11 @@ from .clarify import (
 )
 
 __all__ = [
+    'TREE_MAX_BRANCHES',
+    'TREE_MAX_OUTCOMES',
+    'TREE_MAX_STEPS',
+    'TREE_MIN_BRANCHES',
+    'tree_prompt',
     'SCORE_MAX',
     'SCORE_MIN',
     'answer_prompt',

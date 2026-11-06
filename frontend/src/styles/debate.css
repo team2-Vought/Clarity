@@ -242,8 +242,8 @@ body:has(.app-shell) {
    розгорнута картка бере ті самі розміри */
 .sidebar--rail,
 .sidebar--drawer {
-  --item-icon: clamp(32px, 2.6vw, 40px);
-  --ctrl-icon: clamp(24px, 1.9vw, 27px);
+  --item-icon: clamp(29px, 2.3vw, 35px);
+  --ctrl-icon: clamp(22px, 1.7vw, 24px);
 }
 
 .sidebar--rail .sidebar__item,
@@ -5948,8 +5948,8 @@ ol.chat__reveal {
 @media (max-height: 720px) {
   .sidebar--rail,
   .sidebar--drawer {
-    --item-icon: 29px;
-    --ctrl-icon: 22px;
+    --item-icon: 26px;
+    --ctrl-icon: 20px;
   }
 
   .sidebar--rail {

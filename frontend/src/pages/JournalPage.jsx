@@ -17,6 +17,8 @@ import { refreshJournalDue } from '../hooks/useJournalDue';
 import { useToasts } from '../hooks/useToasts';
 import { InlineText } from '../components/MessageMarkdown';
 import { copy, locale } from '../copy';
+import LoadError from '../components/LoadError';
+import { describeError } from '../utils/errorKind';
 
 const t = copy.journal;
 const OUTCOMES = ['good', 'mixed', 'bad'];
@@ -466,17 +468,18 @@ export default function JournalPage() {
   const [searchParams] = useSearchParams();
   const focusId = searchParams.get('review');
   const [entries, setEntries] = useState(null);
-  const [error, setError] = useState('');
+  // { kind, text } або null
+  const [error, setError] = useState(null);
   const [emails, setEmails] = useState(null);
   const { pushToast } = useToasts();
 
   const load = useCallback(async () => {
-    setError('');
+    setError(null);
     try {
       const data = await fetchJournal();
       setEntries(data.results || []);
     } catch (err) {
-      setError(err?.message || t.loadError);
+      setError(describeError(err, t.loadError));
     }
     fetchSettings()
       .then((data) => setEmails(data?.preferences?.journal_emails !== false))
@@ -529,14 +532,7 @@ export default function JournalPage() {
         <div className="journal__inner">
           <h1 className="history__sr-only">{t.title}</h1>
 
-          {error && (
-            <div className="history__error" role="alert">
-              <p>{error}</p>
-              <button type="button" className="history__retry" onClick={load}>
-                {t.retry}
-              </button>
-            </div>
-          )}
+          {error && <LoadError kind={error.kind} text={error.text} onRetry={load} />}
 
           {/* скелет повторює розкладку групи разом із заголовком — інакше картки
               після завантаження з'їжджали б униз на висоту заголовка */}

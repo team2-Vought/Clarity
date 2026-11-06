@@ -131,6 +131,11 @@ def _store(discussion, plan, payload, personas):
     elif plan.phase == Discussion.Phase.FINAL:
         payload['agreement'] = _agreement(discussion, personas, payload.get('answer'))
         discussion.final_summary = payload
+        discussion.decision_tree = None
+        discussion.tree_state = ''
+        discussion.tree_error = ''
+        discussion.tree_started_at = None
+        discussion.tree_heartbeat_at = None
         content = _final_text(payload)
     elif plan.phase == Discussion.Phase.QUICK:
         topic = payload.pop('topic', '')
@@ -139,9 +144,19 @@ def _store(discussion, plan, payload, personas):
         if topic == CRISIS:
             # криза — не порада, а підтримка й контакти допомоги
             discussion.final_summary = None
+            discussion.decision_tree = None
+            discussion.tree_state = ''
+            discussion.tree_error = ''
+            discussion.tree_started_at = None
+            discussion.tree_heartbeat_at = None
             content = crisis_message()
         else:
             discussion.final_summary = payload
+            discussion.decision_tree = None
+            discussion.tree_state = ''
+            discussion.tree_error = ''
+            discussion.tree_started_at = None
+            discussion.tree_heartbeat_at = None
             content = _final_text(payload)
     else:
         raise EngineError(f'Невідома фаза: {plan.phase}', code='bad_state', retryable=False)
@@ -252,6 +267,11 @@ def _crisis_stop(discussion_id, token):
         discussion.status = Discussion.Status.DONE
         discussion.finished_at = timezone.now()
         discussion.final_summary = None
+        discussion.decision_tree = None
+        discussion.tree_state = ''
+        discussion.tree_error = ''
+        discussion.tree_started_at = None
+        discussion.tree_heartbeat_at = None
         discussion.advance_token = None
         discussion.advance_started_at = None
         discussion.live_drafts = []
