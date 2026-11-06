@@ -190,6 +190,17 @@ export const en = {
       text: 'Return to any discussion, pin what matters, find anything with search.',
       alt: 'The discussion history page',
     },
+    tree: {
+      title: 'Decision tree',
+      text: 'After the discussion — a map of the paths the team weighed: what was chosen, what was rejected and where each leads.',
+      paths: ['Move with a safety net', 'Move right away', 'Stay'],
+    },
+    journal: {
+      title: 'Decision journal',
+      text: 'Save the decision — in a week or a month Clarity will ask how it went. That’s how you see which advice really works.',
+      when: 'In 30 days',
+      question: 'How is the move to Lviv going?',
+    },
     mobile: {
       title: 'Always at hand',
       text: 'A full discussion from your phone: the same team, the same conclusions.',
@@ -198,6 +209,7 @@ export const en = {
 
     ctaTitle: 'Your next hard decision — not on your own',
     ctaText: 'Create an account and your first discussion starts in a minute.',
+    ctaTextSignedIn: 'Ask a new question — the team is ready.',
     footer: '© 2026 Clarity',
   },
 
@@ -311,7 +323,7 @@ export const en = {
           { title: 'Moderator’s solution', text: 'The moderator brings the arguments together into one solution and marks where participants did not agree.' },
           { title: 'AI Devil’s check', text: 'A separate critic looks for risks, false assumptions and gaps in the solution.' },
           { title: 'Response to criticism', text: 'Participants answer the critique: they admit weak spots or defend the solution.' },
-          { title: 'Conclusion', text: 'A card with the decision, arguments for and against, risks, the minority view, confidence and the next step.' },
+          { title: 'Conclusion', text: 'The decision with the moderator’s confidence, the paths considered, arguments for and against, risks, the minority view and a plan for the week.' },
         ],
       },
       {
@@ -323,7 +335,7 @@ export const en = {
           { title: 'Yes or no', text: 'For “should I…” questions. The moderator gives a clear verdict, and you see how many participants agree with it.' },
           { title: 'One of the options', text: 'When there are 2 to 8 concrete options: cities, offers, laptop models. Participants compare them and pick one. Add weighted criteria to see a score matrix and why the winner won.' },
           { title: 'Open answer', text: 'For open “how…” or “what to do…” questions. The conclusion is a detailed answer with an action plan.' },
-          { title: 'Quick answer', text: 'For simple questions — the pill under the field. One short piece of advice in about 15 seconds, no debate; if it is not enough — “Discuss in depth”.' },
+          { title: 'Quick answer', text: 'For simple questions — the “Quick answer” switch in the same menu to the left of the field. One short piece of advice in about 15 seconds, no debate; if it is not enough — “Discuss in depth”.' },
         ],
       },
       {
@@ -373,6 +385,19 @@ export const en = {
         ],
       },
       {
+        id: 'after',
+        kind: 'cards',
+        title: 'After the conclusion',
+        lead: 'The conclusion is not the end: you can keep working with it.',
+        items: [
+          { title: 'Paths considered', text: 'Under the decision — the paths the team weighed: the chosen one, alternatives and rejected ones, with how well each fits you.' },
+          { title: 'Decision tree', text: 'A map of those paths: where each leads (“if…, then…”), who backed it, pros and cons, and the team’s train of thought from the question to the conclusion. Built once, on request.' },
+          { title: 'Plan for the week', text: 'A few concrete steps you can take in the coming days, and the signals that should make you reconsider.' },
+          { title: 'Decision journal', text: 'The “To journal” button under the conclusion: save what you decided — in a week, a month or three Clarity will ask how it went. The answers gather in the “Journal”.' },
+          { title: 'Marks and reactions', text: 'Highlight what matters in an AI reply, add a note or a doubt, or react (“convincing”, “factual error”). The participants take it into account, and everything is collected in “My notes”.' },
+        ],
+      },
+      {
         id: 'tips',
         kind: 'cards',
         title: 'How to get a better answer',
@@ -393,7 +418,7 @@ export const en = {
         lead: 'What happens to your data and requests.',
         items: [
           { title: 'Models, keys and limits', text: 'Clarity works with models from different providers. You can add your own API keys in “Settings → Models, keys & limits” — then requests are billed to your account with the provider.' },
-          { title: 'Daily limits', text: 'The number of new discussions and AI replies per day is limited. See what is left in “Settings → Usage”; counters reset at midnight.' },
+          { title: 'Daily limits', text: 'The number of new discussions and AI replies per day is limited. See what is left at the top of “Settings → Models, keys & limits”; counters reset at midnight.' },
           { title: 'Privacy', text: 'Keys are stored encrypted and visible only to you. Only you see a discussion until you open a link to it — and you can close that access at any time.' },
         ],
       },
@@ -426,7 +451,7 @@ export const en = {
     emailsOff: 'off',
     emailsOnToast: 'We’ll remind you by email',
     emailsOffToast: 'No more reminder emails',
-    empty: 'The journal is empty for now. After a discussion, press “Add to journal” under the conclusion — in a week or a month Clarity will ask how it went.',
+    empty: 'The journal is empty for now. After a discussion, press “To journal” under the conclusion — in a week or a month Clarity will ask how it went.',
     emptyAction: 'Start a discussion',
     due: 'Time to look back',
     waiting: 'Too early to ask',
@@ -1172,7 +1197,7 @@ export const en = {
     summaryAnswer: 'Answer',
     summaryConfirmed: 'Confirmed after AI Devil',
     summaryRevision: 'What changed',
-    summaryConfidence: 'Moderator’s estimate',
+    summaryConfidence: 'Confidence',
     summaryConfidenceHint: 'The moderator model’s subjective estimate, not a statistical probability.',
     summaryAgreement: 'Participant agreement',
     summaryAgreementValue: (agree, total) => `${agree} of ${total}`,
@@ -1228,6 +1253,15 @@ export const en = {
     summaryNo: 'No',
     summaryWinner: 'Chosen option',
     summaryVotes: (count) => `${count} ${plural(count, 'vote', 'votes')}`,
+    actions: {
+      copy: 'Copy',
+      pdf: 'PDF',
+      markdown: 'Markdown',
+      share: 'Share',
+      repeat: 'Repeat',
+      journal: 'To journal',
+      journalSaved: 'In journal',
+    },
     copySummary: 'Copy summary',
     copyMessage: 'Copy reply',
     jumpToDecision: 'To the decision',

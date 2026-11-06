@@ -82,7 +82,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
           <h2 id="cta-title" className="lp-cta__title">
             {t.ctaTitle}
           </h2>
-          <p className="lp-cta__text">{t.ctaText}</p>
+          <p className="lp-cta__text">{signedIn ? t.ctaTextSignedIn : t.ctaText}</p>
           <div className="lp-cta__actions">
             <button type="button" className="btn" onClick={signedIn ? start : onRegister}>
               {primaryLabel}

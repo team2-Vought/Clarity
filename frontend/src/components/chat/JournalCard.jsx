@@ -41,7 +41,7 @@ export function useJournal(discussion) {
   return { entry, setEntry, open, setOpen };
 }
 
-/** Іконка в рядку дій; уже записане — іконка з галочкою, що веде в журнал. */
+/** Кнопка «У журнал» у рядку дій; уже записане — «У журналі» з галочкою, веде в журнал. */
 export function JournalButton({ journal }) {
   const navigate = useNavigate();
   const { entry, open, setOpen } = journal;
@@ -52,12 +52,13 @@ export function JournalButton({ journal }) {
     return (
       <button
         type="button"
-        className="chat__icon-button chat__journal-saved"
+        className="chat__action chat__journal-saved"
         onClick={() => navigate('/journal')}
         aria-label={`${label}. ${t.journalOpen}`}
         title={label}
       >
-        <HugeiconsIcon icon={BookOpenCheckIcon} size={18} />
+        <HugeiconsIcon icon={BookOpenCheckIcon} size={16} aria-hidden="true" />
+        <span>{t.actions.journalSaved}</span>
       </button>
     );
   }
@@ -65,13 +66,14 @@ export function JournalButton({ journal }) {
   return (
     <button
       type="button"
-      className="chat__icon-button"
+      className={`chat__action ${open ? 'chat__action--active' : ''}`}
       onClick={() => setOpen((value) => !value)}
       aria-expanded={open}
       aria-label={t.journalTitle}
-      title={t.journalAdd}
+      title={t.journalTitle}
     >
-      <HugeiconsIcon icon={BookOpen01Icon} size={18} />
+      <HugeiconsIcon icon={BookOpen01Icon} size={16} aria-hidden="true" />
+      <span>{t.actions.journal}</span>
     </button>
   );
 }

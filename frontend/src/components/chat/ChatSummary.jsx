@@ -144,18 +144,20 @@ export default function ChatSummary({
         </div>
       )}
       <div className="chat__summary-actions" style={summaryStep()}>
+        {/* іконка й коротке слово: дію видно без наведення; повний опис — у підказці */}
         <button
           type="button"
-          className="chat__icon-button"
+          className="chat__action"
           onClick={handleCopySummary}
           aria-label={copyLabel}
           title={copyLabel}
         >
-          <HugeiconsIcon icon={copyState === 'done' ? Tick02Icon : Copy01Icon} size={18} />
+          <HugeiconsIcon icon={copyState === 'done' ? Tick02Icon : Copy01Icon} size={16} aria-hidden="true" />
+          <span>{copyState === 'done' ? t.copied : t.actions.copy}</span>
         </button>
         <button
           type="button"
-          className="chat__icon-button"
+          className="chat__action"
           onClick={handleDownloadPdf}
           disabled={pdfState === 'busy'}
           aria-label={pdfLabel}
@@ -163,37 +165,42 @@ export default function ChatSummary({
         >
           <HugeiconsIcon
             icon={pdfState === 'busy' ? Loading03Icon : Download04Icon}
-            size={18}
+            size={16}
             className={pdfState === 'busy' ? 'chat__icon-spin' : undefined}
+            aria-hidden="true"
           />
+          <span>{t.actions.pdf}</span>
         </button>
         <button
           type="button"
-          className="chat__icon-button"
+          className="chat__action"
           onClick={onExportMarkdown}
           aria-label={t.exportMarkdown}
           title={t.exportMarkdown}
         >
-          <HugeiconsIcon icon={FileExportIcon} size={18} />
+          <HugeiconsIcon icon={FileExportIcon} size={16} aria-hidden="true" />
+          <span>{t.actions.markdown}</span>
         </button>
         <button
           type="button"
-          className="chat__icon-button"
+          className="chat__action"
           onClick={onShare}
           disabled={isSharing}
           aria-label={t.shareAction}
           title={t.shareAction}
         >
-          <HugeiconsIcon icon={Share08Icon} size={18} />
+          <HugeiconsIcon icon={Share08Icon} size={16} aria-hidden="true" />
+          <span>{t.actions.share}</span>
         </button>
         <button
           type="button"
-          className="chat__icon-button"
+          className="chat__action"
           onClick={onRepeat}
           aria-label={t.repeat}
           title={t.repeat}
         >
-          <HugeiconsIcon icon={RepeatIcon} size={18} />
+          <HugeiconsIcon icon={RepeatIcon} size={16} aria-hidden="true" />
+          <span>{t.actions.repeat}</span>
         </button>
         <JournalButton journal={journal} />
         {onDeepen && (

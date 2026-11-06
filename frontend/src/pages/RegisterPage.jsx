@@ -1,12 +1,16 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthPage } from './AuthLayout';
 import RegisterForm from '../components/RegisterForm';
 import GoogleButton from '../components/GoogleButton';
 import { login, register } from '../api/auth';
 import { copy } from '../copy';
+import { getSession } from '../api/client';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  // уже в акаунті — форма входу не потрібна, одразу в застосунок
+  // (позначка застаріла — застосунок отримає 401, зітре її й поверне сюди)
+  if (getSession()) return <Navigate to="/home" replace />;
   return (
     <AuthPage
       title={copy.register.title}

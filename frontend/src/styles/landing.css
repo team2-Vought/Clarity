@@ -783,12 +783,128 @@ html:has(.page--landing) {
 .lp-tile--modes,
 .lp-tile--mobile { grid-column: span 2; }
 .lp-tile--history { grid-column: span 4; }
+.lp-tile--tree,
+.lp-tile--journal { grid-column: span 3; }
+.lp-tile--journal { --delay: 80ms; }
 
 .lp-tile--models .lp-tile__icon { background: color-mix(in srgb, var(--pink) 70%, transparent); }
 .lp-tile--search .lp-tile__icon { background: color-mix(in srgb, var(--sky) 70%, transparent); }
 .lp-tile--search,
 .lp-tile--mobile { --delay: 80ms; }
 .lp-tile--modes { --delay: 160ms; }
+
+/* мініатюра дерева рішень: точка-питання й шляхи від неї, обраний — персиковий */
+.lp-tree {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.lp-tree__root {
+  position: relative;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+/* від питання до стовбура шляхів */
+.lp-tree__root::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  width: 22px;
+  border-top: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.lp-tree__paths {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+  list-style: none;
+}
+
+.lp-tree__path {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* гілочка від стовбура до кожного шляху */
+.lp-tree__path::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  width: 18px;
+  border-top: 2px solid color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.lp-tree__path--chosen {
+  background: var(--peach);
+  color: #121212;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px #121212;
+}
+
+.lp-tree__path--chosen::before {
+  border-top-color: var(--text);
+}
+
+/* мініатюра журналу: картка-нагадування «Як воно?» */
+.lp-journal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.lp-journal__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--lilac) 70%, transparent);
+  color: #121212;
+}
+
+.lp-journal__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lp-journal__when {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.lp-journal__question {
+  font-weight: 600;
+}
 
 .lp-chips {
   display: flex;
@@ -1120,6 +1236,11 @@ html:has(.page--landing) {
   .lp-tile--history {
     grid-column: span 2;
   }
+
+  .lp-tile--tree,
+  .lp-tile--journal {
+    grid-column: span 1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1211,6 +1332,8 @@ html:has(.page--landing) {
   .lp-tile--search,
   .lp-tile--history,
   .lp-tile--modes,
+  .lp-tile--tree,
+  .lp-tile--journal,
   .lp-tile--mobile {
     grid-column: auto;
   }
