@@ -15,8 +15,17 @@ const t = copy.chat;
  * AI Devil, аргументи й наступний крок. Спільний для чату, публічного
  * посилання й демо на лендингу.
  * `animate` — блоки проявляються по черзі (CSS-змінна --i).
+ * `paths` — розділ «Розглянуті шляхи» (лише в чаті): після перегляду, перед аргументами.
  */
-export default function SummaryDetails({ summary, view, sources, mode = 'open', options = [], animate = false }) {
+export default function SummaryDetails({
+  summary,
+  view,
+  sources,
+  mode = 'open',
+  options = [],
+  animate = false,
+  paths = null,
+}) {
   let index = 0;
   const step = () => (animate ? { '--i': index++ } : undefined);
   const verdict = describeVerdict(summary, mode, options);
@@ -108,7 +117,7 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
         </div>
       )}
 
-      {(revision || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
+      {(revision || paths || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
         <div className="chat__summary-sections" style={step()}>
           {revision && (
             <section className="chat__summary-group chat__summary-group--revision">
@@ -118,6 +127,7 @@ export default function SummaryDetails({ summary, view, sources, mode = 'open', 
               </p>
             </section>
           )}
+          {paths}
           {view.lists.map(({ key, title, items }) => (
             <section key={key} className={`chat__summary-group chat__summary-group--${key}`}>
               <h4 className="chat__summary-label">{title}</h4>
@@ -183,6 +193,7 @@ SummaryDetails.propTypes = {
     triggers: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
   sources: PropTypes.instanceOf(Map).isRequired,
+  paths: PropTypes.node,
   mode: PropTypes.oneOf(['open', 'yes_no', 'choose_one']),
   options: PropTypes.arrayOf(PropTypes.string),
   animate: PropTypes.bool,

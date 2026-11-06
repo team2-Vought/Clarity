@@ -22,6 +22,8 @@ class FakeProvider:
         self.topic = topic
         # оцінки за критеріями: {варіант: {критерій: бал}}
         self.scores_reply = {}
+        # відповідь на запит дерева рішень; None — типове дерево з двох гілок
+        self.tree_reply = None
         self._lock = threading.Lock()
 
     def complete(self, *, system, prompt, temperature=0.7, json_mode=False):
@@ -34,6 +36,8 @@ class FakeProvider:
                     'json_mode': json_mode,
                 }
             )
+            if '"branches"' in prompt:
+                return json.dumps(self.tree_reply or self._tree(), ensure_ascii=False)
             if '"ready"' in prompt:
                 return json.dumps(
                     {
@@ -92,6 +96,42 @@ class FakeProvider:
                     if options:
                         return options[0]
         return None
+
+    def _tree(self):
+        return {
+            'root': 'Чи переходити на нову роботу?',
+            'branches': [
+                {
+                    'title': 'Перейти зараз',
+                    'status': 'chosen',
+                    'summary': 'Більша зарплата важить більше за ризик.',
+                    'fit': 78,
+                    'supporters': ['Логік'],
+                    'pros': ['Зарплата +30%'],
+                    'cons': ['Випробувальний термін'],
+                    'why': 'Логік показав, що подушки вистачить на пів року.',
+                    'outcomes': [
+                        {'condition': 'Якщо пройдете випробувальний', 'result': 'Стабільний ріст', 'tone': 'good'},
+                    ],
+                },
+                {
+                    'title': 'Лишитися',
+                    'status': 'alternative',
+                    'summary': 'Спокійно, але без росту.',
+                    'fit': 45,
+                    'supporters': ['Скептик'],
+                    'pros': ['Без ризику'],
+                    'cons': ['Зарплата не росте'],
+                    'why': 'Програло через відсутність росту.',
+                    'outcomes': [],
+                },
+            ],
+            'path': [
+                {'stage': 'question', 'title': 'Питання', 'text': 'Чи переходити?', 'who': ''},
+                {'stage': 'turn', 'title': 'Подушка', 'text': 'Грошей вистачить.', 'who': 'Логік'},
+                {'stage': 'conclusion', 'title': 'Висновок', 'text': 'Переходити.', 'who': 'Модератор'},
+            ],
+        }
 
     def _synthesis(self, prompt):
         data = {

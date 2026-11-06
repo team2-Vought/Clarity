@@ -299,6 +299,11 @@ def finish_early(discussion_id):
         discussion.finished_at = timezone.now()
         # висновок попереднього раунду (до уточнення) цієї розмови вже не підсумовує
         discussion.final_summary = None
+        discussion.decision_tree = None
+        discussion.tree_state = ''
+        discussion.tree_error = ''
+        discussion.tree_started_at = None
+        discussion.tree_heartbeat_at = None
         discussion.finished_early = True
         discussion.stop_requested = False
         discussion.advance_token = None

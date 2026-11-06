@@ -638,6 +638,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'best_solution',
             'devil_review',
             'final_summary',
+            'decision_tree',
             'thinking',
             'live',
             'messages',

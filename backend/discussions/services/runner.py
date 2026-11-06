@@ -22,6 +22,7 @@ HTTP-запитом, закрита вкладка зупиняла дебати
 import logging
 import threading
 import time
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import connection
@@ -179,4 +180,112 @@ def start(discussion_id):
         daemon=True,
     )
     thread.start()
+    return True
+
+
+# ---------- дерево рішень ----------
+# Модель може думати хвилинами (повтори, запасні моделі), тож дерево
+# складається у фоновому потоці вебсервера, а вікно опитує стан. Перезапуск
+# сервера обриває побудову — тоді «складається» без руху довше за TREE_STALE,
+# і людина може запустити її знову.
+
+# пульс раз на TREE_HEARTBEAT_SECONDS; без пульсу довше за TREE_STALE_SECONDS —
+# потік загинув разом із процесом (перезапуск, деплой)
+TREE_HEARTBEAT_SECONDS = 10
+TREE_STALE_SECONDS = 60
+
+
+def tree_is_building(discussion):
+    alive = discussion.tree_heartbeat_at or discussion.tree_started_at
+    return (
+        discussion.tree_state == 'building'
+        and alive is not None
+        and (timezone.now() - alive).total_seconds() < TREE_STALE_SECONDS
+    )
+
+
+class _TreePulse(threading.Thread):
+    """Поки модель думає, раз на кілька секунд позначає побудову живою."""
+
+    def __init__(self, discussion_id, started):
+        super().__init__(name=f'tree-pulse-{str(discussion_id)[:8]}', daemon=True)
+        self.discussion_id = discussion_id
+        self.started = started
+        self.done = threading.Event()
+
+    def run(self):
+        try:
+            while not self.done.wait(TREE_HEARTBEAT_SECONDS):
+                Discussion.objects.filter(
+                    pk=self.discussion_id, tree_state='building', tree_started_at=self.started
+                ).update(tree_heartbeat_at=timezone.now())
+        finally:
+            connection.close()
+
+
+def _tree_failed(discussion_id, started, public):
+    Discussion.objects.filter(pk=discussion_id, tree_state='building', tree_started_at=started).update(
+        tree_state='error', tree_error=(public or '')[:300], tree_started_at=None, tree_heartbeat_at=None
+    )
+
+
+def run_tree(discussion_id, provider_factory=None):
+    discussion = Discussion.objects.select_related('user').filter(pk=discussion_id).first()
+    if discussion is None:
+        return
+    # усі оновлення стану — лише для цього запуску (див. tree_started_at)
+    started = discussion.tree_started_at
+    pulse = None
+    if not getattr(settings, 'DISCUSSION_RUNNER_SYNC', False):
+        pulse = _TreePulse(discussion_id, started)
+        pulse.start()
+    try:
+        with user_context(discussion.user):
+            engine.build_tree(discussion, provider_factory=provider_factory)
+    except engine.EngineConflict:
+        # висновок змінився — це дерево вже нікому не потрібне
+        Discussion.objects.filter(pk=discussion_id, tree_started_at=started).update(
+            tree_state='', tree_error='', tree_started_at=None, tree_heartbeat_at=None
+        )
+    except engine.EngineError as exc:
+        logger.warning('Decision tree failed', extra={'discussion': str(discussion_id), 'error': exc.detail})
+        with using(discussion.language):
+            _tree_failed(discussion_id, started, exc.public or engine.generic_public_error())
+    except Exception:
+        logger.exception('Decision tree crashed', extra={'discussion': str(discussion_id)})
+        with using(discussion.language):
+            _tree_failed(discussion_id, started, engine.generic_public_error())
+    finally:
+        if pulse is not None:
+            pulse.done.set()
+
+
+def _run_tree_in_thread(discussion_id):
+    try:
+        run_tree(discussion_id)
+    finally:
+        connection.close()
+
+
+def start_tree(discussion):
+    """Позначає, що дерево складається, і запускає побудову. False — воно вже
+    складається (повторний клік, друга вкладка): модель удруге не кличемо."""
+    now = timezone.now()
+    stale = now - timedelta(seconds=TREE_STALE_SECONDS)
+    claimed = (
+        Discussion.objects.filter(pk=discussion.pk, phase=Discussion.Phase.DONE)
+        .exclude(tree_state='building', tree_heartbeat_at__gt=stale)
+        .update(tree_state='building', tree_error='', tree_started_at=now, tree_heartbeat_at=now)
+    )
+    if not claimed:
+        return False
+    if getattr(settings, 'DISCUSSION_RUNNER_SYNC', False):
+        run_tree(discussion.pk)
+        return True
+    threading.Thread(
+        target=_run_tree_in_thread,
+        args=(discussion.pk,),
+        name=f'tree-{str(discussion.pk)[:8]}',
+        daemon=True,
+    ).start()
     return True

@@ -292,6 +292,8 @@ REST_FRAMEWORK = {
         'discussion_advance': '60/min',
         'discussion_note': '20/min',
         'discussion_clarify': '10/min',
+        # дерево рішень — виклик моделі; перебудовувати потоком немає сенсу
+        'discussion_tree': '10/min',
         # перевірка ключа — запит до провайдера; не даємо перебирати ключі
         'api_keys': '20/min',
         'google_login': '20/min',

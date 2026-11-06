@@ -141,6 +141,16 @@ class Discussion(models.Model):
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)
     final_summary = models.JSONField(null=True, blank=True)
+    # дерево рішень за висновком: будується на вимогу людини (engine.tree),
+    # новий висновок його скидає
+    decision_tree = models.JSONField('дерево рішень', null=True, blank=True)
+    # побудова дерева йде у фоні (services/runner.start_tree): '' — не будується,
+    # 'building' — модератор складає, 'error' — не вдалося (текст у tree_error)
+    tree_state = models.CharField('стан дерева рішень', max_length=12, blank=True, default='')
+    tree_error = models.CharField('помилка дерева рішень', max_length=300, blank=True, default='')
+    tree_started_at = models.DateTimeField('дерево почали складати', null=True, blank=True)
+    # пульс фонової побудови: якщо він затих (перезапуск сервера) — побудову перервано
+    tree_heartbeat_at = models.DateTimeField('пульс побудови дерева', null=True, blank=True)
     error = models.TextField(blank=True)
     error_code = models.CharField(max_length=32, blank=True, default='')
     # Безпечний для показу користувачу текст помилки (без сирих відповідей провайдера).

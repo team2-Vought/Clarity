@@ -54,6 +54,7 @@ from .lease import is_running
 from .live import clean_status, draft_text
 from .parsing import parse_json, parse_reply
 from .status import describe_step
+from .tree import build_tree
 from .user_input import add_user_message, answer_clarification, clarify, finish_early
 
 __all__ = [
@@ -67,6 +68,7 @@ __all__ = [
     'advance',
     'answer_clarification',
     'billing',
+    'build_tree',
     'clarify',
     'clean_status',
     'describe_step',

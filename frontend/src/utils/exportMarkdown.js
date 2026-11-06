@@ -67,6 +67,33 @@ export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf, a
     }
   }
 
+  // дерево рішень — коли людина його вже склала
+  const tree = discussion.decision_tree;
+  if (tree?.branches?.length && labels.tree) {
+    const t = labels.tree;
+    lines.push(`## ${t.title}`, '');
+    tree.branches.forEach((branch) => {
+      const mark = branch.status === 'chosen' ? '✅' : branch.status === 'rejected' ? '✖️' : '◽';
+      const fit = branch.fit !== null && branch.fit !== undefined ? ` · ${t.fit}: ${branch.fit}%` : '';
+      lines.push(`### ${mark} ${branch.title}`, '', `_${t.status[branch.status] || ''}${fit}_`, '');
+      if (branch.summary) lines.push(branch.summary, '');
+      if (branch.why) lines.push(`**${t.why[branch.status] || t.why.alternative}:** ${branch.why}`, '');
+      (branch.outcomes || []).forEach((outcome) => {
+        lines.push(`- ${[outcome.condition, outcome.result].filter(Boolean).join(' → ')}`);
+      });
+      if (branch.outcomes?.length) lines.push('');
+    });
+    const path = tree.path || [];
+    if (path.length) {
+      lines.push(`**${t.path}:**`, '');
+      path.forEach((step, index) => {
+        const who = step.who?.name ? ` (${step.who.name})` : '';
+        lines.push(`${index + 1}. **${step.title}**${who}${step.text ? ` — ${step.text}` : ''}`);
+      });
+      lines.push('');
+    }
+  }
+
   // позначки людини (utils/marks.js) — після висновку, перед джерелами
   if (appendix) lines.push(appendix.trim(), '');
 

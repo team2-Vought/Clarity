@@ -17,6 +17,7 @@ from .views import (
     DiscussionRunView,
     DiscussionShareView,
     DiscussionStopView,
+    DiscussionTreeView,
     FreeModelListView,
     HighlightDetailView,
     MessageHighlightListView,
@@ -69,6 +70,7 @@ urlpatterns = [
         DiscussionMessageView.as_view(),
         name='discussion-messages',
     ),
+    path('discussions/<uuid:pk>/tree/', DiscussionTreeView.as_view(), name='discussion-tree'),
     path('discussions/<uuid:pk>/share/', DiscussionShareView.as_view(), name='discussion-share'),
     path(
         'discussions/<uuid:pk>/feedback/',
