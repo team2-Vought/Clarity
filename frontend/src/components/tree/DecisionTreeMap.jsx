@@ -27,6 +27,9 @@ export default function DecisionTreeMap({ tree, colorOf, activeId, selectedId, o
   const [links, setLinks] = useState([]);
   const [box, setBox] = useState({ width: 0, height: 0 });
   const branches = useMemo(() => orderBranches(tree.branches), [tree.branches]);
+  // «Так» / «Ні» / варіант; у вільному режимі відповідь — ціле рішення, її тут немає
+  const answer = stanceLabelOf(tree.answer, tree.mode);
+  const hasConfidence = tree.confidence !== null && tree.confidence !== undefined;
 
   const setNode = (id) => (el) => {
     if (el) nodeRefs.current.set(id, el);
@@ -130,13 +133,15 @@ export default function DecisionTreeMap({ tree, colorOf, activeId, selectedId, o
       <div className="tree-root" ref={rootRef} style={{ gridRow: `1 / span ${branches.length}` }}>
         <span className="tree-root__label">{t.question}</span>
         <p className="tree-root__question">{tree.root}</p>
-        {(tree.answer || tree.confidence !== null) && (
+        {(answer || hasConfidence) && (
           <div className="tree-root__foot">
-            {tree.answer && (
+            {answer ? (
               <span className="tree-root__answer">
                 <span className="tree-root__answer-label">{t.answer}</span>
-                <span className="tree-root__answer-value">{stanceLabelOf(tree.answer, tree.mode)}</span>
+                <span className="tree-root__answer-value">{answer}</span>
               </span>
+            ) : (
+              <span className="tree-root__confidence-label">{t.confidence}</span>
             )}
             <ConfidenceRing value={tree.confidence} size={44} />
           </div>
@@ -184,10 +189,14 @@ export default function DecisionTreeMap({ tree, colorOf, activeId, selectedId, o
             {branch.outcomes.length > 0 && (
               <ul className="tree-outcomes">
                 {branch.outcomes.map((outcome) => (
+                  // розвилка веде до свого шляху: клік відкриває його деталі (з клавіатури — кнопка шляху)
                   <li
                     key={outcome.id}
                     ref={setNode(outcome.id)}
                     className={`tree-outcome tree-outcome--${outcome.tone}`}
+                    onClick={() => onSelect(branch.id)}
+                    onMouseEnter={() => onActivate(branch.id)}
+                    onMouseLeave={() => onActivate('')}
                   >
                     <span className="tree-outcome__dot" aria-hidden="true" />
                     <span className="sr-only">{t.tone[outcome.tone]}: </span>

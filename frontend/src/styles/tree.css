@@ -12,12 +12,17 @@
   --soft: #efeff1;
   --line: rgba(18, 18, 18, 0.13);
   --dot: rgba(18, 18, 18, 0.08);
-  --chosen: #2a9466;
-  --good: #2a9466;
+  /* як у решті платформи: вибране — чорним і персиковим (активна вкладка,
+     пункт меню), кольори лише там, де несуть зміст — добрий/ризикований сценарій */
+  --chosen: var(--ink);
+  --pick: #feedd5;
+  --pick-line: var(--ink);
+  --pick-ink: #121212;
+  /* відповідь і кільце в корені — тим самим чорним, що й обраний шлях */
+  --root-accent: var(--ink);
+  --good: #17895a;
   --neutral: #8b8f99;
-  --bad: #d6455d;
-  --amber: #d98516;
-  --blue: #4f63d8;
+  --bad: #cf3a5b;
   --root-w: 236px;
   --branch-w: 300px;
   --gap: 72px;
@@ -68,12 +73,12 @@
   --soft: #2b2b31;
   --line: rgba(244, 244, 244, 0.14);
   --dot: rgba(244, 244, 244, 0.07);
-  --chosen: #5fd09a;
+  --pick: color-mix(in srgb, #feedd5 13%, #1f1f23);
+  --pick-line: color-mix(in srgb, #feedd5 70%, transparent);
+  --pick-ink: var(--ink);
   --good: #5fd09a;
   --neutral: #9a9ea8;
   --bad: #ff7d93;
-  --amber: #f2b25c;
-  --blue: #9aa9ff;
 }
 
 /* ---- «Назад»: висить над полотном зліва вгорі, як «бургер» меню ---- */
@@ -167,6 +172,8 @@
 }
 
 .tree-dialog__canvas {
+  /* за шириною полотна схема вирішує, чи вміщається в три колонки */
+  container: tree-canvas / inline-size;
   min-width: 0;
   min-height: 0;
   /* згори — місце під кнопку «Назад», що висить над полотном */
@@ -219,14 +226,16 @@
   grid-column: 1;
   align-self: center;
   padding: 18px 18px 16px;
-  border-radius: 22px;
-  background: var(--ink);
-  color: var(--tree-bg);
-  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.55);
+  /* біла картка, як шляхи: єдиний акцент на полотні — обраний шлях */
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--card);
+  color: var(--ink);
   animation: tree-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tree-root__label {
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -237,11 +246,11 @@
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: 1.1875rem;
+  font-weight: 650;
+  line-height: 1.3;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 7;
   overflow-wrap: anywhere;
 }
 
@@ -252,7 +261,7 @@
   gap: 10px;
   margin-top: 4px;
   padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--tree-bg) 18%, transparent);
+  border-top: 1px solid var(--line);
 }
 
 .tree-root__answer {
@@ -261,14 +270,15 @@
   min-width: 0;
 }
 
-.tree-root__answer-label {
+.tree-root__answer-label,
+.tree-root__confidence-label {
+  color: var(--muted);
   font-size: 0.75rem;
-  opacity: 0.6;
 }
 
 .tree-root__answer-value {
   overflow: hidden;
-  color: var(--chosen);
+  color: var(--root-accent);
   font-size: 1rem;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -294,64 +304,59 @@
 /* ---- шлях ---- */
 
 .tree-branch {
-  --fit-color: color-mix(in srgb, var(--ink) 42%, transparent);
+  --fit-color: color-mix(in srgb, var(--ink) 40%, transparent);
   display: flex;
   flex-direction: column;
   gap: 6px;
   width: 100%;
   padding: 14px 16px 12px;
-  border: 1.5px solid var(--line);
-  border-radius: 18px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
   background: var(--card);
   color: var(--ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 26px -18px rgba(0, 0, 0, 0.35);
-  transition:
-    translate 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.22s,
-    border-color 0.22s,
-    var(--press);
+  /* пласка біла картка, як анкета учасника чи розділ налаштувань */
+  transition: border-color 0.18s, background 0.18s, var(--press);
 }
 
 .tree-branch:hover {
-  translate: 0 -2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 16px 32px -18px rgba(0, 0, 0, 0.42);
+  border-color: color-mix(in srgb, var(--ink) 32%, transparent);
 }
 
+/* обраний шлях — як активний пункт платформи: персикове тло й чорна рамка */
 .tree-branch--chosen {
-  --fit-color: var(--chosen);
-  border-color: var(--chosen);
-  background: color-mix(in srgb, var(--chosen) 7%, var(--card));
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--chosen) 14%, transparent),
-    0 16px 34px -20px color-mix(in srgb, var(--chosen) 80%, transparent);
+  --fit-color: var(--pick-ink);
+  border: 1.5px solid var(--pick-line);
+  background: var(--pick);
 }
 
 .tree-branch--chosen:hover {
-  box-shadow:
-    0 0 0 5px color-mix(in srgb, var(--chosen) 18%, transparent),
-    0 20px 38px -20px color-mix(in srgb, var(--chosen) 85%, transparent);
+  border-color: var(--pick-line);
 }
 
+/* відкинутий — та сама картка, лише приглушена: без пунктиру й червоного */
 .tree-branch--rejected {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--card) 65%, transparent);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--card) 70%, transparent);
 }
 
-.tree-branch--rejected .tree-branch__title {
+.tree-branch--rejected :is(.tree-branch__title, .tree-branch__summary) {
   color: var(--muted);
+}
+
+.tree-branch--rejected .tree-person {
+  opacity: 0.6;
 }
 
 .tree-branch--open {
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 16%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .tree-branch--chosen.tree-branch--open {
-  border-color: var(--chosen);
+  border-color: var(--pick-line);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pick-line) 22%, transparent);
 }
 
 .tree-branch__status,
@@ -360,7 +365,7 @@
   align-items: center;
   align-self: flex-start;
   gap: 5px;
-  padding: 3px 9px 3px 7px;
+  padding: 3px 10px 3px 8px;
   border-radius: 999px;
   background: var(--soft);
   color: var(--muted);
@@ -369,14 +374,15 @@
   line-height: 1.3;
 }
 
+/* «Обраний шлях» — чорна пігулка, як активна пігулка «Повністю» в панелі */
 :is(.tree-branch--chosen, .tree-detail--chosen) :is(.tree-branch__status, .tree-detail__status) {
-  background: color-mix(in srgb, var(--chosen) 16%, var(--card));
-  color: color-mix(in srgb, var(--chosen) 78%, var(--ink));
+  background: var(--ink);
+  color: var(--card);
 }
 
 :is(.tree-branch--rejected, .tree-detail--rejected) :is(.tree-branch__status, .tree-detail__status) {
-  background: color-mix(in srgb, var(--bad) 11%, var(--card));
-  color: color-mix(in srgb, var(--bad) 80%, var(--ink));
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .tree-branch__title {
@@ -436,7 +442,7 @@
   position: relative;
   padding: 11px 13px 11px 18px;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 20px;
   background: var(--card);
   /* рамка — тінню всередині: так кольорова лінія може лягти на самий край */
   box-shadow: inset 0 0 0 1px var(--line);
@@ -462,6 +468,16 @@
 
 .tree-outcome--bad {
   --tone: var(--bad);
+}
+
+/* у схемі розвилка клікабельна — відкриває свій шлях */
+.tree-outcomes .tree-outcome {
+  cursor: pointer;
+  transition: box-shadow 0.18s;
+}
+
+.tree-outcomes .tree-outcome:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 32%, transparent);
 }
 
 .tree-outcome__dot {
@@ -511,7 +527,7 @@
 /* ---- лінії ---- */
 
 .tree-link {
-  --link: color-mix(in srgb, var(--ink) 26%, transparent);
+  --link: color-mix(in srgb, var(--ink) 22%, transparent);
   transition: opacity 0.22s;
 }
 
@@ -541,20 +557,16 @@
 }
 
 .tree-link--chosen:not(.tree-link--leaf) .tree-link__line {
-  stroke-width: 2.8;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--chosen) 45%, transparent));
+  stroke-width: 2.4;
 }
 
 .tree-link--chosen:not(.tree-link--leaf) .tree-link__port {
   fill: var(--chosen);
 }
 
-/* відкинутий шлях — пунктиром: малювати його не треба, він просто з'являється */
-.tree-link--rejected .tree-link__line {
-  stroke-dasharray: 0.018 0.014;
-  stroke-dashoffset: 0;
-  opacity: 0;
-  animation-name: tree-fade;
+/* відкинутий шлях — тонша й світліша лінія */
+.tree-link--rejected:not(.tree-link--leaf) {
+  --link: color-mix(in srgb, var(--ink) 13%, transparent);
 }
 
 .tree-link--leaf {
@@ -562,11 +574,11 @@
 }
 
 .tree-link--leaf.tree-link--good {
-  --link: color-mix(in srgb, var(--good) 60%, transparent);
+  --link: color-mix(in srgb, var(--good) 45%, transparent);
 }
 
 .tree-link--leaf.tree-link--bad {
-  --link: color-mix(in srgb, var(--bad) 60%, transparent);
+  --link: color-mix(in srgb, var(--bad) 45%, transparent);
 }
 
 .tree-link--leaf .tree-link__line {
@@ -632,8 +644,13 @@
   color: var(--muted);
 }
 
+.tree-fit--compact .tree-fit__label {
+  font-size: 0.75rem;
+}
+
 .tree-fit__track {
   position: relative;
+  flex-shrink: 0;
   width: 64px;
   height: 6px;
   overflow: hidden;
@@ -663,11 +680,11 @@
 }
 
 .tree-detail .tree-fit {
-  --fit-color: var(--chosen);
+  --fit-color: var(--ink);
 }
 
 .tree-detail:not(.tree-detail--chosen) .tree-fit {
-  --fit-color: color-mix(in srgb, var(--ink) 42%, transparent);
+  --fit-color: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
 .tree-ring {
@@ -695,7 +712,7 @@
 }
 
 .tree-ring__value {
-  stroke: var(--chosen);
+  stroke: var(--root-accent);
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -712,7 +729,7 @@
   margin-top: 40px;
   padding: 22px clamp(16px, 2vw, 24px) 24px;
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 32px;
   background: var(--card);
 }
 
@@ -776,22 +793,6 @@
   width: 18px;
 }
 
-.tree-step--debate {
-  --stage: var(--blue);
-}
-
-.tree-step--turn {
-  --stage: var(--amber);
-}
-
-.tree-step--devil {
-  --stage: var(--bad);
-}
-
-.tree-step--conclusion {
-  --stage: var(--chosen);
-}
-
 .tree-step__marker {
   position: relative;
   display: grid;
@@ -800,9 +801,15 @@
   height: 36px;
   margin-bottom: 12px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--stage) 14%, var(--card));
-  color: var(--stage);
+  background: var(--soft);
+  color: var(--ink);
   box-shadow: 0 0 0 4px var(--card);
+}
+
+/* висновок — чорне коло, як галочка обраного шляху */
+.tree-step--conclusion .tree-step__marker {
+  background: var(--ink);
+  color: var(--card);
 }
 
 .tree-step__body {
@@ -813,9 +820,11 @@
 }
 
 .tree-step__stage {
-  color: var(--stage);
+  color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .tree-step__title {
@@ -898,12 +907,12 @@
 .tree-detail__why {
   padding: 14px 16px;
   border-top: 0;
-  border-radius: 16px;
+  border-radius: 22px;
   background: var(--soft);
 }
 
 .tree-detail--chosen .tree-detail__why {
-  background: color-mix(in srgb, var(--chosen) 10%, var(--card));
+  background: var(--pick);
 }
 
 .tree-detail__label {
@@ -1003,27 +1012,21 @@
 }
 
 .tree-growing__art {
-  width: min(480px, 92%);
-  margin-bottom: 4px;
+  width: min(220px, 60%);
+  margin-bottom: 14px;
 }
 
-/* ---- логотип, з якого проростає дерево (components/tree/LogoTreeGrowing) ----
-   Цикл 4.8 с: пелюстки по черзі «тягнуться», і з кінчика кожної виростає гілка
-   з розвилкою; остання — обрана, зелена. Ядро дихає, як у логотипі-«думці». */
+/* ---- логотип, поки складається дерево (components/tree/LogoTreeGrowing) ----
+   Рухаються лише пелюстки: по черзі тягнуться назовні від ядра й ловлять
+   відблиск. Сам логотип і ядро стоять на місці. */
 
 .logo-tree {
-  --cycle: 4.8s;
-  --step: 0.42s;
+  --cycle: 2.4s;
+  --step: 0.18s;
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
-}
-
-.logo-tree__flower {
-  transform-box: view-box;
-  transform-origin: 322px 325px;
-  animation: logo-sway 2.4s ease-in-out infinite;
 }
 
 .logo-tree__body {
@@ -1033,209 +1036,40 @@
   animation-delay: calc(var(--n, 0) * var(--step));
 }
 
+/* ядро й ореол нерухомі — сталою яскравістю, як у середині «подиху» логотипа */
+.logo-tree__core {
+  opacity: 0.9;
+}
+
+.logo-tree__halo {
+  opacity: 0.45;
+}
+
 .logo-tree__shine {
   opacity: 0;
   animation: logo-glint var(--cycle) ease-in-out infinite;
   animation-delay: calc(var(--n, 0) * var(--step));
 }
 
-.logo-tree__core {
-  transform-box: view-box;
-  transform-origin: 322px 325px;
-  animation: logo-breathe 2.4s ease-in-out infinite;
-}
-
-.logo-tree__halo {
-  transform-box: view-box;
-  transform-origin: 322px 325px;
-  animation: logo-halo 2.4s ease-in-out infinite;
-}
-
-.logo-tree__branch {
-  --branch: color-mix(in srgb, var(--ink) 30%, transparent);
-  --delay: calc(var(--n, 0) * var(--step) + 0.18s);
-}
-
-.logo-tree__branch--chosen {
-  --branch: var(--chosen);
-}
-
-.logo-tree__line,
-.logo-tree__twig {
-  fill: none;
-  stroke: var(--branch);
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-}
-
-.logo-tree__line {
-  stroke-width: 9;
-  animation: logo-branch var(--cycle) cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  animation-delay: var(--delay);
-}
-
-.logo-tree__twig {
-  stroke-width: 6;
-  animation: logo-twig var(--cycle) cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  animation-delay: var(--delay);
-}
-
-.logo-tree__branch--chosen .logo-tree__line {
-  stroke-width: 13;
-}
-
-.logo-tree__node,
-.logo-tree__leaf {
-  transform-box: fill-box;
-  transform-origin: center;
-  fill: var(--card);
-  stroke: var(--branch);
-  stroke-width: 6;
-  transform: scale(0);
-}
-
-.logo-tree__node {
-  animation: logo-node var(--cycle) cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-  animation-delay: var(--delay);
-}
-
-.logo-tree__leaf {
-  fill: var(--branch);
-  stroke: none;
-  animation: logo-leaf var(--cycle) cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-  animation-delay: var(--delay);
-}
-
-.logo-tree__branch--chosen .logo-tree__node {
-  fill: var(--chosen);
-  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--chosen) 70%, transparent));
-}
-
 @keyframes logo-reach {
   0%,
-  22%,
+  55%,
   100% {
     transform: scale(1);
   }
-  8% {
+  22% {
     transform: scale(1.07);
   }
 }
 
 @keyframes logo-glint {
   0%,
-  22%,
+  55%,
   100% {
     opacity: 0;
   }
-  7% {
-    opacity: 0.75;
-  }
-}
-
-@keyframes logo-branch {
-  0% {
-    stroke-dashoffset: 1;
-    opacity: 1;
-  }
-  12%,
-  58% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  70%,
-  100% {
-    stroke-dashoffset: 0;
-    opacity: 0;
-  }
-}
-
-@keyframes logo-twig {
-  0%,
-  13% {
-    stroke-dashoffset: 1;
-    opacity: 1;
-  }
-  22%,
-  58% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  70%,
-  100% {
-    stroke-dashoffset: 0;
-    opacity: 0;
-  }
-}
-
-@keyframes logo-node {
-  0%,
-  10% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  16%,
-  58% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  70%,
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-@keyframes logo-leaf {
-  0%,
   20% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  26%,
-  58% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  70%,
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-@keyframes logo-breathe {
-  0%,
-  100% {
-    transform: scale(0.9);
     opacity: 0.75;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 1;
-  }
-}
-
-@keyframes logo-halo {
-  0%,
-  100% {
-    transform: scale(0.85);
-    opacity: 0.25;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.6;
-  }
-}
-
-@keyframes logo-sway {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  50% {
-    transform: rotate(-1.2deg) scale(0.985);
   }
 }
 
@@ -1380,24 +1214,24 @@
   }
 }
 
-/* ---- телефон і вузьке вікно: усе в стовпчик, лінії малює CSS ---- */
+/* ---- схема в стовпчик, коли три колонки не вміщаються ----
+   Не лише на телефоні: на ноутбуці з відкритими деталями шляху полотно теж
+   вузьке, і замість прокрутки вбік шляхи стають одне під одним, лінії малює CSS */
 
-@media (max-width: 760px) {
-  /* поруч із «бургером» меню (12px + 50px), на тій самій висоті */
-  .tree-back {
-    top: 19px;
-    left: 74px;
+/* спершу — компактніші колонки (вміщаються в ~880px) */
+@container tree-canvas (max-width: 1020px) {
+  .tree-map {
+    --gap: 48px;
+    --root-w: 210px;
+    --branch-w: 270px;
   }
 
-  .tree-dialog__body--detail {
-    grid-template-columns: minmax(0, 1fr);
+  .tree-root__question {
+    font-size: 1.0625rem;
   }
+}
 
-  .tree-dialog__canvas {
-    /* згори — під «бургер» і «Назад», що висять над полотном */
-    padding: 82px 16px 40px;
-  }
-
+@container tree-canvas (max-width: 890px) {
   .tree-map {
     --tree-links: none;
     grid-template-columns: minmax(0, 1fr);
@@ -1421,12 +1255,14 @@
     --rail: var(--line);
     display: flex;
     flex-direction: column;
+    /* у широкій схемі рядок центрує картки, у стовпчику — на всю ширину */
+    align-items: stretch;
     gap: 10px;
     padding: 0 0 18px 26px;
   }
 
   .tree-row:has(.tree-branch--chosen) {
-    --rail: var(--chosen);
+    --rail: var(--ink);
   }
 
   /* стовбур від кореня й гілочка до кожного шляху */
@@ -1456,6 +1292,25 @@
     padding-left: 14px;
     border-left: 2px dotted var(--line);
   }
+}
+
+/* ---- телефон: «Назад» поруч із «бургером», деталі — аркушем знизу ---- */
+
+@media (max-width: 760px) {
+  /* поруч із «бургером» меню (12px + 50px), на тій самій висоті */
+  .tree-back {
+    top: 19px;
+    left: 74px;
+  }
+
+  .tree-dialog__body--detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tree-dialog__canvas {
+    /* згори — під «бургер» і «Назад», що висять над полотном */
+    padding: 82px 16px 40px;
+  }
 
   /* деталі — аркуш знизу поверх схеми */
   .tree-dialog__scrim {
@@ -1479,7 +1334,7 @@
     max-height: 84dvh;
     padding-bottom: max(28px, env(safe-area-inset-bottom));
     border-left: 0;
-    border-radius: 24px 24px 0 0;
+    border-radius: 32px 32px 0 0;
     box-shadow: 0 -18px 40px -20px rgba(0, 0, 0, 0.45);
     animation-name: tree-sheet-in;
   }
@@ -1510,19 +1365,9 @@
     opacity: 1;
   }
 
-  /* дерево з логотипа — уже виросле, без руху */
-  .logo-tree :is(.logo-tree__flower, .logo-tree__body, .logo-tree__shine, .logo-tree__core, .logo-tree__halo) {
+  /* логотип — нерухомий */
+  .logo-tree :is(.logo-tree__body, .logo-tree__shine) {
     animation: none;
-  }
-
-  .logo-tree :is(.logo-tree__line, .logo-tree__twig) {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
-
-  .logo-tree :is(.logo-tree__node, .logo-tree__leaf) {
-    animation: none;
-    transform: none;
   }
 }
 
@@ -1536,16 +1381,6 @@
   opacity: 1;
 }
 
-:root[data-motion='reduced'] .logo-tree :is(.logo-tree__flower, .logo-tree__body, .logo-tree__shine, .logo-tree__core, .logo-tree__halo) {
+:root[data-motion='reduced'] .logo-tree :is(.logo-tree__body, .logo-tree__shine) {
   animation: none;
-}
-
-:root[data-motion='reduced'] .logo-tree :is(.logo-tree__line, .logo-tree__twig) {
-  animation: none;
-  stroke-dashoffset: 0;
-}
-
-:root[data-motion='reduced'] .logo-tree :is(.logo-tree__node, .logo-tree__leaf) {
-  animation: none;
-  transform: none;
 }

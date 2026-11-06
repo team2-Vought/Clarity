@@ -13,15 +13,13 @@ const PETALS = [
   { key: 'p3', angle: -90, fill: 'olive', opacity: 0.86 },
 ];
 
-// порядок, у якому з пелюсток проростають гілки; остання — «обраний шлях»
-const GROW_ORDER = ['p1', 'p2', 'p4', 'p5', 'p3'];
-const CHOSEN = 'p3';
+// порядок, у якому пелюстки по черзі «тягнуться» назовні — хвилею зліва направо
+const GROW_ORDER = ['p1', 'p2', 'p3', 'p4', 'p5'];
 
 /**
- * Поки модератор складає дерево: логотип «думає», а з кінчика кожної пелюстки
- * по черзі проростає гілка з розвилкою — шляхи, які він зважує. Наостанок
- * виростає обрана гілка, світліша й довша. Уся анімація — CSS (styles/tree.css),
- * тож «Менше анімації» показує дерево вже виросле, без руху.
+ * Поки модератор складає дерево: логотип «думає» — пелюстки по черзі тягнуться
+ * назовні й ловлять відблиск. Сам логотип стоїть на місці. Уся анімація — CSS
+ * (styles/tree.css), тож «Менше анімації» показує його нерухомим.
  */
 export default function LogoTreeGrowing() {
   // id градієнтів унікальні: SVG вбудовано в сторінку, а не в <img>
@@ -29,7 +27,7 @@ export default function LogoTreeGrowing() {
   const id = (name) => `${uid}-${name}`;
 
   return (
-    <svg className="logo-tree" viewBox="-250 -270 1130 710" aria-hidden="true">
+    <svg className="logo-tree" viewBox="-30 -40 704 490" aria-hidden="true">
       <defs>
         <linearGradient id={id('lav')} x1="0" x2="1">
           <stop offset="0" stopColor="#f4f2ff" />
@@ -68,31 +66,6 @@ export default function LogoTreeGrowing() {
           <stop offset="1" stopColor="#fff" stopOpacity="0" />
         </radialGradient>
       </defs>
-
-      {/* гілки — під пелюстками, щоб виростали з-під їхніх кінчиків */}
-      {PETALS.map((petal) => {
-        const order = GROW_ORDER.indexOf(petal.key);
-        const chosen = petal.key === CHOSEN;
-        return (
-          <g
-            key={`branch-${petal.key}`}
-            className={`logo-tree__branch ${chosen ? 'logo-tree__branch--chosen' : ''}`}
-            transform={`rotate(${petal.angle} ${CORE.x} ${CORE.y})`}
-            style={{ '--n': order }}
-          >
-            <path className="logo-tree__line" d={`M 640 ${CORE.y} L ${chosen ? 790 : 760} ${CORE.y}`} pathLength="1" />
-            <circle className="logo-tree__node" cx={chosen ? 806 : 774} cy={CORE.y} r={chosen ? 17 : 13} />
-            {/* розвилка «якщо…, то…» на кінці гілки */}
-            <path
-              className="logo-tree__twig"
-              d={`M ${chosen ? 822 : 786} ${CORE.y} l 58 -34 M ${chosen ? 822 : 786} ${CORE.y} l 58 34`}
-              pathLength="1"
-            />
-            <circle className="logo-tree__leaf" cx={chosen ? 888 : 852} cy={CORE.y - 38} r="8" />
-            <circle className="logo-tree__leaf" cx={chosen ? 888 : 852} cy={CORE.y + 38} r="8" />
-          </g>
-        );
-      })}
 
       <g className="logo-tree__flower">
         {PETALS.map((petal) => (

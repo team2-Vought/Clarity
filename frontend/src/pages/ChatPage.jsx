@@ -1765,18 +1765,20 @@ export default function ChatPage() {
                   )}
                 </div>
               </section>
+
+              {/* у кінці прокручуваного вмісту, а не прикріплено до футера панелі */}
+              <button
+                type="button"
+                className="debate__more-toggle debate__marks-toggle"
+                onClick={() => handleShowMarks(null)}
+              >
+                <HugeiconsIcon icon={HighlighterIcon} size={16} aria-hidden="true" />
+                <span className="debate__more-toggle-text">{m.panelTitle}</span>
+                {marksTotal > 0 && <span className="debate__cast-count">{marksTotal}</span>}
+                <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
+              </button>
             </div>
 
-            <button
-              type="button"
-              className="debate__more-toggle debate__marks-toggle"
-              onClick={() => handleShowMarks(null)}
-            >
-              <HugeiconsIcon icon={HighlighterIcon} size={16} aria-hidden="true" />
-              <span className="debate__more-toggle-text">{m.panelTitle}</span>
-              {marksTotal > 0 && <span className="debate__cast-count">{marksTotal}</span>}
-              <HugeiconsIcon icon={ArrowRight01Icon} size={16} aria-hidden="true" />
-            </button>
             <button
               type="button"
               className="debate__more-toggle"

@@ -1054,6 +1054,7 @@ export const uk = {
       rejected: 'Відкинуто',
     },
     fit: 'Пасує вам',
+    fitShort: 'пасує',
     supporters: 'За цей шлях',
     noSupporters: 'Ніхто з учасників не обстоював цей шлях',
     why: {

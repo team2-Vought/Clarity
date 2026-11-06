@@ -89,8 +89,9 @@ Supporters.propTypes = {
 export function FitMeter({ value, compact = false }) {
   if (value === null || value === undefined) return null;
   return (
-    <span className={`tree-fit ${compact ? 'tree-fit--compact' : ''}`}>
-      {!compact && <span className="tree-fit__label">{t.fit}</span>}
+    <span className={`tree-fit ${compact ? 'tree-fit--compact' : ''}`} title={t.fit}>
+      {/* у картці — коротко «пасує», щоб число не висіло без пояснення */}
+      <span className="tree-fit__label">{compact ? t.fitShort : t.fit}</span>
       <span
         className="tree-fit__track"
         role="meter"

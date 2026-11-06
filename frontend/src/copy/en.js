@@ -1051,6 +1051,7 @@ export const en = {
       rejected: 'Rejected',
     },
     fit: 'Fits you',
+    fitShort: 'fits',
     supporters: 'Backed by',
     noSupporters: 'No participant argued for this path',
     why: {

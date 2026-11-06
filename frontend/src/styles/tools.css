@@ -269,7 +269,7 @@
   outline-offset: 2px;
 }
 
-/* мітка ліворуч: галочка в колі — обраний, порожнє коло — альтернатива, хрестик — відкинутий */
+/* мітка ліворуч: галочка в колі — обраний, порожнє коло — альтернатива, хрестик у колі — відкинутий */
 .chat__path-mark {
   display: grid;
   place-items: center;
@@ -284,10 +284,6 @@
   border-color: var(--ink);
   background: var(--ink);
   color: var(--card);
-}
-
-.chat__path--rejected .chat__path-mark {
-  border-style: dashed;
 }
 
 .chat__path-title {
