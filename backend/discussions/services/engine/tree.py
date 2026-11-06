@@ -17,7 +17,7 @@ from backend.i18n import L, using
 from ...models import Discussion, Message
 from ...personas import PERSONA_BY_SLUG, devil, localize, moderator
 from ..attachments import documents_for_prompt
-from .. import prompts
+from .. import prompts, reply_language
 from .base import EngineConflict, EngineError
 from .calls import _run_json_plan
 from .context import _is_available, _list_messages, _mode_ctx, _resolved_personas
@@ -355,7 +355,7 @@ def normalize_tree(data, discussion, personas):
 
 def build_tree(discussion, provider_factory=None):
     """Будує й зберігає дерево рішень. Мовою, якою створено дискусію."""
-    with using(discussion.language):
+    with using(discussion.language), reply_language.replying_to(discussion.question):
         return _build(discussion, provider_factory)
 
 

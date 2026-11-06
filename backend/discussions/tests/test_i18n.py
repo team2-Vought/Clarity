@@ -1,3 +1,4 @@
+import re
 """Англійська мова: інтерфейсні тексти API, промпти й підсумки дискусії."""
 
 import contextvars
@@ -86,8 +87,10 @@ class EnglishApiTests(TestCase):
         else:
             self.fail('the discussion did not finish')
 
+        # інструкції — англійською (мовою інтерфейсу); мову відповіді задає людина
         systems = [call['system'] for call in self.provider.calls]
-        self.assertTrue(all('English' in system for system in systems))
+        self.assertTrue(systems)
+        self.assertFalse([system for system in systems if re.search('[а-яіїєґ]', system, re.IGNORECASE)])
         final = discussion.messages.filter(role=Message.Role.MODERATOR).order_by('-seq').first()
         self.assertIn('### Final solution', final.content)
         self.assertNotIn('Відповідь', final.content)
@@ -119,12 +122,35 @@ class EnglishPromptTests(SimpleTestCase):
         parsed = engine.parse_reply('Text\nSTANCE: Yes', 'yes_no', [])
         self.assertEqual(parsed['stance'], 'так')
 
+    def test_ai_writes_in_the_users_language_not_the_interface_one(self):
+        # мова інтерфейсу задає мову інструкцій, але не мову відповіді
+        for language, rule in (('uk', prompts.LANGUAGE_RULE), ('en', prompts.LANGUAGE_RULE_EN)):
+            with using(language):
+                systems = [
+                    prompts.persona_system({'name': 'Logician', 'traits': []}),
+                    prompts.moderator_system(),
+                    prompts.devil_system(),
+                ]
+                for system in systems:
+                    self.assertIn(rule, system)
+                    self.assertNotIn('Відповідай українською', system)
+                    self.assertNotIn('Reply in English', system)
+                self.assertNotIn('Відповідай українською', prompts.clarify_system())
+                self.assertNotIn('Reply in English', prompts.clarify_system())
+        with using('uk'):
+            prompt = prompts.opening_prompt(
+                'Should I move to Berlin for a new job?',
+                {'name': 'Логік', 'slug': 'logician', 'traits': []},
+                [{'name': 'Логік', 'slug': 'logician'}],
+            )
+            self.assertIn('Мова відповіді: та сама, якою людина написала питання вище.', prompt)
+
     def test_english_prompts(self):
         with using('en'):
             system = prompts.persona_system({'name': 'Logician', 'traits': ['Rebel']})
             self.assertIn(prompts.SAFETY_RULE_EN, system)
             self.assertIn('Rebel against ideas, not people', system)
-            self.assertIn('Reply in English', prompts.moderator_system())
+            self.assertIn('Write in the language the person writes in', prompts.moderator_system())
             block = prompts.service_lines_block('yes_no', [], can_search=True)
             self.assertIn('THESIS:', block)
             self.assertIn('STANCE: yes or no', block)

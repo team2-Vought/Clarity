@@ -12,7 +12,7 @@ from backend.i18n import L, using
 
 from ...models import Discussion, Message
 from ...personas import devil, moderator
-from .. import usage
+from .. import reply_language, usage
 from ..criteria import compute_matrix
 from ..safety import CRISIS, crisis_message
 from .base import EngineBusy, EngineConflict, EngineError, STANCE_AGREE, daily_limit_error
@@ -288,7 +288,8 @@ def advance(discussion, provider_factory=None):
     """
     if discussion is None or not getattr(discussion, 'pk', None):
         raise EngineError('Дискусію не знайдено.', code='not_found', retryable=False)
-    with using(discussion.language):
+    # інструкції — мовою інтерфейсу, а пишуть AI мовою питання людини
+    with using(discussion.language), reply_language.replying_to(discussion.question):
         return _advance(discussion, provider_factory)
 
 

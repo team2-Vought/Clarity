@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from backend.i18n import L
 
 from ...models import Message
-from .. import search, usage
+from .. import reply_language, search, usage
 from ..catalog import model_label, paid_by_user
 from ..providers import ProviderError, get_provider
 from ..criteria import normalize_scores
@@ -105,8 +105,13 @@ def _complete(
     temperature=DEFAULT_TEMPERATURE,
     json_mode=False,
     on_text=None,
+    reply_in_user_language=True,
 ):
     started = time.monotonic()
+    # пишемо людині її мовою: мову питання називаємо в кінці системного промпту
+    language = reply_language.instruction() if reply_in_user_language else ''
+    if language:
+        system = f'{system}\n\n{language}'
     kwargs = {'json_mode': True} if json_mode else {}
     try:
         provider = provider_factory(model_id) if provider_factory else get_provider(model_id)

@@ -391,6 +391,11 @@ def _context_block(
         [
             '',
             _today_line(),
+            # мова відповіді — мова людини, а не інтерфейсу, яким створено дискусію
+            L(
+                'Мова відповіді: та сама, якою людина написала питання вище.',
+                'Reply language: the same one the person wrote the question above in.',
+            ),
             mode_block(mode, options or []),
             (
                 L(

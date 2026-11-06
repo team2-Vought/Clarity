@@ -122,6 +122,8 @@ def _write_ai_status(discussion, focus, provider_factory, model_id, billed):
                 discussion.question, L(STAGE_NOTES, STAGE_NOTES_EN).get(discussion.phase, ''), focus
             ),
             STATUS_TEMPERATURE,
+            # рядок статусу — частина інтерфейсу, тож мовою інтерфейсу
+            reply_in_user_language=False,
         )
         text = clean_status(raw)
         if text:
