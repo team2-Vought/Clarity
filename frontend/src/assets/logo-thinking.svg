@@ -1,5 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -40 704 490" width="72" height="50">
-  <!-- Clarity logo, "thinking" loop (2.4s). Petals: capsules r=96 from the core at (322,325).
+  <!-- Clarity logo, "thinking" loop (2.4s): only the petals move (reach out in turn and catch a glint);
+       the logo itself and its core stay still — same as while the decision tree is built.
+       Petals: capsules r=96 from the core at (322,325).
        No SVG filters: Safari renders them at low resolution in <img>, which blurs the whole logo. -->
   <defs>
     <linearGradient id="g-lav" x1="0" x2="1">
@@ -27,7 +29,7 @@
   </defs>
 
   <style>
-    @media (prefers-reduced-motion: reduce) { .body, .shine, .all { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .body, .shine { animation: none; } }
     .body {
       transform-box: view-box; transform-origin: 322px 325px;
       animation: reach 2.4s cubic-bezier(.45,0,.25,1) infinite;
@@ -38,9 +40,8 @@
     .p3 .body, .p3 .shine { animation-delay: .36s; }
     .p4 .body, .p4 .shine { animation-delay: .54s; }
     .p5 .body, .p5 .shine { animation-delay: .72s; }
-    .core { transform-box: view-box; transform-origin: 322px 325px; animation: breathe 2.4s ease-in-out infinite; }
-    .halo { transform-box: view-box; transform-origin: 322px 325px; animation: halo 2.4s ease-in-out infinite; }
-    .all { transform-box: view-box; transform-origin: 322px 325px; animation: sway 2.4s ease-in-out infinite; }
+    .core { opacity: .9; }
+    .halo { opacity: .45; }
 
     @keyframes reach {
       0%, 55%, 100% { transform: scale(1); }
@@ -49,18 +50,6 @@
     @keyframes glint {
       0%, 55%, 100% { opacity: 0; }
       20% { opacity: .75; }
-    }
-    @keyframes breathe {
-      0%, 100% { transform: scale(.9); opacity: .75; }
-      50% { transform: scale(1.06); opacity: 1; }
-    }
-    @keyframes halo {
-      0%, 100% { transform: scale(.85); opacity: .25; }
-      50% { transform: scale(1.08); opacity: .6; }
-    }
-    @keyframes sway {
-      0%, 100% { transform: rotate(0deg); }
-      50% { transform: rotate(-1.2deg) scale(.985); }
     }
   </style>
 

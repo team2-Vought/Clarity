@@ -44,7 +44,7 @@ h1::after {
   width: 44px;
   height: 5px;
   margin-top: 14px;
-  border-radius: 99px;
+  border-radius: var(--r-pill);
   background: linear-gradient(90deg, var(--pink), var(--peach), var(--sky), var(--lilac));
   background-size: 200% 100%;
   animation: gradient-shift 9s ease-in-out infinite alternate;

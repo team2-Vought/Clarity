@@ -47,28 +47,28 @@
 .marks__dot--agree { background: var(--mark-agree-dot); }
 .marks__dot--doubt { background: var(--mark-doubt-dot); }
 
-/* ---- реакція під реплікою ---- */
+/* ---- позначка всієї репліки під нею ---- */
 
-.chat__reaction {
+.chat__mark {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: 4px;
 }
 
-.chat__actions .chat__react {
+.chat__actions .chat__mark-trigger {
   width: 28px;
   height: 28px;
 }
 
-.chat__reaction-chip {
+.chat__mark-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   height: 26px;
   padding: 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 7%, transparent);
   color: var(--ink);
   font: inherit;
@@ -78,17 +78,14 @@
   cursor: pointer;
 }
 
-button.chat__reaction-chip:hover {
-  background: color-mix(in srgb, var(--ink) 12%, transparent);
+button.chat__mark-chip:hover {
+  filter: brightness(0.96);
 }
 
-.chat__reaction-chip--convincing,
-.chat__reaction-chip--insight { background: var(--mark-agree); }
-.chat__reaction-chip--unconvincing,
-.chat__reaction-chip--wrong { background: var(--mark-doubt); }
-.chat__reaction-chip--unclear { background: var(--mark-important); }
+.chat__mark-chip--important { background: var(--mark-important); }
+.chat__mark-chip--agree { background: var(--mark-agree); }
+.chat__mark-chip--doubt { background: var(--mark-doubt); }
 
-.chat__reaction-next,
 .chat__marks-count {
   display: inline-flex;
   align-items: center;
@@ -96,49 +93,57 @@ button.chat__reaction-chip:hover {
   height: 26px;
   padding: 0 8px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
   white-space: nowrap;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
   cursor: pointer;
 }
 
-.chat__marks-count {
-  text-decoration: none;
-}
-
-.chat__reaction-next:hover,
 .chat__marks-count:hover {
   color: var(--ink);
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
-.chat__reaction-menu {
+/* ---- випадне меню з пунктами: позначка репліки, «Зберегти» висновку ---- */
+
+.chat__menu {
   position: fixed;
   z-index: 120;
   display: flex;
   flex-direction: column;
-  width: min(290px, calc(100vw - 16px));
+  width: min(300px, calc(100vw - 16px));
   padding: 6px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--card);
   color: var(--ink);
   box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-.chat__reaction-option {
+.chat__menu-caption {
+  padding: 6px 10px 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chat__menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.chat__menu-option {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -146,17 +151,17 @@ button.chat__reaction-chip:hover {
   cursor: pointer;
 }
 
-.chat__reaction-option:hover,
-.chat__reaction-option:focus-visible {
+.chat__menu-option:hover,
+.chat__menu-option:focus-visible {
   background: color-mix(in srgb, var(--ink) 7%, transparent);
   outline: none;
 }
 
-.chat__reaction-option[aria-checked='true'] {
+.chat__menu-option[aria-checked='true'] {
   background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
-.chat__reaction-icon {
+.chat__menu-icon {
   display: grid;
   flex-shrink: 0;
   place-items: center;
@@ -166,34 +171,74 @@ button.chat__reaction-chip:hover {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
-.chat__reaction-option--convincing .chat__reaction-icon,
-.chat__reaction-option--insight .chat__reaction-icon { background: var(--mark-agree); }
-.chat__reaction-option--unconvincing .chat__reaction-icon,
-.chat__reaction-option--wrong .chat__reaction-icon { background: var(--mark-doubt); }
-.chat__reaction-option--unclear .chat__reaction-icon { background: var(--mark-important); }
+.chat__menu-icon--important { background: var(--mark-important); }
+.chat__menu-icon--agree { background: var(--mark-agree); }
+.chat__menu-icon--doubt { background: var(--mark-doubt); }
 
-.chat__reaction-text {
+.chat__menu-text {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
 }
 
-.chat__reaction-label {
+.chat__menu-label {
   font-size: 0.875rem;
   font-weight: 600;
 }
 
-.chat__reaction-hint {
+.chat__menu-hint {
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.35;
 }
 
-.chat__reaction-option--remove {
-  margin-top: 2px;
-  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 0 0 12px 12px;
+.chat__save {
+  display: inline-flex;
+}
+
+.chat__save-chevron {
+  margin-left: -2px;
+  opacity: 0.7;
+  transition: transform 0.18s;
+}
+
+/* відкрите меню — стрілка догори, як у меню ролі й моделі */
+.chat__action--active .chat__save-chevron {
+  transform: rotate(180deg);
+}
+
+/* одноразова підказка під першою реплікою, яку можна позначати */
+.chat__marks-tip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.chat__marks-tip > span {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.chat__marks-tip button {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* ---- панель над виділеним текстом і редактор виділення ---- */
@@ -212,7 +257,7 @@ button.chat__reaction-chip:hover {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 
 .marks__tool {
@@ -222,7 +267,7 @@ button.chat__reaction-chip:hover {
   height: 36px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -257,13 +302,13 @@ button.chat__reaction-chip:hover {
   gap: 10px;
   width: min(340px, calc(100vw - 16px));
   padding: 14px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
 }
 
 .marks__quote {
   margin: 0;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font-size: 0.875rem;
   line-height: 1.45;
 }
@@ -285,7 +330,7 @@ button.chat__reaction-chip:hover {
   height: 32px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
   color: inherit;
   font: inherit;
@@ -308,7 +353,7 @@ button.chat__reaction-chip:hover {
   width: 100%;
   padding: 8px 12px;
   border: 1.5px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   outline: none;
   background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
   color: inherit;
@@ -334,7 +379,7 @@ button.chat__reaction-chip:hover {
   width: 36px;
   height: 36px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--muted, inherit);
   cursor: pointer;
@@ -350,7 +395,7 @@ button.chat__reaction-chip:hover {
   height: 36px;
   padding: 0 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--ink, #121212);
   color: var(--card, #fff);
   font: inherit;
@@ -362,8 +407,7 @@ button.chat__reaction-chip:hover {
 .marks__color:focus-visible,
 .marks__icon:focus-visible,
 .marks__save:focus-visible,
-.chat__reaction-chip:focus-visible,
-.chat__reaction-next:focus-visible,
+.chat__mark-chip:focus-visible,
 .chat__marks-count:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -398,7 +442,7 @@ button.chat__reaction-chip:hover {
 
 .marks-panel__empty {
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--card);
   font-size: 0.875rem;
   line-height: 1.5;
@@ -437,7 +481,7 @@ button.chat__reaction-chip:hover {
 
 .marks-panel__group {
   padding: 12px 14px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--card);
 }
 
@@ -488,7 +532,7 @@ button.chat__reaction-chip:hover {
   padding: 8px 10px 8px 12px;
   border: 0;
   border-left: 4px solid var(--mark-important-dot);
-  border-radius: 6px 12px 12px 6px;
+  border-radius: var(--r-xs) var(--r-sm) var(--r-sm) var(--r-xs);
   background: color-mix(in srgb, var(--ink) 4%, transparent);
   color: var(--ink);
   font: inherit;
@@ -535,6 +579,11 @@ button.chat__reaction-chip:hover {
   margin: 0;
 }
 
-:root[data-contrast='high'] :is(.marks__toolbar, .marks__editor, .chat__reaction-menu, .marks-panel__group) {
+:root[data-contrast='high'] :is(.marks__toolbar, .marks__editor, .chat__menu, .marks-panel__group) {
   box-shadow: 0 0 0 2px var(--vision-line);
+}
+
+/* «Зберегти» під висновком: меню ролі за стилем, але ширина своя, а не від кнопки */
+.chat__save-menu {
+  width: min(300px, calc(100vw - 16px));
 }

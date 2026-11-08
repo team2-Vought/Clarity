@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import JournalPage from './JournalPage';
 import { fetchJournal, updateDecision } from '../api/journal';
-import { fetchSettings, updatePreferences } from '../api/settings';
+import { fetchSettings } from '../api/settings';
 
 vi.mock('../api/journal', () => ({
   fetchJournal: vi.fn(),
@@ -110,13 +110,11 @@ describe('JournalPage', () => {
     expect(updateDecision).not.toHaveBeenCalled();
   });
 
-  it('листи-нагадування вимикаються перемикачем', async () => {
-    const user = userEvent.setup();
+  it('нагадує про листи й веде в налаштування сповіщень', async () => {
     renderPage();
-    const emails = await screen.findByRole('switch', { name: /Нагадувати листом/ });
-    expect(emails).toBeChecked();
-    await user.click(emails);
-    expect(updatePreferences).toHaveBeenCalledWith({ journal_emails: false });
+    expect(await screen.findByText(/нагадаємо листом/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Налаштувати' })).toHaveAttribute('href', '/settings?tab=notifications');
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('порожній журнал пояснює, як туди потрапляють рішення', async () => {

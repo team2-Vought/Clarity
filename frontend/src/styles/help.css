@@ -65,7 +65,7 @@
 
 .help__toc-link {
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--h-sheet);
   color: var(--ink);
   font-size: 0.875rem;
@@ -124,7 +124,7 @@
   flex-direction: column;
   margin: 0;
   padding: 6px 20px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--h-sheet);
   list-style: none;
 }
@@ -162,7 +162,7 @@
 
 .help__card {
   padding: 16px 18px 18px;
-  border-radius: 22px;
+  border-radius: var(--r-lg);
   background: var(--h-sheet);
 }
 
@@ -200,7 +200,7 @@
   gap: 8px;
   padding: 12px 20px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--btn-bg);
   color: var(--btn-text);
   font: inherit;

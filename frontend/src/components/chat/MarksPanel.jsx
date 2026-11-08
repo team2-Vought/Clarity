@@ -2,16 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { REACTION_ICONS } from './reactionIcons';
 import { copy } from '../../copy';
 import { HIGHLIGHT_COLORS, shortQuote, supportsHighlights } from '../../utils/highlights';
 import { marksMarkdown } from '../../utils/marks';
 
 const t = copy.marks;
-const FILTERS = ['all', ...HIGHLIGHT_COLORS, 'reactions'];
+const FILTERS = ['all', ...HIGHLIGHT_COLORS];
 
 /**
- * «Мої позначки»: конспект дискусії з виділеного й реакцій.
+ * «Мої позначки»: конспект дискусії з виділеного й позначених цілком реплік.
  * Клік по фрагменту веде до репліки й відкриває його редактор.
  */
 export default function MarksPanel({ entries, focusId = null, onBack, onOpen, onJump }) {
@@ -30,12 +29,9 @@ export default function MarksPanel({ entries, focusId = null, onBack, onOpen, on
         .map((entry) => ({
           ...entry,
           highlights:
-            filter === 'all'
-              ? entry.highlights
-              : filter === 'reactions'
-                ? []
-                : entry.highlights.filter((item) => item.color === filter),
-          showReaction: Boolean(entry.message.reaction) && (filter === 'all' || filter === 'reactions'),
+            filter === 'all' ? entry.highlights : entry.highlights.filter((item) => item.color === filter),
+          // позначка всієї репліки — того ж значення, тож і фільтр той самий
+          showReaction: Boolean(entry.message.reaction) && (filter === 'all' || filter === entry.message.reaction),
         }))
         .filter((entry) => entry.highlights.length > 0 || entry.showReaction),
     [entries, filter]
@@ -91,7 +87,7 @@ export default function MarksPanel({ entries, focusId = null, onBack, onOpen, on
                   onClick={() => setFilter(key)}
                 >
                   {HIGHLIGHT_COLORS.includes(key) && <span className={`marks__dot marks__dot--${key}`} aria-hidden="true" />}
-                  {key === 'all' ? t.filterAll : key === 'reactions' ? t.reactionsTitle : t.colors[key]}
+                  {key === 'all' ? t.filterAll : t.colors[key]}
                 </button>
               ))}
             </div>
@@ -108,9 +104,9 @@ export default function MarksPanel({ entries, focusId = null, onBack, onOpen, on
                       {author}
                     </button>
                     {showReaction && (
-                      <span className={`chat__reaction-chip chat__reaction-chip--${message.reaction} marks-panel__reaction`}>
-                        <HugeiconsIcon icon={REACTION_ICONS[message.reaction]} size={13} aria-hidden="true" />
-                        {t.reactions[message.reaction]}
+                      <span className={`chat__mark-chip chat__mark-chip--${message.reaction} marks-panel__reaction`}>
+                        <span className={`marks__dot marks__dot--${message.reaction}`} aria-hidden="true" />
+                        {`${t.wholeReply} · ${t.colors[message.reaction]}`}
                       </span>
                     )}
                   </div>

@@ -6,14 +6,6 @@
 .app-shell,
 .shared {
   --rail-w: clamp(58px, 4.6vw, 72px);
-  --panel: #e0e0e0;
-  --card: #ffffff;
-  --main-bg: #ffffff;
-  /* м'яке тло елементів на білій основній області (перемикачі, шаблони) */
-  --soft: #f2f2f3;
-  --ink: #121212;
-  --muted: rgba(18, 18, 18, 0.6);
-  --divider: rgba(18, 18, 18, 0.55);
 }
 
 .app-shell {
@@ -25,16 +17,6 @@
   color: var(--ink);
 }
 
-:root[data-theme='dark'] .app-shell,
-:root[data-theme='dark'] .shared {
-  --panel: #1f1f23;
-  --card: #2b2b31;
-  --main-bg: #121212;
-  --soft: #1f1f23;
-  --ink: #f4f4f4;
-  --muted: rgba(244, 244, 244, 0.6);
-  --divider: rgba(244, 244, 244, 0.35);
-}
 
 /* Застосунок займає рівно екран і сам не прокручується: кожна сторінка
    прокручує власні області. Документ теж не тягнеться пружною
@@ -181,7 +163,7 @@ body:has(.app-shell) {
   height: clamp(32px, 4.4vh, 38px);
   padding: 0 12px 0 calc((var(--rail-w) - 2 * var(--nav-pad) - var(--item-icon)) / 2);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -212,8 +194,8 @@ body:has(.app-shell) {
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
-  border-radius: 999px;
-  background: var(--error, #c93a62);
+  border-radius: var(--r-pill);
+  background: var(--error);
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 700;
@@ -307,11 +289,11 @@ body:has(.app-shell) {
 }
 
 .sidebar__control--logout {
-  color: #e06a6a;
+  color: var(--error);
 }
 
 .sidebar__control--logout:hover {
-  background: rgba(255, 135, 135, 0.18);
+  background: color-mix(in srgb, var(--error) 14%, transparent);
 }
 
 /* ---- меню: окреме вікно із закругленими кутами ----
@@ -510,7 +492,7 @@ body:has(.app-shell) {
   gap: 12px;
   height: 52px;
   padding: 0 12px 0 calc(27px - var(--item-icon) / 2);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   font-size: 1.0625rem;
 }
 
@@ -528,7 +510,7 @@ body:has(.app-shell) {
   gap: 14px;
   height: 46px;
   padding: 0 15px 0 calc(27px - var(--ctrl-icon) / 2);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   font-size: 1rem;
 }
 
@@ -538,7 +520,7 @@ body:has(.app-shell) {
 }
 
 .sidebar--drawer .sidebar__control--logout {
-  color: #ff8787;
+  color: var(--error);
 }
 
 /* ---------- Debate page ---------- */
@@ -581,7 +563,7 @@ body:has(.app-shell) {
   align-items: center;
   gap: 4px;
   padding: 5px 6px 5px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--card);
   color: var(--ink);
   font-size: 0.75rem;
@@ -635,14 +617,14 @@ body:has(.app-shell) {
 }
 
 .debate__hint--error {
-  color: #c93a62;
+  color: var(--error);
 }
 
 /* Модель AI */
 
 .debate__model-card {
   position: relative;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--card);
   color: var(--ink);
 }
@@ -718,7 +700,7 @@ body:has(.app-shell) {
   overflow-y: auto;
   /* рамка, радіус і тінь — як у меню ролі й формату відповіді */
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
   box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
   list-style: none;
@@ -772,7 +754,7 @@ body:has(.app-shell) {
   width: 100%;
   padding: 9px 10px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--ink);
   font-family: inherit;
@@ -868,7 +850,7 @@ body:has(.app-shell) {
   width: min(760px, 100%);
   margin-bottom: 6px;
   padding: 16px 18px;
-  border-radius: 24px;
+  border-radius: var(--r-lg);
   background: var(--soft);
   animation: debate-view-in 0.3s ease-out;
 }
@@ -908,7 +890,7 @@ body:has(.app-shell) {
   height: 34px;
   padding: 0 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
@@ -943,7 +925,7 @@ body:has(.app-shell) {
   width: min(760px, 100%);
   margin-bottom: 6px;
   padding: 16px 20px 14px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--soft);
   animation: debate-view-in 0.3s ease-out;
 }
@@ -1003,7 +985,7 @@ body:has(.app-shell) {
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px 14px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
 }
 
@@ -1052,7 +1034,7 @@ body:has(.app-shell) {
   gap: 6px;
   padding: 9px 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
@@ -1383,7 +1365,7 @@ body:has(.app-shell) {
   width: min(300px, calc(100vw - 32px));
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 24px;
+  border-radius: var(--r-lg);
   background: var(--card);
   box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
   cursor: default;
@@ -1426,7 +1408,7 @@ body:has(.app-shell) {
   width: 100%;
   padding: 8px 10px 8px 8px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1447,7 +1429,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--ink) 6%, var(--card));
   color: var(--ink);
   transition: background 0.15s, color 0.15s;
@@ -1494,13 +1476,13 @@ body:has(.app-shell) {
 .debate__mode-item--row {
   gap: 10px;
   padding: 6px 10px 6px 6px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
 }
 
 .debate__mode-item--row .debate__mode-item-icon {
   width: 30px;
   height: 30px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
 }
 
 .debate__mode-item--row .debate__mode-item-text span {
@@ -1532,7 +1514,7 @@ body:has(.app-shell) {
   width: 300px;
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
-  border-radius: 24px;
+  border-radius: var(--r-lg);
   background: var(--card);
   box-shadow: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
   visibility: hidden;
@@ -1641,7 +1623,7 @@ body:has(.app-shell) {
   flex-shrink: 0;
   width: 34px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--well);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
   transition: background 0.2s;
@@ -1731,7 +1713,7 @@ body:has(.app-shell) {
   min-width: 0;
   padding: 12px 14px 14px;
   border: 0;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
   box-shadow: 0 6px 20px rgba(18, 18, 18, 0.05);
   color: var(--ink);
@@ -1770,7 +1752,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: color-mix(in srgb, var(--tone, #f4c1cf) 70%, #ffffff);
   color: #121212;
 }
@@ -1800,13 +1782,13 @@ body:has(.app-shell) {
   .debate__suggestion {
     gap: 6px;
     padding: 10px 12px 12px;
-    border-radius: 18px;
+    border-radius: var(--r-md);
   }
 
   .debate__suggestion-icon {
     width: 24px;
     height: 24px;
-    border-radius: 8px;
+    border-radius: var(--r-xs);
   }
 
   .debate__suggestion-icon svg {
@@ -1844,7 +1826,7 @@ body:has(.app-shell) {
   position: relative;
   flex: none;
   height: 72px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   animation: debate-view-in 0.22s ease-out;
@@ -1918,7 +1900,7 @@ body:has(.app-shell) {
 .attachment-card__type {
   align-self: flex-start;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   background: var(--card);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
   color: var(--muted);
@@ -1997,7 +1979,7 @@ body:has(.app-shell) {
   width: min(760px, 100%);
   max-height: calc(100dvh - 32px);
   padding: 14px 18px 18px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--card);
   color: var(--ink);
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
@@ -2043,7 +2025,7 @@ body:has(.app-shell) {
   align-self: center;
   max-width: 100%;
   max-height: calc(100dvh - 120px);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   object-fit: contain;
 }
 
@@ -2051,7 +2033,7 @@ body:has(.app-shell) {
   width: 100%;
   height: min(72dvh, 820px);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--soft);
 }
 
@@ -2061,7 +2043,7 @@ body:has(.app-shell) {
   margin: 0;
   padding: 14px 16px;
   overflow: auto;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--soft);
   font: inherit;
   font-size: 0.875rem;
@@ -2084,7 +2066,7 @@ body:has(.app-shell) {
   max-width: 260px;
   height: 32px;
   padding: 0 6px 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--soft);
   color: var(--ink);
   font-size: 0.8125rem;
@@ -2157,7 +2139,7 @@ body:has(.app-shell) {
   min-height: 44px;
   padding: 6px 12px 6px 6px;
   border: 1px dashed color-mix(in srgb, var(--muted) 40%, transparent);
-  border-radius: 22px;
+  border-radius: var(--r-lg);
   cursor: text;
   animation: debate-reveal 0.25s ease-out;
   transition: border-color 0.2s, background 0.2s;
@@ -2282,7 +2264,7 @@ body:has(.app-shell) {
   gap: 2px;
   max-width: 100%;
   padding: 3px 3px 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--card);
   color: var(--ink);
   font-size: 0.75rem;
@@ -2338,8 +2320,8 @@ body:has(.app-shell) {
 }
 
 .debate__team-remove:hover {
-  background: #c93a62;
-  color: #ffffff;
+  background: var(--error);
+  color: var(--card);
 }
 
 .debate__team-apply:focus-visible,
@@ -2463,7 +2445,7 @@ body:has(.app-shell) {
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--ink);
   color: var(--panel);
   box-shadow: 0 0 0 2px var(--panel);
@@ -2566,7 +2548,7 @@ body:has(.app-shell) {
   align-items: center;
   gap: 6px;
   padding: 4px 4px 4px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--card);
   box-shadow: 0 0 0 2px var(--focus);
 }
@@ -2595,7 +2577,7 @@ body:has(.app-shell) {
 /* заготовки під час завантаження панелі: сірі форми з «відблиском», що пробігає */
 .debate__skeleton {
   display: block;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--ink) 6%, var(--card)) 25%,
@@ -2616,7 +2598,7 @@ body:has(.app-shell) {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
 }
 
 .debate__skeleton--name {
@@ -2631,7 +2613,7 @@ body:has(.app-shell) {
 
 .debate__skeleton--well {
   height: 48px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
 }
 
 @keyframes debate-shimmer {
@@ -2656,7 +2638,7 @@ body:has(.app-shell) {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--card);
   container-type: inline-size;
 }
@@ -2678,7 +2660,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--chip, #f4c1cf);
   color: #121212;
 }
@@ -2764,8 +2746,8 @@ body:has(.app-shell) {
 
 .debate__sheet-remove:hover:not(:disabled),
 .debate__sheet-remove:focus-visible {
-  background: #c93a62;
-  color: #ffffff;
+  background: var(--error);
+  color: var(--card);
   outline: none;
 }
 
@@ -2809,7 +2791,7 @@ body:has(.app-shell) {
   height: 32px;
   padding: 0 12px 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--well);
   color: var(--ink);
   font: inherit;
@@ -2886,7 +2868,7 @@ body:has(.app-shell) {
   min-height: 48px;
   padding: 7px 12px 7px 7px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--well);
   color: var(--ink);
   font: inherit;
@@ -2915,7 +2897,7 @@ body:has(.app-shell) {
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: var(--chip, #f4c1cf);
   color: #121212;
 }
@@ -2958,7 +2940,7 @@ body:has(.app-shell) {
   z-index: 120;
   max-height: calc(100vh - 16px);
   overflow-y: auto;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   scrollbar-width: none;
   transform-origin: top center;
 }
@@ -2974,13 +2956,13 @@ body:has(.app-shell) {
 
 .debate__role-menu .debate__mode-item {
   gap: 10px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
 }
 
 .debate__role-menu .debate__mode-item-icon {
   width: 30px;
   height: 30px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
 }
 
 .debate__role-menu .debate__mode-item-text span {
@@ -3012,7 +2994,7 @@ body:has(.app-shell) {
 
 /* модель — «колодязь» на білій картці */
 .debate__sheet .debate__model-card {
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--well);
   transition: background 0.18s;
 }
@@ -3038,7 +3020,7 @@ body:has(.app-shell) {
   width: 32px;
   height: 32px;
   padding: 7px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: var(--card);
   color: var(--ink);
 }
@@ -3059,7 +3041,7 @@ body:has(.app-shell) {
   height: 30px;
   padding: 0 11px;
   border: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: color-mix(in srgb, var(--ink) 82%, transparent);
   font: inherit;
@@ -3089,7 +3071,7 @@ body:has(.app-shell) {
   height: 30px;
   padding: 0 4px 0 11px;
   border: 1px dashed color-mix(in srgb, var(--ink) 25%, transparent);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   transition: border-color 0.18s;
 }
 
@@ -3161,7 +3143,7 @@ body:has(.app-shell) {
   flex-shrink: 0;
   height: 36px;
   margin: 4px 2px 2px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
 }
 
 .debate__trait-new input {
@@ -3184,7 +3166,7 @@ body:has(.app-shell) {
   .debate__sheet-avatar {
     width: 30px;
     height: 30px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
   }
 
   .debate__sheet-avatar svg {
@@ -3273,7 +3255,7 @@ body:has(.app-shell) {
   width: 100%;
   padding: 14px 16px;
   border: 0;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -3351,7 +3333,7 @@ body:has(.app-shell) {
   width: 38px;
   height: 22px;
   margin: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--well);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
   appearance: none;
@@ -3446,7 +3428,7 @@ span.debate__tag {
   gap: 4px;
   height: 40px;
   padding: 0 4px 0 12px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--well);
 }
 
@@ -3643,7 +3625,7 @@ span.debate__tag {
   position: relative;
   max-width: 100%;
   padding: 14px 20px 16px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: color-mix(in srgb, var(--bubble, #f0f0f0) var(--bubble-tint), var(--bubble-base));
   color: var(--ink);
   font-size: 1rem;
@@ -3708,11 +3690,11 @@ span.debate__tag {
 
 /* кут біля аватара гостріший — видно, чия це бульбашка */
 .chat__row--left .chat__bubble {
-  border-top-left-radius: 6px;
+  border-top-left-radius: var(--r-xs);
 }
 
 .chat__row--right .chat__bubble {
-  border-top-right-radius: 6px;
+  border-top-right-radius: var(--r-xs);
 }
 
 /* репліки AI — великі блоки тексту, їм пасують м'якші кути */
@@ -3722,7 +3704,7 @@ span.debate__tag {
 }
 
 .chat__row--left:not(.chat__row--user) .chat__bubble {
-  border-top-left-radius: 6px;
+  border-top-left-radius: var(--r-xs);
 }
 
 .chat__row--flash .chat__bubble {
@@ -3798,7 +3780,7 @@ span.debate__tag {
 
 .chat__stance {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--muted);
   font-size: 0.6875rem;
@@ -3836,7 +3818,7 @@ span.debate__tag {
   padding: 6px 10px 7px 11px;
   border: 0;
   border-left: 3px solid color-mix(in srgb, var(--quote, #b4b5ce) 70%, var(--ink) 30%);
-  border-radius: 6px 12px 12px 6px;
+  border-radius: var(--r-xs) var(--r-sm) var(--r-sm) var(--r-xs);
   background: color-mix(in srgb, var(--ink) 5%, transparent);
   color: var(--ink);
   font: inherit;
@@ -3884,7 +3866,7 @@ span.debate__tag {
   gap: 8px;
   max-width: min(640px, 100%);
   padding: 7px 14px;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--ink) 5%, transparent);
   color: var(--muted);
 }
@@ -3927,9 +3909,9 @@ span.debate__tag {
   max-width: 620px;
   margin: 0;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: rgba(47, 158, 107, 0.12);
-  color: #2f9e6b;
+  color: var(--success);
   font-size: 0.8125rem;
   font-weight: 500;
   text-align: center;
@@ -4027,7 +4009,7 @@ span.debate__tag {
 
 .chat__text code {
   padding: 0.1em 0.35em;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.88em;
@@ -4091,7 +4073,7 @@ ol.chat__reveal {
 
 .chat__pending span {
   height: 9px;
-  border-radius: 99px;
+  border-radius: var(--r-pill);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--ink) 7%, transparent) 0%,
@@ -4235,7 +4217,7 @@ ol.chat__reveal {
   max-width: min(880px, 100%);
   margin: 2px 0 0 44px;
   padding: 4px 4px 4px 4px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--soft);
   animation: chat-row-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -4247,7 +4229,7 @@ ol.chat__reveal {
   min-width: 0;
   padding: 6px 10px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -4474,7 +4456,7 @@ ol.chat__reveal {
   gap: 14px;
   width: 100%;
   padding: 16px 18px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: color-mix(in srgb, var(--tone) 9%, var(--card));
   color: var(--ink);
   text-align: left;
@@ -4540,7 +4522,7 @@ ol.chat__reveal {
 /* учасник, у якого сталася помилка */
 .notice__who {
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 7%, transparent);
   color: var(--muted);
   font-size: 0.8125rem;
@@ -4570,7 +4552,7 @@ ol.chat__reveal {
 .notice__button {
   padding: 9px 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 7%, transparent);
   color: var(--ink);
   font: inherit;
@@ -4628,7 +4610,7 @@ ol.chat__reveal {
   .notice {
     gap: 10px;
     padding: 12px 14px;
-    border-radius: 18px;
+    border-radius: var(--r-md);
   }
 
   .notice__icon {
@@ -4659,8 +4641,8 @@ ol.chat__reveal {
    всіх форматів: тихий рядок згоди й оцінки та розділи під тонкими лініями. */
 .chat__summary {
   --summary-rule: color-mix(in srgb, var(--ink) 10%, transparent);
-  --summary-yes: #17895a;
-  --summary-no: #cf3a5b;
+  --summary-yes: var(--success);
+  --summary-no: var(--error);
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -4782,7 +4764,7 @@ ol.chat__reveal {
   grid-column: 2 / -1;
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
@@ -4879,7 +4861,7 @@ ol.chat__reveal {
   width: 96px;
   height: 4px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
@@ -4950,6 +4932,24 @@ ol.chat__reveal {
   margin-top: 0;
 }
 
+/* «Чи допомогло?» — тихий рядок наприкінці: кнопки без підкладки, як дії вище,
+   щоб питання не змагалося з висновком */
+.chat__summary-after .chat__feedback-button:not(.chat__feedback-button--active) {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.chat__summary-after .chat__feedback-button:not(.chat__feedback-button--active):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+/* і з'являється останнім, коли висновок уже прочитано */
+.chat__summary--enter > .chat__summary-after {
+  animation-delay: calc(0.75s + var(--i, 0) * 0.28s);
+}
+
 /* на телефоні все одним рядком не вміщається: питання окремо,
    під ним «Допомогло / Не допомогло» */
 @media (max-width: 639px) {
@@ -4975,7 +4975,7 @@ ol.chat__reveal {
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px 16px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--soft);
   color: var(--ink);
   animation: chat-journal-in 0.24s ease-out;
@@ -5030,7 +5030,7 @@ ol.chat__reveal {
   width: 100%;
   padding: 10px 14px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   outline: none;
   resize: vertical;
   background: var(--card);
@@ -5063,7 +5063,7 @@ ol.chat__reveal {
   height: 32px;
   padding: 0 14px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -5083,7 +5083,7 @@ ol.chat__reveal {
   height: 36px;
   padding: 0 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--ink);
   color: var(--card);
   font: inherit;
@@ -5180,7 +5180,7 @@ ol.chat__reveal {
   height: 32px;
   padding: 0 12px 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -5218,7 +5218,7 @@ ol.chat__reveal {
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -5250,7 +5250,7 @@ ol.chat__reveal {
 }
 
 .chat__summary-note {
-  color: var(--error, #c93a62);
+  color: var(--error);
 }
 
 /* Поява результату: лінія-розділювач проступає, а блоки й рядки таблиці
@@ -5354,7 +5354,7 @@ ol.chat__reveal {
     height: 36px;
     padding: 0;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--r-sm);
     background: var(--main-bg);
     color: var(--muted);
     cursor: pointer;
@@ -5481,6 +5481,26 @@ ol.chat__reveal {
       --drawer-rb 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) 0.06s;
   }
 
+  /* смуга під плаваючими кнопками вгорі («бургер», панель, пошук): текст, що
+     прокручується, тане під ними, а не проступає довкола. Нижче за самі кнопки,
+     вище за вміст. У налаштуваннях там стоїть стрічка вкладок — смуги немає */
+  .app-shell__main::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    /* до низу кнопок (16 + 50px) і ще трохи — щоб не з'їдати верх першої картки */
+    height: 76px;
+    background: linear-gradient(to bottom, var(--main-bg) 62%, transparent);
+    pointer-events: none;
+  }
+
+  .app-shell__main:has(> .settings)::before {
+    display: none;
+  }
+
   .app-shell__burger {
     display: grid;
     place-items: center;
@@ -5577,7 +5597,7 @@ ol.chat__reveal {
     inset: 12px 12px 12px auto;
     z-index: 94;
     width: min(360px, calc(100vw - 72px));
-    border-radius: 28px;
+    border-radius: var(--r-xl);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
     opacity: 0;
     visibility: hidden;
@@ -5615,12 +5635,12 @@ ol.chat__reveal {
   /* у вузькій висувній панелі — щільніша анкета */
   .debate__sheet {
     padding: 12px;
-    border-radius: 18px;
+    border-radius: var(--r-md);
   }
 
   .debate__more-toggle {
     padding: 12px;
-    border-radius: 14px;
+    border-radius: var(--r-md);
   }
 
   .debate__sheet-name input {
@@ -5789,7 +5809,7 @@ ol.chat__reveal {
 
   .chat__bubble {
     padding: 8px 12px 9px;
-    border-radius: 18px;
+    border-radius: var(--r-md);
     font-size: 0.875rem;
   }
 
@@ -6083,7 +6103,7 @@ ol.chat__reveal {
   align-items: center;
   gap: 8px;
   padding: 4px 8px 4px 4px;
-  border-radius: 99px;
+  border-radius: var(--r-pill);
   list-style: none;
   cursor: pointer;
   transition: background 0.18s, color 0.18s, var(--press);
@@ -6246,7 +6266,7 @@ ol.chat__reveal {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 700;
   line-height: 1;
 }
@@ -6266,7 +6286,7 @@ ol.chat__reveal {
   gap: 10px;
   min-width: 0;
   padding: 6px 8px 6px 4px;
-  border-radius: 8px;
+  border-radius: var(--r-xs);
   color: var(--ink);
   text-decoration: none;
   transition: background 0.18s, var(--press);
@@ -6437,7 +6457,7 @@ ol.chat__reveal {
 
 .shared__cta {
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--btn-bg, #121212);
   color: var(--btn-text, #ffffff);
   font-size: 0.875rem;
@@ -6527,7 +6547,7 @@ ol.chat__reveal {
   overflow-y: auto;
   padding: 18px 16px 14px;
   border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--card);
   /* лежить поверх тексту чату, як і поле вводу */
   box-shadow: 0 8px 28px rgba(18, 18, 18, 0.08);
@@ -6620,7 +6640,7 @@ ol.chat__reveal {
   min-height: 46px;
   padding: 8px 12px;
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -6724,7 +6744,7 @@ ol.chat__reveal {
   height: 38px;
   padding: 0 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;
@@ -6756,7 +6776,7 @@ ol.chat__reveal {
 @media (max-width: 640px) {
   .clarify {
     padding: 14px 10px 10px;
-    border-radius: 24px;
+    border-radius: var(--r-lg);
   }
 }
 

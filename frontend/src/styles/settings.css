@@ -9,8 +9,8 @@
   --s-sheet: var(--soft);
   --s-control: var(--card);
   --s-control-hover: color-mix(in srgb, var(--ink) 4%, var(--card));
-  --s-on: #23855a;
-  --s-error: #c93a62;
+  --s-on: var(--success);
+  --s-error: var(--error);
   --s-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   /* ModelPicker і перемикач беруть ці змінні зі стилів панелі дебату */
   --well: var(--card);
@@ -25,8 +25,6 @@
 :root[data-theme='dark'] .settings {
   --s-sheet: #1a1a1d;
   --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--card));
-  --s-on: #6fd3a3;
-  --s-error: #ff93ae;
 }
 
 .settings button:focus-visible,
@@ -94,7 +92,7 @@
   width: 100%;
   padding: 14px 16px;
   border: 0;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -183,7 +181,7 @@
   display: flex;
   flex-direction: column;
   padding: 4px 20px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--s-sheet);
 }
 
@@ -253,7 +251,7 @@
 
 .settings .debate__model-card {
   width: min(100%, 340px);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--s-control);
 }
 
@@ -288,7 +286,7 @@
   height: 32px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--s-control);
   color: var(--ink);
   font: inherit;
@@ -355,7 +353,7 @@
   height: 32px;
   padding: 0 14px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -464,7 +462,7 @@
 }
 
 .settings__provider {
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--s-sheet);
 }
 
@@ -610,7 +608,7 @@
   gap: 4px;
   margin-top: 2px;
   padding: 4px 4px 4px 16px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--s-control);
   box-shadow: inset 0 0 0 1px var(--s-line);
   transition: box-shadow 0.18s;
@@ -677,7 +675,7 @@
   align-items: flex-start;
   gap: 6px;
   padding: 10px 6px 10px 14px;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   background: var(--s-control);
 }
 
@@ -710,7 +708,7 @@
 
 .settings__badge {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--peach);
   color: #121212;
   font-size: 0.75rem;
@@ -766,7 +764,7 @@
 
 .settings__empty {
   padding: 28px 20px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--s-sheet);
   text-align: center;
 }
@@ -799,7 +797,7 @@
 .settings__meter-track {
   height: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--s-control);
 }
 
@@ -988,7 +986,7 @@
 .settings__key-field--area {
   align-items: stretch;
   padding: 10px 16px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
 }
 
 .settings__textarea {
@@ -1107,7 +1105,7 @@
 
 .settings__skeleton-card {
   height: 120px;
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: linear-gradient(90deg, var(--s-sheet) 0%, var(--s-control-hover) 50%, var(--s-sheet) 100%);
   background-size: 200% 100%;
   animation: settings-shimmer 1.4s ease-in-out infinite;
@@ -1171,7 +1169,7 @@
     width: auto;
     height: 42px;
     padding: 0 14px;
-    border-radius: 999px;
+    border-radius: var(--r-pill);
   }
 
   .settings__tab:not(.settings__tab--active) {
@@ -1195,7 +1193,7 @@
      вище прибрало б його, і підписи та поля тулилися б до країв секції */
   .settings__sheet--form {
     padding: 18px 16px 20px;
-    border-radius: 24px;
+    border-radius: var(--r-lg);
   }
 
   .settings__row {

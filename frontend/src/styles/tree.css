@@ -5,24 +5,20 @@
    власні змінні для світлої й темної теми. */
 
 .tree-dialog {
-  --tree-bg: #f6f6f7;
-  --card: #ffffff;
-  --ink: #121212;
-  --muted: rgba(18, 18, 18, 0.6);
-  --soft: #efeff1;
-  --line: rgba(18, 18, 18, 0.13);
-  --dot: rgba(18, 18, 18, 0.08);
+  /* кольори — спільні (styles/tokens.css); тут лише власні для полотна */
+  --tree-bg: color-mix(in srgb, var(--ink) 3.5%, var(--main-bg));
+  --dot: color-mix(in srgb, var(--ink) 8%, transparent);
   /* як у решті платформи: вибране — чорним і персиковим (активна вкладка,
      пункт меню), кольори лише там, де несуть зміст — добрий/ризикований сценарій */
   --chosen: var(--ink);
-  --pick: #feedd5;
+  --pick: var(--peach);
   --pick-line: var(--ink);
   --pick-ink: #121212;
   /* відповідь і кільце в корені — тим самим чорним, що й обраний шлях */
   --root-accent: var(--ink);
-  --good: #17895a;
+  --good: var(--success);
   --neutral: #8b8f99;
-  --bad: #cf3a5b;
+  --bad: var(--error);
   --root-w: 236px;
   --branch-w: 300px;
   --gap: 72px;
@@ -66,19 +62,11 @@
 }
 
 :root[data-theme='dark'] .tree-dialog {
-  --tree-bg: #111113;
-  --card: #1f1f23;
-  --ink: #f4f4f4;
-  --muted: rgba(244, 244, 244, 0.62);
-  --soft: #2b2b31;
-  --line: rgba(244, 244, 244, 0.14);
-  --dot: rgba(244, 244, 244, 0.07);
-  --pick: color-mix(in srgb, #feedd5 13%, #1f1f23);
-  --pick-line: color-mix(in srgb, #feedd5 70%, transparent);
+  --tree-bg: var(--main-bg);
+  --pick: color-mix(in srgb, var(--peach) 13%, var(--card));
+  --pick-line: color-mix(in srgb, var(--peach) 70%, transparent);
   --pick-ink: var(--ink);
-  --good: #5fd09a;
   --neutral: #9a9ea8;
-  --bad: #ff7d93;
 }
 
 /* ---- «Назад»: висить над полотном зліва вгорі, як «бургер» меню ---- */
@@ -94,7 +82,7 @@
   height: 44px;
   padding: 0 18px 0 14px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -228,7 +216,7 @@
   padding: 18px 18px 16px;
   /* біла картка, як шляхи: єдиний акцент на полотні — обраний шлях */
   border: 1px solid var(--line);
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--card);
   color: var(--ink);
   animation: tree-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -246,7 +234,7 @@
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 1.1875rem;
+  font-size: 1.25rem;
   font-weight: 650;
   line-height: 1.3;
   -webkit-box-orient: vertical;
@@ -311,7 +299,7 @@
   width: 100%;
   padding: 14px 16px 12px;
   border: 1px solid var(--line);
-  border-radius: 28px;
+  border-radius: var(--r-xl);
   background: var(--card);
   color: var(--ink);
   font: inherit;
@@ -366,7 +354,7 @@
   align-self: flex-start;
   gap: 5px;
   padding: 3px 10px 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--soft);
   color: var(--muted);
   font-size: 0.75rem;
@@ -442,7 +430,7 @@
   position: relative;
   padding: 11px 13px 11px 18px;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   background: var(--card);
   /* рамка — тінню всередині: так кольорова лінія може лягти на самий край */
   box-shadow: inset 0 0 0 1px var(--line);
@@ -654,7 +642,7 @@
   width: 64px;
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--soft);
 }
 
@@ -729,7 +717,7 @@
   margin-top: 40px;
   padding: 22px clamp(16px, 2vw, 24px) 24px;
   border: 1px solid var(--line);
-  border-radius: 32px;
+  border-radius: var(--r-xl);
   background: var(--card);
 }
 
@@ -907,7 +895,7 @@
 .tree-detail__why {
   padding: 14px 16px;
   border-top: 0;
-  border-radius: 22px;
+  border-radius: var(--r-lg);
   background: var(--soft);
 }
 
@@ -940,7 +928,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 12px 4px 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--soft);
   font-size: 0.875rem;
   font-weight: 500;
@@ -1275,7 +1263,7 @@
     height: 48px;
     border-bottom: 2px solid var(--rail);
     border-left: 2px solid var(--line);
-    border-bottom-left-radius: 12px;
+    border-bottom-left-radius: var(--r-sm);
   }
 
   .tree-row:not(:last-child)::after {
@@ -1297,6 +1285,20 @@
 /* ---- телефон: «Назад» поруч із «бургером», деталі — аркушем знизу ---- */
 
 @media (max-width: 760px) {
+  /* те саме для дерева: схема тане під «бургером» і «Назад» */
+  .tree-dialog::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 3;
+    /* до низу кнопок (16 + 50px) і ще трохи — щоб не з'їдати верх першої картки */
+    height: 76px;
+    background: linear-gradient(to bottom, var(--tree-bg) 62%, transparent);
+    pointer-events: none;
+  }
+
   /* поруч із «бургером» меню (12px + 50px), на тій самій висоті */
   .tree-back {
     top: 19px;
@@ -1334,7 +1336,7 @@
     max-height: 84dvh;
     padding-bottom: max(28px, env(safe-area-inset-bottom));
     border-left: 0;
-    border-radius: 32px 32px 0 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
     box-shadow: 0 -18px 40px -20px rgba(0, 0, 0, 0.45);
     animation-name: tree-sheet-in;
   }

@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
   ArrowUpRight01Icon,
   Delete02Icon,
   Mail01Icon,
-  MailRemove01Icon,
   PencilEdit02Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { deleteDecision, fetchJournal, updateDecision } from '../api/journal';
-import { fetchSettings, updatePreferences } from '../api/settings';
+import { fetchSettings } from '../api/settings';
 import { refreshJournalDue } from '../hooks/useJournalDue';
 import { useToasts } from '../hooks/useToasts';
 import { InlineText } from '../components/MessageMarkdown';
@@ -471,7 +470,6 @@ export default function JournalPage() {
   // { kind, text } або null
   const [error, setError] = useState(null);
   const [emails, setEmails] = useState(null);
-  const { pushToast } = useToasts();
 
   const load = useCallback(async () => {
     setError(null);
@@ -498,17 +496,6 @@ export default function JournalPage() {
       document.title = previous;
     };
   }, []);
-
-  const changeEmails = async (value) => {
-    setEmails(value);
-    try {
-      await updatePreferences({ journal_emails: value });
-      pushToast(value ? t.emailsOnToast : t.emailsOffToast, 'success');
-    } catch (err) {
-      setEmails(!value);
-      pushToast(err?.message || t.saveError);
-    }
-  };
 
   const replace = (next) =>
     setEntries((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -579,26 +566,21 @@ export default function JournalPage() {
               </ul>
             </section>
           ))}
+          {/* листи вмикають у налаштуваннях; тут — лише нагадка, що вони є */}
+          {emails !== null && entries?.length > 0 && (
+            <p className="journal__emails">
+              <HugeiconsIcon icon={Mail01Icon} size={16} aria-hidden="true" />
+              <span>{emails ? t.emailsOnNote : t.emailsOffNote}</span>
+              <Link to="/settings?tab=notifications">{t.emailsSettings}</Link>
+            </p>
+          )}
         </div>
       </div>
 
-      {/* панель праворуч, як в історії: листи-нагадування вгорі, нова дискусія внизу */}
+      {/* панель праворуч, як в історії: нова дискусія внизу */}
       <aside className="history__rail" aria-label={t.toolbar}>
-        <div className="history__rail-group">
-          {emails !== null && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={emails}
-              className={`history__rail-button history__archive${emails ? ' history__archive--active' : ''}`}
-              onClick={() => changeEmails(!emails)}
-              aria-label={t.emails}
-              title={`${t.emails} — ${emails ? t.emailsOn : t.emailsOff}. ${t.emailsHint}`}
-            >
-              <HugeiconsIcon icon={emails ? Mail01Icon : MailRemove01Icon} size={22} aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        {/* верхня група порожня — кнопка нової дискусії лишається внизу, як в історії */}
+        <div className="history__rail-group" />
 
         <button
           type="button"

@@ -25,12 +25,12 @@ import {
   stanceTone,
 } from '../../utils/chatView';
 import AttachmentChip from '../AttachmentChip';
-import ReactionPicker from './ReactionPicker';
+import MarkMenu from './MarkMenu';
 import { highlightAtPoint, locateHighlights, paintHighlights } from '../../utils/highlights';
 
 const t = copy.chat;
 const m = copy.marks;
-const MARKABLE_ROLES = ['ai', 'moderator', 'devil'];
+export const MARKABLE_ROLES = ['ai', 'moderator', 'devil'];
 const NO_HIGHLIGHTS = [];
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;
@@ -73,6 +73,7 @@ function ChatMessage({
   onExplain,
   onReportWrong,
   onShowMarks,
+  tip = null,
 }) {
   const speakerKey = speakerKeyOf(message);
   const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
@@ -150,7 +151,7 @@ function ChatMessage({
     <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
   );
   const ownSources = typing || draft ? [] : messageSources(message, sourcesById);
-  // реакції й виділення — лише для готових реплік AI у власній дискусії
+  // позначки й виділення — лише для готових реплік AI у власній дискусії
   const markable =
     Boolean(onReact) && MARKABLE_ROLES.includes(message.role) && !typing && !draft && Boolean(message.id);
   const highlights = (markable && message.highlights) || NO_HIGHLIGHTS;
@@ -312,8 +313,8 @@ function ChatMessage({
                   <HugeiconsIcon icon={copyStatus === 'done' ? Tick02Icon : Copy01Icon} size={16} />
                 </button>
                 {markable && (
-                  <ReactionPicker
-                    reaction={message.reaction || ''}
+                  <MarkMenu
+                    mark={message.reaction || ''}
                     onChange={(next) => onReact(message, next)}
                     onExplain={onExplain ? () => onExplain(message) : undefined}
                     onReport={onReportWrong ? () => onReportWrong(message) : undefined}
@@ -342,6 +343,7 @@ function ChatMessage({
                 )}
               </div>
             )}
+            {markable && tip}
           </div>
         </div>
       )}
@@ -392,6 +394,7 @@ ChatMessage.propTypes = {
   onExplain: PropTypes.func,
   onReportWrong: PropTypes.func,
   onShowMarks: PropTypes.func,
+  tip: PropTypes.node,
 };
 
 export default memo(ChatMessage);

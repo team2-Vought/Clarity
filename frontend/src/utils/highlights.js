@@ -7,7 +7,6 @@
 // з React за вузли тексту. Де API немає, позначки однаково є в панелі «Мої позначки».
 
 export const HIGHLIGHT_COLORS = ['important', 'agree', 'doubt'];
-export const REACTIONS = ['convincing', 'unconvincing', 'insight', 'unclear', 'wrong'];
 export const CONTEXT_CHARS = 32;
 export const QUOTE_MAX = 1000;
 

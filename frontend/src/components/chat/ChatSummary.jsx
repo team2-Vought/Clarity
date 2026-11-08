@@ -3,16 +3,14 @@ import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Copy01Icon,
-  Download04Icon,
-  FileExportIcon,
   FlashIcon,
-  Loading03Icon,
   RepeatIcon,
   Share08Icon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import SummaryDetails from '../SummaryDetails';
 import FeedbackBar from './FeedbackBar';
+import SaveMenu from './SaveMenu';
 import JournalForm, { JournalButton, useJournal } from './JournalCard';
 import MatrixTable from './MatrixTable';
 import TreePaths from './TreePaths';
@@ -27,7 +25,7 @@ const t = copy.chat;
 
 /**
  * Картка підсумку під чатом: рішення, аргументи й дії з ним — копіювати,
- * завантажити PDF чи Markdown, поділитися, повторити з тим самим складом.
+ * зберегти в PDF чи Markdown, поділитися, повторити з тим самим складом.
  * `animate` — частини проявляються по черзі (дискусія йшла на очах).
  */
 export default function ChatSummary({
@@ -115,7 +113,6 @@ export default function ChatSummary({
   const summaryStep = () => (animate ? { '--i': summaryIndex++ } : undefined);
 
   const copyLabel = copyState === 'done' ? t.copied : copyState === 'error' ? t.copyError : t.copySummary;
-  const pdfLabel = pdfState === 'busy' ? t.pdfPreparing : pdfState === 'error' ? t.pdfError : t.downloadPdf;
 
   return (
     <section
@@ -155,32 +152,8 @@ export default function ChatSummary({
           <HugeiconsIcon icon={copyState === 'done' ? Tick02Icon : Copy01Icon} size={16} aria-hidden="true" />
           <span>{copyState === 'done' ? t.copied : t.actions.copy}</span>
         </button>
-        <button
-          type="button"
-          className="chat__action"
-          onClick={handleDownloadPdf}
-          disabled={pdfState === 'busy'}
-          aria-label={pdfLabel}
-          title={pdfLabel}
-        >
-          <HugeiconsIcon
-            icon={pdfState === 'busy' ? Loading03Icon : Download04Icon}
-            size={16}
-            className={pdfState === 'busy' ? 'chat__icon-spin' : undefined}
-            aria-hidden="true"
-          />
-          <span>{t.actions.pdf}</span>
-        </button>
-        <button
-          type="button"
-          className="chat__action"
-          onClick={onExportMarkdown}
-          aria-label={t.exportMarkdown}
-          title={t.exportMarkdown}
-        >
-          <HugeiconsIcon icon={FileExportIcon} size={16} aria-hidden="true" />
-          <span>{t.actions.markdown}</span>
-        </button>
+        {/* формати — в одному меню; копіювання лишається окремою кнопкою */}
+        <SaveMenu onPdf={handleDownloadPdf} onMarkdown={onExportMarkdown} busy={pdfState === 'busy'} />
         <button
           type="button"
           className="chat__action"

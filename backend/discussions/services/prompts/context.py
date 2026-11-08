@@ -189,13 +189,6 @@ def _line_prefix(message):
     )
 
 
-REACTION_LABELS = {
-    'convincing': ('переконливо', 'convincing'),
-    'unconvincing': ('не переконує', 'not convincing'),
-    'insight': ('нова для неї думка', 'a new idea to them'),
-    'unclear': ('незрозуміло', 'unclear'),
-    'wrong': ('схоже на помилку у фактах', 'looks like a factual error'),
-}
 HIGHLIGHT_LABELS = {
     'important': ('важливо', 'important'),
     'agree': ('згоден', 'agree'),
@@ -220,11 +213,11 @@ def _highlights_of(message):
 
 
 def reader_marks(message):
-    """Як людина позначила репліку: реакція й виділені фрагменти з нотатками."""
+    """Як людина позначила репліку: уся репліка й виділені фрагменти з нотатками."""
     parts = []
-    reaction = REACTION_LABELS.get(getattr(message, 'reaction', '') or '')
-    if reaction:
-        parts.append(L(f'реакція: {reaction[0]}', f'reaction: {reaction[1]}'))
+    whole = HIGHLIGHT_LABELS.get(getattr(message, 'reaction', '') or '')
+    if whole:
+        parts.append(L(f'уся репліка: {whole[0]}', f'the whole reply: {whole[1]}'))
     for highlight in _highlights_of(message)[:MARKS_PER_MESSAGE]:
         label = HIGHLIGHT_LABELS.get(highlight.color, HIGHLIGHT_LABELS['important'])
         quote = _clip(highlight.quote, MARK_QUOTE_LIMIT)

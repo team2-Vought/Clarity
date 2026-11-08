@@ -377,7 +377,7 @@ class HighlightUpdateSerializer(serializers.Serializer):
 
 
 class ReactionSerializer(serializers.Serializer):
-    """Порожнє значення знімає реакцію."""
+    """Позначка на всю репліку; порожнє значення її знімає."""
 
     reaction = serializers.ChoiceField(choices=[('', ''), *Message.Reaction.choices])
 

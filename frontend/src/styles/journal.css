@@ -8,15 +8,13 @@
   /* кнопки всередині картки: на телефоні --h-control білий, як сама картка */
   --j-control: color-mix(in srgb, var(--ink) 6%, var(--card));
   --j-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
-  --j-good: #23855a;
+  --j-good: var(--success);
   --j-mixed: #b7791f;
-  --j-bad: #c93a62;
+  --j-bad: var(--error);
 }
 
 :root[data-theme='dark'] .journal {
-  --j-good: #6fd3a3;
   --j-mixed: #f2c46d;
-  --j-bad: #ff93ae;
 }
 
 .journal__inner {
@@ -47,7 +45,7 @@
   min-width: 26px;
   height: 26px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--h-soft);
   color: var(--muted);
   font-size: 0.8125rem;
@@ -80,7 +78,7 @@
   gap: var(--j-gap);
   padding: 24px 26px;
   border: 1px solid var(--h-line);
-  border-radius: 32px;
+  border-radius: var(--r-xl);
   background-color: var(--card);
   box-shadow: var(--h-shadow);
   color: var(--ink);
@@ -304,7 +302,7 @@ button.journal__summary {
   width: 96px;
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--h-soft);
 }
 
@@ -342,7 +340,7 @@ button.journal__summary {
 
 .journal__chip {
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: color-mix(in srgb, currentColor 12%, transparent);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -579,7 +577,7 @@ button.journal__summary {
   align-items: start;
   margin: 0 -10px;
   padding: 8px 10px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   font-size: 1rem;
   line-height: 1.45;
   cursor: pointer;
@@ -602,7 +600,7 @@ button.journal__summary {
   width: 22px;
   height: 22px;
   margin-top: 0;
-  border-radius: 7px;
+  border-radius: var(--r-xs);
   background: var(--card);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 25%, transparent);
   color: var(--card);
@@ -657,7 +655,7 @@ button.journal__summary {
 /* «Як воно?» — дія, тож окрема м'яка панель, а не ще один список */
 .journal__body .journal__review {
   padding: 16px 18px 18px;
-  border-radius: 22px;
+  border-radius: var(--r-lg);
   background: var(--h-soft);
 }
 
@@ -686,7 +684,7 @@ button.journal__summary {
   height: 38px;
   padding: 0 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--j-control);
   color: var(--ink);
   font: inherit;
@@ -728,7 +726,7 @@ button.journal__summary {
   min-height: 3lh;
   padding: 12px 16px;
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--r-md);
   outline: none;
   resize: vertical;
   background: var(--h-soft);
@@ -753,7 +751,7 @@ button.journal__summary {
   height: 40px;
   padding: 0 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -838,7 +836,7 @@ button.journal__summary {
   .journal__entry {
     --j-gap: 12px;
     padding: 18px 16px;
-    border-radius: 26px;
+    border-radius: var(--r-xl);
   }
 
   .journal__summary {
@@ -905,4 +903,31 @@ button.journal__summary {
 :root[data-motion='reduced'] .journal__collapse,
 :root[data-motion='reduced'] .journal__chevron {
   transition: none;
+}
+
+/* під списком — тихий рядок про листи-нагадування; вмикають їх у налаштуваннях */
+.journal__emails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  margin: -8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.journal__emails svg {
+  flex-shrink: 0;
+}
+
+.journal__emails a {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.journal__emails a:hover {
+  text-decoration-color: currentColor;
 }

@@ -74,7 +74,7 @@ import {
   snippetOf,
   thinkingStep,
 } from '../utils/chatMessages';
-import ChatMessage from '../components/chat/ChatMessage';
+import ChatMessage, { MARKABLE_ROLES } from '../components/chat/ChatMessage';
 import MarksLayer from '../components/chat/MarksLayer';
 import MarksPanel from '../components/chat/MarksPanel';
 import { markEntries, marksMarkdown, patchMessage } from '../utils/marks';
@@ -141,6 +141,8 @@ const MAX_POLL_BACKOFF_MS = 60000;
 const MAX_KICKS = 3;
 const MAX_NOTE = 1000;
 const COMPACT_KEY = 'clarity:chat-compact';
+// підказку про позначки показуємо один раз — до першої позначки чи «Зрозуміло»
+const MARKS_TIP_KEY = 'clarity:marks-tip-seen';
 
 
 const readCompact = () => {
@@ -148,6 +150,14 @@ const readCompact = () => {
     return localStorage.getItem(COMPACT_KEY) === '1';
   } catch {
     return false;
+  }
+};
+
+const readMarksTipSeen = () => {
+  try {
+    return localStorage.getItem(MARKS_TIP_KEY) === '1';
+  } catch {
+    return true;
   }
 };
 
@@ -227,6 +237,16 @@ export default function ChatPage() {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   // «Мої позначки» в бічній панелі й редактор виділення поверх чату
   const [isMarksOpen, setIsMarksOpen] = useState(false);
+  const [marksTipSeen, setMarksTipSeen] = useState(readMarksTipSeen);
+  // людина вже позначала чи закрила підказку — більше не показуємо
+  const dismissMarksTip = useCallback(() => {
+    setMarksTipSeen(true);
+    try {
+      localStorage.setItem(MARKS_TIP_KEY, '1');
+    } catch {
+      // без сховища підказка просто з'явиться ще раз
+    }
+  }, []);
   const [marksFocus, setMarksFocus] = useState(null);
   const [editingMark, setEditingMark] = useState(null);
   const advancedRef = useRef(null);
@@ -1323,14 +1343,15 @@ export default function ChatPage() {
 
   const handleReact = useCallback(async (message, reaction) => {
     const previous = message.reaction || '';
+    if (reaction) dismissMarksTip();
     patchMessageState(message.id, () => ({ reaction }));
     try {
       await setMessageReaction(discussionRef.current.id, message.id, reaction);
     } catch (err) {
       patchMessageState(message.id, () => ({ reaction: previous }));
-      pushToast(err?.message || m.reactionError);
+      pushToast(err?.message || m.markError);
     }
-  }, [patchMessageState, pushToast]);
+  }, [patchMessageState, pushToast, dismissMarksTip]);
 
   const locateMark = useCallback((messageId, highlight) => {
     const root = document.querySelector(`[data-marks-root="${messageId}"]`);
@@ -1340,6 +1361,7 @@ export default function ChatPage() {
   }, []);
 
   const handleCreateHighlight = useCallback(async (messageId, info, color, withNote) => {
+    dismissMarksTip();
     try {
       const highlight = await createHighlight(discussionRef.current.id, messageId, {
         quote: info.quote,
@@ -1354,7 +1376,7 @@ export default function ChatPage() {
     } catch (err) {
       pushToast(err?.message || m.highlightError);
     }
-  }, [patchMessageState, pushToast]);
+  }, [patchMessageState, pushToast, dismissMarksTip]);
 
   const handleUpdateHighlight = useCallback(async (message, highlight, changes) => {
     const apply = (values) =>
@@ -1513,6 +1535,11 @@ export default function ChatPage() {
     (sum, entry) => sum + entry.highlights.length + (entry.message.reaction ? 1 : 0),
     0
   );
+  // одноразова підказка — під першою реплікою AI, коли дискусія вже не йде
+  const tipMessageId =
+    !marksTipSeen && marksTotal === 0 && !isRunning
+      ? renderedMessages.find((item) => item.id && MARKABLE_ROLES.includes(item.role))?.id
+      : null;
   const editingMessage = editingMark
     ? (messages || []).find((item) => item.id === editingMark.messageId)
     : null;
@@ -1905,6 +1932,12 @@ export default function ChatPage() {
               onExplain={handleExplain}
               onReportWrong={handleReportWrong}
               onShowMarks={handleShowMarks}
+              tip={message.id === tipMessageId ? (
+                <p className="chat__marks-tip">
+                  <span>{m.tip}</span>
+                  <button type="button" onClick={dismissMarksTip}>{m.tipClose}</button>
+                </p>
+              ) : null}
             />
           ))}
 

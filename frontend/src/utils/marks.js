@@ -1,4 +1,4 @@
-// Позначки людини в дискусії — реакції й виділення — як конспект:
+// Позначки людини в дискусії — на всю репліку й на фрагменти — як конспект:
 // для панелі «Мої позначки», копіювання й експорту в Markdown.
 
 import { copy } from '../copy';
@@ -17,14 +17,14 @@ export const markEntries = (messages, authorOf) =>
 
 const oneLine = (text) => String(text || '').replace(/\s+/g, ' ').trim();
 
-/** Конспект у Markdown: автор, реакція, цитати з позначкою значення й нотатки. */
+/** Конспект у Markdown: автор, позначка всієї репліки, цитати з позначкою значення й нотатки. */
 export const marksMarkdown = (entries, { title = t.panelTitle, level = 2 } = {}) => {
   if (!entries?.length) return '';
   const heading = '#'.repeat(level);
   const lines = [`${heading} ${title}`, ''];
   entries.forEach(({ message, author, highlights }) => {
-    const reaction = message.reaction ? ` — ${t.reactions[message.reaction]}` : '';
-    lines.push(`**${oneLine(author)}**${reaction}`, '');
+    const whole = message.reaction ? ` — *${t.colors[message.reaction] || message.reaction}*` : '';
+    lines.push(`**${oneLine(author)}**${whole}`, '');
     highlights.forEach((highlight) => {
       lines.push(`> ${oneLine(highlight.quote)}`);
       const note = oneLine(highlight.note);
@@ -34,6 +34,6 @@ export const marksMarkdown = (entries, { title = t.panelTitle, level = 2 } = {})
   return `${lines.join('\n').trim()}\n`;
 };
 
-/** Замінює в списку повідомлень одне — так реакції й виділення оновлюються на місці. */
+/** Замінює в списку повідомлень одне — так позначки й виділення оновлюються на місці. */
 export const patchMessage = (messages, messageId, change) =>
   (messages || []).map((message) => (message.id === messageId ? { ...message, ...change(message) } : message));

@@ -48,7 +48,7 @@ describe('прив’язка виділення до тексту', () => {
 describe('конспект позначок', () => {
   const messages = [
     { id: '1', role: 'user', content: 'Питання' },
-    { id: '2', role: 'ai', persona_name: 'Логік', reaction: 'convincing', highlights: [] },
+    { id: '2', role: 'ai', persona_name: 'Логік', reaction: 'agree', highlights: [] },
     {
       id: '3',
       role: 'ai',
@@ -63,18 +63,18 @@ describe('конспект позначок', () => {
     expect(entries.map((entry) => entry.message.id)).toEqual(['2', '3']);
   });
 
-  it('пише Markdown з реакціями, цитатами й нотатками', () => {
+  it('пише Markdown з позначкою репліки, цитатами й нотатками', () => {
     const text = marksMarkdown(markEntries(messages, (message) => message.persona_name));
     expect(text).toContain('## Мої позначки');
-    expect(text).toContain('**Логік** — Переконливо');
+    expect(text).toContain('**Логік** — *Згоден*');
     expect(text).toContain('> оренда з’їсть');
     expect(text).toContain('*Сумнів*: перевірити');
     expect(marksMarkdown([])).toBe('');
   });
 
   it('оновлює одне повідомлення, не чіпаючи інших', () => {
-    const next = patchMessage(messages, '2', () => ({ reaction: 'wrong' }));
-    expect(next[1].reaction).toBe('wrong');
+    const next = patchMessage(messages, '2', () => ({ reaction: 'doubt' }));
+    expect(next[1].reaction).toBe('doubt');
     expect(next[2]).toBe(messages[2]);
   });
 });

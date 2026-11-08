@@ -190,15 +190,14 @@ class Message(models.Model):
         RESEARCH = 'research', 'Пошук'
 
     class Reaction(models.TextChoices):
-        """Як людина сприйняла репліку AI. Учасники бачать це в історії дискусії."""
+        """Позначка на всю репліку AI — ті самі значення, що й у виділень фрагментів.
+        Учасники бачать її в історії дискусії."""
 
-        CONVINCING = 'convincing', 'Переконливо'
-        UNCONVINCING = 'unconvincing', 'Не переконує'
-        INSIGHT = 'insight', 'Нова думка'
-        UNCLEAR = 'unclear', 'Незрозуміло'
-        WRONG = 'wrong', 'Помилка у фактах'
+        IMPORTANT = 'important', 'Важливо'
+        AGREE = 'agree', 'Згоден'
+        DOUBT = 'doubt', 'Сумнів'
 
-    # реагувати й виділяти можна лише репліки AI: людина оцінює їх, а не себе
+    # позначати й виділяти можна лише репліки AI: людина оцінює їх, а не себе
     MARKABLE_ROLES = ('ai', 'moderator', 'devil')
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -230,9 +229,9 @@ class Message(models.Model):
     source_ids = models.JSONField('додані джерела', default=list, blank=True)
     model_id = models.CharField('модель', max_length=120, blank=True, default='')
     reaction = models.CharField(
-        'реакція людини', max_length=16, choices=Reaction.choices, blank=True, default=''
+        'позначка людини на всю репліку', max_length=16, choices=Reaction.choices, blank=True, default=''
     )
-    reaction_at = models.DateTimeField('реакцію поставлено', null=True, blank=True)
+    reaction_at = models.DateTimeField('позначку поставлено', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
