@@ -1,4 +1,8 @@
 import PropTypes from 'prop-types';
+import { lang } from '../../copy';
+
+// англійський лендинг показує англомовний інтерфейс: окремі знімки з суфіксом -en
+const suffix = lang === 'en' ? '-en' : '';
 
 // Скрін застосунку у двох темах: CSS показує той, що пасує до теми сторінки.
 // Прихований <img loading="lazy"> браузер не завантажує, тож зайвого трафіку немає.
@@ -11,7 +15,7 @@ export default function Shot({ name, alt, width = 2880, height = 1800, eager = f
     <span className="shot">
       <img
         className="shot__img shot__img--light"
-        src={`/landing/${name}-light.webp`}
+        src={`/landing/${name}-light${suffix}.webp`}
         alt={alt}
         width={width}
         height={height}
@@ -20,7 +24,7 @@ export default function Shot({ name, alt, width = 2880, height = 1800, eager = f
       />
       <img
         className="shot__img shot__img--dark"
-        src={`/landing/${name}-dark.webp`}
+        src={`/landing/${name}-dark${suffix}.webp`}
         alt={alt}
         width={width}
         height={height}
