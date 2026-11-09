@@ -255,3 +255,56 @@ class EmailChangeTests(TestCase):
         self.assertEqual(self.confirm(token).status_code, 200)
         self.assertEqual(phone.get('/api/auth/me/').status_code, 401)
         self.assertFalse(AuthToken.objects.filter(user=self.user).exists())
+
+
+class PasswordStrengthTests(TestCase):
+    """Валідатори AUTH_PASSWORD_VALIDATORS діють поверх наших правил."""
+
+    def setUp(self):
+        cache.clear()
+        no_throttle(self)
+
+    def register(self, password):
+        return APIClient().post('/api/auth/register/', {
+            'name': 'Олена', 'email': 'olena@test.com', 'password': password,
+            'confirm_password': password, 'accept_terms': True,
+        }, format='json')
+
+    def test_common_password_rejected(self):
+        response = self.register('Password1!')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', response.json())
+        self.assertFalse(User.objects.filter(email='olena@test.com').exists())
+
+    def test_password_like_email_rejected(self):
+        self.assertEqual(self.register('olena@test.com1').status_code, 400)
+
+    def test_strong_password_accepted(self):
+        self.assertEqual(self.register('kv4!Trq-mZ').status_code, 201)
+
+
+class CurrentPasswordGuessingTests(TestCase):
+    """Зі вкраденим сеансом поточний пароль не перебрати: ті самі ліміти, що й у входу."""
+
+    def setUp(self):
+        cache.clear()
+        no_throttle(self)
+        self.user = User.objects.create_user(email='own@test.com', name='Власниця', password='pass123!A')
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_delete_account_locks_after_failures(self):
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            response = self.client.delete('/api/auth/me/', {'password': 'wrong123!X'}, format='json')
+            self.assertEqual(response.status_code, 400)
+        # навіть правильний пароль тепер чекає кінця блокування
+        response = self.client.delete('/api/auth/me/', {'password': 'pass123!A'}, format='json')
+        self.assertEqual(response.status_code, 429)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_password_change_locks_after_failures(self):
+        body = {'current_password': 'wrong123!X', 'password': 'kv4!Trq-mZ', 'confirm_password': 'kv4!Trq-mZ'}
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            self.assertEqual(self.client.post('/api/auth/password/', body, format='json').status_code, 400)
+        body['current_password'] = 'pass123!A'
+        self.assertEqual(self.client.post('/api/auth/password/', body, format='json').status_code, 429)

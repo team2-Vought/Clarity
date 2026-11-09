@@ -2,7 +2,8 @@
 <html lang="uk">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- адреса сторінки (зокрема публічного посилання з токеном) не йде іншим сайтам -->
     <meta name="referrer" content="same-origin" />
@@ -15,7 +16,11 @@
     <meta property="og:site_name" content="Clarity" />
     <meta property="og:title" content="Clarity — команда AI-учасників для важких рішень" />
     <meta property="og:description" content="Одне питання — ціла команда думок: дебати AI-учасників, критика AI Devil і чіткий висновок з плюсами, ризиками й наступним кроком." />
-    <meta name="twitter:card" content="summary" />
+    <!-- адресу картинки збірка робить абсолютною з VITE_SITE_URL (vite.config.js) -->
+    <meta property="og:image" content="__OG_IMAGE__" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- og:end -->
     <!-- шрифт — з власного сервера (@fontsource у main.jsx), без запитів до Google Fonts -->
     <script src="/theme.js"></script>

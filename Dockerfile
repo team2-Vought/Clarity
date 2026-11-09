@@ -9,10 +9,12 @@ WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-# контакт і оператор для Політики конфіденційності/Умов — під час збірки
+# контакт і оператор для Політики конфіденційності/Умов, адреса сайту для
+# картинки прев'ю (og:image) — під час збірки
 ARG VITE_CONTACT_EMAIL=
 ARG VITE_LEGAL_OPERATOR=
-ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL VITE_LEGAL_OPERATOR=$VITE_LEGAL_OPERATOR
+ARG VITE_SITE_URL=
+ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL VITE_LEGAL_OPERATOR=$VITE_LEGAL_OPERATOR VITE_SITE_URL=$VITE_SITE_URL
 RUN npm run build
 
 # ---------- API і воркер ----------

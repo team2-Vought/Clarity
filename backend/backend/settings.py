@@ -93,6 +93,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # /api/health/ — до редиректу на https і перевірки хоста (backend/middleware.py)
+    'backend.middleware.HealthCheckMiddleware',
     # завеликий запит відкидаємо одразу, ще до читання тіла (вкладення — до 10 МБ)
     'backend.middleware.RequestSizeLimitMiddleware',
     # чат опитує стан дискусії щосекунди-дві — стиснений JSON у кілька разів менший

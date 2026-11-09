@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
@@ -248,6 +249,9 @@ class SharedPreviewTests(TestCase):
         html = response.content.decode()
         self.assertIn('property="og:title" content="Чи переїжджати до Києва &lt;зараз&gt;?"', html)
         self.assertIn('Переїжджати навесні', html)
+        # картинка прев'ю — абсолютною адресою сайту
+        site = settings.FRONTEND_URL.rstrip('/')
+        self.assertIn(f'property="og:image" content="{site}/og-image.jpg"', html)
         self.assertIn('<div id="root">', html)
         self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
 

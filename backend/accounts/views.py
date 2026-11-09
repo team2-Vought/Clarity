@@ -201,7 +201,9 @@ class MeView(APIView):
 
     def patch(self, request):
         user = request.user
-        serializer = ProfileSerializer(data=request.data, context={'user': user})
+        serializer = ProfileSerializer(
+            data=request.data, context={'user': user, 'ip': tokens.client_ip(request)}
+        )
         serializer.is_valid(raise_exception=True)
 
         changed = [field for field in ('name', 'avatar') if field in serializer.validated_data]
@@ -232,7 +234,9 @@ class MeView(APIView):
 
     def delete(self, request):
         user = request.user
-        serializer = DeleteAccountSerializer(data=request.data, context={'user': user})
+        serializer = DeleteAccountSerializer(
+            data=request.data, context={'user': user, 'ip': tokens.client_ip(request)}
+        )
         serializer.is_valid(raise_exception=True)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -284,7 +288,9 @@ class PasswordView(APIView):
 
     def post(self, request):
         user = request.user
-        serializer = PasswordChangeSerializer(data=request.data, context={'user': user})
+        serializer = PasswordChangeSerializer(
+            data=request.data, context={'user': user, 'ip': tokens.client_ip(request)}
+        )
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
@@ -342,7 +348,7 @@ class PasswordResetConfirmView(APIView):
                 {'detail': RESET_LINK_INVALID, 'code': 'invalid_link'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer = PasswordResetConfirmSerializer(data=request.data, context={'user': user})
         serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             user.set_password(serializer.validated_data['password'])

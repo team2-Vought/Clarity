@@ -2,6 +2,27 @@
 // Окремий файл, а не вбудований скрипт: так CSP може заборонити будь-який inline-JavaScript.
 (() => {
   const root = document.documentElement;
+
+  // мова — до першого кадру: інакше англомовна людина бачить, як заголовок вкладки
+  // й lang міняються з української. Те саме правило, що в src/copy/index.js
+  try {
+    const languages = ['uk', 'en'];
+    let lang = null;
+    try {
+      lang = localStorage.getItem('clarity:lang');
+    } catch {
+      lang = null;
+    }
+    if (!languages.includes(lang)) {
+      const list = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+      lang = list.map((item) => String(item || '').toLowerCase().slice(0, 2)).find((code) => languages.includes(code)) || 'en';
+    }
+    root.lang = lang;
+    if (lang === 'en') document.title = 'Clarity — a team of AI minds for hard decisions';
+  } catch {
+    // лишається українська з index.html
+  }
+
   try {
     // лендинг і сторінки входу завжди в темі пристрою (src/hooks/useDeviceTheme.js)
     const path = location.pathname.replace(/\/+$/, '') || '/';

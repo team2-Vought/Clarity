@@ -60,6 +60,7 @@ def _description(discussion):
 
 
 def og_tags(discussion, url):
+    site = settings.FRONTEND_URL.rstrip('/')
     with using(discussion.language):
         title = _short(discussion_title(discussion.question), 120)
         description = _description(discussion)
@@ -69,7 +70,10 @@ def og_tags(discussion, url):
         'og:title': title,
         'og:description': description,
         'og:url': url,
-        'twitter:card': 'summary',
+        'og:image': f'{site}/og-image.jpg',
+        'og:image:width': '1200',
+        'og:image:height': '630',
+        'twitter:card': 'summary_large_image',
         'twitter:title': title,
         'twitter:description': description,
     }

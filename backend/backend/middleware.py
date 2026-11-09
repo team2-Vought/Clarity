@@ -1,9 +1,33 @@
 """Спільні middleware проєкту."""
 
 from django.conf import settings
+from django.db import connection
 from django.http import JsonResponse
 
 from backend.i18n import L
+
+
+HEALTH_PATH = '/api/health/'
+
+
+class HealthCheckMiddleware:
+    """`GET /api/health/` для оркестратора (docker compose, балансувальник).
+
+    Стоїть першим: healthcheck контейнера ходить на http://127.0.0.1:8000, а далі
+    SecurityMiddleware перенаправив би його на https (SECURE_SSL_REDIRECT), а
+    перевірка хоста відхилила б 127.0.0.1, якого немає в ALLOWED_HOSTS. Тоді
+    бекенд вічно «нездоровий», і воркер дискусій, що чекає на нього, не стартує.
+    Відповідь не залежить від хоста й нічого не розкриває: процес живий і база відповідає."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path == HEALTH_PATH and request.method in {'GET', 'HEAD'}:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT 1')
+            return JsonResponse({'ok': True})
+        return self.get_response(request)
 
 
 class RequestSizeLimitMiddleware:

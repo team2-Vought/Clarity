@@ -1283,20 +1283,6 @@
 /* ---- телефон: «Назад» поруч із «бургером», деталі — аркушем знизу ---- */
 
 @media (max-width: 760px) {
-  /* те саме для дерева: схема тане під «бургером» і «Назад» */
-  .tree-dialog::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    z-index: 3;
-    /* до низу кнопок (16 + 50px) і ще трохи — щоб не з'їдати верх першої картки */
-    height: 76px;
-    background: linear-gradient(to bottom, var(--tree-bg) 62%, transparent);
-    pointer-events: none;
-  }
-
   /* поруч із «бургером» меню (12px + 50px), на тій самій висоті */
   .tree-back {
     top: 19px;

@@ -100,3 +100,14 @@ class HealthTests(TestCase):
         response = self.client.get('/api/health/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {'ok': True})
+
+    @override_settings(SECURE_SSL_REDIRECT=True, ALLOWED_HOSTS=['clarity.example.com'])
+    def test_health_from_container_in_production(self):
+        # healthcheck docker compose ходить по http на 127.0.0.1: ні редиректу, ні 400
+        response = self.client.get('/api/health/', HTTP_HOST='127.0.0.1:8000')
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(SECURE_SSL_REDIRECT=True, ALLOWED_HOSTS=['clarity.example.com'])
+    def test_other_paths_still_redirect_to_https(self):
+        response = self.client.get('/api/models/', HTTP_HOST='clarity.example.com')
+        self.assertEqual(response.status_code, 301)

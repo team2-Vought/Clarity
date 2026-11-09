@@ -484,16 +484,18 @@ export default function ProfileSettings({ section = 'profile', children = null }
           <h2 className="settings__identity-name">{user.name}</h2>
           {joined && <span className="settings__identity-meta">{t.joined(joined)}</span>}
         </div>
-        <div className="settings__identity-actions">
-          <button
-            type="button"
-            className="settings__button settings__button--soft"
-            onClick={() => fileRef.current?.click()}
-            disabled={isAvatarBusy}
-          >
-            {user.avatar ? t.avatarChange : t.avatarUpload}
-          </button>
-          {user.avatar && (
+        {/* без фото його додає сама аватарка зі значком камери — окрема кнопка
+            лише дублювала б її; з фото поруч «Змінити» й «Прибрати» */}
+        {user.avatar && (
+          <div className="settings__identity-actions">
+            <button
+              type="button"
+              className="settings__button settings__button--soft"
+              onClick={() => fileRef.current?.click()}
+              disabled={isAvatarBusy}
+            >
+              {t.avatarChange}
+            </button>
             <button
               type="button"
               className="settings__button"
@@ -502,8 +504,8 @@ export default function ProfileSettings({ section = 'profile', children = null }
             >
               {t.avatarRemove}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="settings__sheet">

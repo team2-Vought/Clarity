@@ -1,18 +1,31 @@
 # Продакшн-набір: Postgres, API, воркер дискусій і nginx з інтерфейсом.
 #   cp backend/.env.example backend/.env   # заповніть ключі, домен, пошту
 #   docker compose up -d --build
-# Інтерфейс — на порту 8080; TLS ставить зовнішній проксі (Caddy, Traefik, балансувальник).
+# Інтерфейс — на 127.0.0.1:8080; TLS ставить зовнішній проксі (Caddy, Traefik) на цій машині.
+# Проксі на іншій машині (балансувальник) — WEB_PORT=0.0.0.0:8080, але тоді закрийте
+# порт для всіх, крім балансувальника: інакше X-Forwarded-For підробляє будь-хто.
+
+# Інтерфейс збирається двічі: для nginx і для бекенду (index.html прев'ю /shared/).
+# Аргументи збірки мають збігатися — інакше імена бандлів різні й прев'ю відкриється порожнім.
+x-frontend-args: &frontend-args
+  VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
+  VITE_LEGAL_OPERATOR: ${VITE_LEGAL_OPERATOR:-}
+  # https://clarity.example.com — абсолютна адреса картинки прев'ю в месенджерах
+  VITE_SITE_URL: ${VITE_SITE_URL:-}
 
 x-backend: &backend
   build:
     context: .
     target: backend
+    args: *frontend-args
   env_file: backend/.env
   environment:
     DATABASE_URL: postgres://clarity:${POSTGRES_PASSWORD:-clarity}@db:5432/clarity
     DISCUSSION_RUNNER: worker
     DJANGO_DEBUG: "false"
     DJANGO_BEHIND_PROXY: "true"
+    # перед Django — зовнішній TLS-проксі й nginx; без зовнішнього проксі — 1
+    DJANGO_NUM_PROXIES: ${DJANGO_NUM_PROXIES:-2}
   depends_on:
     db:
       condition: service_healthy
@@ -58,11 +71,9 @@ services:
     build:
       context: .
       target: web
-      args:
-        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
-        VITE_LEGAL_OPERATOR: ${VITE_LEGAL_OPERATOR:-}
+      args: *frontend-args
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-127.0.0.1:8080}:80"
     depends_on:
       - backend
     restart: unless-stopped

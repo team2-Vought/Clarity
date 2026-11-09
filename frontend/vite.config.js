@@ -32,36 +32,55 @@ function cspPlugin(apiUrl) {
   }
 }
 
+// Картинка прев'ю в месенджерах: краулери хочуть абсолютну адресу, а домен
+// відомий лише під час деплою (VITE_SITE_URL). Без нього — шлях від кореня сайту.
+function ogImagePlugin(siteUrl) {
+  const image = `${(siteUrl || '').replace(/\/$/, '')}/og-image.jpg`
+  return {
+    name: 'clarity-og-image',
+    transformIndexHtml: (html) => html.replace('__OG_IMAGE__', image),
+  }
+}
+
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  // React Compiler сам мемоізує компоненти: опитування чату й набір у полі
-  // вводу більше не перерендерюють (і не розбирають заново) усі репліки
-  plugins: [
-    react(),
-    babel({ presets: [reactCompilerPreset()] }),
-    cspPlugin(loadEnv(mode, process.cwd(), 'VITE_').VITE_API_URL),
-  ],
-  // дата збірки — у технічних даних звернення «Знайшли баги?»
-  define: {
-    __APP_BUILD__: JSON.stringify(process.env.VITE_APP_BUILD || new Date().toISOString().slice(0, 10)),
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  return {
+    // React Compiler сам мемоізує компоненти: опитування чату й набір у полі
+    // вводу більше не перерендерюють (і не розбирають заново) усі репліки
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
+      cspPlugin(env.VITE_API_URL),
+      ogImagePlugin(env.VITE_SITE_URL),
+    ],
+    // дата збірки — у технічних даних звернення «Знайшли баги?»
+    define: {
+      __APP_BUILD__: JSON.stringify(process.env.VITE_APP_BUILD || new Date().toISOString().slice(0, 10)),
+    },
+    build: {
+      // великі лише pdfmake і його шрифти (~1 МБ кожен), а їх summaryPdf.js вантажить
+      // окремо, тільки коли людина зберігає PDF — на звичайне відкриття сторінки не впливають
+      chunkSizeWarningLimit: 1000,
+    },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+        },
       },
     },
-  },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  test: {
-    // сторінки перемикаються на jsdom коментарем `@vitest-environment jsdom` у файлі
-    environment: 'node',
-    include: ['src/**/*.test.{js,jsx}'],
-    setupFiles: ['src/test/setup.js'],
-  },
-}))
+    test: {
+      // сторінки перемикаються на jsdom коментарем `@vitest-environment jsdom` у файлі
+      environment: 'node',
+      include: ['src/**/*.test.{js,jsx}'],
+      setupFiles: ['src/test/setup.js'],
+    },
+  }
+})

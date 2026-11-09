@@ -2,6 +2,8 @@ import base64
 import binascii
 import re
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -106,8 +108,11 @@ def clean_avatar(value):
     return value
 
 
-def check_new_password(password, confirm_password):
-    """Ті самі правила, що й при реєстрації; помилка — словник {поле: текст}."""
+def check_new_password(password, confirm_password, user=None):
+    """Ті самі правила, що й при реєстрації; помилка — словник {поле: текст}.
+
+    Після наших правил — валідатори AUTH_PASSWORD_VALIDATORS: поширені паролі
+    («Password1!») і схожі на ім'я чи пошту не проходять."""
     if password != confirm_password:
         raise serializers.ValidationError({'confirm_password': PASSWORDS_MISMATCH})
     if len(password) < PASSWORD_MIN:
@@ -120,6 +125,23 @@ def check_new_password(password, confirm_password):
         raise serializers.ValidationError({'password': PASSWORD_NO_DIGIT})
     if not SPECIAL_RE.search(password):
         raise serializers.ValidationError({'password': PASSWORD_NO_SPECIAL})
+    try:
+        validate_password(password, user)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError({'password': list(exc.messages)})
+
+
+def check_current_password(user, password, ip, field='current_password'):
+    """Поточний пароль перед зміною пошти, пароля чи видаленням акаунта.
+
+    Невдачі рахує той самий лічильник, що й вхід (login_limit): інакше з чужим
+    відкритим сеансом пароль можна було б перебирати тут без обмежень."""
+    if not password:
+        raise ValidationError({field: REQUIRED})
+    check_login_allowed(ip, user.email)
+    if not user.check_password(password):
+        register_failed_login(ip, user.email)
+        raise ValidationError({field: WRONG_PASSWORD})
 
 
 def password_field():
@@ -177,7 +199,11 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        check_new_password(attrs['password'], attrs['confirm_password'])
+        check_new_password(
+            attrs['password'],
+            attrs['confirm_password'],
+            User(email=attrs['email'], name=attrs['name']),
+        )
         return attrs
 
 
@@ -252,11 +278,7 @@ class ProfileSerializer(serializers.Serializer):
         user = self.context['user']
         # акаунт, створений через Google, пароля не має — нічого підтверджувати
         if 'email' in attrs and attrs['email'] != user.email and user.has_usable_password():
-            password = attrs.get('current_password') or ''
-            if not password:
-                raise ValidationError({'current_password': REQUIRED})
-            if not user.check_password(password):
-                raise ValidationError({'current_password': WRONG_PASSWORD})
+            check_current_password(user, attrs.get('current_password') or '', self.context.get('ip', ''))
         return attrs
 
 
@@ -273,11 +295,8 @@ class PasswordChangeSerializer(serializers.Serializer):
         user = self.context['user']
         current = attrs.get('current_password') or ''
         if user.has_usable_password():
-            if not current:
-                raise ValidationError({'current_password': REQUIRED})
-            if not user.check_password(current):
-                raise ValidationError({'current_password': WRONG_PASSWORD})
-        check_new_password(attrs['password'], attrs['confirm_password'])
+            check_current_password(user, current, self.context.get('ip', ''))
+        check_new_password(attrs['password'], attrs['confirm_password'], user)
         if current and attrs['password'] == current:
             raise ValidationError({'password': PASSWORD_SAME})
         return attrs
@@ -293,11 +312,9 @@ class DeleteAccountSerializer(serializers.Serializer):
     def validate(self, attrs):
         user = self.context['user']
         if user.has_usable_password():
-            password = attrs.get('password') or ''
-            if not password:
-                raise ValidationError({'password': REQUIRED})
-            if not user.check_password(password):
-                raise ValidationError({'password': WRONG_PASSWORD})
+            check_current_password(
+                user, attrs.get('password') or '', self.context.get('ip', ''), field='password'
+            )
         return attrs
 
 
@@ -325,5 +342,5 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     confirm_password = password_field()
 
     def validate(self, attrs):
-        check_new_password(attrs['password'], attrs['confirm_password'])
+        check_new_password(attrs['password'], attrs['confirm_password'], self.context.get('user'))
         return attrs

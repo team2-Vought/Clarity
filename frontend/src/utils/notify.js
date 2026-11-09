@@ -103,7 +103,7 @@ export function alertUser({ title, body, tag, onClick }) {
     const notification = new window.Notification(title, {
       body,
       tag,
-      icon: '/favicon.svg',
+      icon: '/apple-touch-icon.png',
     });
     notification.onclick = () => {
       window.focus();
