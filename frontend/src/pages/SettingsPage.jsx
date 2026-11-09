@@ -47,6 +47,7 @@ import {
   writeSendKey,
   writeSuggestions,
 } from '../utils/devicePrefs';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.settings;
 
@@ -363,6 +364,7 @@ function SettingsSkeleton() {
 export default function SettingsPage() {
   const notify = useNotifyPrefs();
   const navigate = useNavigate();
+  usePageTitle(copy.settings.title);
   const { themeMode, setThemeMode } = useOutletContext();
   const { pushToast } = useToasts();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -687,6 +689,16 @@ export default function SettingsPage() {
         <button type="button" className="settings__button settings__button--soft" onClick={() => navigate('/help')}>
           {t.helpOpen}
         </button>
+      </Row>
+      <Row title={t.legalLabel} hint={t.legalHint} wide>
+        <span className="settings__buttons">
+          <button type="button" className="settings__button settings__button--soft" onClick={() => navigate('/privacy')}>
+            {copy.legal.privacy.title}
+          </button>
+          <button type="button" className="settings__button settings__button--soft" onClick={() => navigate('/terms')}>
+            {copy.legal.terms.title}
+          </button>
+        </span>
       </Row>
       <Row title={copy.report.title} hint={copy.report.helpText} wide>
         <button

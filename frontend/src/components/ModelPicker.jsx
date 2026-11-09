@@ -39,7 +39,9 @@ export default function ModelPicker({
   const menuRef = useRef(null);
   const { host, place } = useFloatingMenu(isOpen, ref, menuRef, { gap: 4 });
   const selected = models.find((model) => model.id === value);
-  const text = selected ? modelLabel(selected) : value ? value : autoLabel;
+  // у кнопці провайдера вже видно з логотипа — лишаємо назву моделі, щоб вона не обрізалася;
+  // повна назва «Провайдер — модель» — у підказці й у списку
+  const text = selected ? selected.label || selected.model : value ? value : autoLabel;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -99,6 +101,7 @@ export default function ModelPicker({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={label}
+        title={selected ? modelLabel(selected) : undefined}
       >
         <ModelIcon model={selected} />
         <span className="debate__model-row">

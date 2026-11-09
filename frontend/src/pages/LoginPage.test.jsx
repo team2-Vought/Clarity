@@ -5,7 +5,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
-import { googleConfig } from '../api/auth';
+import userEvent from '@testing-library/user-event';
+import { googleConfig, register } from '../api/auth';
 
 vi.mock('../api/auth', () => ({
   googleConfig: vi.fn(),
@@ -47,5 +48,28 @@ describe('«Продовжити з Google» на сторінках входу'
     renderPage(LoginPage);
     await waitFor(() => expect(googleConfig).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: /Google/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Згода з Умовами під час реєстрації', () => {
+  it('без позначки форма не надсилається й пояснює чому', async () => {
+    const user = userEvent.setup();
+    vi.mocked(googleConfig).mockResolvedValue({ client_id: '' });
+    vi.mocked(register).mockReset();
+    renderPage(RegisterPage);
+    await user.type(screen.getByPlaceholderText('Як до вас звертатися'), 'Оля');
+    await user.type(screen.getByPlaceholderText('name@mail.com'), 'olya@test.com');
+    await user.type(screen.getByPlaceholderText('Створіть пароль'), 'pass123!A');
+    await user.type(screen.getByPlaceholderText('Введіть пароль ще раз'), 'pass123!A');
+    await user.click(screen.getByRole('button', { name: 'Створити' }));
+    expect(register).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/прийміть Умови/).length).toBeGreaterThan(0);
+  });
+
+  it('посилання ведуть на Умови й Політику конфіденційності', async () => {
+    vi.mocked(googleConfig).mockResolvedValue({ client_id: '' });
+    renderPage(RegisterPage);
+    expect(screen.getAllByRole('link', { name: 'Умови користування' })[0]).toHaveAttribute('href', '/terms');
+    expect(screen.getAllByRole('link', { name: 'Політику конфіденційності' })[0]).toHaveAttribute('href', '/privacy');
   });
 });

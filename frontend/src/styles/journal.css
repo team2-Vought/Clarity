@@ -1,22 +1,6 @@
 /* Журнал рішень: розкладка й панель праворуч — від «Історії» (.history),
    тут лише картки рішень, план і «Як воно?» */
 
-.journal {
-  /* розгортання — швидкий старт і м'яка зупинка; згортання — плавне з обох боків */
-  --j-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --j-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  /* кнопки всередині картки: на телефоні --h-control білий, як сама картка */
-  --j-control: color-mix(in srgb, var(--ink) 6%, var(--card));
-  --j-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
-  --j-good: var(--success);
-  --j-mixed: #b7791f;
-  --j-bad: var(--error);
-}
-
-:root[data-theme='dark'] .journal {
-  --j-mixed: #f2c46d;
-}
-
 .journal__inner {
   display: flex;
   flex-direction: column;
@@ -77,10 +61,10 @@
   flex-direction: column;
   gap: var(--j-gap);
   padding: 24px 26px;
-  border: 1px solid var(--h-line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--r-xl);
   background-color: var(--card);
-  box-shadow: var(--h-shadow);
+  box-shadow: var(--shadow-card);
   color: var(--ink);
   scroll-margin: 24px;
   transition:
@@ -91,12 +75,12 @@
 
 /* рішення, про яке пора спитати, — з теплою обвідкою */
 .journal__entry--due {
-  border-color: color-mix(in srgb, var(--h-progress) 45%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }
 
 /* згорнуту картку відкриває клік будь-де — як картку в «Історії» */
 .journal__entry:not(.journal__entry--open):has(.journal__summary:hover) {
-  background-color: var(--h-hover);
+  background-color: var(--hover);
 }
 
 .journal__entry:not(.journal__entry--open):has(.journal__summary:active) {
@@ -110,7 +94,7 @@
 
 @keyframes journal-focus {
   from {
-    box-shadow: 0 0 0 3px var(--peach, #feedd5);
+    box-shadow: 0 0 0 3px var(--peach);
   }
 }
 
@@ -173,20 +157,20 @@ button.journal__summary {
 }
 
 .journal__dot--due {
-  background: var(--h-progress);
+  background: var(--warning);
 }
 
 .journal__dot--good,
 .journal__dot--reviewed {
-  background: var(--j-good);
+  background: var(--success);
 }
 
 .journal__dot--mixed {
-  background: var(--j-mixed);
+  background: var(--warning);
 }
 
 .journal__dot--bad {
-  background: var(--j-bad);
+  background: var(--error);
 }
 
 .journal__decision {
@@ -214,7 +198,7 @@ button.journal__summary {
   top: 26px;
   right: 24px;
   color: var(--muted);
-  transition: transform 0.44s var(--j-ease-out);
+  transition: transform 0.44s var(--ease-out);
 }
 
 .journal__entry--open .journal__chevron {
@@ -312,7 +296,7 @@ button.journal__summary {
   border-radius: inherit;
   background: var(--ink);
   transition:
-    width 0.4s var(--j-ease-out),
+    width 0.4s var(--ease-out),
     background-color 0.3s;
 }
 
@@ -324,11 +308,11 @@ button.journal__summary {
 }
 
 .journal__progress--done .journal__bar > span {
-  background: var(--j-good);
+  background: var(--success);
 }
 
 .journal__progress--done .journal__progress-text {
-  color: var(--j-good);
+  color: var(--success);
 }
 
 .journal__result {
@@ -347,15 +331,15 @@ button.journal__summary {
 }
 
 .journal__chip--good {
-  color: var(--j-good);
+  color: var(--success);
 }
 
 .journal__chip--mixed {
-  color: var(--j-mixed);
+  color: var(--warning);
 }
 
 .journal__chip--bad {
-  color: var(--j-bad);
+  color: var(--error);
 }
 
 .journal__reflection {
@@ -373,7 +357,7 @@ button.journal__summary {
 .journal__fold {
   display: grid;
   grid-template-rows: 1fr;
-  animation: journal-unfold 0.56s var(--h-spring);
+  animation: journal-unfold 0.56s var(--ease-spring);
 }
 
 .journal__fold > *,
@@ -390,7 +374,7 @@ button.journal__summary {
 
 .journal__fold--closing {
   animation:
-    journal-fold 0.26s var(--j-ease-in-out) 0.06s both,
+    journal-fold 0.26s var(--ease-in-out) 0.06s both,
     journal-fade-out 0.14s ease 0.14s both;
 }
 
@@ -411,7 +395,7 @@ button.journal__summary {
 /* Блоки розгорнутої картки — як репліка ШІ в чаті: зверху вниз, кожен
    виринає з розмиття й трохи піднімається; після дюжини затримка не росте */
 .journal__reveal {
-  animation: journal-reveal 0.62s var(--j-ease-out) both;
+  animation: journal-reveal 0.62s var(--ease-out) both;
   animation-delay: calc(min(var(--item, 0), 12) * 60ms + 90ms);
 }
 
@@ -427,7 +411,7 @@ button.journal__summary {
    кожен блок розмивається й трохи осідає */
 .journal__fold--closing .journal__reveal,
 .journal__swap--shrink .journal__reveal {
-  animation: journal-conceal 0.16s cubic-bezier(0.4, 0, 1, 1) both;
+  animation: journal-conceal 0.16s var(--ease-in-out) both;
   animation-delay: calc(min(var(--count, 0) - var(--rank, 0), 8) * 14ms);
 }
 
@@ -449,11 +433,11 @@ button.journal__summary {
 }
 
 .journal__swap--grow {
-  animation: journal-grow 0.5s var(--h-spring);
+  animation: journal-grow 0.5s var(--ease-spring);
 }
 
 .journal__swap--shrink {
-  animation: journal-shrink 0.22s var(--j-ease-in-out) 0.06s both;
+  animation: journal-shrink 0.22s var(--ease-in-out) 0.06s both;
 }
 
 @keyframes journal-grow {
@@ -480,8 +464,8 @@ button.journal__summary {
   display: grid;
   grid-template-rows: 1fr;
   transition:
-    grid-template-rows 0.48s var(--j-ease-out),
-    margin-top 0.48s var(--j-ease-out),
+    grid-template-rows 0.48s var(--ease-out),
+    margin-top 0.48s var(--ease-out),
     opacity 0.3s ease 0.08s,
     visibility 0s;
 }
@@ -492,8 +476,8 @@ button.journal__summary {
   opacity: 0;
   visibility: hidden;
   transition:
-    grid-template-rows 0.34s var(--j-ease-in-out),
-    margin-top 0.34s var(--j-ease-in-out),
+    grid-template-rows 0.34s var(--ease-in-out),
+    margin-top 0.34s var(--ease-in-out),
     opacity 0.18s ease,
     visibility 0s 0.34s;
 }
@@ -527,7 +511,7 @@ button.journal__summary {
   align-items: stretch;
   gap: 24px;
   padding-top: 18px;
-  border-top: 1px solid var(--h-line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .journal__section {
@@ -649,7 +633,7 @@ button.journal__summary {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--h-progress);
+  background: var(--warning);
 }
 
 /* «Як воно?» — дія, тож окрема м'яка панель, а не ще один список */
@@ -685,7 +669,7 @@ button.journal__summary {
   padding: 0 18px;
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--j-control);
+  background: var(--control);
   color: var(--ink);
   font: inherit;
   font-size: 0.9375rem;
@@ -695,7 +679,7 @@ button.journal__summary {
 }
 
 .journal__outcome:hover:not(.journal__outcome--active) {
-  background: var(--j-control-active);
+  background: var(--control-active);
 }
 
 .journal__outcome:active {
@@ -703,22 +687,22 @@ button.journal__summary {
 }
 
 .journal__outcome--active.journal__outcome--good {
-  background: var(--j-good);
-  color: #fff;
+  background: var(--success);
+  color: var(--on-accent);
 }
 
 .journal__outcome--active.journal__outcome--mixed {
-  background: var(--j-mixed);
-  color: #fff;
+  background: var(--warning);
+  color: var(--on-accent);
 }
 
 .journal__outcome--active.journal__outcome--bad {
-  background: var(--j-bad);
-  color: #fff;
+  background: var(--error);
+  color: var(--on-accent);
 }
 
 :root[data-theme='dark'] .journal__outcome--active {
-  color: #121212;
+  color: var(--on-pastel);
 }
 
 .journal__textarea {
@@ -767,11 +751,11 @@ button.journal__summary {
 
 .journal__button--soft {
   align-self: flex-start;
-  background: var(--j-control);
+  background: var(--control);
 }
 
 .journal__button--soft:hover:not(:disabled) {
-  background: var(--j-control-active);
+  background: var(--control-active);
 }
 
 .journal__button--primary,
@@ -792,30 +776,6 @@ button.journal__summary {
 /* ---- службові стани ---- */
 
 /* журнал порожній — пояснення посередині сторінки, як в «Історії» */
-.journal__empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 24px;
-  text-align: center;
-  pointer-events: none;
-}
-
-.journal__empty > * {
-  pointer-events: auto;
-}
-
-.journal__empty p {
-  max-width: 46ch;
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.55;
-}
-
 .journal__entry--skeleton {
   gap: 10px;
   pointer-events: none;

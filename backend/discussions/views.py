@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from accounts.about import about_of
 from accounts.about import snapshot as about_snapshot
+from accounts import email_verify
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
@@ -285,6 +286,20 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         )
 
     def post(self, request):
+        # без підтвердженої пошти дискусій не запускаємо (accounts/email_verify.py)
+        if email_verify.blocked(request.user):
+            return Response(
+                {
+                    'detail': L(
+                        'Підтвердьте пошту — посилання в листі після реєстрації. '
+                        'Лист можна надіслати ще раз із головної сторінки.',
+                        'Confirm your email — the link is in the email we sent after sign-up. '
+                        'You can send it again from the home page.',
+                    ),
+                    'code': 'email_unverified',
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = CreateDiscussionSerializer(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

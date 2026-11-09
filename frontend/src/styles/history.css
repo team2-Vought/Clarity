@@ -1,19 +1,10 @@
 /* ---------- Історія дискусій: картки «цеглинками» та плаский список ---------- */
 
 .history {
-  --h-line: color-mix(in srgb, var(--ink) 9%, transparent);
   --h-soft: color-mix(in srgb, var(--ink) 5%, transparent);
-  --h-hover: color-mix(in srgb, var(--ink) 4%, var(--card));
   --h-faint: color-mix(in srgb, var(--ink) 32%, transparent);
-  --h-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.1);
   /* тінь для елементів з clip-path: box-shadow обрізався б разом з ними */
   --h-drop: drop-shadow(0 0 1px rgba(0, 0, 0, 0.32)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.14));
-  /* підкладка кнопок панелі — трохи темніша за картки, щоб не зливалася з фоном */
-  --h-control: color-mix(in srgb, var(--ink) 5%, var(--card));
-  --h-control-active: color-mix(in srgb, var(--ink) 13%, var(--card));
-  --h-done: var(--success);
-  --h-progress: #d08a1d;
-  --h-spring: cubic-bezier(0.32, 0.72, 0, 1);
 
   --h-button: 48px;
   --h-rail-gap: clamp(12px, 2vw, 24px);
@@ -43,12 +34,7 @@
 }
 
 :root[data-theme='dark'] .history {
-  --h-hover: color-mix(in srgb, var(--ink) 6%, var(--card));
-  --h-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --h-drop: drop-shadow(0 0 1px rgba(255, 255, 255, 0.35)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
-  --h-control: color-mix(in srgb, var(--ink) 10%, var(--card));
-  --h-control-active: color-mix(in srgb, var(--ink) 24%, var(--card));
-  --h-progress: #ffc078;
 }
 
 .history__inner {
@@ -132,7 +118,7 @@
 
 .history__views,
 .history__archive {
-  background: var(--h-control);
+  background: var(--control);
 }
 
 .history__views {
@@ -161,7 +147,7 @@
 .history__view--active:hover,
 .history__archive--active,
 .history__archive--active:hover {
-  background: var(--h-control-active);
+  background: var(--control-active);
   color: var(--ink);
 }
 
@@ -196,13 +182,13 @@
   border: 0;
   border-radius: var(--r-pill);
   outline: 0;
-  background: var(--h-control);
+  background: var(--control);
   color: var(--ink);
   font: inherit;
   font-size: 1rem;
   transition:
-    width 0.24s var(--h-spring),
-    padding 0.24s var(--h-spring);
+    width 0.24s var(--ease-spring),
+    padding 0.24s var(--ease-spring);
 }
 
 /* при закритті підказка гасне швидше, ніж стискається поле, — не залазить під іконку */
@@ -239,7 +225,7 @@
   grid-area: 1 / 1;
   transition:
     opacity 0.2s,
-    transform 0.26s var(--h-spring);
+    transform 0.26s var(--ease-spring);
 }
 
 .history__close-icon {
@@ -276,29 +262,9 @@
   cursor: pointer;
 }
 
-.history__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 260px;
-  margin: 0;
-  color: var(--muted);
-  text-align: center;
-}
-
-.history__empty p {
-  margin: 0;
-}
-
-/* дискусій ще немає — напис посередині сторінки */
-.history__empty--blank {
-  position: absolute;
-  inset: 0;
-  min-height: 0;
-  padding: 24px;
-  pointer-events: none;
+/* дискусій ще немає — шукати й перемикати вигляд нічого, лишаються архів і «Нова дискусія» */
+.history__rail--empty :is(.history__searchbox, .history__views) {
+  display: none;
 }
 
 /* ---- спільне для картки й рядка ---- */
@@ -343,7 +309,7 @@
 }
 
 .history__card:not(.history__card--skeleton):hover {
-  background-color: var(--h-hover);
+  background-color: var(--hover);
 }
 
 /* натискання — уся картка «втискається», як і решта кнопок на сайті;
@@ -416,12 +382,12 @@
 }
 
 .history__dot--done {
-  background: var(--h-done);
+  background: var(--success);
 }
 
 .history__dot--in_progress,
 .history__dot--new {
-  background: var(--h-progress);
+  background: var(--warning);
 }
 
 .history__dot--failed {
@@ -497,14 +463,14 @@
 
 .history--grid .history__card {
   padding: 26px 26px 24px;
-  border: 1px solid var(--h-line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--r-2xl);
   background-color: var(--card);
-  box-shadow: var(--h-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .history--grid .history__card:not(.history__card--skeleton):hover {
-  background-color: var(--h-hover);
+  background-color: var(--hover);
 }
 
 /* дата над назвою, як у Siri; у DOM назва перша — так її першою чує скрінрідер */
@@ -565,7 +531,7 @@
   right: 14px;
   left: 14px;
   height: 1px;
-  background: var(--h-line);
+  background: var(--line-soft);
   transition: opacity 0.2s;
 }
 
@@ -622,7 +588,7 @@
   display: block;
   height: 20px;
   border-radius: var(--r-xs);
-  background: linear-gradient(90deg, var(--h-soft) 25%, var(--h-line) 50%, var(--h-soft) 75%);
+  background: linear-gradient(90deg, var(--h-soft) 25%, var(--line-soft) 50%, var(--h-soft) 75%);
   background-size: 200% 100%;
   animation: history-shimmer 1.4s ease-in-out infinite;
 }
@@ -676,8 +642,8 @@
   .history {
     --h-button: 50px;
     --h-rail-gap: 16px;
-    --h-control: var(--card);
-    --h-control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
+    --control: var(--card);
+    --control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
     --h-edge: 12px;
     --h-bottom: max(16px, env(safe-area-inset-bottom));
   }
@@ -847,7 +813,7 @@
   margin-right: 6px;
   vertical-align: 0.1em;
   border-radius: 50%;
-  background: var(--h-progress);
+  background: var(--warning);
   animation: history-pulse 1.6s ease-in-out infinite;
 }
 
@@ -878,7 +844,7 @@
   position: fixed;
   bottom: 24px;
   left: 50%;
-  z-index: 20;
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   gap: 14px;

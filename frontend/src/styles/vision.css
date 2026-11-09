@@ -19,7 +19,7 @@
 }
 
 /* величезні заголовки лендингу й так помітні — на телефоні їх обмежує ширина екрана */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   :root:is([data-text-scale], [data-font='readable']) .lp-hero__title {
     font-size: min(2.6rem, 12vw);
   }
@@ -93,9 +93,9 @@
 }
 
 /* лінії налаштувань і рамки карток стають помітними */
-:root[data-contrast='high'] :is(.settings, .vision-dialog) {
-  --s-line: color-mix(in srgb, var(--ink) 55%, transparent);
-  --s-control-hover: color-mix(in srgb, var(--ink) 14%, var(--card));
+:root[data-contrast='high'] {
+  --line-soft: color-mix(in srgb, var(--ink) 55%, transparent);
+  --hover: color-mix(in srgb, var(--ink) 14%, var(--card));
 }
 
 :root[data-contrast='high'] body:has(.app-shell) {
@@ -116,7 +116,7 @@
 }
 
 :root[data-contrast='high'] ::placeholder {
-  color: var(--muted, #1f1f1f);
+  color: var(--muted);
   opacity: 1;
 }
 
@@ -156,7 +156,7 @@
 }
 
 :root[data-font='readable'] :is(code, kbd, samp, pre, pre *) {
-  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace !important;
+  font-family: var(--font-mono) !important;
 }
 
 /* ---- Більші інтервали (WCAG 1.4.12 «Інтервали тексту») ---- */
@@ -216,11 +216,8 @@
 /* ---------- Панель «Зір» ---------- */
 
 .vision-dialog {
-  --well: #ffffff;
-  --s-line: color-mix(in srgb, var(--ink) 8%, transparent);
-  --s-sheet: var(--soft);
+  --well: var(--card);
   --s-control: var(--card);
-  --s-control-hover: color-mix(in srgb, var(--ink) 4%, var(--card));
   width: min(560px, calc(100vw - 24px));
   /* у браузерного <dialog> max-width залежить від em — зі збільшеним текстом він звужувався б */
   max-width: none;
@@ -235,8 +232,7 @@
 }
 
 :root[data-theme='dark'] .vision-dialog {
-  --well: #1f1f23;
-  --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--card));
+  --well: var(--soft);
 }
 
 :root[data-contrast='high'] :is(.vision-dialog, .report-dialog, .tree-dialog) {
@@ -250,7 +246,7 @@
 .vision-dialog[open] {
   display: flex;
   flex-direction: column;
-  animation: vision-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: vision-in 0.2s var(--ease-standard);
 }
 
 .vision-dialog::backdrop {
@@ -412,7 +408,7 @@
 }
 
 .vision-panel .settings__sheet {
-  background: var(--s-sheet);
+  background: var(--soft);
 }
 
 /* телефон: панель на всю ширину, плашка режиму без іконки — більше місця тексту */
@@ -494,7 +490,7 @@
 }
 
 /* на вузькому екрані в шапці лендингу лишається тільки іконка */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .vision-trigger--compact .vision-trigger__label {
     position: absolute;
     width: 1px;
@@ -509,13 +505,6 @@
     padding: 0;
     justify-content: center;
   }
-}
-
-/* картка входу: кнопка під посиланням «На головну» */
-.card__vision {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
 }
 
 /* публічна сторінка дискусії: кнопка поруч із закликом у шапці */

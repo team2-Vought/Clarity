@@ -5,7 +5,9 @@ import { copy } from './copy';
 import Layout from './components/Layout';
 import VisionDialog from './components/VisionDialog';
 import BugReportDialog from './components/BugReportDialog';
+import ConfirmDialog from './components/ConfirmDialog';
 import { getSession } from './api/client';
+import logoThinking from './assets/logo-thinking.svg';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/auth.css';
@@ -20,6 +22,7 @@ import './styles/status.css';
 import './styles/report.css';
 import './styles/marks.css';
 import './styles/tree.css';
+import './styles/legal.css';
 // останнім: режим для слабозорих перебиває стилі сторінок
 import './styles/vision.css';
 
@@ -38,6 +41,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage'));
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const LegalPage = lazy(() => import('./pages/LegalPage'));
 const DebatePage = lazy(loadDebate);
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const JournalPage = lazy(loadJournal);
@@ -47,12 +52,11 @@ const SettingsPage = lazy(loadSettings);
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const SharedPage = lazy(() => import('./pages/SharedPage'));
 
+// поки вантажиться сторінка — знак Clarity, що «думає», а не голий текст
 function RouteFallback() {
   return (
-    <div className="page page--auth">
-      <main className="main main--auth" aria-busy="true" aria-label={copy.common.loading}>
-        <p className="hero__text">{copy.common.loading}</p>
-      </main>
+    <div className="route-loading" role="status" aria-label={copy.common.loading}>
+      <img src={logoThinking} alt="" width="72" height="50" />
     </div>
   );
 }
@@ -89,6 +93,9 @@ export default function App() {
             <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
             <Route path="/confirm-email/:token" element={<ConfirmEmailPage />} />
             <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
+            <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+            <Route path="/privacy" element={<LegalPage doc="privacy" />} />
+            <Route path="/terms" element={<LegalPage doc="terms" />} />
             <Route path="/shared/:token" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />
@@ -104,6 +111,7 @@ export default function App() {
         </Suspense>
         <VisionDialog />
         <BugReportDialog />
+        <ConfirmDialog />
       </BrowserRouter>
     </ErrorBoundary>
   );

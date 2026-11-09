@@ -4,7 +4,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../Toast';
-import JournalForm, { JournalButton, useJournal } from './JournalCard';
+import JournalForm, { JournalButton } from './JournalCard';
+import { useJournal } from '../../hooks/useJournal';
 import { recordDecision } from '../../api/journal';
 
 vi.mock('../../api/journal', () => ({

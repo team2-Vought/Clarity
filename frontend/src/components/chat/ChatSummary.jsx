@@ -11,7 +11,8 @@ import {
 import SummaryDetails from '../SummaryDetails';
 import FeedbackBar from './FeedbackBar';
 import SaveMenu from './SaveMenu';
-import JournalForm, { JournalButton, useJournal } from './JournalCard';
+import JournalForm, { JournalButton } from './JournalCard';
+import { useJournal } from '../../hooks/useJournal';
 import MatrixTable from './MatrixTable';
 import TreePaths from './TreePaths';
 import { TopicNotice } from '../SafetyNotice';

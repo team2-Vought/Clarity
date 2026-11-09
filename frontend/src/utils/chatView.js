@@ -21,8 +21,12 @@ export const stanceLabel = (message, mode, replyName) => {
   return replyName ? `${verb} · ${replyName}` : verb;
 };
 
-export const stanceTone = (stance) =>
-  stance === 'згода' ? 'agree' : stance === 'суперечка' ? 'disagree' : 'neutral';
+// «так» і згода — зелене, «ні» й суперечка — червоне, вибір варіанта — нейтральне
+export const stanceTone = (stance) => {
+  if (stance === 'згода' || stance === 'так') return 'agree';
+  if (stance === 'суперечка' || stance === 'ні') return 'disagree';
+  return 'neutral';
+};
 
 export const speakerKeyOf = (message) =>
   message.role === 'user' ? 'user' : message.persona_name || message.role;
@@ -107,3 +111,6 @@ export const buildSpeakers = (messages, participantColors) => {
   });
   return map;
 };
+
+// репліки, які можна позначати й виділяти
+export const MARKABLE_ROLES = ['ai', 'moderator', 'devil'];

@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
 import { VisionTrigger } from '../components/VisionDialog';
 import { copy } from '../copy';
 import { useDeviceTheme } from '../hooks/useDeviceTheme';
 import { openBugReport } from '../utils/bugReport';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function Background() {
   return (
@@ -21,6 +22,7 @@ export function AuthPage({ title, form, variant, lead = '' }) {
   const navigate = useNavigate();
   // вхід і реєстрація — у темі пристрою, як і лендинг
   useDeviceTheme();
+  usePageTitle(title);
   return (
     <div className="page page--auth">
       <Background />
@@ -34,20 +36,19 @@ export function AuthPage({ title, form, variant, lead = '' }) {
             {lead && <p className="auth-lead">{lead}</p>}
             {form}
           </div>
-          <p className="card__back">
-            <button type="button" className="link" onClick={() => navigate('/')}>
+          {/* один рядок дрібних посилань замість стовпчика кнопок під формою;
+              проблеми зі входом — найчастіша причина написати нам */}
+          <nav className="card__meta" aria-label={copy.landing.footerNav}>
+            <button type="button" onClick={() => navigate('/')}>
               {copy.common.backHome}
             </button>
-          </p>
-          <div className="card__vision">
-            <VisionTrigger />
-          </div>
-          {/* проблеми зі входом — найчастіша причина написати нам */}
-          <p className="card__report">
-            <button type="button" className="report-link" onClick={() => openBugReport()}>
+            <VisionTrigger className="card__meta-vision" />
+            <Link to="/privacy">{copy.landing.privacy}</Link>
+            <Link to="/terms">{copy.landing.terms}</Link>
+            <button type="button" onClick={() => openBugReport()}>
               {copy.report.trigger}
             </button>
-          </p>
+          </nav>
         </section>
       </main>
     </div>

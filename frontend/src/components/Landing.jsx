@@ -7,7 +7,7 @@ import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
 import { useDeviceTheme } from '../hooks/useDeviceTheme';
-import { openBugReport } from '../utils/bugReport';
+import PublicFooter from './PublicFooter';
 import { copy } from '../copy';
 
 const t = copy.landing;
@@ -50,7 +50,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
     <div className="lp" ref={rootRef}>
       <header className={`lp-header${scrolled ? ' lp-header--scrolled' : ''}`}>
         <div className="lp-header__brand">
-          <Logo onHome={onHome} />
+          <Logo onHome={onHome} wordmark />
         </div>
         <nav className="lp-header__nav" aria-label={t.navLabel}>
           {NAV.map((key) => (
@@ -96,12 +96,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
         </section>
       </main>
 
-      <footer className="lp-footer">
-        <span>{t.footer}</span>
-        <button type="button" className="report-link" onClick={() => openBugReport()}>
-          {copy.report.trigger}
-        </button>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

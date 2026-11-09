@@ -4,6 +4,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Archive02Icon,
   Cancel01Icon,
+  Clock01Icon,
   Delete02Icon,
   GridViewIcon,
   ListViewIcon,
@@ -18,8 +19,10 @@ import { useToasts } from '../hooks/useToasts';
 import { getSession } from '../api/client';
 import { copy, locale } from '../copy';
 import LoadError from '../components/LoadError';
+import EmptyState from '../components/EmptyState';
 import ErrorNotice from '../components/ErrorNotice';
 import { describeError } from '../utils/errorKind';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.history;
 
@@ -130,6 +133,7 @@ function useColumnCount(node) {
 
 export default function HistoryPage() {
   const navigate = useNavigate();
+  usePageTitle(copy.history.title);
   const [items, setItems] = useState([]);
   const [nextOffset, setNextOffset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -486,11 +490,20 @@ export default function HistoryPage() {
           {isLoading && <p className="history__sr-only" role="status">{t.loading}</p>}
 
           {!isLoading && items.length === 0 && !error && !isFiltered && (
-            <p className="history__empty history__empty--blank">{t.empty}</p>
+            <EmptyState
+              page
+              icon={Clock01Icon}
+              title={t.emptyTitle}
+              text={t.empty}
+              action={{ label: t.emptyAction, onClick: () => navigate('/home') }}
+            />
           )}
 
           {!isLoading && isFiltered && visible.length === 0 && (
-            <p className="history__empty">{isArchive && !searchTerm ? t.archiveEmpty : t.noResults}</p>
+            <EmptyState
+              icon={isArchive && !searchTerm ? Archive02Icon : Search01Icon}
+              text={isArchive && !searchTerm ? t.archiveEmpty : t.noResults}
+            />
           )}
 
           {(isLoading || visible.length > 0) &&
@@ -542,7 +555,8 @@ export default function HistoryPage() {
       )}
 
       {/* вертикальна панель: пошук, вигляд і архів угорі, нова дискусія внизу */}
-      <aside className="history__rail" aria-label={t.toolbar}>
+      {/* дискусій ще немає — шукати й перемикати вигляд нічого */}
+      <aside className={`history__rail${hasItems ? '' : ' history__rail--empty'}`} aria-label={t.toolbar}>
         <div className="history__rail-group">
           {/* поле пошуку «виростає» з круглої кнопки ліворуч і ховається назад у неї */}
           <div

@@ -18,6 +18,23 @@
   width: auto;
 }
 
+/* знак зі словом «Clarity» — однаковий у шапках усіх публічних сторінок */
+.logo--wordmark {
+  gap: 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.logo--wordmark img {
+  height: 30px;
+}
+
+.logo:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: var(--r-xs);
+}
+
 /* Логотип всередині auth-картки — завжди по центру вгорі */
 .card__logo {
   display: flex;
@@ -40,12 +57,12 @@
   border-radius: var(--r-2xl);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Auth-картки: заголовок по центру під логотипом */
 .card--auth {
-  animation: auth-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: auth-in 0.55s var(--ease-out) both;
 }
 
 .card--auth h1 {
@@ -57,9 +74,57 @@
   margin-right: auto;
 }
 
-.card__back {
-  margin: 14px 0 0;
-  text-align: center;
+.card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.card__meta a,
+.card__meta button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.card__meta a:hover,
+.card__meta button:hover {
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.card__meta a:focus-visible,
+.card__meta button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+.card__meta .vision-trigger {
+  height: auto;
+  min-height: 0;
+  box-shadow: none;
+}
+
+.card__meta .vision-trigger svg {
+  width: 16px;
+  height: 16px;
 }
 
 .link {
@@ -97,7 +162,7 @@
 /* Перехід між логіном і реєстрацією */
 .auth-view {
   display: grid;
-  animation: auth-switch-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: auth-switch-in 0.38s var(--ease-out) both;
 }
 
 @keyframes auth-switch-in {
@@ -136,7 +201,7 @@
 /* стан помилки */
 .field__box[data-invalid='true'],
 .field__box[data-invalid='true']:focus-within {
-  background: #FF8787;
+  background: var(--error-fill);
   border-color: transparent;
   box-shadow: none;
 }
@@ -165,7 +230,7 @@
 }
 /* у стані помилки текст помилки живе в placeholder — він має бути читабельним на червоному */
 .field__box[data-invalid='true'] input::placeholder {
-  color: #fff;
+  color: var(--on-accent);
   opacity: 1;
   font-weight: 500;
 }
@@ -190,6 +255,51 @@
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--muted);
+}
+
+.field__msg--error {
+  color: var(--error);
+}
+
+/* ---------- Згода з Умовами ---------- */
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 6px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.checkbox input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--btn-bg);
+  cursor: pointer;
+}
+
+.checkbox[data-invalid='true'] input {
+  outline: 2px solid var(--error);
+  outline-offset: 1px;
+}
+
+.checkbox a,
+.form__notice a {
+  color: var(--text);
+  text-underline-offset: 3px;
+  text-decoration-color: var(--lilac);
+  text-decoration-thickness: 2px;
+}
+
+.form__notice {
+  margin: -6px 6px 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 /* ---------- Button & link ---------- */
@@ -269,7 +379,7 @@
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
+  z-index: var(--z-overlay);
   display: grid;
   justify-items: center;
   gap: 8px;
@@ -291,7 +401,7 @@
   color: var(--btn-text);
   box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.45), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
   pointer-events: auto;
-  animation: toast-in 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: toast-in 0.36s var(--ease-out);
 }
 
 .toast--success { --toast-tone: #6fd3a3; }
@@ -412,6 +522,8 @@
 
   .card--register .form .btn,
   .card--register .form .form__google,
+  .card--register .form .form__terms,
+  .card--register .form .form__notice,
   .card--register .form .form__alt {
     grid-column: 1 / -1;
   }
@@ -428,10 +540,6 @@
 
   .card--auth .field input {
     padding: 13px 18px;
-  }
-
-  .card__back {
-    margin-top: 10px;
   }
 }
 

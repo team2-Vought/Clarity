@@ -1,0 +1,71 @@
+# Продакшн-набір: Postgres, API, воркер дискусій і nginx з інтерфейсом.
+#   cp backend/.env.example backend/.env   # заповніть ключі, домен, пошту
+#   docker compose up -d --build
+# Інтерфейс — на порту 8080; TLS ставить зовнішній проксі (Caddy, Traefik, балансувальник).
+
+x-backend: &backend
+  build:
+    context: .
+    target: backend
+  env_file: backend/.env
+  environment:
+    DATABASE_URL: postgres://clarity:${POSTGRES_PASSWORD:-clarity}@db:5432/clarity
+    DISCUSSION_RUNNER: worker
+    DJANGO_DEBUG: "false"
+    DJANGO_BEHIND_PROXY: "true"
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: clarity
+      POSTGRES_USER: clarity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clarity}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clarity -d clarity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    <<: *backend
+    # міграції — перед стартом API; воркер чекає, поки API здоровий
+    command: sh -c "python manage.py migrate --noinput && exec gunicorn backend.wsgi --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=3)\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # веде дискусії й надсилає нагадування журналу
+  worker:
+    <<: *backend
+    command: python manage.py discussion_worker
+    depends_on:
+      backend:
+        condition: service_healthy
+    stop_grace_period: 60s
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_CONTACT_EMAIL: ${VITE_CONTACT_EMAIL:-}
+        VITE_LEGAL_OPERATOR: ${VITE_LEGAL_OPERATOR:-}
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:

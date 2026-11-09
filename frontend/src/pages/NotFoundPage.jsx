@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import StatusPage, { homePath } from '../components/StatusPage';
+import StatusPage from '../components/StatusPage';
+import { homePath } from '../utils/homePath';
 import { copy } from '../copy';
 
 const t = copy.common;

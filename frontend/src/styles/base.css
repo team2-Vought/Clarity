@@ -182,3 +182,95 @@ h1::after {
   transition-delay: 0s !important;
   scroll-behavior: auto !important;
 }
+
+/* ---------- Порожній стан (components/EmptyState) — однаковий в історії, журналі й панелях ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 24px;
+  color: var(--ink);
+  text-align: center;
+  animation: empty-in 0.32s var(--ease-out) both;
+}
+
+/* на всю область сторінки: блок стоїть по оптичному центру, а не прилипає до верху */
+.empty-state--page {
+  min-height: min(70dvh, 560px);
+}
+
+.empty-state__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--control);
+  color: var(--muted);
+}
+
+.empty-state__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.empty-state__text {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.empty-state__action {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--press);
+}
+
+.empty-state__action:active {
+  scale: var(--press-scale);
+}
+
+.empty-state__action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@keyframes empty-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Завантаження сторінки (App → RouteFallback) ---------- */
+.route-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: var(--main-bg);
+  /* швидкий перехід не блимає знаком: він з'являється, лише якщо сторінка вантажиться довше */
+  animation: route-loading-in 0.2s ease-out 0.25s both;
+}
+
+.route-loading img {
+  width: 72px;
+  height: auto;
+}
+
+@keyframes route-loading-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

@@ -2,7 +2,7 @@
 
 .report-dialog {
   --s-control: var(--soft);
-  --s-control-hover: color-mix(in srgb, var(--ink) 8%, var(--soft));
+  --hover: color-mix(in srgb, var(--ink) 8%, var(--soft));
   width: min(560px, calc(100vw - 24px));
   /* у браузерного <dialog> max-width залежить від em — зі збільшеним текстом він звужувався б */
   max-width: none;
@@ -20,7 +20,7 @@
 .report-dialog[open] {
   display: flex;
   flex-direction: column;
-  animation: report-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: report-in 0.2s var(--ease-standard);
 }
 
 .report-dialog::backdrop {
@@ -235,7 +235,7 @@
 
 .report-dialog__tech-row dt {
   color: var(--muted);
-  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .report-dialog__tech-row dd {
@@ -365,18 +365,6 @@
   border-radius: var(--r-xs);
 }
 
-/* картка внизу лендингу й сторінки входу */
-.lp-footer .report-link {
-  margin-left: 12px;
-}
-
-.card__report {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-  text-align: center;
-}
-
 /* «Допомога»: картка «Знайшли баги?» перед підсумком сторінки */
 .help__report {
   display: flex;
@@ -386,7 +374,7 @@
   margin-bottom: 28px;
   padding: 18px 20px;
   border-radius: var(--r-lg);
-  background: var(--h-sheet);
+  background: var(--soft);
 }
 
 .help__report-icon {

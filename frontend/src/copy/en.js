@@ -2,6 +2,8 @@
 // Values the server stores as Ukrainian tokens ('так'/'ні', 'згода'/'суперечка')
 // stay as keys and are only translated for display.
 
+import { legalEn } from './legal.en';
+
 const plural = (n, one, many) => (n === 1 ? one : many);
 
 const ANSWERS = { 'так': 'yes', 'ні': 'no' };
@@ -13,6 +15,7 @@ export const en = {
     login: 'Sign in',
     register: 'Create account',
     openApp: 'Open Clarity',
+    pageTitle: 'Clarity — a team of AI minds for hard decisions',
     navLabel: 'Navigation',
     nav: { how: 'How it works', team: 'Team', demo: 'Demo', features: 'Features' },
 
@@ -211,6 +214,10 @@ export const en = {
     ctaText: 'Create an account and your first discussion starts in a minute.',
     ctaTextSignedIn: 'Ask a new question — the team is ready.',
     footer: '© 2026 Clarity',
+    footerNav: 'Legal and support',
+    privacy: 'Privacy',
+    terms: 'Terms',
+    language: 'Language',
   },
 
   login: {
@@ -294,14 +301,21 @@ export const en = {
     submit: 'Create',
     submitting: 'Creating…',
     switchToLogin: 'Already have an account?',
-    invalidToast: 'Error',
+    termsBefore: 'I accept the ',
+    termsLink: 'Terms of Use',
+    termsAnd: ' and the ',
+    privacyLink: 'Privacy Policy',
+    termsRequired: 'Accept the Terms and the Privacy Policy to continue',
+    googleNotice: 'By continuing with Google, you accept the ',
+    invalidToast: 'Check the form',
     toastLabels: {
       name: 'Name',
       email: 'Email',
       password: 'Password',
       repeat: 'Password repeat',
+      terms: 'Terms',
     },
-    failedToast: 'Error',
+    failedToast: 'Could not create the account',
   },
 
   help: {
@@ -342,7 +356,7 @@ export const en = {
         id: 'cast',
         kind: 'cards',
         title: 'Participants',
-        lead: 'A discussion has 2 to 5 participants. Each has a role and, optionally, character traits that change their tone and priorities. The line-up, models and traits are set in the “Participants” panel of the new chat page; a good line-up can be saved as a team. In the role menu you can also create your own: a lawyer, a doctor or your cautious dad.',
+        lead: 'A discussion has 2 to 5 participants. Each has a role and, optionally, character traits that change their tone and priorities. The line-up, models and traits are set in the “Participants” panel of the new discussion page; a good line-up can be saved as a team. In the role menu you can also create your own: a lawyer, a doctor or your cautious dad.',
         items: [
           { title: 'Logician', text: 'Sticks to facts, chains of reasoning and evidence. Speaks in a measured, to-the-point way.' },
           { title: 'Skeptic', text: 'Questions assumptions and looks for weak spots in other people’s arguments.' },
@@ -449,7 +463,8 @@ export const en = {
     emailsOnNote: 'We’ll email you when it is time to look back.',
     emailsOffNote: 'Reminder emails are off.',
     emailsSettings: 'Settings',
-    empty: 'The journal is empty for now. After a discussion, press “To journal” under the conclusion — in a week or a month Clarity will ask how it went.',
+    emptyTitle: 'No decisions in the journal yet',
+    empty: 'After a discussion, press “To journal” under the conclusion — in a week or a month Clarity will ask how it went.',
     emptyAction: 'Start a discussion',
     due: 'Time to look back',
     waiting: 'Too early to ask',
@@ -539,6 +554,8 @@ export const en = {
     helpLabel: 'How Clarity works',
     helpHint: 'Modes, roles, judges and tips for getting the most out of a discussion.',
     helpOpen: 'Open help',
+    legalLabel: 'Documents',
+    legalHint: 'How Clarity handles your data and the rules of use.',
 
     defaultModel: 'Default model',
     defaultModelHint: 'The first participant of a new discussion gets this model, the rest get other available ones so the views differ.',
@@ -584,7 +601,7 @@ export const en = {
     rolesAdd: 'Create a role',
     rolesDelete: (name) => `Delete the role “${name}”`,
     rolesDeleteConfirm: (name) => `Delete the role “${name}”? Discussions it took part in will stay.`,
-    debateLead: 'A new chat opens with these parameters; for a particular question you can change them right there.',
+    debateLead: 'A new discussion opens with these parameters; for a particular question you can change them right there.',
     modeLabel: 'Answer format',
     roundsLabel: 'Number of rounds',
     roundsHint: 'More rounds mean a deeper discussion, but a longer wait.',
@@ -767,7 +784,9 @@ export const en = {
     loading: 'Loading history…',
     loadError: 'Could not load history',
     retry: 'Try again',
-    empty: 'No discussions here yet. Start the first one.',
+    emptyTitle: 'No discussions yet',
+    empty: 'Ask your first question — the team will argue it out, and the discussion will appear here.',
+    emptyAction: 'Start a discussion',
     noResults: 'Nothing found',
     archiveEmpty: 'The archive is empty for now',
     search: 'Search by question and decision',
@@ -827,7 +846,7 @@ export const en = {
   },
 
   nav: {
-    debates: 'New chat',
+    debates: 'New discussion',
     history: 'History',
     settings: 'Settings',
     journal: 'Journal',
@@ -1270,7 +1289,12 @@ export const en = {
       'згода': 'agrees',
       'суперечка': 'disputes',
     },
-    stanceAnswer: (value) => `stance: ${ANSWERS[value] || value}`,
+    // позиція в «так/ні» та «один із варіантів» — людськими словами, а не «stance: no»
+    stanceAnswer: (value) => {
+      if (ANSWERS[value] === 'yes') return 'Says yes';
+      if (ANSWERS[value] === 'no') return 'Says no';
+      return `Picks “${value}”`;
+    },
     stanceDecision: {
       'згода': 'supports the decision',
       'суперечка': 'disputes the decision',
@@ -1340,8 +1364,7 @@ export const en = {
     passwordRequired: 'Enter your password',
     nameRequired: 'Enter your name',
     mismatch: 'The passwords do not match',
-    passwordHint:
-      '*the password must be at least 8 characters long and include Latin letters, digits and special characters',
+    passwordHint: 'At least 8 characters: Latin letters, digits and a special character',
     passwordShort: 'The password is too short',
     passwordLatinOnly: 'Use Latin letters only',
     passwordBadChar: 'One of the characters is not allowed',
@@ -1388,11 +1411,14 @@ export const en = {
     httpOther: (status) => `The request failed (code ${status}). Please try again.`,
     // the “could not load” block on pages
     load: {
+      missingText: 'It may have been deleted, or the link is wrong.',
+      toHistory: 'Open history',
       titles: {
         network: 'No connection',
         server: 'The server isn’t responding',
         limit: 'Too many requests',
         generic: 'Couldn’t load this',
+        missing: 'Discussion not found',
       },
       retry: 'Try again',
       retrying: 'Trying…',
@@ -1544,8 +1570,30 @@ export const en = {
     footnote: 'Applies only on this device and to every page at once. Open this panel quickly: Alt + Shift + V.',
   },
 
+  verifyEmail: {
+    title: 'Email confirmation',
+    checking: 'Confirming the email…',
+    doneTitle: 'Email confirmed',
+    done: (email) => `${email} is confirmed — you can start discussions.`,
+    invalidTitle: 'The link no longer works',
+    toApp: 'Start a discussion',
+    toLogin: 'Sign in',
+    bannerTitle: 'Confirm your email',
+    bannerText: (email) => `We sent a link to ${email}. Discussions start once the email is confirmed.`,
+    resend: 'Send again',
+    resending: 'Sending…',
+    sent: 'Sent — check your inbox and the spam folder',
+  },
+
+  legal: legalEn,
+
   common: {
-    backHome: '↖ Home',
+    backHome: 'Home',
+    pageTitle: (title) => `${title} · Clarity`,
+    confirmTitle: 'Are you sure?',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    delete: 'Delete',
     close: 'Close',
     homeAria: 'Clarity — home',
     sessionExpired: 'Your session has ended — please sign in again',

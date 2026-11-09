@@ -17,6 +17,10 @@ NAME_TOO_SHORT = lazy_L('Занадто коротке ім’я', 'The name is 
 NAME_TOO_LONG = lazy_L('Занадто довге ім’я', 'The name is too long')
 NAME_INVALID_CHAR = lazy_L('Недопустимий символ в імені', 'Invalid character in the name')
 EMAIL_INVALID = lazy_L('Пошта вказана у неправильному форматі', 'The email address is not in a valid format')
+TERMS_REQUIRED = lazy_L(
+    'Щоб створити акаунт, погодьтеся з Умовами та Політикою конфіденційності',
+    'To create an account, accept the Terms and the Privacy Policy',
+)
 EMAIL_TAKEN = lazy_L('Користувач з такою поштою вже існує', 'A user with this email already exists')
 PASSWORD_TOO_SHORT = lazy_L('Занадто короткий пароль', 'The password is too short')
 PASSWORD_INVALID_CHAR = lazy_L('Недопустимий символ у паролі', 'Invalid character in the password')
@@ -155,12 +159,22 @@ class RegisterSerializer(serializers.Serializer):
         max_length=128,
         error_messages={'required': REQUIRED, 'blank': REQUIRED},
     )
+    # згода з Умовами й Політикою конфіденційності — явна позначка у формі
+    accept_terms = serializers.BooleanField(
+        required=True,
+        error_messages={'required': TERMS_REQUIRED, 'invalid': TERMS_REQUIRED},
+    )
 
     def validate_name(self, value):
         return clean_name(value)
 
     def validate_email(self, value):
         return clean_email(value)
+
+    def validate_accept_terms(self, value):
+        if value is not True:
+            raise serializers.ValidationError(TERMS_REQUIRED)
+        return value
 
     def validate(self, attrs):
         check_new_password(attrs['password'], attrs['confirm_password'])

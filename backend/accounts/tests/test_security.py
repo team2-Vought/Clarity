@@ -133,6 +133,7 @@ class RegisterLimitTests(TestCase):
                 'email': f'user{index}@test.com',
                 'password': 'pass123!A',
                 'confirm_password': 'pass123!A',
+                'accept_terms': True,
             }, format='json').status_code
             for index in range(6)
         ]

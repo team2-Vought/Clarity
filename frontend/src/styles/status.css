@@ -15,22 +15,6 @@
   padding: 18px clamp(16px, 4vw, 32px);
 }
 
-.status-page__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text);
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-}
-
-.status-page__brand img {
-  display: block;
-  height: 30px;
-  width: auto;
-}
 
 .status-page__main {
   display: grid;
@@ -45,7 +29,7 @@
   align-items: center;
   max-width: 480px;
   text-align: center;
-  animation: status-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: status-in 0.55s var(--ease-out) both;
 }
 
 /* код чи іконка — на розмитій пастельній плямі в кольорах бренду */
@@ -166,7 +150,7 @@
   }
 }
 
-@media (max-width: 479px) {
+@media (max-width: 480px) {
   /* на телефоні кнопки — на всю ширину, головна зверху */
   .status-page__actions {
     flex-direction: column;
@@ -198,16 +182,26 @@
   background: var(--soft, color-mix(in srgb, var(--ink) 4%, var(--card)));
   color: var(--ink);
   text-align: center;
-  animation: load-error-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: load-error-in 0.36s var(--ease-out) both;
 }
 
 .load-error--warn {
-  --tone: #d98516;
+  --tone: var(--warning);
 }
 
-:root[data-theme='dark'] .load-error--warn {
-  --tone: #f2b25c;
+.load-error--neutral {
+  --tone: var(--muted);
 }
+
+/* дискусію не знайдено — картка по центру сторінки, без панелі налаштувань */
+.chat-missing {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 16px;
+  background: var(--main-bg);
+}
+
 
 .load-error__icon {
   display: grid;

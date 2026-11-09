@@ -30,17 +30,6 @@ const prefill = (summary) => {
   return sentence > 80 ? cut.slice(0, sentence + 1) : `${cut.replace(/\s+\S*$/, '')}…`;
 };
 
-/**
- * «У журнал» — іконка в рядку дій під висновком і форма, що розкривається під
- * рядком, — щоб згодом Clarity спитала «Як воно?». Стан спільний: його тримає
- * `useJournal`, а кнопка й форма стоять у різних місцях картки.
- */
-export function useJournal(discussion) {
-  const [entry, setEntry] = useState(discussion.journal || null);
-  const [open, setOpen] = useState(false);
-  return { entry, setEntry, open, setOpen };
-}
-
 /** Кнопка «У журнал» у рядку дій; уже записане — «У журналі» з галочкою, веде в журнал. */
 export function JournalButton({ journal }) {
   const navigate = useNavigate();

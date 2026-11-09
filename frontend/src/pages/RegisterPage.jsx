@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthPage } from './AuthLayout';
-import RegisterForm from '../components/RegisterForm';
+import RegisterForm, { TermsLinks } from '../components/RegisterForm';
 import GoogleButton from '../components/GoogleButton';
 import { login, register } from '../api/auth';
 import { copy } from '../copy';
@@ -32,7 +32,15 @@ export default function RegisterPage() {
             }
           }}
           onSwitch={() => navigate('/login')}
-          alternative={<GoogleButton onSignedIn={() => navigate('/home')} />}
+          alternative={
+            <>
+              <GoogleButton onSignedIn={() => navigate('/home')} />
+              <p className="form__notice">
+                {copy.register.googleNotice}
+                <TermsLinks />
+              </p>
+            </>
+          }
         />
       }
     />

@@ -5,6 +5,7 @@ import { deleteCustomRole, fetchCustomRoles } from '../api/discussions';
 import { useToasts } from '../hooks/useToasts';
 import CustomRoleDialog from './CustomRoleDialog';
 import { copy } from '../copy';
+import { confirmAction } from '../utils/confirm';
 
 const t = copy.settings;
 
@@ -28,7 +29,12 @@ export default function CustomRolesSettings() {
   }, [load]);
 
   const remove = async (role) => {
-    if (!window.confirm(t.rolesDeleteConfirm(role.name))) return;
+    const ok = await confirmAction({
+      text: t.rolesDeleteConfirm(role.name),
+      confirmLabel: copy.common.delete,
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteCustomRole(role.id);
       setRoles((current) => current.filter((item) => item.id !== role.id));

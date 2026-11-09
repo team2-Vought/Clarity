@@ -5,7 +5,7 @@ import { me } from '../api/auth';
 // фото, ім'я й «Про мене» поточного користувача — одні на весь застосунок;
 // прив'язані до токена, щоб після входу в інший акаунт не лишилося чуже фото.
 // about — null, поки профіль не завантажився
-const EMPTY = { avatar: '', name: '', about: null };
+const EMPTY = { avatar: '', name: '', email: '', about: null, verificationRequired: false };
 let profile = EMPTY;
 let loadedFor = null;
 let pending = null;
@@ -22,7 +22,14 @@ const snapshot = () => (loadedFor === getSession() ? profile : EMPTY);
 
 /** Профіль змінив фото, ім'я чи «Про мене» — сторінки підхоплюють це без перезавантаження. */
 export function setMyProfile(user) {
-  profile = { avatar: user?.avatar || '', name: user?.name || '', about: user?.about || null };
+  profile = {
+    avatar: user?.avatar || '',
+    name: user?.name || '',
+    email: user?.email || '',
+    about: user?.about || null,
+    // пошту ще не підтверджено, а без цього дискусії не стартують (банер на головній)
+    verificationRequired: Boolean(user?.verification_required),
+  };
   loadedFor = getSession();
   notify();
 }
@@ -40,6 +47,12 @@ function load() {
     .finally(() => {
       pending = null;
     });
+}
+
+/** Перечитати профіль із сервера (напр., пошту щойно підтвердили). */
+export function refreshMyProfile() {
+  loadedFor = null;
+  load();
 }
 
 export function useMyProfile() {

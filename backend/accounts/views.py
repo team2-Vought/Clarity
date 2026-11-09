@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from backend.i18n import L, lazy_L
 
-from . import email_change, google, tokens
+from . import email_change, email_verify, google, tokens
 from .about import about_of
 from .devices import describe_device
 from .export import export_user
@@ -68,6 +68,9 @@ def user_payload(user):
         'about': about_of(user),
         # акаунт із Google може не мати пароля — тоді профіль не питає поточний
         'has_password': user.has_usable_password(),
+        'email_verified': user.email_verified,
+        # чи чекають дискусії на підтвердження пошти (банер на головній)
+        'verification_required': email_verify.blocked(user),
     }
 
 
@@ -96,6 +99,8 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = create_user(serializer.validated_data)
+        if email_verify.required():
+            email_verify.send_verification(user)
         return Response(
             {
                 'detail': L('Реєстрацію успішно завершено', 'Registration completed'),
@@ -407,3 +412,50 @@ class SessionDetailView(APIView):
         if isinstance(request.auth, AuthToken) and request.auth.pk == pk:
             tokens.clear_cookie(response)
         return response
+
+
+class EmailVerifyView(APIView):
+    """POST {token} — підтвердити пошту з листа після реєстрації (входити не треба)."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        user = email_verify.read_token(request.data.get('token'))
+        if user is None:
+            return Response(
+                {
+                    'detail': L(
+                        'Посилання вже не діє. Надішліть новий лист із головної сторінки.',
+                        'The link no longer works. Send a new email from the home page.',
+                    ),
+                    'code': 'invalid',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not user.email_verified:
+            user.email_verified = True
+            user.save(update_fields=['email_verified'])
+        return Response({'email': user.email}, status=status.HTTP_200_OK)
+
+
+class EmailVerifyResendView(APIView):
+    """POST — ще раз надіслати лист підтвердження на пошту акаунта."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'email_verify'
+
+    def post(self, request):
+        user = request.user
+        if user.email_verified:
+            return Response({'detail': L('Пошту вже підтверджено.', 'The email is already confirmed.')})
+        if not email_verify.send_verification(user):
+            return Response(
+                {'detail': L(
+                    'Не вдалося надіслати лист. Спробуйте трохи пізніше.',
+                    'Could not send the email. Please try again a bit later.',
+                )},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response({'detail': L('Лист надіслано.', 'The email has been sent.')})

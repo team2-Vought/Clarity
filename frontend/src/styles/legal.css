@@ -1,0 +1,137 @@
+/* ---------- Документи (Політика, Умови) і спільний низ публічних сторінок ---------- */
+
+.legal {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  background: var(--main-bg);
+  color: var(--ink);
+}
+
+.legal__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--page-gutter);
+  background: color-mix(in srgb, var(--main-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.legal__main {
+  padding: 24px var(--page-gutter) 48px;
+}
+
+.legal__doc {
+  max-width: 720px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.legal__title {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.125rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.legal__updated {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.legal__lead {
+  margin: 20px 0 8px;
+  font-size: 1.0625rem;
+}
+
+.legal__section {
+  margin-top: 32px;
+}
+
+.legal__section h2 {
+  margin: 0 0 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.legal__section p {
+  margin: 0 0 12px;
+  color: color-mix(in srgb, var(--ink) 85%, transparent);
+  font-size: 0.9375rem;
+}
+
+.legal__other {
+  margin: 40px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.legal a {
+  color: var(--ink);
+  text-underline-offset: 4px;
+  text-decoration-color: var(--lilac);
+  text-decoration-thickness: 2px;
+}
+
+/* ---------- Низ публічних сторінок ---------- */
+
+.public-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 20px;
+  padding: 24px var(--page-gutter) 32px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.public-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+}
+
+.public-footer__nav a,
+.public-footer__nav button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.public-footer__nav a:hover,
+.public-footer__nav button:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+.public-footer__lang select {
+  padding: 6px 28px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.public-footer a:focus-visible,
+.public-footer button:focus-visible,
+.public-footer select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}

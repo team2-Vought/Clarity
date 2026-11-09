@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon, Bug02Icon } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
 import { roleIcon } from '../utils/debateOptions';
 import { openBugReport } from '../utils/bugReport';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.help;
 
@@ -18,13 +18,7 @@ const SECTION_ICONS = {
 export default function HelpPage() {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const previous = document.title;
-    document.title = `${t.title} · ${copy.appName}`;
-    return () => {
-      document.title = previous;
-    };
-  }, []);
+  usePageTitle(t.title);
 
   return (
     <div className="help">

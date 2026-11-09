@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Alert02Icon,
   Clock01Icon,
+  FileNotFoundIcon,
   RefreshIcon,
   ServerStack01Icon,
   WifiDisconnected01Icon,
@@ -18,13 +19,23 @@ const KINDS = {
   server: { icon: ServerStack01Icon, tone: 'warn' },
   limit: { icon: Clock01Icon, tone: 'warn' },
   generic: { icon: Alert02Icon, tone: 'danger' },
+  // запис видалено або посилання хибне — повторна спроба не допоможе
+  missing: { icon: FileNotFoundIcon, tone: 'neutral' },
 };
 
 /**
  * Сторінка чи розділ не завантажилися: іконка, заголовок, пояснення людською мовою,
  * «Спробувати ще раз» і — коли винен не інтернет — «Повідомити про проблему».
  */
-export default function LoadError({ kind = 'generic', text = '', onRetry, busy = false, title = '', className = '' }) {
+export default function LoadError({
+  kind = 'generic',
+  text = '',
+  onRetry,
+  busy = false,
+  title = '',
+  actions = [],
+  className = '',
+}) {
   const { icon, tone } = KINDS[kind] || KINDS.generic;
   const canReport = kind === 'server' || kind === 'generic';
 
@@ -51,6 +62,16 @@ export default function LoadError({ kind = 'generic', text = '', onRetry, busy =
             <span>{busy ? t.retrying : t.retry}</span>
           </button>
         )}
+        {actions.map((action, index) => (
+          <button
+            key={action.label}
+            type="button"
+            className={`load-error__button${!onRetry && index === 0 ? ' load-error__button--primary' : ''}`}
+            onClick={action.onClick}
+          >
+            {action.label}
+          </button>
+        ))}
         {canReport && (
           <button type="button" className="load-error__button" onClick={() => openBugReport()} aria-haspopup="dialog">
             {t.report}
@@ -67,5 +88,8 @@ LoadError.propTypes = {
   onRetry: PropTypes.func,
   busy: PropTypes.bool,
   title: PropTypes.string,
+  actions: PropTypes.arrayOf(
+    PropTypes.shape({ label: PropTypes.string.isRequired, onClick: PropTypes.func.isRequired })
+  ),
   className: PropTypes.string,
 };

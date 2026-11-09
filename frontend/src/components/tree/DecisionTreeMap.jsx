@@ -2,7 +2,8 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
-import { ConfidenceRing, FitMeter, STATUS_ICONS, Supporters, orderBranches } from './parts';
+import { ConfidenceRing, FitMeter, Supporters } from './parts';
+import { STATUS_ICONS, orderBranches } from './treeModel';
 import { stanceLabelOf } from '../../utils/treeView';
 import { copy } from '../../copy';
 

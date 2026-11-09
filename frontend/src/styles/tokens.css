@@ -14,8 +14,22 @@
   --soft: #f2f2f3;
   --line: rgba(18, 18, 18, 0.12);
   --divider: rgba(18, 18, 18, 0.55);
-  /* змістові кольори: «так», добрий сценарій / «ні», помилка, ризик */
+  /* змістові кольори: «так», добрий сценарій / «ні», помилка, ризик / «в процесі», змішаний результат */
   --success: #17895a;
+  --warning: #b7791f;
+  --info: #4f63d8;
+  /* поле з помилкою: текст помилки — білим у placeholder на цій підкладці */
+  --error-fill: #ff8787;
+  /* текст на пастельних плашках (учасники, варіанти, кнопки бренду) — темний в обох темах;
+     на насиченому кольорі (аватар, кнопка «так/ні») — білий */
+  --on-pastel: #121212;
+  --on-accent: #ffffff;
+  /* тонка лінія між блоками й обведення карток; --line — помітніша межа полів */
+  --line-soft: color-mix(in srgb, var(--ink) 8%, transparent);
+  /* підкладка кнопок і рядків на картці: звичайна, при наведенні, натиснута/обрана */
+  --control: color-mix(in srgb, var(--ink) 5%, var(--card));
+  --hover: color-mix(in srgb, var(--ink) 4%, var(--card));
+  --control-active: color-mix(in srgb, var(--ink) 12%, var(--card));
 
   --bg: #ececec;
   --text: #121212;
@@ -47,9 +61,45 @@
   /* Розміри шрифту (rem): 0.625 · 0.6875 · 0.75 · 0.8125 · 0.875 · 0.9375 · 1 ·
      1.0625 · 1.125 · 1.25 · 1.375 · 1.75 · 2.125 — нових між ними не заводимо */
   --blob-opacity: 0.16;
+
+  /* Криві руху — лише ці п'ять:
+     out — поява й розгортання (швидкий старт, м'яка зупинка); standard — дрібні реакції
+     на наведення й натискання; in-out — згортання й переміщення; spring — панелі й аркуші;
+     pop — легкий «відскок» значків і позначок */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-pop: cubic-bezier(0.34, 1.36, 0.5, 1);
+
   /* натискання по всьому сайту: елемент трохи «втискається» і так само плавно повертається */
   --press-scale: 0.96;
-  --press: scale 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --press: scale 0.16s var(--ease-standard);
+
+  /* Тіні — від найменшої: sm — спливні кнопки й меню; md — картки, що лежать над фоном;
+     lg — аркуші й діалоги; xl — великі знімки лендингу; card — легка тінь карток історії */
+  --shadow-sm: 0 4px 16px rgba(18, 18, 18, 0.12);
+  --shadow-md: 0 10px 30px rgba(18, 18, 18, 0.08);
+  --shadow-lg: 0 16px 40px -12px rgba(18, 18, 18, 0.28);
+  --shadow-xl: 0 30px 80px -40px rgba(30, 20, 60, 0.35), 0 12px 30px -18px rgba(30, 20, 60, 0.18);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.1);
+
+  /* Шари (z-index) — від нижнього: липкі шапки, випадні списки, бічні шухляди на телефоні,
+     затемнення й діалоги, спливні меню над діалогами, тости. Між ними — лише calc(… ± n) */
+  --z-sticky: 20;
+  --z-dropdown: 40;
+  --z-drawer: 90;
+  --z-overlay: 100;
+  --z-popover: 120;
+  --z-toast: 200;
+
+  /* поля сторінки й моноширинний шрифт — одні на весь сайт */
+  --page-gutter: clamp(16px, 4vw, 40px);
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, monospace;
+
+  /* Брейкпоінти (у @media змінні не працюють — пишемо числа):
+     телефон — max-width: 639px (від 640px — планшет і більше); вузький телефон — 480px;
+     планшет — 900px; невеликий ноутбук — 1100px */
   color-scheme: light;
 }
 
@@ -63,6 +113,16 @@
   --line: rgba(244, 244, 244, 0.14);
   --divider: rgba(244, 244, 244, 0.35);
   --success: #5fd09a;
+  --warning: #f2b25c;
+  --info: #9aa9ff;
+  --control: color-mix(in srgb, var(--ink) 10%, var(--card));
+  --hover: color-mix(in srgb, var(--ink) 7%, var(--card));
+  --control-active: color-mix(in srgb, var(--ink) 22%, var(--card));
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+  --shadow-xl: 0 30px 80px -40px rgba(0, 0, 0, 0.8), 0 12px 30px -18px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
 
   --bg: #121212;
   --text: #f4f4f4;

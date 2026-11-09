@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DecisionTreeDialog from './DecisionTreeDialog';
-import { orderBranches } from './parts';
+import { orderBranches } from './treeModel';
 import { stanceLabelOf } from '../../utils/treeView';
 
 vi.mock('../../api/discussions', () => ({ buildDecisionTree: vi.fn(), fetchDecisionTree: vi.fn() }));

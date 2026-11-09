@@ -80,12 +80,6 @@ export const MenuIcon = () => (
   </svg>
 );
 
-export const PanelIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M4 8h16M4 15h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
 // силует користувача на кружечку аватара в дискусії
 export const AvatarIcon = () => (
   <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">

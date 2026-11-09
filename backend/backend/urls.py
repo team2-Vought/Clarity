@@ -16,11 +16,25 @@ Including another URLconf
 """
 from django.conf import settings
 from django.contrib import admin
+from django.db import connection
+from django.http import JsonResponse
 from django.urls import include, path
+from django.views.decorators.http import require_GET
 
 from discussions.share_page import shared_page
 
+
+
+@require_GET
+def health(request):
+    """Перевірка для оркестратора (docker compose, балансувальник): процес живий і база відповідає."""
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT 1')
+    return JsonResponse({'ok': True})
+
+
 urlpatterns = [
+    path('api/health/', health, name='health'),
     path('api/auth/', include('accounts.urls')),
     path('api/support/', include('support.urls')),
     path('api/', include('discussions.urls')),

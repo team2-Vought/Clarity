@@ -44,6 +44,7 @@ import {
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
+import LoadError from '../components/LoadError';
 import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown from '../components/MessageMarkdown';
@@ -74,7 +75,8 @@ import {
   snippetOf,
   thinkingStep,
 } from '../utils/chatMessages';
-import ChatMessage, { MARKABLE_ROLES } from '../components/chat/ChatMessage';
+import ChatMessage from '../components/chat/ChatMessage';
+import { MARKABLE_ROLES } from '../utils/chatView';
 import MarksLayer from '../components/chat/MarksLayer';
 import MarksPanel from '../components/chat/MarksPanel';
 import { markEntries, marksMarkdown, patchMessage } from '../utils/marks';
@@ -91,6 +93,7 @@ import { treeColorOf } from '../utils/treeView';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.chat;
 const d = copy.debate;
@@ -339,7 +342,12 @@ export default function ChatPage() {
       progressRef.current = lastSeqOf(data);
       if (isIdle(data)) startRunner(data.id);
     } catch (err) {
-      setLoadError(actionFailure(err, t.loadError));
+      // чужа, видалена чи вигадана дискусія — не «щось пішло не так», а «не знайдено»
+      setLoadError(
+        err?.status === 404 || err?.status === 403
+          ? { kind: 'missing', text: copy.errors.load.missingText }
+          : actionFailure(err, t.loadError)
+      );
     }
   }, [id, startRunner]);
 
@@ -423,6 +431,8 @@ export default function ChatPage() {
 
   // людина пішла з вкладки, поки AI думали, — кличемо назад, коли вони закінчать
   const alertBadge = useRunAlerts(discussion);
+  // поки дискусія вантажиться — «Clarity», не знайшлася — так і пишемо; назву дискусії ставить ефект нижче
+  usePageTitle(loadError?.kind === 'missing' ? copy.errors.load.titles.missing : '');
 
   useEffect(() => {
     if (!discussion?.title) return undefined;
@@ -1554,6 +1564,22 @@ export default function ChatPage() {
     panelRef.current?.scrollTo({ top: 0 });
   };
 
+  // дискусії немає — порожня панель налаштувань поруч лише плутала б
+  if (!discussion && loadError?.kind === 'missing') {
+    return (
+      <div className="chat-missing">
+        <LoadError
+          kind="missing"
+          text={loadError.text}
+          actions={[
+            { label: copy.errors.load.toHistory, onClick: () => navigate('/history') },
+            { label: copy.history.newDiscussion, onClick: () => navigate('/home') },
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
@@ -1890,12 +1916,7 @@ export default function ChatPage() {
 
           {!discussion &&
             (loadError ? (
-              <ErrorNotice
-                kind={loadError.kind}
-                text={loadError.text}
-                actions={[{ label: t.retry, onClick: loadDiscussion }]}
-                className="chat__error-card"
-              />
+              <LoadError kind={loadError.kind} text={loadError.text} onRetry={loadDiscussion} />
             ) : (
               <div className="chat__empty" role="status">
                 {t.loading}

@@ -10,7 +10,7 @@
   width: min(760px, 100%);
   padding: 18px 20px;
   border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--help) 7%, var(--card, #fff));
+  background: color-mix(in srgb, var(--help) 7%, var(--card));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--help) 22%, transparent);
   color: var(--ink);
 }
@@ -59,7 +59,7 @@
   gap: 10px;
   padding: 10px 14px;
   border-radius: var(--r-md);
-  background: var(--card, #fff);
+  background: var(--card);
   color: var(--ink);
   text-decoration: none;
   transition: box-shadow 0.18s, var(--press);
@@ -104,14 +104,14 @@
   gap: 4px 10px;
   margin: 2px 0 0;
   font-size: 0.875rem;
-  color: var(--muted, var(--ink));
+  color: var(--muted);
 }
 
 .safety-help__other-btn {
   padding: 6px 12px;
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--card, #fff);
+  background: var(--card);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--help) 30%, transparent);
   color: var(--ink);
   font: inherit;
@@ -585,10 +585,10 @@
   padding-bottom: 0;
   transform: translateY(6px);
   transition:
-    grid-template-rows 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
-    padding 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    grid-template-rows 0.24s var(--ease-standard),
+    padding 0.24s var(--ease-standard),
     opacity 0.18s ease,
-    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.24s var(--ease-standard),
     visibility 0s linear 0.24s;
 }
 
@@ -599,10 +599,10 @@
   padding-bottom: 8px;
   transform: none;
   transition:
-    grid-template-rows 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
-    padding 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    grid-template-rows 0.24s var(--ease-standard),
+    padding 0.24s var(--ease-standard),
     opacity 0.18s ease 0.04s,
-    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform 0.24s var(--ease-standard);
 }
 
 .chat__ask {
@@ -780,13 +780,13 @@
 
 /* ---------- Своя роль ---------- */
 .debate__role-create {
-  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-top: 1px solid var(--line-soft);
 }
 
 .role-dialog__backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-toast);
   display: grid;
   place-items: center;
   padding: 16px;
@@ -918,6 +918,12 @@
   color: var(--card);
 }
 
+.role-dialog__button--danger,
+.role-dialog__button--danger:hover:not(:disabled) {
+  background: var(--error);
+  color: var(--on-accent);
+}
+
 .role-dialog__button:disabled {
   opacity: 0.45;
   cursor: default;
@@ -948,7 +954,7 @@
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.45;
-  color: var(--muted, var(--ink));
+  color: var(--muted);
 }
 
 /* свої ролі в налаштуваннях */
@@ -1004,7 +1010,7 @@
   margin: 2px 0 0;
   font-size: 0.8125rem;
   line-height: 1.45;
-  color: var(--muted, var(--ink));
+  color: var(--muted);
 }
 
 /* посилання-кнопка в підказках налаштувань */

@@ -99,6 +99,8 @@ MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # статика адмінки в контейнері — без окремого сервера (порожньо в розробці не заважає)
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.csp.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -214,6 +216,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# collectstatic складає сюди статику адмінки; у продакшні її віддає whitenoise
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email
@@ -246,6 +250,12 @@ SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '').strip()
 BUG_REPORT_EMAIL = os.getenv('BUG_REPORT_EMAIL', '').strip() or SUPPORT_EMAIL
 # Пошта змінюється, лише коли власник нової адреси відкрив лист (24 год)
 EMAIL_CHANGE_TIMEOUT = int(os.getenv('EMAIL_CHANGE_TIMEOUT', str(24 * 3600)))
+# Дискусії запускаються лише з підтвердженою поштою (accounts/email_verify.py).
+# Типово — у продакшні; у тестах вимикаємо, окремі тести вмикають її самі
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+REQUIRE_EMAIL_VERIFICATION = env_bool('REQUIRE_EMAIL_VERIFICATION', not DEBUG) and not TESTING
+# Посилання підтвердження пошти після реєстрації діє 3 доби
+EMAIL_VERIFY_TIMEOUT = int(os.getenv('EMAIL_VERIFY_TIMEOUT', str(72 * 3600)))
 
 # Типово localhost дозволено лише в розробці: у продакшні — тільки задані адреси
 CORS_ALLOWED_ORIGINS = [
@@ -299,6 +309,8 @@ REST_FRAMEWORK = {
         'google_login': '20/min',
         # реєстрація з однієї адреси: живій людині вистачить із запасом
         'register': '5/hour',
+        # повторний лист підтвердження пошти
+        'email_verify': '5/hour',
         # повний експорт даних — важкий запит, живій людині досить кількох на годину
         'export': '5/hour',
         # лист на чужу пошту — не даємо розсилати їх потоком

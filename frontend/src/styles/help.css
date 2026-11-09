@@ -1,8 +1,6 @@
 /* «Допомога»: одна колонка тексту з картками, як «Налаштування» */
 
 .help {
-  --h-sheet: var(--soft);
-  --h-line: color-mix(in srgb, var(--ink) 8%, transparent);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -66,7 +64,7 @@
 .help__toc-link {
   padding: 7px 14px;
   border-radius: var(--r-pill);
-  background: var(--h-sheet);
+  background: var(--soft);
   color: var(--ink);
   font-size: 0.875rem;
   font-weight: 500;
@@ -75,7 +73,7 @@
 }
 
 .help__toc-link:hover {
-  background: color-mix(in srgb, var(--ink) 8%, var(--h-sheet));
+  background: color-mix(in srgb, var(--ink) 8%, var(--soft));
 }
 
 .help__toc-link:active {
@@ -125,7 +123,7 @@
   margin: 0;
   padding: 6px 20px;
   border-radius: var(--r-xl);
-  background: var(--h-sheet);
+  background: var(--soft);
   list-style: none;
 }
 
@@ -137,7 +135,7 @@
 }
 
 .help__step + .help__step {
-  border-top: 1px solid var(--h-line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .help__step-num {
@@ -163,7 +161,7 @@
 .help__card {
   padding: 16px 18px 18px;
   border-radius: var(--r-lg);
-  background: var(--h-sheet);
+  background: var(--soft);
 }
 
 .help__card-icon {
@@ -183,7 +181,7 @@
   justify-content: space-between;
   gap: 16px;
   padding-top: 24px;
-  border-top: 1px solid var(--h-line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .help__disclaimer {

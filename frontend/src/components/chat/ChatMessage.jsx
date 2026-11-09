@@ -18,6 +18,7 @@ import { roleIcon } from '../../utils/debateOptions';
 import { parseBlocks } from '../../utils/markdown';
 import { messageSources, modelNameOf, snippetOf } from '../../utils/chatMessages';
 import {
+  MARKABLE_ROLES,
   USER_COLOR,
   phaseLabel,
   speakerKeyOf,
@@ -30,7 +31,6 @@ import { highlightAtPoint, locateHighlights, paintHighlights } from '../../utils
 
 const t = copy.chat;
 const m = copy.marks;
-export const MARKABLE_ROLES = ['ai', 'moderator', 'devil'];
 const NO_HIGHLIGHTS = [];
 // довша за це репліка одразу займає всю ширину, щоб не розширюватися під час появи
 const WIDE_MESSAGE = 160;

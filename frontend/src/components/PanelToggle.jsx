@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useOutletContext } from 'react-router-dom';
-import { PanelIcon } from './DebateIcons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { SidebarLeftIcon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
 import { useIsPhone } from '../hooks/useIsPhone';
 
@@ -29,7 +30,8 @@ export default function PanelToggle({ controls, phoneOpen = false }) {
       aria-expanded={expanded}
       aria-controls={controls}
     >
-      <PanelIcon />
+      {/* на телефоні панель — висувна «Учасники», тож і значок — люди, а не друге «меню» */}
+      <HugeiconsIcon icon={isPhone ? UserGroupIcon : SidebarLeftIcon} size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
   );
 }

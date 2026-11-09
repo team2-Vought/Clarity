@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { draftMessagesOf, isIdle, lastSeqOf, mergeMessages } from './chatMessages';
+import { stanceLabel, stanceTone } from './chatView';
 
 describe('mergeMessages', () => {
   it('додає лише нові репліки й тримає їх за порядком', () => {
@@ -55,5 +56,17 @@ describe('lastSeqOf', () => {
   it('найбільший номер репліки або 0', () => {
     expect(lastSeqOf({ messages: [{ seq: 3 }, { seq: 7 }] })).toBe(7);
     expect(lastSeqOf(null)).toBe(0);
+  });
+});
+
+describe('мітка позиції учасника', () => {
+  it('у «так/ні» — людськими словами, з кольором відповіді', () => {
+    expect(stanceLabel({ stance: 'ні' }, 'yes_no')).toBe('Каже «ні»');
+    expect(stanceLabel({ stance: 'так' }, 'yes_no')).toBe('Каже «так»');
+    expect(stanceTone('так')).toBe('agree');
+    expect(stanceTone('ні')).toBe('disagree');
+  });
+  it('в «одному з варіантів» — обраний варіант', () => {
+    expect(stanceLabel({ stance: 'Київ' }, 'choose_one')).toBe('Обирає «Київ»');
   });
 });

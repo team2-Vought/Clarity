@@ -96,6 +96,14 @@ beforeEach(() => {
 });
 
 describe('ChatPage', () => {
+  it('видалена чи чужа дискусія — «не знайдено» з переходом в історію, без панелі', async () => {
+    vi.mocked(fetchDiscussion).mockRejectedValue(Object.assign(new Error('Not found'), { status: 404 }));
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Дискусію не знайдено' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Відкрити історію' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Спробувати ще раз' })).not.toBeInTheDocument();
+  });
+
   it('показує склад жетонами й анкету вибраного учасника з його рисами', async () => {
     const user = userEvent.setup();
     renderPage();

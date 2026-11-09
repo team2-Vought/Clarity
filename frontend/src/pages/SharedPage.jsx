@@ -9,7 +9,8 @@ import MessageMarkdown from '../components/MessageMarkdown';
 import StatusPage from '../components/StatusPage';
 import { VisionTrigger } from '../components/VisionDialog';
 import SummaryDetails from '../components/SummaryDetails';
-import logo from '../assets/clarity-logo.webp';
+import Logo from '../components/Logo';
+import PublicFooter from '../components/PublicFooter';
 import { copy, locale } from '../copy';
 import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
 import {
@@ -23,6 +24,7 @@ import {
 } from '../utils/chatView';
 import { parseBlocks } from '../utils/markdown';
 import { describeSummary } from '../utils/summary';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.shared;
 const c = copy.chat;
@@ -51,14 +53,7 @@ export default function SharedPage() {
     };
   }, [token]);
 
-  useEffect(() => {
-    if (!discussion?.title) return undefined;
-    const previous = document.title;
-    document.title = `${discussion.title} · ${copy.appName}`;
-    return () => {
-      document.title = previous;
-    };
-  }, [discussion?.title]);
+  usePageTitle(discussion?.title || '');
 
   const messages = useMemo(() => discussion?.messages || [], [discussion]);
   const question = messages.find((message) => message.role === 'user');
@@ -103,10 +98,7 @@ export default function SharedPage() {
   return (
     <div className="shared">
       <header className="shared__bar">
-        <Link to="/" className="shared__brand">
-          <img src={logo} alt="" width="40" height="28" />
-          <span>{copy.appName}</span>
-        </Link>
+        <Logo onHome={() => navigate('/')} wordmark />
         <div className="shared__actions">
           <VisionTrigger compact />
           <Link to={getSession() ? '/home' : '/register'} className="shared__cta">
@@ -233,6 +225,7 @@ export default function SharedPage() {
           </>
         )}
       </main>
+      <PublicFooter />
     </div>
   );
 }

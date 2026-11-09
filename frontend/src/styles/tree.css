@@ -16,9 +16,7 @@
   --pick-ink: #121212;
   /* відповідь і кільце в корені — тим самим чорним, що й обраний шлях */
   --root-accent: var(--ink);
-  --good: var(--success);
   --neutral: #8b8f99;
-  --bad: var(--error);
   --root-w: 236px;
   --branch-w: 300px;
   --gap: 72px;
@@ -27,7 +25,7 @@
      Над деревом — лише меню й «бургер» (їхні z-index вищі) */
   position: absolute;
   inset: 0;
-  z-index: 50;
+  z-index: calc(var(--z-dropdown) + 10);
   width: 100%;
   max-width: none;
   height: 100%;
@@ -54,7 +52,7 @@
 .tree-dialog[open] {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  animation: tree-dialog-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tree-dialog-in 0.28s var(--ease-out) both;
 }
 
 .tree-dialog::backdrop {
@@ -89,17 +87,17 @@
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(18, 18, 18, 0.12);
+  box-shadow: var(--shadow-sm);
   transition: background 0.18s, box-shadow 0.18s, var(--press);
 }
 
 :root[data-theme='dark'] .tree-back {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
 .tree-back:hover {
   background: color-mix(in srgb, var(--ink) 4%, var(--card));
-  box-shadow: 0 6px 20px rgba(18, 18, 18, 0.16);
+  box-shadow: var(--shadow-sm);
 }
 
 .tree-back svg {
@@ -219,7 +217,7 @@
   border-radius: var(--r-xl);
   background: var(--card);
   color: var(--ink);
-  animation: tree-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tree-node-in 0.45s var(--ease-out) both;
 }
 
 .tree-root__label {
@@ -235,7 +233,7 @@
   margin: 0;
   overflow: hidden;
   font-size: 1.25rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 7;
@@ -281,7 +279,7 @@
   align-items: center;
   column-gap: var(--gap);
   transition: opacity 0.22s;
-  animation: tree-node-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tree-node-in 0.5s var(--ease-out) both;
   animation-delay: calc(0.12s + var(--i, 0) * 0.08s);
 }
 
@@ -375,7 +373,7 @@
 
 .tree-branch__title {
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -451,11 +449,11 @@
 }
 
 .tree-outcome--good {
-  --tone: var(--good);
+  --tone: var(--success);
 }
 
 .tree-outcome--bad {
-  --tone: var(--bad);
+  --tone: var(--error);
 }
 
 /* у схемі розвилка клікабельна — відкриває свій шлях */
@@ -479,7 +477,7 @@
 }
 
 .tree-outcome__dot.tree-outcome--good {
-  --tone: var(--good);
+  --tone: var(--success);
 }
 
 .tree-outcome__dot.tree-outcome--neutral {
@@ -487,7 +485,7 @@
 }
 
 .tree-outcome__dot.tree-outcome--bad {
-  --tone: var(--bad);
+  --tone: var(--error);
 }
 
 .tree-outcome__if {
@@ -509,7 +507,7 @@
   grid-column: 2;
   color: var(--tone);
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* ---- лінії ---- */
@@ -526,7 +524,7 @@
   stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: tree-draw 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: tree-draw 0.75s var(--ease-in-out) forwards;
   animation-delay: calc(0.18s + var(--i, 0) * 0.05s);
   transition: stroke 0.22s, stroke-width 0.22s;
 }
@@ -562,11 +560,11 @@
 }
 
 .tree-link--leaf.tree-link--good {
-  --link: color-mix(in srgb, var(--good) 45%, transparent);
+  --link: color-mix(in srgb, var(--success) 45%, transparent);
 }
 
 .tree-link--leaf.tree-link--bad {
-  --link: color-mix(in srgb, var(--bad) 45%, transparent);
+  --link: color-mix(in srgb, var(--error) 45%, transparent);
 }
 
 .tree-link--leaf .tree-link__line {
@@ -595,7 +593,7 @@
   height: var(--size, 26px);
   border-radius: 50%;
   background: var(--person);
-  color: #121212;
+  color: var(--on-pastel);
   box-shadow: 0 0 0 2px var(--card);
 }
 
@@ -657,7 +655,7 @@
   border-radius: inherit;
   background: var(--fit-color, var(--chosen));
   transform-origin: left;
-  animation: tree-grow-x 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+  animation: tree-grow-x 0.8s var(--ease-out) 0.4s both;
 }
 
 .tree-fit__value {
@@ -702,7 +700,7 @@
 .tree-ring__value {
   stroke: var(--root-accent);
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: stroke-dashoffset 0.8s var(--ease-out);
 }
 
 .tree-ring__number {
@@ -732,7 +730,7 @@
 .tree-path__title {
   margin: 0;
   font-size: 1.0625rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* кроки ділять ширину картки порівну — нічого не обрізається й не ховається
@@ -757,7 +755,7 @@
   display: flex;
   flex-direction: column;
   padding: 0 18px 4px 0;
-  animation: tree-node-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tree-node-in 0.45s var(--ease-out) both;
   animation-delay: calc(0.3s + var(--i, 0) * 0.07s);
 }
 
@@ -817,7 +815,7 @@
 
 .tree-step__title {
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -852,7 +850,7 @@
   overflow-y: auto;
   border-left: 1px solid var(--line);
   background: var(--card);
-  animation: tree-detail-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tree-detail-in 0.32s var(--ease-out) both;
 }
 
 .tree-detail__head {
@@ -907,7 +905,7 @@
   margin: 0;
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .tree-detail__muted {
@@ -966,13 +964,13 @@
 }
 
 .tree-detail__points--pro svg {
-  background: color-mix(in srgb, var(--good) 16%, var(--card));
-  color: var(--good);
+  background: color-mix(in srgb, var(--success) 16%, var(--card));
+  color: var(--success);
 }
 
 .tree-detail__points--con svg {
-  background: color-mix(in srgb, var(--bad) 14%, var(--card));
-  color: var(--bad);
+  background: color-mix(in srgb, var(--error) 14%, var(--card));
+  color: var(--error);
 }
 
 .tree-detail__outcomes {
@@ -1020,7 +1018,7 @@
 .logo-tree__body {
   transform-box: view-box;
   transform-origin: 322px 325px;
-  animation: logo-reach var(--cycle) cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  animation: logo-reach var(--cycle) var(--ease-in-out) infinite;
   animation-delay: calc(var(--n, 0) * var(--step));
 }
 
@@ -1064,7 +1062,7 @@
 .tree-growing__title {
   margin: 0;
   font-size: 1.0625rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .tree-growing__step {
@@ -1124,7 +1122,7 @@
 
 /* ---- хід думок вертикально: коли на крок менше ~170px ---- */
 
-@container tree-path (max-width: 640px) {
+@container tree-path (max-width: 639px) {
   .tree-path__steps {
     grid-template-columns: minmax(0, 1fr);
   }

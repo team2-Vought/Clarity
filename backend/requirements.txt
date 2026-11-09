@@ -7,3 +7,6 @@ cryptography>=43
 psycopg[binary]>=3.2
 pypdf>=5
 sentry-sdk[django]>=2.20,<3
+# продакшн: WSGI-сервер і статика адмінки без окремого сервера
+gunicorn>=23
+whitenoise>=6.8

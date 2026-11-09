@@ -6,7 +6,7 @@
     // лендинг і сторінки входу завжди в темі пристрою (src/hooks/useDeviceTheme.js)
     const path = location.pathname.replace(/\/+$/, '') || '/';
     const deviceThemePage = path === '/'
-      || /^\/(login|register|forgot-password|reset-password|confirm-email|unsubscribe)(\/|$)/.test(path);
+      || /^\/(login|register|forgot-password|reset-password|confirm-email|verify-email|unsubscribe|privacy|terms)(\/|$)/.test(path);
     const saved = deviceThemePage ? null : localStorage.getItem('clarity-theme');
     const theme = saved === 'light' || saved === 'dark'
       ? saved

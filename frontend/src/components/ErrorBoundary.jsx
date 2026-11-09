@@ -1,7 +1,8 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { Alert02Icon } from '@hugeicons/core-free-icons';
-import StatusPage, { homePath } from './StatusPage';
+import StatusPage from './StatusPage';
+import { homePath } from '../utils/homePath';
 import BugReportDialog from './BugReportDialog';
 import { copy } from '../copy';
 import { openBugReport } from '../utils/bugReport';

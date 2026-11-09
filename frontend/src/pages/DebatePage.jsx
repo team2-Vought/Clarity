@@ -41,6 +41,7 @@ import {
 import ErrorNotice from '../components/ErrorNotice';
 import OnboardingCard from '../components/OnboardingCard';
 import DueDecisionCard from '../components/DueDecisionCard';
+import VerifyEmailCard from '../components/VerifyEmailCard';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
@@ -53,7 +54,8 @@ import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptio
 import { isSendShortcut, readSuggestions } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
 import { FILE_TYPES, MAX_FILES, useAttachmentDraft } from '../hooks/useAttachmentDraft';
-import { hasAbout, useMyProfile } from '../hooks/useMyProfile';
+import { hasAbout, refreshMyProfile, useMyProfile } from '../hooks/useMyProfile';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.debate;
 // вкладення до питання: стільки файлів і таких типів приймає сервер
@@ -158,6 +160,7 @@ const modelPool = (models, recommended, defaultId) => {
 
 export default function DebatePage() {
   const navigate = useNavigate();
+  usePageTitle(copy.history.newDiscussion);
   const [personas, setPersonas] = useState([]);
   const [models, setModels] = useState([]);
   const [defaultModel, setDefaultModel] = useState('');
@@ -762,6 +765,8 @@ export default function DebatePage() {
       if (showOnboarding) finishOnboarding();
       navigate(`/chat/${data.id}`, { replace: true });
     } catch (err) {
+      // пошту ще не підтверджено — покажемо картку з повторним листом
+      if (err?.data?.code === 'email_unverified') refreshMyProfile();
       failRequest(err, t.errorCreate);
     } finally {
       setIsCreating(false);
@@ -1145,6 +1150,7 @@ export default function DebatePage() {
           </div>
         )}
 
+        <VerifyEmailCard />
         {showOnboarding ? (
           <OnboardingCard onDismiss={finishOnboarding} onMore={() => navigate('/help')} />
         ) : (

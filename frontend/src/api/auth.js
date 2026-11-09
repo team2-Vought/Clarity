@@ -3,11 +3,21 @@ import { forgetSession, request, setSession } from './client';
 // Сервер ставить ключ входу в httpOnly-cookie сам; тут лише позначаємо, що увійшли
 
 /** Реєстрація не входить в акаунт: далі людина входить зі своїм паролем. */
-export function register({ name, email, password, confirm_password }) {
+export function register({ name, email, password, confirm_password, accept_terms }) {
   return request('/api/auth/register/', {
     method: 'POST',
-    body: { name, email, password, confirm_password },
+    body: { name, email, password, confirm_password, accept_terms },
   });
+}
+
+/** Посилання з листа після реєстрації: { email }. */
+export function verifyEmail(token) {
+  return request('/api/auth/email/verify/', { method: 'POST', body: { token } });
+}
+
+/** Ще раз надіслати лист підтвердження пошти. */
+export function resendVerification() {
+  return request('/api/auth/email/verify/resend/', { method: 'POST', auth: true });
 }
 
 export async function login({ email, password }) {

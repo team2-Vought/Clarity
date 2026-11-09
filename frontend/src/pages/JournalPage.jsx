@@ -5,6 +5,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown01Icon,
   ArrowUpRight01Icon,
+  Book02Icon,
   Delete02Icon,
   Mail01Icon,
   PencilEdit02Icon,
@@ -17,7 +18,10 @@ import { useToasts } from '../hooks/useToasts';
 import { InlineText } from '../components/MessageMarkdown';
 import { copy, locale } from '../copy';
 import LoadError from '../components/LoadError';
+import EmptyState from '../components/EmptyState';
+import { confirmAction } from '../utils/confirm';
 import { describeError } from '../utils/errorKind';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.journal;
 const OUTCOMES = ['good', 'mixed', 'bad'];
@@ -191,7 +195,7 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
   };
 
   const remove = async () => {
-    if (!window.confirm(t.removeConfirm)) return;
+    if (!(await confirmAction({ text: t.removeConfirm, confirmLabel: copy.common.delete, danger: true }))) return;
     try {
       await deleteDecision(entry.id);
       onRemove(entry.id);
@@ -489,13 +493,7 @@ export default function JournalPage() {
     return () => clearTimeout(timer);
   }, [load]);
 
-  useEffect(() => {
-    const previous = document.title;
-    document.title = `${t.title} · ${copy.appName}`;
-    return () => {
-      document.title = previous;
-    };
-  }, []);
+  usePageTitle(t.title);
 
   const replace = (next) =>
     setEntries((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -539,12 +537,13 @@ export default function JournalPage() {
           )}
 
           {entries?.length === 0 && (
-            <div className="journal__empty">
-              <p>{t.empty}</p>
-              <button type="button" className="history__retry" onClick={() => navigate('/home')}>
-                {t.emptyAction}
-              </button>
-            </div>
+            <EmptyState
+              page
+              icon={Book02Icon}
+              title={t.emptyTitle}
+              text={t.empty}
+              action={{ label: t.emptyAction, onClick: () => navigate('/home') }}
+            />
           )}
 
           {groups.map((group) => (

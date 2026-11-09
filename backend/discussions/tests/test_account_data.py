@@ -251,6 +251,25 @@ class SharedPreviewTests(TestCase):
         self.assertIn('<div id="root">', html)
         self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
 
+    def test_shared_page_replaces_default_site_tags(self):
+        user = User.objects.create_user(email='og2@test.com', name='Оксана', password='pass123!A')
+        discussion = Discussion.objects.create(
+            user=user, question='Чи брати іпотеку?', personas=['logician'],
+            share_token='6f1c1f7e-4a7e-4a55-9a59-222222222222',
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            index = Path(folder) / 'index.html'
+            index.write_text(
+                '<html><head><title>Clarity</title><!-- og:start -->'
+                '<meta property="og:title" content="Clarity — site" /><!-- og:end --></head>'
+                '<body><div id="root"></div></body></html>',
+                encoding='utf-8',
+            )
+            with self.settings(FRONTEND_INDEX_HTML=index):
+                html = self.client.get(f'/shared/{discussion.share_token}').content.decode()
+        self.assertNotIn('Clarity — site', html)
+        self.assertEqual(html.count('property="og:title"'), 1)
+
     def test_new_frontend_build_is_picked_up_without_restart(self):
         user = User.objects.create_user(email='build@test.com', name='Оксана', password='pass123!A')
         discussion = Discussion.objects.create(

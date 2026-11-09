@@ -1,12 +1,10 @@
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Background } from '../pages/AuthLayout';
-import { getSession } from '../api/client';
-import logo from '../assets/clarity-logo.webp';
-import { copy } from '../copy';
+import { homePath } from '../utils/homePath';
+import Logo from './Logo';
+import { usePageTitle } from '../hooks/usePageTitle';
 
-// увійшли — «додому» означає до нової дискусії, інакше — на лендинг
-export const homePath = () => (getSession() ? '/home' : '/');
 
 /**
  * Повноекранна сторінка-стан: 404, збій застосунку, недоступне посилання.
@@ -14,14 +12,12 @@ export const homePath = () => (getSession() ? '/home' : '/');
  * `mark` — великий код («404») або іконка, `actions` — до двох кнопок, перша головна.
  */
 export default function StatusPage({ mark, icon, title, text, actions }) {
+  usePageTitle(title);
   return (
     <div className="status-page">
       <Background />
       <header className="status-page__bar">
-        <a className="status-page__brand" href={homePath()} aria-label={copy.common.homeAria}>
-          <img src={logo} alt="" width="46" height="32" />
-          <span>{copy.appName}</span>
-        </a>
+        <Logo href={homePath()} wordmark />
       </header>
       <main className="status-page__main">
         <section className="status-page__body" aria-labelledby="status-title">

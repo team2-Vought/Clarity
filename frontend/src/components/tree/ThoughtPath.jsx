@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { PersonDot, STAGE_ICONS } from './parts';
+import { PersonDot } from './parts';
+import { STAGE_ICONS } from './treeModel';
 import { copy } from '../../copy';
 
 const t = copy.tree;

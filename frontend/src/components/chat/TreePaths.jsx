@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon, Cancel01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { orderBranches } from '../tree/parts';
+import { orderBranches } from '../tree/treeModel';
 import { copy } from '../../copy';
 
 const t = copy.tree;

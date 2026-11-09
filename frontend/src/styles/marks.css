@@ -5,8 +5,8 @@
   --mark-agree: rgba(52, 199, 89, 0.32);
   --mark-doubt: rgba(255, 82, 120, 0.3);
   --mark-important-dot: #e6b800;
-  --mark-agree-dot: #2fa55a;
-  --mark-doubt-dot: #e0466e;
+  --mark-agree-dot: var(--success);
+  --mark-doubt-dot: var(--error);
 }
 
 :root[data-theme='dark'] {
@@ -112,7 +112,7 @@ button.chat__mark-chip:hover {
 
 .chat__menu {
   position: fixed;
-  z-index: 120;
+  z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
   width: min(300px, calc(100vw - 16px));
@@ -246,10 +246,10 @@ button.chat__mark-chip:hover {
 .marks__toolbar,
 .marks__editor {
   position: fixed;
-  z-index: 130;
-  background: var(--card, #fff);
-  color: var(--ink, #121212);
-  box-shadow: 0 16px 44px -10px rgba(0, 0, 0, 0.38), 0 0 0 1px color-mix(in srgb, var(--ink, #121212) 8%, transparent);
+  z-index: calc(var(--z-popover) + 10);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 16px 44px -10px rgba(0, 0, 0, 0.38), 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .marks__toolbar {
@@ -285,7 +285,7 @@ button.chat__mark-chip:hover {
 
 .marks__tool:hover,
 .marks__tool:focus-visible {
-  background: color-mix(in srgb, var(--ink, #121212) 8%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   outline: none;
 }
 
@@ -293,7 +293,7 @@ button.chat__mark-chip:hover {
   width: 1px;
   height: 20px;
   margin: 0 4px;
-  background: color-mix(in srgb, var(--ink, #121212) 14%, transparent);
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
 .marks__editor {
@@ -331,7 +331,7 @@ button.chat__mark-chip:hover {
   padding: 0 12px;
   border: 0;
   border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: inherit;
   font: inherit;
   font-size: 0.8125rem;
@@ -340,7 +340,7 @@ button.chat__mark-chip:hover {
 }
 
 .marks__color--active {
-  box-shadow: inset 0 0 0 2px var(--ink, #121212);
+  box-shadow: inset 0 0 0 2px var(--ink);
   font-weight: 600;
 }
 
@@ -355,7 +355,7 @@ button.chat__mark-chip:hover {
   border: 1.5px solid transparent;
   border-radius: var(--r-md);
   outline: none;
-  background: color-mix(in srgb, var(--ink, #121212) 6%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   color: inherit;
   font: inherit;
   font-size: 0.875rem;
@@ -381,13 +381,13 @@ button.chat__mark-chip:hover {
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
-  color: var(--muted, inherit);
+  color: var(--muted);
   cursor: pointer;
 }
 
 .marks__icon:hover {
-  background: color-mix(in srgb, var(--ink, #121212) 8%, transparent);
-  color: var(--ink, #121212);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
 }
 
 .marks__save {
@@ -396,8 +396,8 @@ button.chat__mark-chip:hover {
   padding: 0 16px;
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--ink, #121212);
-  color: var(--card, #fff);
+  background: var(--ink);
+  color: var(--card);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 600;

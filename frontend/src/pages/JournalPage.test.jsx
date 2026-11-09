@@ -120,6 +120,6 @@ describe('JournalPage', () => {
   it('порожній журнал пояснює, як туди потрапляють рішення', async () => {
     vi.mocked(fetchJournal).mockResolvedValue({ results: [], due_count: 0 });
     renderPage();
-    expect(await screen.findByText(/Журнал поки порожній/)).toBeInTheDocument();
+    expect(await screen.findByText(/У журналі ще немає рішень/)).toBeInTheDocument();
   });
 });

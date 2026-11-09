@@ -85,6 +85,9 @@ def og_tags(discussion, url):
 @require_GET
 def shared_page(request, token):
     html = _index_html(str(settings.FRONTEND_INDEX_HTML))
+    # типові теги сайту з index.html прибираємо: краулер бере перший og:title,
+    # а недійсне посилання не має виглядати в прев'ю як робоча сторінка
+    html = re.sub(r'<!-- og:start.*?<!-- og:end -->', '', html, count=1, flags=re.S)
     discussion = Discussion.objects.filter(share_token=token).first()
     if discussion is None:
         # SPA сама покаже «посилання недійсне»

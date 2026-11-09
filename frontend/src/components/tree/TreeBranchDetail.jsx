@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon, MinusSignIcon, PlusSignIcon } from '@hugeicons/core-free-icons';
-import { FitMeter, PersonDot, STATUS_ICONS } from './parts';
+import { FitMeter, PersonDot } from './parts';
+import { STATUS_ICONS } from './treeModel';
 import { copy } from '../../copy';
 
 const t = copy.tree;
