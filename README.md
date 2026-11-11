@@ -155,6 +155,10 @@ Vercel віддає інтерфейс, API живе на Render, база — �
 6. **Vercel → Add New → Project** → цей репозиторій, **Root Directory: `frontend`**.
    Змінні оточення: `VITE_SITE_URL` (адреса сайту), `VITE_LEGAL_OPERATOR`,
    `VITE_CONTACT_EMAIL`. `VITE_API_URL` залишайте порожнім.
+   Приватний репозиторій організації Hobby не підключає — тоді створіть проєкт
+   командою `npx vercel deploy --prod` з корня репозиторію, а автодеплой дасть
+   `.github/workflows/deploy-frontend.yml`: секрет `VERCEL_TOKEN`
+   (vercel.com/account/tokens) і ID проєкту/команди з `.vercel/project.json` у файлі.
 7. На Render: `FRONTEND_URL=https://<сайт>` і `FRONTEND_INDEX_URL=https://<сайт>/index.html`
    (прев'ю `/shared/` бере бандли з живого Vercel, бо інтерфейс там збирається
    окремо від образу бекенду).

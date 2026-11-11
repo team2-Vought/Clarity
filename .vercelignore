@@ -1,0 +1,9 @@
+# Деплой на Vercel іде з корня репозиторію (Root Directory: frontend) —
+# вивантажуємо лише інтерфейс, без бекенду й секретів.
+/*
+!/frontend
+frontend/node_modules
+frontend/dist
+frontend/.vercel
+frontend/.env*
+!frontend/.env.example
