@@ -22,11 +22,12 @@ services:
     region: frankfurt
     healthCheckPath: /api/health/
     # preDeployCommand на Free недоступний — міграції перед стартом;
+    # (backend/start.sh: Render запускає команду без shell, тож `&&` тут не працює);
     # 2 процеси замість 3, щоб уміститися в 512 МБ
-    dockerCommand: >-
-      sh -c "python manage.py migrate --noinput &&
-      exec gunicorn backend.wsgi --bind 0.0.0.0:$PORT --workers 2 --timeout 60 --access-logfile -"
+    dockerCommand: sh start.sh
     envVars:
+      - key: GUNICORN_WORKERS
+        value: "2"
       # той самий ключ — у секретах GitHub (листи журналу підписують посилання відписки).
       # Згенерувати: python3 -c "import secrets; print(secrets.token_urlsafe(50))"
       - key: DJANGO_SECRET_KEY
