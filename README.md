@@ -121,32 +121,56 @@ CI (`.github/workflows/ci.yml`) ганяє тести, лінтер, збірк�
   тож пошта (SMTP) має працювати. Акаунти, що вже були до цього, міграція
   позначає підтвердженими.
 
-### Vercel + Render
+### Безкоштовно: Vercel + Render + Neon
 
-Vercel віддає інтерфейс, а бекенд (API, воркер дискусій, Postgres) живе на Render:
-воркер — довгий фоновий процес, а функції Vercel такими бути не можуть.
+Vercel віддає інтерфейс, API живе на Render, база — на Neon, пошта — через Brevo.
 `frontend/vercel.json` проксює `/api`, `/shared` і `/static` на API, тож для
 браузера це один домен і вхід у cookie працює як за nginx.
 
-1. **Render → New → Blueprint** → цей репозиторій (`render.yaml`). Він створить
-   `clarity-api`, `clarity-worker` і базу `clarity-db`; міграції йдуть перед
-   кожним деплоєм API. Значення з `sync: false` (пошта, ключ моделі, адреси)
-   Render попросить ввести; адресу Vercel можна дописати після кроку 3.
-2. Якщо Render дав API іншу адресу, ніж `clarity-api.onrender.com`, замініть її
+Чим платимо за безкоштовність:
+
+- **Немає воркера.** Дискусії йдуть потоками API (`DISCUSSION_RUNNER=thread`):
+  перезапуск чи засинання сервера обриває дискусію, доки людина не запустить її
+  знову. Поки чат відкритий, він опитує сервер, і той не засинає.
+- **Засинання.** Після ~15 хв без запитів API засинає, перше відкриття — до хвилини.
+- **Листи журналу** шле GitHub Actions раз на годину (`.github/workflows/reminders.yml`).
+  GitHub вимикає розклад у репозиторії без комітів 60 днів — тоді ввімкніть знову в Actions.
+- **Пошта — Brevo на порту 2525:** Render Free закриває SMTP-порти 25, 465 і 587.
+- Vercel Hobby — лише для некомерційного використання.
+
+Кроки:
+
+1. **Neon** (neon.tech) → New project, регіон Frankfurt → скопіюйте Connection
+   string (Direct connection, з `?sslmode=require`) — це `DATABASE_URL`.
+2. **Brevo** (brevo.com) → Senders → підтвердіть адресу відправника; SMTP & API →
+   SMTP — логін (`EMAIL_HOST_USER`) і SMTP-ключ (`EMAIL_HOST_PASSWORD`).
+3. Секретний ключ Django — один для Render і GitHub:
+   `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
+4. **Render → New → Blueprint** → цей репозиторій (`render.yaml`, тариф Free).
+   Введіть значення `sync: false`: ключ із кроку 3, `DATABASE_URL`, пошту, ключ
+   моделі (безкоштовні — Groq, Gemini, Cerebras, OpenRouter). `FRONTEND_URL` і
+   `FRONTEND_INDEX_URL` можна дописати після кроку 6. Міграції йдуть під час старту.
+5. Якщо Render дав API іншу адресу, ніж `clarity-api.onrender.com`, замініть її
    у трьох `rewrites` файлу `frontend/vercel.json`.
-3. **Vercel → Add New → Project** → цей репозиторій, **Root Directory: `frontend`**.
+6. **Vercel → Add New → Project** → цей репозиторій, **Root Directory: `frontend`**.
    Змінні оточення: `VITE_SITE_URL` (адреса сайту), `VITE_LEGAL_OPERATOR`,
    `VITE_CONTACT_EMAIL`. `VITE_API_URL` залишайте порожнім.
-4. У групі `clarity-shared` на Render: `FRONTEND_URL=https://<сайт>`; у `clarity-api`:
-   `FRONTEND_INDEX_URL=https://<сайт>/index.html` — прев'ю `/shared/` бере бандли
-   з живого Vercel, бо інтерфейс там збирається окремо від образу бекенду.
-5. Свій домен — у Vercel (Settings → Domains); тоді оновіть адреси з кроків 3–4.
+7. На Render: `FRONTEND_URL=https://<сайт>` і `FRONTEND_INDEX_URL=https://<сайт>/index.html`
+   (прев'ю `/shared/` бере бандли з живого Vercel, бо інтерфейс там збирається
+   окремо від образу бекенду).
+8. **GitHub → Settings → Secrets and variables → Actions:** `DATABASE_URL`,
+   `DJANGO_SECRET_KEY`, `FRONTEND_URL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
+   `DEFAULT_FROM_EMAIL`. Перевірка — Actions → Journal reminders → Run workflow.
+9. Свій домен — у Vercel (Settings → Domains); тоді оновіть адреси з кроків 6–8.
    Вхід через Google — додайте домен в «Authorized JavaScript origins».
 
 Ланцюжок проксі: клієнт → Vercel → балансувальник Render → Django, тому
 `DJANGO_NUM_PROXIES=2`. Після деплою перевірте, що ліміти входу рахуються за
 адресою людини: кілька невдалих входів з одного пристрою не мають блокувати вхід
 з іншої мережі (наприклад, з телефона через мобільний інтернет).
+
+Без компромісів (платно) — у `render.yaml` внизу: тариф `starter`,
+`DISCUSSION_RUNNER=worker` і окремий воркер; тоді GitHub-розклад не потрібен.
 
 ### Вручну
 

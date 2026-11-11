@@ -1,0 +1,63 @@
+# Листи журналу «Як ваше рішення?» для безкоштовного деплою (render.yaml):
+# там немає воркера дискусій, який шле їх сам. Раз на годину команда ходить
+# напряму в базу (Neon) і надсилає листи, яким настав час; кожен — лише раз.
+#
+# Settings → Secrets and variables → Actions → New repository secret:
+#   DATABASE_URL, DJANGO_SECRET_KEY (той самий, що на Render), FRONTEND_URL,
+#   EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL
+# Без DATABASE_URL робота нічого не робить (напр. у форках).
+# Перевірити вручну: Actions → Journal reminders → Run workflow.
+
+name: Journal reminders
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: journal-reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      DJANGO_DEBUG: "false"
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+      DJANGO_EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      EMAIL_HOST: smtp-relay.brevo.com
+      EMAIL_PORT: "2525"
+      EMAIL_USE_TLS: "true"
+      EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+      EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+      DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::DATABASE_URL secret is not set — nothing to do."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: .
+      - uses: actions/checkout@v4
+        if: steps.config.outputs.enabled == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+        if: steps.config.outputs.enabled == 'true'
+      - run: python manage.py send_decision_reminders
+        if: steps.config.outputs.enabled == 'true'
