@@ -121,6 +121,33 @@ CI (`.github/workflows/ci.yml`) ганяє тести, лінтер, збірк�
   тож пошта (SMTP) має працювати. Акаунти, що вже були до цього, міграція
   позначає підтвердженими.
 
+### Vercel + Render
+
+Vercel віддає інтерфейс, а бекенд (API, воркер дискусій, Postgres) живе на Render:
+воркер — довгий фоновий процес, а функції Vercel такими бути не можуть.
+`frontend/vercel.json` проксює `/api`, `/shared` і `/static` на API, тож для
+браузера це один домен і вхід у cookie працює як за nginx.
+
+1. **Render → New → Blueprint** → цей репозиторій (`render.yaml`). Він створить
+   `clarity-api`, `clarity-worker` і базу `clarity-db`; міграції йдуть перед
+   кожним деплоєм API. Значення з `sync: false` (пошта, ключ моделі, адреси)
+   Render попросить ввести; адресу Vercel можна дописати після кроку 3.
+2. Якщо Render дав API іншу адресу, ніж `clarity-api.onrender.com`, замініть її
+   у трьох `rewrites` файлу `frontend/vercel.json`.
+3. **Vercel → Add New → Project** → цей репозиторій, **Root Directory: `frontend`**.
+   Змінні оточення: `VITE_SITE_URL` (адреса сайту), `VITE_LEGAL_OPERATOR`,
+   `VITE_CONTACT_EMAIL`. `VITE_API_URL` залишайте порожнім.
+4. У групі `clarity-shared` на Render: `FRONTEND_URL=https://<сайт>`; у `clarity-api`:
+   `FRONTEND_INDEX_URL=https://<сайт>/index.html` — прев'ю `/shared/` бере бандли
+   з живого Vercel, бо інтерфейс там збирається окремо від образу бекенду.
+5. Свій домен — у Vercel (Settings → Domains); тоді оновіть адреси з кроків 3–4.
+   Вхід через Google — додайте домен в «Authorized JavaScript origins».
+
+Ланцюжок проксі: клієнт → Vercel → балансувальник Render → Django, тому
+`DJANGO_NUM_PROXIES=2`. Після деплою перевірте, що ліміти входу рахуються за
+адресою людини: кілька невдалих входів з одного пристрою не мають блокувати вхід
+з іншої мережі (наприклад, з телефона через мобільний інтернет).
+
 ### Вручну
 
 Відмінності від розробки — у `backend/.env`:

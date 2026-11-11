@@ -43,6 +43,9 @@ ALLOWED_HOSTS = [
     for h in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
     if h.strip()
 ]
+# Render сам каже свою адресу (*.onrender.com): на неї Vercel проксює /api
+if os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip():
+    ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'].strip())
 
 if not DEBUG and SECRET_KEY == DEV_SECRET_KEY:
     raise ImproperlyConfigured(
@@ -242,6 +245,9 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', '').strip() or 'http://localhost:5173'
 FRONTEND_INDEX_HTML = Path(
     os.getenv('FRONTEND_INDEX_HTML', '').strip() or BASE_DIR.parent / 'frontend' / 'dist' / 'index.html'
 )
+# Фронтенд на іншому хостингу (Vercel): index.html для прев'ю беремо з нього,
+# напр. https://clarity.example.com/index.html. Порожньо — файл FRONTEND_INDEX_HTML
+FRONTEND_INDEX_URL = os.getenv('FRONTEND_INDEX_URL', '').strip()
 # Посилання на новий пароль діє 2 години
 PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', str(2 * 3600)))
 

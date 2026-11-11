@@ -1,7 +1,8 @@
 # Clarity: один Dockerfile, три цілі.
 #   docker build --target backend .   — API (gunicorn) і воркер дискусій
 #   docker build --target web .       — nginx: зібраний інтерфейс + проксі на API
-# Разом їх запускає docker-compose.yml.
+# Разом їх запускає docker-compose.yml. Бекенд — останній етап: `docker build .`
+# без --target (так збирають Render, Railway, Fly) дає саме API.
 
 # ---------- збірка інтерфейсу ----------
 FROM node:22-alpine AS frontend-build
@@ -16,6 +17,12 @@ ARG VITE_LEGAL_OPERATOR=
 ARG VITE_SITE_URL=
 ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL VITE_LEGAL_OPERATOR=$VITE_LEGAL_OPERATOR VITE_SITE_URL=$VITE_SITE_URL
 RUN npm run build
+
+# ---------- інтерфейс ----------
+FROM nginx:1.27-alpine AS web
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=frontend-build /src/frontend/dist /usr/share/nginx/html
+EXPOSE 80
 
 # ---------- API і воркер ----------
 FROM python:3.14-slim AS backend
@@ -35,9 +42,3 @@ RUN useradd --system --uid 10001 clarity && chown -R clarity /app
 USER clarity
 EXPOSE 8000
 CMD ["gunicorn", "backend.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", "--access-logfile", "-"]
-
-# ---------- інтерфейс ----------
-FROM nginx:1.27-alpine AS web
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=frontend-build /src/frontend/dist /usr/share/nginx/html
-EXPOSE 80

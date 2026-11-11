@@ -291,6 +291,47 @@ class SharedPreviewTests(TestCase):
         self.assertIn('new-1234.js', html)
         self.assertNotIn('old.js', html)
 
+    def test_index_comes_from_the_live_frontend_when_configured(self):
+        """Фронтенд на Vercel збирається окремо: бандли беремо з його index.html,
+        а коли він недоступний — з останньої вдалої копії чи локального файлу."""
+        import httpx
+
+        from discussions import share_page
+
+        user = User.objects.create_user(email='remote@test.com', name='Оксана', password='pass123!A')
+        discussion = Discussion.objects.create(
+            user=user, question='Чи переїжджати до Львова?', personas=['logician'],
+            share_token='6f1c1f7e-4a7e-4a55-9a59-333333333333',
+        )
+        url = 'https://front.test/index.html'
+        live = httpx.Response(
+            200, request=httpx.Request('GET', url),
+            text='<html><head><title>x</title><script src="/assets/vercel-77.js"></script></head>'
+                 '<body><div id="root"></div></body></html>',
+        )
+        share_page._remote_cache.update(url='', html='', at=0.0)
+        with tempfile.TemporaryDirectory() as folder:
+            index = Path(folder) / 'index.html'
+            index.write_text('<html><head><title>x</title><script src="/assets/local.js"></script></head></html>', encoding='utf-8')
+            with self.settings(FRONTEND_INDEX_HTML=index, FRONTEND_INDEX_URL=url):
+                with mock.patch.object(share_page.httpx, 'get', return_value=live) as get:
+                    first = self.client.get(f'/shared/{discussion.share_token}').content.decode()
+                    self.client.get(f'/shared/{discussion.share_token}')
+                self.assertEqual(get.call_count, 1)  # друга відповідь — з кешу
+                self.assertIn('vercel-77.js', first)
+                self.assertIn('Чи переїжджати до Львова', first)
+
+                # кеш застарів, а фронтенд не відповідає — остання вдала копія
+                share_page._remote_cache['at'] = -10_000.0
+                with mock.patch.object(share_page.httpx, 'get', side_effect=httpx.ConnectError('down')):
+                    self.assertIn('vercel-77.js', self.client.get(f'/shared/{discussion.share_token}').content.decode())
+
+                # копії немає зовсім — локальний файл
+                share_page._remote_cache.update(url='', html='', at=0.0)
+                with mock.patch.object(share_page.httpx, 'get', side_effect=httpx.ConnectError('down')):
+                    self.assertIn('local.js', self.client.get(f'/shared/{discussion.share_token}').content.decode())
+        share_page._remote_cache.update(url='', html='', at=0.0)
+
     def test_unknown_link_is_404_without_tags(self):
         response = self.client.get('/shared/6f1c1f7e-4a7e-4a55-9a59-000000000000')
         self.assertEqual(response.status_code, 404)

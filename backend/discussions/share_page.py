@@ -6,11 +6,15 @@
 <head>. Далі сторінку як завжди малює SPA.
 """
 
+import logging
 import re
+import threading
+import time
 from functools import lru_cache
 from html import escape
 from pathlib import Path
 
+import httpx
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csp import csp_override
@@ -21,7 +25,12 @@ from backend.i18n import L, using
 from .models import Discussion
 from .serializers import discussion_title
 
+logger = logging.getLogger(__name__)
+
 DESCRIPTION_MAX = 200
+# index.html з живого фронтенду (FRONTEND_INDEX_URL): скільки тримати копію
+REMOTE_INDEX_TTL_SECONDS = 300
+REMOTE_INDEX_TIMEOUT_SECONDS = 3
 FALLBACK_HTML = (
     '<!doctype html><html><head><meta charset="UTF-8"><title>Clarity</title></head>'
     '<body><div id="root"></div></body></html>'
@@ -41,6 +50,34 @@ def _index_html(path):
         return _read_index(path, stat.st_mtime_ns, stat.st_size)
     except OSError:
         return FALLBACK_HTML
+
+
+_remote_lock = threading.Lock()
+_remote_cache = {'url': '', 'html': '', 'at': 0.0}
+
+
+def _remote_index_html(url):
+    """index.html, який зараз віддає фронтенд (напр. Vercel). Інтерфейс там
+    збирається окремо від образу бекенду, тож імена бандлів у локальній копії
+    могли б не збігтися — і прев'ю відкрилося б порожнім. Копія живе
+    REMOTE_INDEX_TTL_SECONDS; збій мережі — віддаємо останню вдалу, а без неї None."""
+    now = time.monotonic()
+    with _remote_lock:
+        cached = dict(_remote_cache)
+    if cached['url'] == url and cached['html'] and now - cached['at'] < REMOTE_INDEX_TTL_SECONDS:
+        return cached['html']
+    try:
+        response = httpx.get(url, timeout=REMOTE_INDEX_TIMEOUT_SECONDS, follow_redirects=True)
+        response.raise_for_status()
+        html = response.text
+        if '<div id="root">' not in html:
+            raise ValueError('not the frontend index.html')
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning('FRONTEND_INDEX_URL is unavailable: %s', exc)
+        return cached['html'] if cached['url'] == url and cached['html'] else None
+    with _remote_lock:
+        _remote_cache.update(url=url, html=html, at=now)
+    return html
 
 
 def _short(text, limit=DESCRIPTION_MAX):
@@ -88,7 +125,8 @@ def og_tags(discussion, url):
 @csp_override({'frame-ancestors': ["'none'"]})
 @require_GET
 def shared_page(request, token):
-    html = _index_html(str(settings.FRONTEND_INDEX_HTML))
+    remote_url = settings.FRONTEND_INDEX_URL
+    html = (remote_url and _remote_index_html(remote_url)) or _index_html(str(settings.FRONTEND_INDEX_HTML))
     # типові теги сайту з index.html прибираємо: краулер бере перший og:title,
     # а недійсне посилання не має виглядати в прев'ю як робоча сторінка
     html = re.sub(r'<!-- og:start.*?<!-- og:end -->', '', html, count=1, flags=re.S)

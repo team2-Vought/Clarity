@@ -1,0 +1,85 @@
+# Бекенд Clarity на Render: API, воркер дискусій і Postgres (Blueprint).
+# Інтерфейс — на Vercel (frontend/vercel.json): він проксює /api і /shared сюди,
+# тож для браузера це один домен і вхід у cookie працює як за nginx.
+#
+# Render → New → Blueprint → цей репозиторій. Значення з `sync: false` Render
+# попросить ввести під час створення (README, «Vercel + Render»).
+
+envVarGroups:
+  # спільне для API й воркера: секрет шифрує ключі користувачів, тож має збігатися
+  - name: clarity-shared
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DISCUSSION_RUNNER
+        value: worker
+      # адреса сайту на Vercel, напр. https://clarity.vercel.app — посилання в листах
+      - key: FRONTEND_URL
+        sync: false
+      # пошта: без неї не підтвердити реєстрацію й не скинути пароль
+      - key: DJANGO_EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "true"
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      # хоча б один ключ моделі; інші (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) — у групі вручну
+      - key: GROQ_API_KEY
+        sync: false
+
+services:
+  - type: web
+    name: clarity-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /api/health/
+    preDeployCommand: python manage.py migrate --noinput
+    envVars:
+      - fromGroup: clarity-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clarity-db
+          property: connectionString
+      # клієнт → Vercel → проксі Render → Django
+      - key: DJANGO_BEHIND_PROXY
+        value: "true"
+      - key: DJANGO_NUM_PROXIES
+        value: "2"
+      # прев'ю /shared/ бере бандли з живого фронтенду, напр. https://clarity.vercel.app/index.html
+      - key: FRONTEND_INDEX_URL
+        sync: false
+
+  - type: worker
+    name: clarity-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: python manage.py discussion_worker
+    plan: starter
+    region: frankfurt
+    envVars:
+      - fromGroup: clarity-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clarity-db
+          property: connectionString
+
+databases:
+  - name: clarity-db
+    databaseName: clarity
+    user: clarity
+    plan: basic-256mb
+    region: frankfurt
