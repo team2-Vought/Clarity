@@ -5,9 +5,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://clarity-api.onrender.com/api/:path*" },
-    { "source": "/shared/:path*", "destination": "https://clarity-api.onrender.com/shared/:path*" },
-    { "source": "/static/:path*", "destination": "https://clarity-api.onrender.com/static/:path*" },
+    { "source": "/api/:path*", "destination": "https://clarity-api-8fia.onrender.com/api/:path*" },
+    { "source": "/shared/:path*", "destination": "https://clarity-api-8fia.onrender.com/shared/:path*" },
+    { "source": "/static/:path*", "destination": "https://clarity-api-8fia.onrender.com/static/:path*" },
     { "source": "/((?!api/|shared/|static/|assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
