@@ -615,9 +615,9 @@ export default function SettingsPage() {
             value={themeMode}
             onChange={setThemeMode}
             options={[
+              { value: 'system', label: t.themeSystem, icon: ComputerIcon },
               { value: 'light', label: t.themeLight, icon: Sun03Icon },
               { value: 'dark', label: t.themeDark, icon: Moon02Icon },
-              { value: 'system', label: t.themeSystem, icon: ComputerIcon },
             ]}
           />
         </Row>

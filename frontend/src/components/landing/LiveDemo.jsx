@@ -219,7 +219,16 @@ export default function LiveDemo() {
             </div>
           </header>
 
-          {run > 0 && <DemoRun key={run} reduced={reduced} />}
+          {/* невидимий «відбиток» готової розмови тримає висоту вікна: репліки
+              з'являються в ньому, тож сторінка не стрибає за будь-якої ширини й мови */}
+          <div className="lp-demo__stage">
+            <div className="lp-demo__ghost" aria-hidden="true" inert>
+              <DemoRun reduced />
+            </div>
+            <div className="lp-demo__live">
+              {run > 0 && <DemoRun key={run} reduced={reduced} />}
+            </div>
+          </div>
         </div>
       </div>
     </section>

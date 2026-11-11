@@ -43,6 +43,28 @@ class AuthApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn('password', response.data)
+        self.assertNotIn('email', response.data)
+
+    def test_login_unknown_email_points_at_email(self):
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': 'nobody@test.com', 'password': 'pass123!A'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email', response.data)
+        self.assertNotIn('password', response.data)
+
+    def test_login_google_only_account_explains_google(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': 'auth@test.com', 'password': 'pass123!A'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Google', str(response.data['password'][0]))
 
     def test_login_sets_last_login(self):
         self.assertIsNone(self.user.last_login)

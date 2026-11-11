@@ -527,24 +527,33 @@ html:has(.page--landing) {
   transform: rotateY(180deg);
 }
 
-.lp-persona:hover .lp-persona__front,
-.lp-persona:focus-visible .lp-persona__front,
+/* перевертає дотик чи клавіша (повторне натискання — назад); наведення — лише
+   там, де є миша: на телефоні :hover «залипає» після дотику й не дав би перевернути назад */
 .lp-persona--flipped .lp-persona__front {
   transform: rotateY(-180deg);
 }
 
-.lp-persona:hover .lp-persona__back,
-.lp-persona:focus-visible .lp-persona__back,
 .lp-persona--flipped .lp-persona__back {
   transform: rotateY(0deg);
   box-shadow: 0 24px 50px -24px color-mix(in srgb, var(--tone) 90%, #000);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp-persona:hover .lp-persona__front {
+    transform: rotateY(-180deg);
+  }
+
+  .lp-persona:hover .lp-persona__back {
+    transform: rotateY(0deg);
+    box-shadow: 0 24px 50px -24px color-mix(in srgb, var(--tone) 90%, #000);
+  }
 }
 
 .lp-persona:focus-visible {
   outline: none;
 }
 
-.lp-persona:focus-visible .lp-persona__back {
+.lp-persona:focus-visible .lp-persona__face {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
@@ -671,13 +680,35 @@ html:has(.page--landing) {
   overflow: hidden;
 }
 
-/* вікно одразу має висоту всієї розмови — сторінка не стрибає, поки репліки з'являються;
-   подвійний клас — бо стилі чату підключаються після лендингу */
+/* подвійний клас — бо стилі чату підключаються після лендингу */
 .lp-demo__window .lp-demo__chat {
-  min-height: 1420px;
   justify-content: flex-start;
   overflow: visible;
   padding-top: 40px;
+}
+
+/* вікно одразу має висоту всієї розмови: живий прогін лежить поверх невидимого
+   готового — в одній клітинці сітки, тож висота не змінюється, поки репліки з'являються */
+.lp-demo__stage {
+  display: grid;
+  gap: inherit;
+  width: 100%;
+  max-width: 880px;
+}
+
+.lp-demo__ghost,
+.lp-demo__live {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: inherit;
+  min-width: 0;
+}
+
+.lp-demo__ghost {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .lp-demo__replay {
@@ -1286,7 +1317,6 @@ html:has(.page--landing) {
   }
 
   .lp-demo__window .lp-demo__chat {
-    min-height: 1460px;
     padding-top: 60px;
   }
 

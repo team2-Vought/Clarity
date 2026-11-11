@@ -404,7 +404,12 @@ class DiscussionDetailView(OwnedDiscussionView):
         if discussion is None:
             return _not_found()
         changes_models = bool(MODEL_FIELDS & set(request.data))
-        if changes_models and runner.is_working(discussion):
+        # після помилки раннер лише чекає перед автоповтором (lease знято) —
+        # модель уже можна змінити, і повтор піде на новій
+        failed_between_steps = (
+            discussion.status == Discussion.Status.FAILED and not engine.is_running(discussion)
+        )
+        if changes_models and runner.is_working(discussion) and not failed_between_steps:
             return Response(
                 {'detail': L(
                     'Зачекайте, поки завершиться поточний крок, або зупиніть дискусію.',

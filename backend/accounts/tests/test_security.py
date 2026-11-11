@@ -84,11 +84,18 @@ class LoginPrivacyTests(TestCase):
             '/api/auth/login/', {'email': email, 'password': password}, format='json', **extra
         )
 
-    def test_unknown_email_and_wrong_password_look_the_same(self):
+    def test_unknown_email_and_wrong_password_are_told_apart(self):
+        # вхід підказує, що виправити; підбір стримує ліміт спроб (тести нижче)
         unknown = self.login('nobody@test.com')
         wrong = self.login('known@test.com')
         self.assertEqual(unknown.status_code, wrong.status_code)
-        self.assertEqual(unknown.data, wrong.data)
+        self.assertEqual(set(unknown.data), {'email'})
+        self.assertEqual(set(wrong.data), {'password'})
+
+    def test_unknown_email_counts_toward_lockout(self):
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            self.login('nobody@test.com', REMOTE_ADDR='10.0.0.67')
+        self.assertEqual(self.login('nobody@test.com', REMOTE_ADDR='10.0.0.67').status_code, 429)
 
     def test_lockout_is_per_address(self):
         for _ in range(MAX_FAILED_ATTEMPTS):

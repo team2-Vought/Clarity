@@ -477,11 +477,15 @@ export default function DebatePage() {
 
   useEffect(() => {
     if (!isAdvancedOpen) return undefined;
+    // меню моделей рендериться порталом поза панеллю — клік у ньому не «назовні»,
+    // інакше панель закривається раніше, ніж модель встигає вибратися
+    const inMenu = (target) => target instanceof Element && target.closest('.debate__model-menu');
     const handleMouseDown = (e) => {
-      if (!advancedRef.current?.contains(e.target)) setIsAdvancedOpen(false);
+      if (!advancedRef.current?.contains(e.target) && !inMenu(e.target)) setIsAdvancedOpen(false);
     };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsAdvancedOpen(false);
+      // Escape у меню моделей закриває лише меню
+      if (e.key === 'Escape' && !inMenu(e.target)) setIsAdvancedOpen(false);
     };
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);

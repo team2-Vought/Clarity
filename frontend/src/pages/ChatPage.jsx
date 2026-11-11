@@ -653,11 +653,15 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isAdvancedOpen) return undefined;
+    // меню моделей рендериться порталом поза панеллю — клік у ньому не «назовні»,
+    // інакше панель закривається раніше, ніж модель встигає вибратися
+    const inMenu = (target) => target instanceof Element && target.closest('.debate__model-menu');
     const handleMouseDown = (e) => {
-      if (!advancedRef.current?.contains(e.target)) setIsAdvancedOpen(false);
+      if (!advancedRef.current?.contains(e.target) && !inMenu(e.target)) setIsAdvancedOpen(false);
     };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setIsAdvancedOpen(false);
+      // Escape у меню моделей закриває лише меню
+      if (e.key === 'Escape' && !inMenu(e.target)) setIsAdvancedOpen(false);
     };
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -1511,7 +1515,10 @@ export default function ChatPage() {
     }
     return null;
   })();
-  const canResume = !isFinished && !isRunning && (isFailed || isStopped || Boolean(actionError));
+  // після помилки сервер може ще чекати перед автоповтором (is_running) — та
+  // крок уже впав, тож і повтор, і зміна моделі доступні одразу
+  const isStepFree = !isRunning || isFailed;
+  const canResume = !isFinished && isStepFree && (isFailed || isStopped || Boolean(actionError));
   // з карткою помилки поле не згортається в кнопку — інакше картка висить без поля
   const isComposerSmall = isPhone && isComposerMin && !notice;
 
@@ -1537,7 +1544,7 @@ export default function ChatPage() {
     return buttons;
   })();
   const retryLabel = notice && ['provider', 'network', 'server', 'generic'].includes(notice.kind) ? t.retry : t.resume;
-  const canEditModels = Boolean(discussion) && !isRunning && !isSaving;
+  const canEditModels = Boolean(discussion) && isStepFree && !isSaving;
 
   // Додаткові налаштування — окремий екран панелі, як на сторінці нової дискусії
   const marksEntries = markEntries(visibleMessages, authorOf);

@@ -13,6 +13,12 @@ body,
   min-height: 100dvh;
 }
 
+/* мобільні браузери на дотик підсвічують прямокутник позаду елемента — він
+   вилазить за заокруглене поле вводу; натискання й так видно зі стану :active */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 #root {
   max-width: none;
   margin: 0;

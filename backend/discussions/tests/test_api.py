@@ -780,6 +780,21 @@ class DiscussionApiTests(TestCase):
             )
             self.assertEqual(blocked.status_code, 409)
 
+    def test_model_can_change_while_failed_step_waits_for_retry(self):
+        # крок упав, раннер ще живий (чекає автоповтору) — модель уже можна змінити
+        self.auth()
+        discussion = self._make('Питання, на якому впала модель')
+        Discussion.objects.filter(pk=discussion.pk).update(
+            status=Discussion.Status.FAILED, error_code='quota', error_public='Квота'
+        )
+        with mock.patch('discussions.views.runner.is_active', return_value=True):
+            changed = self.client.patch(
+                f'/api/discussions/{discussion.id}/', {'moderator_model': ''}, format='json'
+            )
+        self.assertEqual(changed.status_code, 200)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.error_code, '')
+
     def test_teams_are_saved_updated_and_deleted(self):
         self.auth()
         payload = {'name': '  Моя   команда ', 'personas': [{'slug': 'logician', 'name': 'Аналітик'}, 'skeptic']}

@@ -37,9 +37,20 @@ RESET_LINK_INVALID = lazy_L(
     'Посилання недійсне або застаріле. Попросіть новий лист.',
     'The link is invalid or has expired. Request a new email.',
 )
-# одне повідомлення для невідомої пошти й неправильного пароля: інакше за входом
-# можна було б перевіряти, чи зареєстрована адреса (як і відновлення пароля, не розкриваємо)
-WRONG_CREDENTIALS = lazy_L('Неправильна пошта або пароль', 'Wrong email or password')
+# вхід каже, що саме не так: реєстрація однаково розкриває зайняту пошту
+# (EMAIL_TAKEN), а підбір пароля стримує ліміт спроб (login_limit)
+NO_ACCOUNT = lazy_L(
+    'Акаунта з такою поштою немає. Перевірте адресу або зареєструйтеся',
+    'There is no account with this email. Check the address or sign up',
+)
+LOGIN_WRONG_PASSWORD = lazy_L(
+    'Неправильний пароль. Спробуйте ще раз або відновіть його',
+    'Wrong password. Try again or reset it',
+)
+GOOGLE_ONLY = lazy_L(
+    'Цей акаунт входить через Google: натисніть «Продовжити з Google» або задайте пароль через відновлення',
+    'This account signs in with Google: use “Continue with Google” or set a password via reset',
+)
 WRONG_PASSWORD = lazy_L('Невірний пароль', 'Wrong password')
 PASSWORD_SAME = lazy_L('Новий пароль збігається з поточним', 'The new password is the same as the current one')
 
@@ -245,9 +256,15 @@ class LoginSerializer(serializers.Serializer):
         if user is None:
             # хешуємо пароль і для невідомої пошти: інакше її видавав би час відповіді
             User().set_password(password)
-        if user is None or not user.check_password(password):
+        if user is None:
             register_failed_login(ip, email)
-            raise ValidationError({'password': WRONG_CREDENTIALS})
+            raise ValidationError({'email': NO_ACCOUNT})
+        if not user.has_usable_password():
+            register_failed_login(ip, email)
+            raise ValidationError({'password': GOOGLE_ONLY})
+        if not user.check_password(password):
+            register_failed_login(ip, email)
+            raise ValidationError({'password': LOGIN_WRONG_PASSWORD})
 
         reset_login_attempts(email, ip=ip)
         attrs['user'] = user
