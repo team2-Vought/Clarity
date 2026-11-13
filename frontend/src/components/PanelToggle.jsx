@@ -27,13 +27,13 @@ export default function PanelToggle({ controls, phoneOpen = false, members = nul
       className={`debate__panel-toggle ${members ? 'debate__panel-toggle--team' : ''}`}
       onClick={() => togglePanel?.()}
       aria-label={label}
-      title={label}
+      title={members ? t.teamToggleHint : label}
       aria-expanded={expanded}
       aria-controls={controls}
     >
       {members ? (
-        // у чаті — сама команда в ряд: клік показує чи ховає її налаштування
-        <TeamAvatars members={members} layout="row" />
+        // у чаті — команда в ряд: до трьох аватарок, решта — «+N»
+        <TeamAvatars members={members} layout="row" max={3} />
       ) : (
         // на телефоні панель — висувна «Учасники», тож і значок — люди, а не друге «меню»
         <HugeiconsIcon icon={isPhone ? UserGroupIcon : SidebarLeftIcon} size={20} strokeWidth={1.8} aria-hidden="true" />

@@ -1087,6 +1087,7 @@ export const en = {
     openSettings: 'Debate settings',
     showSettings: 'Show the debate settings',
     hideSettings: 'Hide the debate settings',
+    teamToggleHint: 'Team and settings',
     roleTaken: 'Another participant already has this role',
     webSearch: 'Web search',
     webSearchUnavailable: 'Search is disabled on the server',

@@ -7230,20 +7230,27 @@ ol.chat__reveal {
   bottom: 0;
 }
 
-/* кнопка панелі в чаті — аватарки команди в ряд, без підкладки, з легкою тінню */
-.debate__panel-toggle.debate__panel-toggle--team {
+/* кнопка панелі в чаті — аватарки команди (до трьох, решта «+N»), без підкладки */
+.debate__panel-toggle.debate__panel-toggle--team,
+.debate__panel-toggle.debate__panel-toggle--team:hover {
+  display: inline-flex;
+  align-items: center;
   width: auto;
   min-width: 36px;
   height: auto;
   min-height: 36px;
-  padding: 4px 6px;
+  padding: 4px;
   border-radius: 999px;
   background: transparent;
   box-shadow: none;
 }
 
-.debate__panel-toggle.debate__panel-toggle--team:hover {
-  background: transparent;
+/* аватарки — трохи крупніші за рядок на головній (30px); щільно, з помітним
+   перекриттям — кнопка компактна */
+.debate__panel-toggle--team .team-avatars {
+  --av: 30px;
+  --overlap: 12px;
+  --ring: 2px;
 }
 
 .debate__panel-toggle--team .team-avatars__item {
@@ -7252,32 +7259,54 @@ ol.chat__reveal {
     0 2px 6px rgb(0 0 0 / 0.12);
 }
 
+/* наведення — самі аватарки трохи темнішають (підкладки в кнопки немає) */
+.debate__panel-toggle--team .team-avatars__item {
+  transition: filter 0.15s ease;
+}
+
+.debate__panel-toggle--team:hover .team-avatars__item,
+.debate__panel-toggle--team:focus-visible .team-avatars__item {
+  filter: brightness(0.9);
+}
+
+/* «+2» — той самий кружечок, нейтральний */
+.team-avatars__more {
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* правила значка панелі (розмір, віддзеркалення на телефоні) — не для аватарок */
-.debate__panel-toggle.debate__panel-toggle--team svg {
-  width: 15px;
-  height: 15px;
+.debate__panel-toggle.debate__panel-toggle--team .team-avatars svg {
+  width: 17px;
+  height: 17px;
   transform: none;
 }
 
 @media (max-width: 639px) {
-  .debate__panel-toggle.debate__panel-toggle--team {
-    min-width: 50px;
+  .debate__panel-toggle.debate__panel-toggle--team,
+  .debate__panel-toggle.debate__panel-toggle--team:hover {
     min-height: 50px;
     padding: 0 4px;
     background: transparent;
     box-shadow: none;
   }
 
-  /* на телефоні аватарки більші — це головна кнопка вгорі, під палець */
-  .debate__panel-toggle--team .team-avatars {
-    --av: 34px;
-    --overlap: 9px;
-    --ring: 2px;
+  /* на телефоні — крупніші: головна кнопка вгорі, під палець */
+  .debate__panel-toggle.debate__panel-toggle--team .team-avatars {
+    --av: 36px;
+    --overlap: 14px;
   }
 
-  .debate__panel-toggle.debate__panel-toggle--team svg {
-    width: 19px;
-    height: 19px;
+  .debate__panel-toggle.debate__panel-toggle--team .team-avatars svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .debate__panel-toggle.debate__panel-toggle--team .team-avatars__more {
+    font-size: 0.875rem;
   }
 }
 

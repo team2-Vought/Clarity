@@ -1091,6 +1091,7 @@ export const uk = {
     openSettings: 'Налаштування дебату',
     showSettings: 'Показати налаштування дебату',
     hideSettings: 'Сховати налаштування дебату',
+    teamToggleHint: 'Команда й налаштування',
     roleTaken: 'Цю роль уже має інший учасник',
     webSearch: 'Пошук в інтернеті',
     webSearchUnavailable: 'Пошук вимкнено на сервері',
