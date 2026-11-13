@@ -50,12 +50,14 @@ import RolePicker from '../components/RolePicker';
 import TraitPicker from '../components/TraitPicker';
 import { copy } from '../copy';
 import { requestErrorKind } from '../utils/errorKind';
-import { ROLE_ORDER, TRAITS, TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
+import { ROLE_ORDER, TEAM_PRESETS, TRAITS, participantColor, roleIcon } from '../utils/debateOptions';
 import { isSendShortcut, readSuggestions } from '../utils/devicePrefs';
 import { useToasts } from '../hooks/useToasts';
 import { FILE_TYPES, MAX_FILES, useAttachmentDraft } from '../hooks/useAttachmentDraft';
 import { hasAbout, refreshMyProfile, useMyProfile } from '../hooks/useMyProfile';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useIsPhone } from '../hooks/useIsPhone';
+import TeamStrip from '../components/TeamStrip';
 
 const t = copy.debate;
 // вкладення до питання: стільки файлів і таких типів приймає сервер
@@ -123,7 +125,7 @@ const toParticipants = (list, { known, availableIds, fallbackModel }) =>
     .map((item, i) => ({
       slug: item.slug,
       name: item.name || '',
-      color: TRAIT_COLORS[i % TRAIT_COLORS.length],
+      color: participantColor(item.slug, i),
       model: availableIds.has(item.model) ? item.model : fallbackModel(i),
       traits: Array.isArray(item.traits) ? item.traits : [],
     }));
@@ -192,7 +194,8 @@ export default function DebatePage() {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const { panelCollapsed = false, registerPanelToggle } = useOutletContext() ?? {};
+  const { panelCollapsed = false, registerPanelToggle, togglePanel } = useOutletContext() ?? {};
+  const isPhone = useIsPhone();
 
   // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
   useEffect(
@@ -369,7 +372,7 @@ export default function DebatePage() {
       // повтор дискусії чи команда — людина вже знає, як усе працює
       setShowOnboarding(prefs.onboarding_done === false && !template);
       const startCount = Math.min(
-        Math.max(Number(prefs.default_participants) || MIN_PARTICIPANTS, MIN_PARTICIPANTS),
+        Math.max(Number(prefs.default_participants) || TEAM_PRESETS[0].slugs.length, MIN_PARTICIPANTS),
         pData.max_ai || DEFAULT_MAX_PARTICIPANTS,
         personaList.length
       );
@@ -381,10 +384,17 @@ export default function DebatePage() {
       }).map((p) => ({ ...p, name: isDefaultName(p.name) ? '' : p.name }));
       const initial = fromTemplate.length >= MIN_PARTICIPANTS
         ? fromTemplate
-        : personaList.slice(0, startCount).map((persona, i) => ({
+        // збалансований склад першим: за замовчуванням (3 учасники) — саме він,
+        // а інша кількість з «Налаштувань» добирає чи відкидає ролі після нього
+        : [
+          ...TEAM_PRESETS[0].slugs
+            .map((slug) => personaList.find((persona) => persona.slug === slug))
+            .filter(Boolean),
+          ...personaList.filter((persona) => !TEAM_PRESETS[0].slugs.includes(persona.slug)),
+        ].slice(0, startCount).map((persona, i) => ({
           slug: persona.slug,
           name: '',
-          color: TRAIT_COLORS[i % TRAIT_COLORS.length],
+          color: participantColor(persona.slug, i),
           model: fallbackModel(i),
           traits: [],
         }));
@@ -516,7 +526,10 @@ export default function DebatePage() {
     if (!activeParticipant || slug === activeParticipant.slug) return;
     if (participants.some((p) => p.slug === slug)) return;
     const previous = activeParticipant.slug;
-    setParticipants((prev) => prev.map((p) => (p.slug === previous ? { ...p, slug } : p)));
+    // колір іде за роллю: новий Скептик — блакитний, хоч би де він стояв
+    setParticipants((prev) =>
+      prev.map((p, i) => (p.slug === previous ? { ...p, slug, color: participantColor(slug, i) } : p))
+    );
     setActiveSlug(slug);
   };
 
@@ -612,7 +625,7 @@ export default function DebatePage() {
       {
         slug: persona.slug,
         name: '',
-        color: TRAIT_COLORS[prev.length % TRAIT_COLORS.length],
+        color: participantColor(persona.slug, prev.length),
         model: modelOrder.length ? modelOrder[prev.length % modelOrder.length] : defaultModel,
         traits: [],
       },
@@ -660,6 +673,12 @@ export default function DebatePage() {
     replaceParticipants(next);
     setModeratorModel(team.moderator_model || '');
     setDevilModel(team.devil_model || '');
+    setError('');
+  };
+
+  // готовий склад: ролі з меню, моделі — як для нової команди
+  const applyPreset = (slugs) => {
+    replaceParticipants(toParticipants(slugs, participantContext()));
     setError('');
   };
 
@@ -1165,6 +1184,21 @@ export default function DebatePage() {
           // настав час спитати «Як воно?» про рішення з журналу
           <DueDecisionCard />
         )}
+
+        {/* команда вгорі по центру, поки панель учасників схована */}
+        <TeamStrip
+          hidden={!panelCollapsed && !isPhone}
+          className="debate__team-strip"
+          members={participants.map((p, i) => ({
+            key: p.slug,
+            label: p.name.trim() || roleNameOf(p.slug) || t.participantN(i + 1),
+            color: p.color,
+          }))}
+          roleNames={Object.fromEntries(personas.map((persona) => [persona.slug, persona.name]))}
+          onOpen={() => togglePanel?.()}
+          onPreset={applyPreset}
+          disabled={isCreating}
+        />
 
         <div className="debate__prompt">
           <ModePicker

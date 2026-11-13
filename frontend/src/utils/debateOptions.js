@@ -35,3 +35,39 @@ const ROLE_ICONS = {
 };
 
 export const roleIcon = (slug) => ROLE_ICONS[slug] || UserIcon;
+
+// Колір ролі — той самий, що на лендингу: роль впізнається за кольором,
+// хоч би на якому місці в складі вона стояла (меню готових складів)
+export const ROLE_COLORS = {
+  logician: '#f4c1cf',
+  emotional: '#feedd5',
+  skeptic: '#c2effd',
+  pragmatist: '#d3f0dc',
+  creative: '#e4d4f4',
+  moderator: '#fff1b8',
+  devil: '#ef4444',
+};
+
+export const roleColor = (slug, fallback = TRAIT_COLORS[0]) => ROLE_COLORS[slug] || fallback;
+
+// свої ролі людини («Юрист», «Тато») — кольорами, яких немає у вбудованих ролей
+const CUSTOM_ROLE_COLORS = ['#b4b5ce', '#ffd9c7', '#cfe3fb', '#f6d5ea', '#d9ecc6', '#ffe0b8'];
+
+/**
+ * Колір учасника скрізь у застосунку: склад, чат, публічне посилання, меню складів.
+ * Вбудована роль — завжди свій колір (як на лендингу); своя роль — за місцем у складі.
+ */
+export const participantColor = (slug, index = 0) =>
+  ROLE_COLORS[slug] || CUSTOM_ROLE_COLORS[index % CUSTOM_ROLE_COLORS.length];
+
+/**
+ * Готові склади команди: людині не треба знати ролі, щоб зібрати корисну команду.
+ * Слаги — вбудовані ролі (backend/discussions/personas.py). Перший — «Збалансована» —
+ * склад нової дискусії за замовчуванням.
+ */
+export const TEAM_PRESETS = [
+  { key: 'balanced', slugs: ['logician', 'emotional', 'skeptic'] },
+  { key: 'money', slugs: ['logician', 'pragmatist', 'skeptic'] },
+  { key: 'people', slugs: ['emotional', 'pragmatist', 'creative'] },
+  { key: 'ideas', slugs: ['creative', 'pragmatist', 'skeptic'] },
+];

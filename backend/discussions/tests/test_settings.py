@@ -152,6 +152,10 @@ class SettingsApiTests(TestCase):
         # інші налаштування не скидаються
         self.assertEqual(response.data['preferences']['default_mode'], 'open')
         self.assertTrue(self.client.get('/api/models/').data['preferences']['onboarding_done'])
+        # значення за замовчуванням не записуються — інакше застигли б назавжди
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.preferences, {'onboarding_done': True})
+        self.assertEqual(response.data['preferences']['default_participants'], 3)
 
     def test_invalid_preferences(self):
         for bad in (

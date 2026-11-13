@@ -6913,3 +6913,297 @@ ol.chat__reveal {
   font-weight: 500;
   line-height: 1.45;
 }
+
+/* ---- команда одним рядком: аватарки, імена й готові склади ---- */
+
+.team-strip {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.team-strip__team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 12px 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, var(--press);
+}
+
+.team-strip__chevron {
+  flex-shrink: 0;
+  margin-left: -2px;
+  transition: transform 0.2s ease;
+}
+
+.team-strip__team[aria-expanded='true'] .team-strip__chevron {
+  transform: rotate(180deg);
+}
+
+.team-strip__team:hover:not(:disabled),
+.team-strip__team[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+.team-strip__team:focus-visible,
+.team-strip__item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.team-strip__avatars {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.team-strip__avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--chip, var(--pink));
+  box-shadow: 0 0 0 2px var(--main-bg);
+  color: var(--on-pastel);
+}
+
+.team-strip__avatar + .team-strip__avatar {
+  margin-left: -7px;
+}
+
+.team-strip__names {
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-strip__presets {
+  position: relative;
+}
+
+.team-strip__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+  cursor: default;
+  /* як .debate__mode-menu: закрите меню лишається в розмітці — і відкриття, і закриття плавні */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top center;
+  transition:
+    opacity 0.16s ease,
+    transform 0.2s var(--ease-standard),
+    visibility 0s linear 0.2s;
+}
+
+.team-strip__menu--open {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.22s var(--ease-standard);
+}
+
+/* три аватарки складу трикутником: одна згори по центру, дві під нею */
+.team-strip__triad {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 36px;
+}
+
+.team-strip__triad-avatar {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--chip, var(--pink));
+  box-shadow: 0 0 0 1.5px var(--card);
+  color: var(--on-pastel);
+}
+
+.team-strip__triad-avatar:nth-child(1) {
+  top: 0;
+  left: 8.5px;
+  z-index: 1;
+}
+
+.team-strip__triad-avatar:nth-child(2) {
+  bottom: 0;
+  left: 0;
+}
+
+.team-strip__triad-avatar:nth-child(3) {
+  right: 0;
+  bottom: 0;
+}
+
+.team-strip__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s, var(--press);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.team-strip__item:hover,
+.team-strip__item--active {
+  background: var(--soft);
+}
+
+.team-strip__item-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.team-strip__item-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.team-strip__item-roles {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.team-strip__item--manual {
+  margin-top: 2px;
+  padding-left: 58px;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* вгорі по центру області чату, на рівні кнопки панелі; з'являється, коли
+   панель учасників згортається, і зникає, коли розгортається */
+.debate__team-strip,
+.chat__team-strip {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 4;
+  translate: -50% 0;
+  flex-wrap: nowrap;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--main-bg);
+  transition:
+    opacity 0.28s ease,
+    transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+    filter 0.28s ease,
+    visibility 0s linear 0s;
+}
+
+.team-strip--hidden {
+  visibility: hidden;
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateY(-8px) scale(0.94);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    filter 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
+/* у чаті під рядком прокручуються репліки — пігулка плаває над ними */
+.chat__team-strip {
+  box-shadow: 0 0 0 1px var(--line-soft), var(--shadow-sm, 0 2px 10px rgb(0 0 0 / 0.08));
+}
+
+/* відкрите меню — над усім, що нижче */
+.team-strip:has(.team-strip__menu--open) {
+  z-index: var(--z-dropdown);
+}
+
+/* меню — під рядком по центру */
+.debate__team-strip .team-strip__presets,
+.chat__team-strip .team-strip__presets {
+  position: static;
+}
+
+.debate__team-strip .team-strip__menu,
+.chat__team-strip .team-strip__menu {
+  left: 50%;
+  translate: -50% 0;
+}
+
+@media (max-width: 639px) {
+  /* між кнопками меню й учасників угорі екрана */
+  .debate__team-strip,
+  .chat__team-strip {
+    top: 20px;
+  }
+
+  .team-strip__avatar + .team-strip__avatar {
+    margin-left: -10px;
+  }
+
+  /* більше трьох аватарок не вміщається — кількість і так написано поруч */
+  .team-strip__avatar:nth-child(n + 4) {
+    display: none;
+  }
+
+  /* між двома круглими кнопками мало місця — щільніше */
+  :is(.debate__team-strip, .chat__team-strip) .team-strip__team {
+    gap: 6px;
+    padding: 4px 10px 4px 4px;
+  }
+}
+
+/* без руху — лише проявлення (системне налаштування або «Доступність» у застосунку) */
+:root[data-motion='reduced'] :is(.debate__team-strip, .chat__team-strip) {
+  filter: none;
+  transform: none;
+  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__team-strip,
+  .chat__team-strip {
+    filter: none;
+    transform: none;
+    transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+  }
+}

@@ -18,6 +18,23 @@ import { readThemeMode, writeThemeMode } from '../utils/devicePrefs';
 import { morphSidebar } from '../utils/sidebarMorph';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
+const PANEL_KEY = 'clarity:panel';
+
+const readPanelCollapsed = () => {
+  try {
+    return localStorage.getItem(PANEL_KEY) !== 'open';
+  } catch {
+    return true;
+  }
+};
+
+const writePanelCollapsed = (collapsed) => {
+  try {
+    localStorage.setItem(PANEL_KEY, collapsed ? 'closed' : 'open');
+  } catch {
+    // без сховища панель просто знову згорнеться після перезавантаження
+  }
+};
 
 const subscribeScheme = (onChange) => {
   const query = window.matchMedia?.(DARK_QUERY);
@@ -79,10 +96,15 @@ export default function Layout() {
   }, [themeMode]);
 
   // Панель налаштувань дебату ховається кнопкою в куті області чату
-  // (і повторним кліком на «Новий чат» на головній).
+  // (і повторним кліком на «Новий чат» на головній). Згорнута за замовчуванням:
+  // головний екран — це поле питання, а команду видно рядком над ним.
   // Стан живе тут, тож не губиться при переході між головною й чатом.
   // На телефоні панель висувна — її відкриває сама сторінка.
-  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  // новачок бачить лише поле питання; хто відкрив панель, у того вона й лишається
+  const [panelCollapsed, setPanelCollapsed] = useState(readPanelCollapsed);
+  useEffect(() => {
+    writePanelCollapsed(panelCollapsed);
+  }, [panelCollapsed]);
   const phonePanelToggleRef = useRef(null);
 
   const registerPanelToggle = useCallback((fn) => {

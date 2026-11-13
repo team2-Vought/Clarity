@@ -256,12 +256,12 @@ describe('DebatePage', () => {
     const sheet = sheetOf('Логік');
 
     await user.click(within(sheet).getByRole('button', { name: 'Роль: Логік' }));
-    await user.click(screen.getByRole('menuitemradio', { name: /Скептик/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Прагматик/ }));
 
     // безіменний учасник зветься назвою ролі — нова роль, нова назва, та сама анкета
-    expect(sheetOf('Скептик')).toBe(sheet);
-    expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toHaveAttribute('aria-expanded', 'false');
+    expect(sheetOf('Прагматик')).toBe(sheet);
+    expect(within(sheet).getByRole('button', { name: 'Роль: Прагматик' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Роль: Прагматик' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('формат відповіді обирається з меню біля поля питання', async () => {
@@ -370,7 +370,8 @@ describe('DebatePage', () => {
     expect(createDiscussion).toHaveBeenCalledTimes(1);
     const payload = vi.mocked(createDiscussion).mock.calls[0][0];
     expect(payload.webSearch).toBe(true);
-    expect(payload.personas).toHaveLength(2);
+    // за замовчуванням — збалансований склад
+    expect(payload.personas.map((persona) => persona.slug)).toEqual(['logician', 'emotional', 'skeptic']);
     payload.personas.forEach((persona) => {
       expect(persona).not.toHaveProperty('style');
       expect(persona).not.toHaveProperty('temperature');

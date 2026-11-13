@@ -12,7 +12,7 @@ import SummaryDetails from '../components/SummaryDetails';
 import Logo from '../components/Logo';
 import PublicFooter from '../components/PublicFooter';
 import { copy, locale } from '../copy';
-import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
+import { participantColor, roleIcon } from '../utils/debateOptions';
 import {
   USER_COLOR,
   buildSpeakers,
@@ -70,7 +70,7 @@ export default function SharedPage() {
       new Map(
         (discussion?.personas || []).map((persona, index) => [
           persona.slug,
-          TRAIT_COLORS[index % TRAIT_COLORS.length],
+          participantColor(persona.slug, index),
         ])
       ),
     [discussion]

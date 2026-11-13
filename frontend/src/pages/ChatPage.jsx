@@ -45,6 +45,7 @@ import {
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
+import TeamStrip from '../components/TeamStrip';
 import LoadError from '../components/LoadError';
 import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
@@ -54,7 +55,9 @@ import ErrorNotice from '../components/ErrorNotice';
 import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
 import { copy } from '../copy';
-import { TRAIT_COLORS, roleIcon } from '../utils/debateOptions';
+import { en } from '../copy/en';
+import { uk } from '../copy/uk';
+import { participantColor, roleIcon } from '../utils/debateOptions';
 import { parseBlocks, plainText } from '../utils/markdown';
 import { describeSummary } from '../utils/summary';
 import {
@@ -496,7 +499,7 @@ export default function ChatPage() {
         role: personaInfo.get(persona.slug)?.name || persona.custom?.name || '',
         model: persona.model || defaultModel || '',
         traits: Array.isArray(persona.traits) ? persona.traits : [],
-        color: TRAIT_COLORS[index % TRAIT_COLORS.length],
+        color: participantColor(persona.slug, index),
       })),
     [discussionPersonas, defaultModel, personaInfo]
   );
@@ -1197,7 +1200,11 @@ export default function ChatPage() {
               question: item.question,
               answer: answerOf(clarifyAnswers[item.id]),
             })),
-            { question: copy.debate.clarifyExtra, answer: answerOf(clarifyAnswers[CLARIFY_EXTRA_ID]) },
+            {
+              // підпис — мовою питання, як і решта уточнень модератора
+              question: (/[а-яіїєґ]/i.test(discussion.question) ? uk : en).debate.clarifyExtra,
+              answer: answerOf(clarifyAnswers[CLARIFY_EXTRA_ID]),
+            },
           ];
       const data = await answerClarify(discussion.id, answers);
       setClarifiedAt(Date.now());
@@ -1868,6 +1875,15 @@ export default function ChatPage() {
       />
 
       <div className="chat__column" style={{ '--composer-h': `${composerHeight}px` }}>
+        {/* хто в команді — вгорі по центру, поки панель учасників схована; клік відкриває її */}
+        {discussion && (
+          <TeamStrip
+            hidden={!panelCollapsed && !isPhone}
+            className="chat__team-strip"
+            members={participantEntries}
+            onOpen={() => togglePanel?.()}
+          />
+        )}
         <section
           className="chat__main"
           ref={mainRef}

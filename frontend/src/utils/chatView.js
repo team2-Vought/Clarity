@@ -1,12 +1,13 @@
 import { copy } from '../copy';
-import { TRAIT_COLORS } from './debateOptions';
+import { ROLE_COLORS, participantColor } from './debateOptions';
 
 // Спільне для чату й публічного посилання: кольори, підписи етапів і позицій.
 
 const t = copy.chat;
 
-export const DEVIL_COLOR = '#e5484d';
-export const MODERATOR_COLOR = '#fde3c6';
+// судді — тими ж кольорами, що на лендингу
+export const DEVIL_COLOR = ROLE_COLORS.devil;
+export const MODERATOR_COLOR = ROLE_COLORS.moderator;
 export const USER_COLOR = '#f0f0f0';
 export const RESEARCH_COLOR = '#d6eefb';
 
@@ -103,7 +104,7 @@ export const buildSpeakers = (messages, participantColors) => {
       map.set(key, { color: USER_COLOR, side: 'right' });
     } else {
       map.set(key, {
-        color: participantColors.get(message.persona_slug) || TRAIT_COLORS[index % TRAIT_COLORS.length],
+        color: participantColors.get(message.persona_slug) || participantColor(message.persona_slug, index),
         side: index % 2 === 0 ? 'left' : 'right',
       });
       index += 1;

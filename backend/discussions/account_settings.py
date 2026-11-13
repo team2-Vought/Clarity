@@ -38,13 +38,16 @@ logger = logging.getLogger(__name__)
 KEY_MIN, KEY_MAX = 8, 512
 VERIFY_TIMEOUT = 10
 
+DEFAULT_TEAM_SIZE = 3
+
 DEFAULT_PREFERENCES = {
     'default_model': '',
     'default_mode': Discussion.Mode.OPEN.value,
     'default_rounds': 2,
     # «До згоди» за замовчуванням; тоді default_rounds не діє
     'default_until_consensus': False,
-    'default_participants': MIN_AI,
+    # три учасники — збалансований склад: Логік, Емпат, Скептик
+    'default_participants': DEFAULT_TEAM_SIZE,
     'web_search': True,
     # підказки першого запуску на сторінці нового чату вже закрито
     'onboarding_done': False,
@@ -203,7 +206,10 @@ class SettingsView(APIView):
         serializer = PreferencesSerializer(data=request.data.get('preferences', {}))
         serializer.is_valid(raise_exception=True)
         user = request.user
-        user.preferences = {**preferences_of(user), **serializer.validated_data}
+        # зберігаємо лише те, що людина змінила: решта лишається за замовчуванням
+        # і підхоплює нові значення за замовчуванням (напр. склад із трьох учасників)
+        stored = user.preferences if isinstance(user.preferences, dict) else {}
+        user.preferences = {**stored, **serializer.validated_data}
         user.save(update_fields=['preferences'])
         return Response(settings_payload(user), status=status.HTTP_200_OK)
 
