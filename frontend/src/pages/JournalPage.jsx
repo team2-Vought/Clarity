@@ -290,7 +290,7 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         // дискусію могли видалити — тоді склад за замовчуванням
       }
     }
-    navigate('/home', { state: { template: { ...team, question, mode: 'open', revisit: true } } });
+    navigate('/home', { state: { template: { ...team, question, mode: 'open', revisitOf: entry.id } } });
   };
 
   const meta = [t.decidedOn(formatDate(entry.created_at))];
@@ -408,6 +408,23 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
             </button>
           )}
         </div>
+      )}
+
+      {/* ланцюжок рішень: перегляди цього рішення — з посиланнями на дискусії */}
+      {entry.revisits?.length > 0 && (
+        <ul className="journal__revisits" aria-label={t.revisitsLabel}>
+          {entry.revisits.map((item) => (
+            <li key={item.id}>
+              <HugeiconsIcon icon={RepeatIcon} size={14} aria-hidden="true" />
+              <Link to={`/chat/${item.id}`}>{t.revisitedOn(formatDate(item.created_at))}</Link>
+              {item.decision_id && (
+                <Link to={`/journal?review=${item.decision_id}`} className="journal__revisit-next">
+                  {t.revisitDecision}
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
 
       {/* ховається разом із розгортанням і повертається, поки картка згортається */}

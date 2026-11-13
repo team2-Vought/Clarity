@@ -51,6 +51,15 @@ class Discussion(models.Model):
         verbose_name='користувач',
     )
     question = models.TextField('запитання', max_length=6000)
+    # перегляд рішення з журналу: «Переглянути рішення» почав цю дискусію
+    revisit_of = models.ForeignKey(
+        'Decision',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revisits',
+        verbose_name='перегляд рішення',
+    )
     mode = models.CharField(
         max_length=16,
         choices=Mode.choices,

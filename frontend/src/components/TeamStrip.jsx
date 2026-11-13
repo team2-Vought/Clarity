@@ -4,25 +4,9 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { TEAM_PRESETS, participantColor, roleIcon } from '../utils/debateOptions';
 import { copy } from '../copy';
+import TeamAvatars from './TeamAvatars';
 
 const t = copy.debate;
-
-/** Три аватарки складу трикутником: одна згори, дві під нею. */
-function PresetAvatars({ slugs }) {
-  return (
-    <span className="team-strip__triad" aria-hidden="true">
-      {slugs.slice(0, 3).map((slug, index) => (
-        <span key={slug} className="team-strip__triad-avatar" style={{ '--chip': participantColor(slug, index) }}>
-          <HugeiconsIcon icon={roleIcon(slug)} size={12} strokeWidth={1.9} />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-PresetAvatars.propTypes = {
-  slugs: PropTypes.arrayOf(PropTypes.string).isRequired,
-};
 
 const sameTeam = (members, slugs) =>
   members.length === slugs.length && slugs.every((slug) => members.some((member) => member.key === slug));
@@ -125,7 +109,10 @@ export default function TeamStrip({
                     onPreset(preset.slugs);
                   }}
                 >
-                  <PresetAvatars slugs={preset.slugs} />
+                  <TeamAvatars
+                  size="sm"
+                  members={preset.slugs.map((slug, index) => ({ key: slug, color: participantColor(slug, index) }))}
+                />
                   <span className="team-strip__item-text">
                     <span className="team-strip__item-title">{t.presets[preset.key]}</span>
                     <span className="team-strip__item-roles">

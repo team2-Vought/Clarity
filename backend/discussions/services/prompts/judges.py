@@ -197,6 +197,25 @@ def devil_prompt(
     )
 
 
+def _compare_rule(mode, options):
+    """«Один із варіантів»: порівняння кожного варіанта — таблиця у висновку."""
+    if mode != 'choose_one' or not options:
+        return ''
+    variants = '; '.join(options)
+    return L(
+        f'compare — порівняння ВСІХ варіантів ({variants}) у тому ж порядку: для '
+        'кожного option — дослівно назва варіанта, pro — головна причина його '
+        'обрати, con — головна причина ні (по одному короткому реченню, до 15 '
+        'слів, саме для цієї людини). Додай до JSON поле '
+        '"compare": [{"option": "варіант", "pro": "за", "con": "проти"}]. ',
+        f'compare — a comparison of ALL options ({variants}) in the same order: for '
+        'each, option — the option name word for word, pro — the main reason to '
+        'choose it, con — the main reason not to (one short sentence each, up to '
+        '15 words, for this particular person). Add the field '
+        '"compare": [{"option": "option", "pro": "for", "con": "against"}] to the JSON. ',
+    )
+
+
 def final_prompt(
     question,
     personas,
@@ -343,4 +362,4 @@ def final_prompt(
         '"next_steps": ["an action for this week"], '
         '"change_triggers": ["if…, reconsider the decision"]}',
     )
-    return f'{ctx}\n\n{head}{task}{_rules(sources)}{_answer_rule(mode)}{schema}'
+    return f'{ctx}\n\n{head}{task}{_compare_rule(mode, options)}{_rules(sources)}{_answer_rule(mode)}{schema}'

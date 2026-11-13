@@ -35,6 +35,14 @@ export function describeSummary(summary) {
   const unknowns = pairsOf(summary?.unknowns, 'question', 'how');
   const planB = summary?.plan_b ? String(summary.plan_b).trim() : '';
   const dissent = listOf(summary?.dissenting_points);
+  // «Один із варіантів»: за й проти кожного варіанта
+  const compare = (Array.isArray(summary?.compare) ? summary.compare : [])
+    .map((row) => ({
+      option: String(row?.option ?? '').trim(),
+      pro: String(row?.pro ?? '').trim(),
+      con: String(row?.con ?? '').trim(),
+    }))
+    .filter((row) => row.option);
   return {
     headline: summary?.headline ? String(summary.headline).trim() : '',
     decision: summary?.decision ? String(summary.decision) : '',
@@ -49,8 +57,14 @@ export function describeSummary(summary) {
     unknowns,
     planB,
     dissent,
+    compare,
     lists: [
       { key: 'conditions', title: t.summaryConditions, items: listOf(summary?.conditions) },
+      {
+        key: 'compare',
+        title: t.summaryCompare,
+        items: compare.map((row) => `${row.option} — ${t.summaryComparePro}: ${row.pro || '—'}; ${t.summaryCompareCon}: ${row.con || '—'}`),
+      },
       { key: 'pros', title: t.summaryPros, items: listOf(summary?.pros) },
       { key: 'cons', title: t.summaryCons, items: listOf(summary?.cons) },
       { key: 'risks', title: t.summaryRisks, items: risks.map(joinPair) },

@@ -37,6 +37,7 @@ from .parsing import (
     normalize_summary,
     parse_reply,
 )
+from .. import model_health
 from .context import _mode_ctx, _resolved_personas
 from .live import _drafts, _set_live
 
@@ -60,6 +61,11 @@ def _json_repair_prompt(plan, raw, problems):
 
 def _provider_failure(model_id, exc):
     label = model_label(model_id)
+    # квота чи ключ не оживуть за хвилину — модель якийсь час оминаємо
+    if getattr(exc, 'quota', False):
+        model_health.mark_down(model_id, model_health.QUOTA)
+    elif getattr(exc, 'config', False):
+        model_health.mark_down(model_id, model_health.KEY)
     if getattr(exc, 'quota', False):
         return EngineError(
             'Квоту моделі вичерпано.',
@@ -274,7 +280,12 @@ def _complete_persona(plan, provider_factory, discussion, board):
     вимкнути заміну. Повідомлення зберігається з моделлю, що справді відповіла
     (`plan.used_model`).
     """
-    models = [plan.model_id, *[m for m in plan.fallback_models if m != plan.model_id]]
+    fallbacks = [m for m in plan.fallback_models if m != plan.model_id]
+    # своя модель учасника «відпочиває» після збою квоти чи ключа — спершу запасні
+    if fallbacks and model_health.down_reason(plan.model_id):
+        models = [*fallbacks, plan.model_id]
+    else:
+        models = [plan.model_id, *fallbacks]
     last_error = None
     for model_id in models:
         if model_id != plan.model_id and not _bill(plan, model_id, discussion.user_id):

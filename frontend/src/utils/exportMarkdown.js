@@ -53,6 +53,11 @@ export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf, a
       : summary.risks;
     [
       [labels.summaryConditions, summary.conditions],
+      [
+        labels.summaryCompare,
+        (summary.compare || []).map((row) =>
+          row?.option ? `${row.option} — ${labels.summaryComparePro}: ${row.pro || '—'}; ${labels.summaryCompareCon}: ${row.con || '—'}` : ''),
+      ],
       [labels.summaryPros, summary.pros],
       [labels.summaryCons, summary.cons],
       [labels.summaryRisks, riskPlan],

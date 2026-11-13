@@ -8,6 +8,7 @@ from django.conf import settings
 
 from ...models import Discussion, Message
 from ...personas import localize, moderator
+from .. import model_health
 from ..catalog import available_model_ids, default_model_id, paid_by_user, resolve_model
 from .base import DEFAULT_TEMPERATURE, MAX_SEQ_STEP, USER_SLUG
 from .parsing import _text, _text_list
@@ -187,6 +188,8 @@ def _judge_models(discussion, personas, role):
         moderator = (_judge_models(discussion, personas, 'moderator') or [''])[0]
         if not (discussion.devil_model or getattr(settings, 'LLM_DEVIL_MODEL', '')):
             candidates.sort(key=lambda model_id: model_id == moderator)
+    # після збою квоти чи ключа модель якийсь час — у кінці черги, навіть обрана явно
+    candidates.sort(key=lambda model_id: bool(model_health.down_reason(model_id)))
     if not candidates:
         candidates = [model_id for model_id in [*persona_models, _default_model()] if model_id]
     return candidates

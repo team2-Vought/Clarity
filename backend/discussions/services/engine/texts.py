@@ -137,6 +137,13 @@ def _final_text(summary):
         if isinstance(item, dict) and item.get('question')
     ]
     parts.append(_section(L('Що з’ясувати', 'What to find out'), _bullets(unknowns)))
+    compare = [
+        f'**{item["option"]}** — {L("за", "for")}: {item.get("pro") or "—"}; '
+        f'{L("проти", "against")}: {item.get("con") or "—"}'
+        for item in summary.get('compare') or []
+        if isinstance(item, dict) and item.get('option')
+    ]
+    parts.append(_section(L('Порівняння варіантів', 'Options compared'), _bullets(compare)))
     parts.append(_section(L('План Б', 'Plan B'), _text(summary.get('plan_b'), limit=600)))
     parts.append(_section(
         L('Окремі думки', 'Dissenting opinions'),

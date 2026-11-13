@@ -4241,6 +4241,13 @@ ol.chat__reveal {
   font-size: 0.8125rem;
 }
 
+.chat__profile-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-soft);
+  text-underline-offset: 3px;
+}
+
 /* пропозиція сповістити, коли висновок буде готовий — під рядком «Аналізуємо…» */
 .chat__notify-offer {
   display: flex;
@@ -5199,26 +5206,120 @@ ol.chat__reveal {
   font-weight: 600;
 }
 
-/* перший крок плану виділено: з нього людина почне */
-.chat__summary-plan-first {
-  padding: 10px 12px 10px 10px;
-  margin: 0 -12px 2px -10px;
+/* перший крок — виділена картка: з нього людина почне вже сьогодні */
+.chat__summary-first {
+  margin: 0;
+  padding: 12px 14px;
   border-radius: var(--r-md);
+  background: var(--soft);
+  font-weight: 500;
+}
+
+/* «Повний розбір»: тиха кнопка під коротким висновком */
+.chat__summary-more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, var(--press);
+}
+
+.chat__summary-more:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.chat__summary-more:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.chat__summary-more svg {
+  transition: transform 0.2s ease;
+}
+
+.chat__summary-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+/* розгорнутий розбір проявляється, як абзаци реплік */
+.chat__summary-full {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  animation: summary-full-in 0.32s var(--ease-standard, ease) both;
+}
+
+@keyframes summary-full-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    filter: blur(3px);
+  }
+}
+
+:root[data-motion='reduced'] .chat__summary-full {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__summary-full {
+    animation: none;
+  }
+}
+
+/* порівняння варіантів: варіант · за · проти; обраний виділено */
+.chat__compare-wrap {
+  overflow-x: auto;
+}
+
+.chat__compare {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.chat__compare th,
+.chat__compare td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.chat__compare thead th {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.chat__compare tbody th {
+  min-width: 120px;
+  font-weight: 600;
+}
+
+.chat__compare tbody th svg {
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+.chat__compare-row--chosen {
   background: var(--soft);
 }
 
-.chat__summary-plan-first .chat__summary-plan-num {
-  margin-top: 19px;
-}
-
-.chat__summary-plan-tag {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.chat__compare tbody tr:last-child > * {
+  border-bottom: 0;
 }
 
 /* ризик → що робити, невідоме → як з'ясувати */
@@ -7031,41 +7132,106 @@ ol.chat__reveal {
     transform 0.22s var(--ease-standard);
 }
 
-/* три аватарки складу трикутником: одна згори по центру, дві під нею */
-.team-strip__triad {
+/* аватарки команди: троє — трикутником, решта — в ряд із перекриттям */
+.team-avatars {
   position: relative;
+  display: inline-flex;
   flex-shrink: 0;
-  width: 38px;
-  height: 36px;
+  align-items: center;
+  /* як у рядку команди на головній: 26px, обідок 2px, перекриття 7px */
+  --av: 26px;
+  --overlap: 7px;
+  --ring: 2px;
 }
 
-.team-strip__triad-avatar {
-  position: absolute;
+.team-avatars--sm {
+  --av: 21px;
+  --overlap: 6px;
+  --ring: 1.5px;
+}
+
+.team-avatars__item {
   display: grid;
   place-items: center;
-  width: 21px;
-  height: 21px;
+  width: var(--av);
+  height: var(--av);
   border-radius: 50%;
   background: var(--chip, var(--pink));
-  box-shadow: 0 0 0 1.5px var(--card);
+  box-shadow: 0 0 0 var(--ring) var(--card);
   color: var(--on-pastel);
 }
 
-.team-strip__triad-avatar:nth-child(1) {
+.team-avatars--row .team-avatars__item + .team-avatars__item {
+  margin-left: calc(var(--overlap) * -1);
+}
+
+/* трикутник із тим самим перекриттям: дві знизу торкаються, як у ряду,
+   третя — по центру над ними */
+.team-avatars--triad {
+  width: calc(var(--av) * 2 - var(--overlap));
+  height: calc(var(--av) * 1.75);
+}
+
+.team-avatars--triad .team-avatars__item {
+  position: absolute;
+}
+
+.team-avatars--triad .team-avatars__item:nth-child(1) {
   top: 0;
-  left: 8.5px;
+  left: calc((var(--av) - var(--overlap)) / 2);
   z-index: 1;
 }
 
-.team-strip__triad-avatar:nth-child(2) {
+.team-avatars--triad .team-avatars__item:nth-child(2) {
   bottom: 0;
   left: 0;
 }
 
-.team-strip__triad-avatar:nth-child(3) {
+.team-avatars--triad .team-avatars__item:nth-child(3) {
   right: 0;
   bottom: 0;
 }
+
+/* кнопка панелі в чаті — аватарки команди замість значка */
+.debate__panel-toggle.debate__panel-toggle--team {
+  width: auto;
+  min-width: 36px;
+  height: auto;
+  min-height: 36px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  /* без підкладки — лише аватарки з легкою тінню */
+  background: transparent;
+  box-shadow: none;
+}
+
+.debate__panel-toggle.debate__panel-toggle--team:hover {
+  background: transparent;
+}
+
+.debate__panel-toggle--team .team-avatars__item {
+  box-shadow:
+    0 0 0 var(--ring) var(--main-bg),
+    0 2px 6px rgb(0 0 0 / 0.12);
+}
+
+/* правила значка панелі (розмір, віддзеркалення на телефоні) — не для аватарок */
+.debate__panel-toggle.debate__panel-toggle--team svg {
+  width: 15px;
+  height: 15px;
+  transform: none;
+}
+
+@media (max-width: 639px) {
+  .debate__panel-toggle.debate__panel-toggle--team {
+    min-width: 50px;
+    min-height: 50px;
+    padding: 0 10px;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 
 .team-strip__item {
   display: flex;
@@ -7116,8 +7282,7 @@ ol.chat__reveal {
 
 /* вгорі по центру області чату, на рівні кнопки панелі; з'являється, коли
    панель учасників згортається, і зникає, коли розгортається */
-.debate__team-strip,
-.chat__team-strip {
+.debate__team-strip {
   position: absolute;
   top: 14px;
   left: 50%;
@@ -7147,32 +7312,24 @@ ol.chat__reveal {
     visibility 0s linear 0.2s;
 }
 
-/* у чаті під рядком прокручуються репліки — пігулка плаває над ними */
-.chat__team-strip {
-  box-shadow: 0 0 0 1px var(--line-soft), var(--shadow-sm, 0 2px 10px rgb(0 0 0 / 0.08));
-}
-
 /* відкрите меню — над усім, що нижче */
 .team-strip:has(.team-strip__menu--open) {
   z-index: var(--z-dropdown);
 }
 
 /* меню — під рядком по центру */
-.debate__team-strip .team-strip__presets,
-.chat__team-strip .team-strip__presets {
+.debate__team-strip .team-strip__presets {
   position: static;
 }
 
-.debate__team-strip .team-strip__menu,
-.chat__team-strip .team-strip__menu {
+.debate__team-strip .team-strip__menu {
   left: 50%;
   translate: -50% 0;
 }
 
 @media (max-width: 639px) {
   /* між кнопками меню й учасників угорі екрана */
-  .debate__team-strip,
-  .chat__team-strip {
+  .debate__team-strip {
     top: 20px;
   }
 
@@ -7186,22 +7343,21 @@ ol.chat__reveal {
   }
 
   /* між двома круглими кнопками мало місця — щільніше */
-  :is(.debate__team-strip, .chat__team-strip) .team-strip__team {
+  .debate__team-strip .team-strip__team {
     gap: 6px;
     padding: 4px 10px 4px 4px;
   }
 }
 
 /* без руху — лише проявлення (системне налаштування або «Доступність» у застосунку) */
-:root[data-motion='reduced'] :is(.debate__team-strip, .chat__team-strip) {
+:root[data-motion='reduced'] .debate__team-strip {
   filter: none;
   transform: none;
   transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .debate__team-strip,
-  .chat__team-strip {
+  .debate__team-strip {
     filter: none;
     transform: none;
     transition: opacity 0.15s ease, visibility 0s linear 0.15s;

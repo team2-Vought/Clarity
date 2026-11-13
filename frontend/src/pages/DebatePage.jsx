@@ -196,6 +196,8 @@ export default function DebatePage() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle, togglePanel } = useOutletContext() ?? {};
   const isPhone = useIsPhone();
+  // «Переглянути рішення» з журналу: id запису — нова дискусія пов'язується з ним
+  const [revisitOf, setRevisitOf] = useState(null);
 
   // на телефоні кнопка-перемикач у куті відкриває / закриває висувну панель
   useEffect(
@@ -410,6 +412,7 @@ export default function DebatePage() {
         else if (template.rounds) setRounds(clampRounds(template.rounds));
         setModeratorModel(template.moderatorModel || '');
         setDevilModel(template.devilModel || '');
+        setRevisitOf(template.revisitOf || null);
         // шаблон застосовуємо один раз: після перезавантаження діє звичайна чернетка
         templateRef.current = null;
         window.history.replaceState({ ...window.history.state, usr: null }, '');
@@ -786,6 +789,7 @@ export default function DebatePage() {
         quick,
         criteria: mode === 'choose_one' ? criteria : [],
         notCrisis: notCrisis && wordsLookLikeCrisis,
+        revisitOf,
       });
       saveDraft('');
       clearFiles();

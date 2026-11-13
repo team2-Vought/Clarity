@@ -12,7 +12,7 @@ import SummaryDetails from '../components/SummaryDetails';
 import Logo from '../components/Logo';
 import PublicFooter from '../components/PublicFooter';
 import { copy, locale } from '../copy';
-import { participantColor, roleIcon } from '../utils/debateOptions';
+import { asPersona, participantColor, roleIcon } from '../utils/debateOptions';
 import {
   USER_COLOR,
   buildSpeakers,
@@ -68,7 +68,7 @@ export default function SharedPage() {
   const participantColors = useMemo(
     () =>
       new Map(
-        (discussion?.personas || []).map((persona, index) => [
+        (discussion?.personas || []).map(asPersona).map((persona, index) => [
           persona.slug,
           participantColor(persona.slug, index),
         ])
@@ -76,7 +76,7 @@ export default function SharedPage() {
     [discussion]
   );
   const speakers = useMemo(() => buildSpeakers(messages, participantColors), [messages, participantColors]);
-  const names = (discussion?.personas || []).map((persona) => persona.name).filter(Boolean);
+  const names = (discussion?.personas || []).map(asPersona).map((persona) => persona.name).filter(Boolean);
 
   if (error) {
     const signedIn = Boolean(getSession());

@@ -119,3 +119,65 @@ class HistoryTests(TestCase):
         with using('en'):
             block = profile_block({'history': [{'question': 'Q', 'decision': 'D', 'outcome': 'good'}]})
         self.assertIn('Outcome: went well.', block)
+
+
+class CompareAndClarifyTests(SimpleTestCase):
+    def test_compare_keeps_real_options_in_their_order(self):
+        summary = normalize_summary(
+            {
+                'answer': 'Львів',
+                'decision': 'Львів.',
+                'compare': [
+                    {'option': 'львів', 'pro': 'Дешевше', 'con': 'Далі від рідних'},
+                    {'option': 'Київ', 'pro': 'Більше роботи', 'con': 'Дорога оренда'},
+                    {'option': 'Одеса', 'pro': 'Море', 'con': '—'},
+                ],
+            },
+            {},
+            'choose_one',
+            ['Київ', 'Львів'],
+        )
+        self.assertEqual([row['option'] for row in summary['compare']], ['Київ', 'Львів'])
+        self.assertEqual(summary['compare'][1]['con'], 'Далі від рідних')
+        self.assertIn('Порівняння варіантів', _final_text(summary))
+
+    def test_other_option_added_by_the_model_is_dropped(self):
+        result = normalize_clarify({
+            'ready': False,
+            'questions': [{'question': 'Яка мета?', 'options': ['Стати PM', 'Лишитися в QA', 'Інше']}],
+        })
+        self.assertEqual(result['questions'][0]['options'], ['Стати PM', 'Лишитися в QA'])
+
+
+class RevisitTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email='revisit@test.com', name='Оксана', password='pass123!A')
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+        self.entry = Decision.objects.create(
+            user=self.user, question='Чи брати іпотеку?', decision='Орендувати', check_at=timezone.now()
+        )
+
+    def test_revisit_links_the_new_discussion_to_the_journal_entry(self):
+        response = self.client.post(
+            '/api/discussions/',
+            {'question': 'Повертаюся до рішення про іпотеку', 'personas': ['logician', 'skeptic'],
+             'revisit_of': str(self.entry.id)},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(str(response.data['revisit']['id']), str(self.entry.id))
+        journal = self.client.get('/api/journal/').data['results']
+        self.assertEqual(str(journal[0]['revisits'][0]['id']), response.data['id'])
+
+    def test_someone_elses_entry_is_ignored(self):
+        other = User.objects.create_user(email='other@test.com', name='Інша', password='pass123!A')
+        foreign = Decision.objects.create(user=other, question='?', decision='!', check_at=timezone.now())
+        response = self.client.post(
+            '/api/discussions/',
+            {'question': 'Повертаюся до чужого рішення', 'personas': ['logician', 'skeptic'],
+             'revisit_of': str(foreign.id)},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(response.data['revisit'])

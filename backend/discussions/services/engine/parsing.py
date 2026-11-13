@@ -231,6 +231,22 @@ def _pairs(value, first, second, *, limit, item_limit=400):
     return result
 
 
+def _compare(value, options):
+    """Порівняння варіантів [{option, pro, con}] — лише справжні варіанти, у їхньому порядку."""
+    by_option = {}
+    for item in value if isinstance(value, list) else []:
+        if not isinstance(item, dict):
+            continue
+        option = _answer(item.get('option'), Discussion.Mode.CHOOSE_ONE, options)
+        if option and option not in by_option:
+            by_option[option] = {
+                'option': option,
+                'pro': _text(item.get('pro'), limit=300),
+                'con': _text(item.get('con'), limit=300),
+            }
+    return [by_option[option] for option in options if option in by_option]
+
+
 def normalize_summary(data, best_solution, mode, options):
     data = data if isinstance(data, dict) else {}
     best_solution = best_solution if isinstance(best_solution, dict) else {}
@@ -258,6 +274,8 @@ def normalize_summary(data, best_solution, mode, options):
         'change_triggers': _text_list(data.get('change_triggers'), limit=4, item_limit=300),
     }
     result['risks'] = [item['risk'] for item in result['risk_plan']]
+    if mode == Discussion.Mode.CHOOSE_ONE:
+        result['compare'] = _compare(data.get('compare'), options)
     best_answer = _answer(best_solution.get('answer'), mode, options)
     answer = (
         _answer(data.get('answer'), mode, options)
@@ -293,6 +311,12 @@ def _plain(value, limit):
     return _text(_EMPHASIS_RE.sub('', str(value or '')), limit=limit)
 
 
+_OTHER_RE = re.compile(
+    r'^\s*(інше|інший варіант|щось інше|other|something else|другое|inne)\s*[.…:]*\s*$',
+    re.IGNORECASE,
+)
+
+
 def normalize_clarify(data):
     """{ready, questions: [{id, question, why, options}]}; без запитань — готово.
 
@@ -309,6 +333,9 @@ def normalize_clarify(data):
         variants = []
         for option in options:
             option = _plain(option, 100)
+            # «Інше» модель інколи додає всупереч промпту — своє поле людина має завжди
+            if _OTHER_RE.match(option):
+                continue
             if option and option.casefold() not in {variant.casefold() for variant in variants}:
                 variants.append(option)
             if len(variants) >= prompts.CLARIFY_MAX_OPTIONS:

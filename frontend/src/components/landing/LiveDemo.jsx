@@ -149,6 +149,7 @@ function DemoRun({ reduced }) {
             sources={NO_SOURCES}
             mode="yes_no"
             animate={!reduced}
+            collapsible={false}
           />
         </section>
       )}

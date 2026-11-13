@@ -350,6 +350,9 @@ LLM_HISTORY_MAX_CHARS = int(os.getenv('LLM_HISTORY_MAX_CHARS', '24000'))
 # Lease кроку дискусії: короткий, бо його продовжує heartbeat, поки крок триває.
 # Якщо процес упав, через LLM_ADVANCE_LEASE_SECONDS крок можна перезапустити.
 LLM_ADVANCE_LEASE_SECONDS = int(os.getenv('LLM_ADVANCE_LEASE_SECONDS', '90'))
+# Модель із помилкою квоти чи ключа стільки секунд оминається (services/model_health.py).
+# У тестах — вимкнено: інакше збій з одного тесту ховав би модель в інших.
+LLM_COOLDOWN_SECONDS = 0 if TESTING else int(os.getenv('LLM_COOLDOWN_SECONDS', str(20 * 60)))
 LLM_HEARTBEAT_SECONDS = float(
     os.getenv('LLM_HEARTBEAT_SECONDS', str(max(5, LLM_ADVANCE_LEASE_SECONDS // 3)))
 )

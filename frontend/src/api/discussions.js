@@ -35,6 +35,7 @@ export function createDiscussion({
   quick = false,
   criteria = [],
   notCrisis = false,
+  revisitOf = null,
 }) {
   return request('/api/discussions/', {
     method: 'POST',
@@ -51,6 +52,8 @@ export function createDiscussion({
       devil_model: devilModel,
       // без значення сервер бере вибір із самого профілю
       ...(useProfile === undefined ? {} : { use_profile: useProfile }),
+      // «Переглянути рішення» з журналу: дискусія пов'язується із записом
+      ...(revisitOf ? { revisit_of: revisitOf } : {}),
       attachments,
       quick,
       criteria,

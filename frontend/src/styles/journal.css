@@ -899,3 +899,33 @@ button.journal__summary {
 .journal__emails a:hover {
   text-decoration-color: currentColor;
 }
+
+/* ланцюжок рішень: перегляди під записом */
+.journal__revisits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.journal__revisits li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.journal__revisits a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-soft);
+  text-underline-offset: 3px;
+}
+
+.journal__revisits .journal__revisit-next {
+  color: var(--muted);
+}

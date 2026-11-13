@@ -20,7 +20,7 @@ from backend.i18n import L, current
 
 from .account_settings import preferences_of
 from .journal import past_lessons
-from .models import Attachment, CustomPersona, Discussion, Highlight, Message, Team
+from .models import Attachment, CustomPersona, Decision, Discussion, Highlight, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
     DEVIL,
@@ -329,9 +329,16 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         if lessons:
             profile['history'] = lessons
         quick = data.get('quick', False)
+        # перегляд рішення — лише власного запису журналу
+        revisit_of = (
+            Decision.objects.filter(user=request.user, pk=data['revisit_of']).first()
+            if data.get('revisit_of')
+            else None
+        )
         discussion = Discussion.objects.create(
             user=request.user,
             question=data['question'],
+            revisit_of=revisit_of,
             profile=profile,
             mode=data.get('mode', Discussion.Mode.OPEN),
             options=data.get('options') or [],

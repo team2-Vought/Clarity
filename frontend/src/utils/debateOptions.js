@@ -71,3 +71,6 @@ export const TEAM_PRESETS = [
   { key: 'people', slugs: ['emotional', 'pragmatist', 'creative'] },
   { key: 'ideas', slugs: ['creative', 'pragmatist', 'skeptic'] },
 ];
+
+/** Учасник дискусії з сервера: старі дискусії зберігали роль просто рядком. */
+export const asPersona = (persona) => (typeof persona === 'string' ? { slug: persona } : persona || {});

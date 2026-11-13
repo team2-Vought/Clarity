@@ -163,6 +163,8 @@ class CreateDiscussionSerializer(serializers.Serializer):
     devil_model = serializers.CharField(required=False, allow_blank=True, default='')
     # врахувати «Про мене»; без поля — як задано в самому профілі
     use_profile = serializers.BooleanField(required=False)
+    # «Переглянути рішення» з журналу: id запису, з якого почався перегляд
+    revisit_of = serializers.UUIDField(required=False, allow_null=True)
     # швидкий режим: одна коротка відповідь без дебатів
     quick = serializers.BooleanField(required=False, default=False)
     # людина натиснула «Я питаю про інше»: збіг слів не зупиняє дискусію,
@@ -530,6 +532,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     # сам профіль клієнту не потрібен — лише те, що його враховано
     profile_used = serializers.SerializerMethodField()
     history_used = serializers.SerializerMethodField()
+    revisit = serializers.SerializerMethodField()
     # хто платить: own — усе на ключах людини (без денного ліміту), server чи mixed
     billing = serializers.SerializerMethodField()
     journal = serializers.SerializerMethodField()
@@ -547,6 +550,13 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def get_profile_used(self, obj):
         return any(key != 'history' for key in obj.profile or {})
+
+    def get_revisit(self, obj):
+        """Яке рішення з журналу переглядає ця дискусія (посилання в чаті)."""
+        entry = obj.revisit_of
+        if entry is None:
+            return None
+        return {'id': entry.id, 'created_at': entry.created_at}
 
     def get_history_used(self, obj):
         history = (obj.profile or {}).get('history')
@@ -606,6 +616,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'clarify_questions',
             'profile_used',
             'history_used',
+            'revisit',
             'billing',
             'journal',
             'attachments',

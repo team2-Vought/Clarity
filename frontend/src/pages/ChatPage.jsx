@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowDown02Icon,
@@ -14,6 +14,7 @@ import {
   IdentityCardIcon,
   Link01Icon,
   PencilEdit02Icon,
+  RepeatIcon,
 } from '@hugeicons/core-free-icons';
 import {
   fetchDiscussion,
@@ -45,7 +46,6 @@ import {
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
-import TeamStrip from '../components/TeamStrip';
 import LoadError from '../components/LoadError';
 import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
@@ -57,7 +57,7 @@ import { answerOf } from '../utils/clarify';
 import { copy } from '../copy';
 import { en } from '../copy/en';
 import { uk } from '../copy/uk';
-import { participantColor, roleIcon } from '../utils/debateOptions';
+import { asPersona, participantColor, roleIcon } from '../utils/debateOptions';
 import { parseBlocks, plainText } from '../utils/markdown';
 import { describeSummary } from '../utils/summary';
 import {
@@ -468,7 +468,9 @@ export default function ChatPage() {
 
   // поля дискусії — окремими змінними, щоб React Compiler бачив ті самі залежності, що й useMemo
   const discussionSources = discussion?.sources;
-  const discussionPersonas = discussion?.personas;
+  const rawPersonas = discussion?.personas;
+  // старі дискусії зберігали роль просто рядком
+  const discussionPersonas = useMemo(() => (rawPersonas || []).map(asPersona), [rawPersonas]);
 
   const sourcesById = useMemo(
     () => new Map((discussionSources || []).map((source) => [source.id, source])),
@@ -1602,7 +1604,12 @@ export default function ChatPage() {
     <div
       className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
     >
-      <PanelToggle controls="chat-settings" phoneOpen={isPanelOpen} />
+      {/* кнопка панелі — аватарки команди: видно, хто сперечається, і клік відкриває налаштування */}
+      <PanelToggle
+        controls="chat-settings"
+        phoneOpen={isPanelOpen}
+        members={participantEntries.length ? participantEntries : null}
+      />
       {isPanelOpen && (
         <div
           className="debate__panel-backdrop"
@@ -1875,15 +1882,7 @@ export default function ChatPage() {
       />
 
       <div className="chat__column" style={{ '--composer-h': `${composerHeight}px` }}>
-        {/* хто в команді — вгорі по центру, поки панель учасників схована; клік відкриває її */}
-        {discussion && (
-          <TeamStrip
-            hidden={!panelCollapsed && !isPhone}
-            className="chat__team-strip"
-            members={participantEntries}
-            onOpen={() => togglePanel?.()}
-          />
-        )}
+
         <section
           className="chat__main"
           ref={mainRef}
@@ -1935,6 +1934,13 @@ export default function ChatPage() {
                   <p className="chat__profile-note">
                     <HugeiconsIcon icon={IdentityCardIcon} size={14} aria-hidden="true" />
                     {t.profileUsed}
+                  </p>
+                )}
+                {discussion.revisit && (
+                  // дискусія почалась із «Переглянути рішення» — шлях назад до запису журналу
+                  <p className="chat__profile-note">
+                    <HugeiconsIcon icon={RepeatIcon} size={14} aria-hidden="true" />
+                    <Link to={`/journal?review=${discussion.revisit.id}`}>{t.revisitOf}</Link>
                   </p>
                 )}
                 {discussion.history_used > 0 && (

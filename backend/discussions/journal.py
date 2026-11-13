@@ -77,6 +77,8 @@ def journal_state(discussion):
 class DecisionSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     discussion_id = serializers.UUIDField(read_only=True)
+    # «Переглянути рішення»: дискусії, що почались із цього запису, — ланцюжок рішень
+    revisits = serializers.SerializerMethodField()
 
     class Meta:
         model = Decision
@@ -94,10 +96,23 @@ class DecisionSerializer(serializers.ModelSerializer):
             'reviewed_at',
             'created_at',
             'status',
+            'revisits',
         ]
 
     def get_status(self, obj):
         return status_of(obj)
+
+    def get_revisits(self, obj):
+        return [
+            {
+                'id': discussion.id,
+                'created_at': discussion.created_at,
+                'done': discussion.status == Discussion.Status.DONE,
+                # що вирішили під час перегляду, якщо вже записали в журнал
+                'decision_id': getattr(getattr(discussion, 'journal_entry', None), 'id', None),
+            }
+            for discussion in obj.revisits.order_by('created_at')
+        ]
 
 
 class CreateDecisionSerializer(serializers.Serializer):
@@ -131,7 +146,9 @@ class JournalListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        entries = Decision.objects.filter(user=request.user)
+        entries = Decision.objects.filter(user=request.user).prefetch_related(
+            'revisits__journal_entry'
+        )
         now = timezone.now()
         return Response(
             {

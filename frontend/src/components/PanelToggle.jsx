@@ -4,6 +4,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { SidebarLeftIcon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { copy } from '../copy';
 import { useIsPhone } from '../hooks/useIsPhone';
+import TeamAvatars from './TeamAvatars';
 
 const t = copy.debate;
 
@@ -13,7 +14,7 @@ const t = copy.debate;
  * робить Layout — стан згорнутості спільний для головної й чату.
  * `phoneOpen` — чи відкрита висувна панель (для aria-expanded на телефоні).
  */
-export default function PanelToggle({ controls, phoneOpen = false }) {
+export default function PanelToggle({ controls, phoneOpen = false, members = null }) {
   const { panelCollapsed = false, togglePanel } = useOutletContext() ?? {};
   const isPhone = useIsPhone();
 
@@ -23,15 +24,20 @@ export default function PanelToggle({ controls, phoneOpen = false }) {
   return (
     <button
       type="button"
-      className="debate__panel-toggle"
+      className={`debate__panel-toggle ${members ? 'debate__panel-toggle--team' : ''}`}
       onClick={() => togglePanel?.()}
       aria-label={label}
       title={label}
       aria-expanded={expanded}
       aria-controls={controls}
     >
-      {/* на телефоні панель — висувна «Учасники», тож і значок — люди, а не друге «меню» */}
-      <HugeiconsIcon icon={isPhone ? UserGroupIcon : SidebarLeftIcon} size={20} strokeWidth={1.8} aria-hidden="true" />
+      {members ? (
+        // у чаті — сама команда: клік показує чи ховає її налаштування
+        <TeamAvatars members={members} />
+      ) : (
+        // на телефоні панель — висувна «Учасники», тож і значок — люди, а не друге «меню»
+        <HugeiconsIcon icon={isPhone ? UserGroupIcon : SidebarLeftIcon} size={20} strokeWidth={1.8} aria-hidden="true" />
+      )}
     </button>
   );
 }
@@ -39,4 +45,6 @@ export default function PanelToggle({ controls, phoneOpen = false }) {
 PanelToggle.propTypes = {
   controls: PropTypes.string.isRequired,
   phoneOpen: PropTypes.bool,
+  // учасники дискусії: замість значка панелі — їхні аватарки
+  members: PropTypes.arrayOf(PropTypes.shape({ key: PropTypes.string.isRequired, color: PropTypes.string })),
 };

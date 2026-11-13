@@ -153,7 +153,13 @@ export default function ModelPicker({
                   role="option"
                   aria-selected={active}
                   disabled={!model.available}
-                  title={model.available ? model.notes : `${t.modelUnavailable}: ${model.key_env}`}
+                  title={
+                    model.available
+                      ? model.notes
+                      : model.cooldown
+                        ? t.modelCooldownHint
+                        : `${t.modelUnavailable}: ${model.key_env}`
+                  }
                   onClick={() => choose(model.id)}
                 >
                   <span className="debate__model-option-icon">
@@ -163,7 +169,10 @@ export default function ModelPicker({
                   <span className="debate__model-option-label">
                     {modelLabel(model)}
                     {!model.available && (
-                      <span className="debate__model-option-note">{t.modelUnavailable}</span>
+                      // щойно відмовила квота чи ключ — тимчасово, а не «потрібен ключ»
+                      <span className="debate__model-option-note">
+                        {model.cooldown ? t.modelCooldown[model.cooldown] || t.modelCooldown.quota : t.modelUnavailable}
+                      </span>
                     )}
                   </span>
                   {active && <OptionCheck />}

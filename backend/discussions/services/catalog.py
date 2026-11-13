@@ -12,6 +12,8 @@ from django.conf import settings
 
 from backend.i18n import L
 
+from . import model_health
+
 OPENAI_COMPATIBLE = 'openai_compatible'
 ANTHROPIC = 'anthropic'
 
@@ -386,7 +388,10 @@ def provider_label(provider_id):
 
 def _public_spec(spec):
     provider = PROVIDERS[spec['provider_id']]
-    available = _is_available(spec)
+    configured = _is_available(spec)
+    # квота чи ключ щойно відмовили — модель тимчасово недоступна для вибору
+    cooldown = model_health.down_reason(spec['id']) if configured else ''
+    available = configured and not cooldown
     notes = spec.get('notes', '')
     return {
         'id': spec['id'],
@@ -396,6 +401,7 @@ def _public_spec(spec):
         'label': spec['label'],
         'notes': L(notes, NOTES_EN.get(notes, notes)),
         'available': available,
+        'cooldown': cooldown,
         'requires_key': provider['requires_key'],
         'key_env': provider.get('key_env', ''),
         'local': spec['provider_id'] in {'ollama', 'custom'},
@@ -418,6 +424,7 @@ def resolve_model(model_id):
             resolved['requires_key'] = PROVIDERS[spec['provider_id']]['requires_key']
             resolved['key_env'] = PROVIDERS[spec['provider_id']].get('key_env', '')
             resolved['available'] = _is_available(spec)
+            resolved['cooldown'] = model_health.down_reason(spec['id']) if resolved['available'] else ''
             resolved['provider'] = provider_label(spec['provider_id'])
             return resolved
     return None
@@ -427,14 +434,14 @@ def default_model_id():
     specs = list(_all_specs())
     # спершу — модель, яку користувач обрав у налаштуваннях
     preferred = (_user_prefs.get() or {}).get('default_model', '')
+    healthy = lambda spec: _is_available(spec) and not model_health.down_reason(spec['id'])  # noqa: E731
     for configured in (preferred, getattr(settings, 'LLM_DEFAULT_MODEL', '')):
-        if configured and any(
-            spec['id'] == configured and _is_available(spec) for spec in specs
-        ):
+        if configured and any(spec['id'] == configured and healthy(spec) for spec in specs):
             return configured
-    for spec in specs:
-        if _is_available(spec):
-            return spec['id']
+    for check in (healthy, _is_available):
+        for spec in specs:
+            if check(spec):
+                return spec['id']
     return ''
 
 
@@ -489,7 +496,9 @@ def available_model_ids():
     """Доступні моделі: спершу рекомендовані, потім решта в порядку каталогу."""
     available = [spec['id'] for spec in _all_specs() if _is_available(spec)]
     preferred = [model_id for model_id in RECOMMENDED if model_id in available]
-    return preferred + [model_id for model_id in available if model_id not in preferred]
+    ordered = preferred + [model_id for model_id in available if model_id not in preferred]
+    # моделі після збою квоти чи ключа — у кінці черги
+    return sorted(ordered, key=lambda model_id: bool(model_health.down_reason(model_id)))
 
 
 def vision_model_ids():

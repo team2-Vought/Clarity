@@ -1,6 +1,7 @@
+import { useId, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Tick02Icon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { InlineText } from './MessageMarkdown';
 import { describeVerdict } from '../utils/summary';
 import { copy } from '../copy';
@@ -65,6 +66,49 @@ Pairs.propTypes = {
   sources: PropTypes.instanceOf(Map).isRequired,
 };
 
+/** «Один із варіантів»: кожен варіант — за й проти, обраний виділено. */
+function CompareTable({ rows, answer = '', sources }) {
+  const chosen = String(answer || '').trim().toLowerCase();
+  return (
+    <section className="chat__summary-group chat__summary-group--compare">
+      <h4 className="chat__summary-label">{t.summaryCompare}</h4>
+      <div className="chat__compare-wrap">
+        <table className="chat__compare">
+          <thead>
+            <tr>
+              <th scope="col">{t.summaryCompareOption}</th>
+              <th scope="col">{t.summaryComparePro}</th>
+              <th scope="col">{t.summaryCompareCon}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const isChosen = row.option.trim().toLowerCase() === chosen;
+              return (
+                <tr key={row.option} className={isChosen ? 'chat__compare-row--chosen' : undefined}>
+                  <th scope="row">
+                    {isChosen && <HugeiconsIcon icon={Tick02Icon} size={14} aria-hidden="true" />}
+                    {row.option}
+                    {isChosen && <span className="chat__summary-sr">{` — ${t.summaryWinner}`}</span>}
+                  </th>
+                  <td>{row.pro ? <InlineText text={row.pro} sources={sources} /> : '—'}</td>
+                  <td>{row.con ? <InlineText text={row.con} sources={sources} /> : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+CompareTable.propTypes = {
+  rows: PropTypes.arrayOf(PropTypes.shape({ option: PropTypes.string, pro: PropTypes.string, con: PropTypes.string })).isRequired,
+  answer: PropTypes.string,
+  sources: PropTypes.instanceOf(Map).isRequired,
+};
+
 /**
  * Зміст підсумку дискусії. Головна відповідь виглядає по-різному залежно від
  * формату: велике «ТАК»/«НІ», усі варіанти з голосами й виділеним переможцем
@@ -84,7 +128,10 @@ export default function SummaryDetails({
   options = [],
   animate = false,
   paths = null,
+  collapsible = true,
 }) {
+  // коротко — вердикт, рішення, умови й перший крок; решта — за «Повним розбором»
+  const [isFullOpen, setIsFullOpen] = useState(!collapsible);
   let index = 0;
   const step = () => (animate ? { '--i': index++ } : undefined);
   const verdict = describeVerdict(summary, mode, options);
@@ -94,6 +141,24 @@ export default function SummaryDetails({
   const triggers = view.triggers || [];
   // старі підсумки не мають плану — тоді лишається один «наступний крок»
   const nextStep = plan.length === 0 && summary?.recommendation ? String(summary.recommendation) : '';
+  const firstStep = plan[0] || nextStep;
+  const restPlan = plan.slice(1);
+  const compare = view.compare || [];
+  const fullId = useId();
+  // чи є що показати в «Повному розборі»
+  const hasMore = Boolean(
+    revision
+    || paths
+    || compare.length
+    || restPlan.length
+    || view.unknowns?.length
+    || view.riskPlan?.length
+    || view.planB
+    || triggers.length
+    || view.dissent?.length
+    || listFor(view, 'pros').length
+    || listFor(view, 'cons').length
+  );
 
   return (
     <>
@@ -185,55 +250,74 @@ export default function SummaryDetails({
 
       {(revision || paths || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
         <div className="chat__summary-sections" style={step()}>
-          {revision && (
-            <section className="chat__summary-group chat__summary-group--revision">
-              <h4 className="chat__summary-label">{t.summaryRevision}</h4>
-              <p>
-                <InlineText text={revision} sources={sources} />
-              </p>
-            </section>
-          )}
           <Bullets id="conditions" title={t.summaryConditions} items={view.conditions || []} sources={sources} />
-          {/* план — одразу після вердикту: перший крок виділено, решта — на тиждень */}
-          {plan.length > 0 && (
-            <section className="chat__summary-group chat__summary-group--plan">
-              <h4 className="chat__summary-label">{t.summaryPlan}</h4>
-              <ol className="chat__summary-plan">
-                {plan.map((item, itemIndex) => (
-                  <li key={`plan-${itemIndex}`} className={itemIndex === 0 ? 'chat__summary-plan-first' : undefined}>
-                    <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 1}</span>
-                    <span>
-                      {itemIndex === 0 && <span className="chat__summary-plan-tag">{t.summaryFirstStep}</span>}
-                      <InlineText text={item} sources={sources} />
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-          {nextStep && (
-            <section className="chat__summary-group chat__summary-group--next">
-              <h4 className="chat__summary-label">{t.summaryNextStep}</h4>
-              <p>
-                <InlineText text={nextStep} sources={sources} />
+          {/* перший крок — те, з чого людина почне вже сьогодні */}
+          {firstStep && (
+            <section className="chat__summary-group chat__summary-group--first">
+              <h4 className="chat__summary-label">{t.summaryFirstStep}</h4>
+              <p className="chat__summary-first">
+                <InlineText text={firstStep} sources={sources} />
               </p>
             </section>
           )}
-          <Pairs id="unknowns" title={t.summaryUnknowns} items={view.unknowns || []} noteLabel={t.summaryUnknownHow} sources={sources} />
-          {paths}
-          <Bullets id="pros" title={t.summaryPros} items={listFor(view, 'pros')} sources={sources} />
-          <Bullets id="cons" title={t.summaryCons} items={listFor(view, 'cons')} sources={sources} />
-          <Pairs id="risks" title={t.summaryRisks} items={view.riskPlan || []} noteLabel={t.summaryRiskMitigation} sources={sources} />
-          {view.planB && (
-            <section className="chat__summary-group chat__summary-group--planB">
-              <h4 className="chat__summary-label">{t.summaryPlanB}</h4>
-              <p>
-                <InlineText text={view.planB} sources={sources} />
-              </p>
-            </section>
+
+          {hasMore && collapsible && (
+            <button
+              type="button"
+              className="chat__summary-more"
+              onClick={() => setIsFullOpen((open) => !open)}
+              aria-expanded={isFullOpen}
+              aria-controls={fullId}
+            >
+              {isFullOpen ? t.summaryLess : t.summaryMore}
+              <HugeiconsIcon icon={ArrowDown01Icon} size={16} aria-hidden="true" />
+            </button>
           )}
-          <Bullets id="triggers" title={t.summaryTriggers} items={triggers} sources={sources} />
-          <Bullets id="dissent" title={t.summaryDissent} items={view.dissent || listFor(view, 'dissent')} sources={sources} />
+
+          {hasMore && isFullOpen && (
+            <div id={fullId} className="chat__summary-full">
+              {revision && (
+                <section className="chat__summary-group chat__summary-group--revision">
+                  <h4 className="chat__summary-label">{t.summaryRevision}</h4>
+                  <p>
+                    <InlineText text={revision} sources={sources} />
+                  </p>
+                </section>
+              )}
+              {compare.length > 0 && <CompareTable rows={compare} answer={summary?.answer} sources={sources} />}
+              {/* решта плану на тиждень — після першого кроку, з його ж нумерацією */}
+              {restPlan.length > 0 && (
+                <section className="chat__summary-group chat__summary-group--plan">
+                  <h4 className="chat__summary-label">{t.summaryPlanRest}</h4>
+                  <ol className="chat__summary-plan">
+                    {restPlan.map((item, itemIndex) => (
+                      <li key={`plan-${itemIndex}`}>
+                        <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 2}</span>
+                        <span>
+                          <InlineText text={item} sources={sources} />
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+              <Pairs id="unknowns" title={t.summaryUnknowns} items={view.unknowns || []} noteLabel={t.summaryUnknownHow} sources={sources} />
+              {paths}
+              <Bullets id="pros" title={t.summaryPros} items={listFor(view, 'pros')} sources={sources} />
+              <Bullets id="cons" title={t.summaryCons} items={listFor(view, 'cons')} sources={sources} />
+              <Pairs id="risks" title={t.summaryRisks} items={view.riskPlan || []} noteLabel={t.summaryRiskMitigation} sources={sources} />
+              {view.planB && (
+                <section className="chat__summary-group chat__summary-group--planB">
+                  <h4 className="chat__summary-label">{t.summaryPlanB}</h4>
+                  <p>
+                    <InlineText text={view.planB} sources={sources} />
+                  </p>
+                </section>
+              )}
+              <Bullets id="triggers" title={t.summaryTriggers} items={triggers} sources={sources} />
+              <Bullets id="dissent" title={t.summaryDissent} items={view.dissent || listFor(view, 'dissent')} sources={sources} />
+            </div>
+          )}
         </div>
       )}
     </>
@@ -254,6 +338,7 @@ SummaryDetails.propTypes = {
   }).isRequired,
   sources: PropTypes.instanceOf(Map).isRequired,
   paths: PropTypes.node,
+  collapsible: PropTypes.bool,
   mode: PropTypes.oneOf(['open', 'yes_no', 'choose_one']),
   options: PropTypes.arrayOf(PropTypes.string),
   animate: PropTypes.bool,
