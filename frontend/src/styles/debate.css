@@ -5206,6 +5206,28 @@ ol.chat__reveal {
   font-weight: 600;
 }
 
+/* перший крок плану виділено: з нього людина почне */
+.chat__summary-plan-first {
+  padding: 10px 12px 10px 10px;
+  margin: 0 -12px 2px -10px;
+  border-radius: var(--r-md);
+  background: var(--soft);
+}
+
+.chat__summary-plan-first .chat__summary-plan-num {
+  margin-top: 19px;
+}
+
+.chat__summary-plan-tag {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* перший крок — виділена картка: з нього людина почне вже сьогодні */
 .chat__summary-first {
   margin: 0;
@@ -5251,11 +5273,13 @@ ol.chat__reveal {
   transform: rotate(180deg);
 }
 
-/* розгорнутий розбір проявляється, як абзаци реплік */
+/* розгорнутий розбір проявляється, як абзаци реплік; лінія першого розділу —
+   нижче за кнопку, а не впритул до неї */
 .chat__summary-full {
   display: flex;
   flex-direction: column;
   gap: inherit;
+  margin-top: 14px;
   animation: summary-full-in 0.32s var(--ease-standard, ease) both;
 }
 
@@ -5716,12 +5740,18 @@ ol.chat__reveal {
     --sheet-bottom: calc(100dvh - 66px);
     --sheet-r: 25px;
     position: fixed;
-    inset: 12px 12px 0 auto;
+    /* висота — видима частина екрана (dvh): з низом «великого» в'юпорту панель
+       ховала останні блоки під панеллю браузера, і їх не вдавалося доскролити */
+    inset: 12px 12px auto auto;
+    height: calc(100vh - 12px);
+    height: calc(100dvh - 12px);
     z-index: calc(var(--z-drawer) + 5);
     /* зліва лишається смуга затемнення, на яку зручно тапнути, щоб закрити */
     width: calc(var(--sheet-w) + var(--sheet-spare));
     gap: 20px;
-    padding: 20px 14px calc(14px + 12px) calc(14px + var(--sheet-spare));
+    /* верхній відступ — усередині прокручуваної частини (нижче): так вміст
+       доїжджає до заокругленого краю картки, а не обрізається рівною лінією */
+    padding: 0 14px calc(14px + 12px) calc(14px + var(--sheet-spare));
     background: var(--panel);
     clip-path: inset(var(--sheet-top) 0 var(--sheet-bottom) var(--sheet-left) round var(--sheet-r));
     visibility: hidden;
@@ -5735,7 +5765,15 @@ ol.chat__reveal {
       visibility 0s linear 0.26s;
   }
 
-  /* відкриття: спершу розтягується вліво з легким перельотом, далі «стікає» вниз */
+  .debate__form-panel .debate__panel-body,
+  .debate__form-panel .debate__more {
+    margin-top: 0;
+    padding-top: 20px;
+  }
+
+  /* відкриття: спершу розтягується вліво з легким перельотом, далі «стікає» вниз.
+     Вліво — м'якша пружина, ніж --ease-pop: та перелітала на ~11px, і фон
+     помітно «стрибав»; ця — на ~3px, пружинність лишається ледь відчутною */
   .debate-page--panel-open .debate__form-panel {
     --sheet-top: 0px;
     --sheet-left: var(--sheet-spare);
@@ -5743,7 +5781,7 @@ ol.chat__reveal {
     --sheet-r: 28px;
     visibility: visible;
     transition:
-      --sheet-left 0.3s var(--ease-pop),
+      --sheet-left 0.32s cubic-bezier(0.34, 1.2, 0.5, 1),
       --sheet-bottom 0.4s var(--ease-pop) 0.03s,
       --sheet-top 0.24s var(--ease-pop),
       --sheet-r 0.2s var(--ease-standard);
@@ -5754,7 +5792,9 @@ ol.chat__reveal {
   .debate-page::after {
     content: '';
     position: fixed;
-    inset: 12px 12px 12px auto;
+    inset: 12px 12px auto auto;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
     z-index: calc(var(--z-drawer) + 4);
     width: min(360px, calc(100vw - 72px));
     border-radius: var(--r-xl);
@@ -5792,15 +5832,13 @@ ol.chat__reveal {
 
   
 
-  /* у вузькій висувній панелі — щільніша анкета */
+  /* у вузькій висувній панелі — щільніша анкета; заокруглення — як на ПК */
   .debate__sheet {
     padding: 12px;
-    border-radius: var(--r-md);
   }
 
   .debate__more-toggle {
     padding: 12px;
-    border-radius: var(--r-md);
   }
 
   .debate__sheet-name input {
@@ -7192,7 +7230,7 @@ ol.chat__reveal {
   bottom: 0;
 }
 
-/* кнопка панелі в чаті — аватарки команди замість значка */
+/* кнопка панелі в чаті — аватарки команди в ряд, без підкладки, з легкою тінню */
 .debate__panel-toggle.debate__panel-toggle--team {
   width: auto;
   min-width: 36px;
@@ -7200,7 +7238,6 @@ ol.chat__reveal {
   min-height: 36px;
   padding: 4px 6px;
   border-radius: 999px;
-  /* без підкладки — лише аватарки з легкою тінню */
   background: transparent;
   box-shadow: none;
 }
@@ -7226,9 +7263,21 @@ ol.chat__reveal {
   .debate__panel-toggle.debate__panel-toggle--team {
     min-width: 50px;
     min-height: 50px;
-    padding: 0 10px;
+    padding: 0 4px;
     background: transparent;
     box-shadow: none;
+  }
+
+  /* на телефоні аватарки більші — це головна кнопка вгорі, під палець */
+  .debate__panel-toggle--team .team-avatars {
+    --av: 34px;
+    --overlap: 9px;
+    --ring: 2px;
+  }
+
+  .debate__panel-toggle.debate__panel-toggle--team svg {
+    width: 19px;
+    height: 19px;
   }
 }
 

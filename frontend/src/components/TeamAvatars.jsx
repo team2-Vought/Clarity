@@ -7,8 +7,9 @@ import { roleIcon } from '../utils/debateOptions';
  * двоє чи четверо-п'ятеро — в ряд із легким перекриттям.
  * Колір і значок — за роллю учасника.
  */
-export default function TeamAvatars({ members, size = 'md', className = '' }) {
-  const layout = members.length === 3 ? 'triad' : 'row';
+export default function TeamAvatars({ members, size = 'md', layout: forced = '', className = '' }) {
+  // троє — трикутником, якщо ряд не задано явно (кнопка учасників у чаті — завжди ряд)
+  const layout = forced || (members.length === 3 ? 'triad' : 'row');
   return (
     <span className={`team-avatars team-avatars--${layout} team-avatars--${size} ${className}`} aria-hidden="true">
       {members.map((member) => (
@@ -25,5 +26,6 @@ TeamAvatars.propTypes = {
     PropTypes.shape({ key: PropTypes.string.isRequired, color: PropTypes.string })
   ).isRequired,
   size: PropTypes.oneOf(['sm', 'md']),
+  layout: PropTypes.oneOf(['', 'row', 'triad']),
   className: PropTypes.string,
 };

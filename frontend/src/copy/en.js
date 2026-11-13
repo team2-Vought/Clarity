@@ -1270,7 +1270,6 @@ export const en = {
     summaryPlanB: 'Plan B',
     summaryMore: 'Full breakdown',
     summaryLess: 'Hide breakdown',
-    summaryPlanRest: 'Later this week',
     summaryCompare: 'Options compared',
     summaryCompareOption: 'Option',
     summaryComparePro: 'For',

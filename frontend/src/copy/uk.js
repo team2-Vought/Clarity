@@ -1274,7 +1274,6 @@ export const uk = {
     summaryPlanB: 'План Б',
     summaryMore: 'Повний розбір',
     summaryLess: 'Згорнути розбір',
-    summaryPlanRest: 'Далі цього тижня',
     summaryCompare: 'Порівняння варіантів',
     summaryCompareOption: 'Варіант',
     summaryComparePro: 'За',

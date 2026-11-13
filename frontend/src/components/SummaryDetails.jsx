@@ -130,7 +130,7 @@ export default function SummaryDetails({
   paths = null,
   collapsible = true,
 }) {
-  // коротко — вердикт, рішення, умови й перший крок; решта — за «Повним розбором»
+  // коротко — вердикт, рішення, умови, план на тиждень і ризики; решта — за «Повним розбором»
   const [isFullOpen, setIsFullOpen] = useState(!collapsible);
   let index = 0;
   const step = () => (animate ? { '--i': index++ } : undefined);
@@ -141,8 +141,6 @@ export default function SummaryDetails({
   const triggers = view.triggers || [];
   // старі підсумки не мають плану — тоді лишається один «наступний крок»
   const nextStep = plan.length === 0 && summary?.recommendation ? String(summary.recommendation) : '';
-  const firstStep = plan[0] || nextStep;
-  const restPlan = plan.slice(1);
   const compare = view.compare || [];
   const fullId = useId();
   // чи є що показати в «Повному розборі»
@@ -150,9 +148,7 @@ export default function SummaryDetails({
     revision
     || paths
     || compare.length
-    || restPlan.length
     || view.unknowns?.length
-    || view.riskPlan?.length
     || view.planB
     || triggers.length
     || view.dissent?.length
@@ -251,15 +247,33 @@ export default function SummaryDetails({
       {(revision || paths || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
         <div className="chat__summary-sections" style={step()}>
           <Bullets id="conditions" title={t.summaryConditions} items={view.conditions || []} sources={sources} />
-          {/* перший крок — те, з чого людина почне вже сьогодні */}
-          {firstStep && (
+          {/* план на тиждень одразу у висновку: перший крок виділено — з нього людина почне */}
+          {plan.length > 0 && (
+            <section className="chat__summary-group chat__summary-group--plan">
+              <h4 className="chat__summary-label">{t.summaryPlan}</h4>
+              <ol className="chat__summary-plan">
+                {plan.map((item, itemIndex) => (
+                  <li key={`plan-${itemIndex}`} className={itemIndex === 0 ? 'chat__summary-plan-first' : undefined}>
+                    <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 1}</span>
+                    <span>
+                      {itemIndex === 0 && <span className="chat__summary-plan-tag">{t.summaryFirstStep}</span>}
+                      <InlineText text={item} sources={sources} />
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          {/* старі підсумки без плану — лише один наступний крок */}
+          {nextStep && (
             <section className="chat__summary-group chat__summary-group--first">
               <h4 className="chat__summary-label">{t.summaryFirstStep}</h4>
               <p className="chat__summary-first">
-                <InlineText text={firstStep} sources={sources} />
+                <InlineText text={nextStep} sources={sources} />
               </p>
             </section>
           )}
+          <Pairs id="risks" title={t.summaryRisks} items={view.riskPlan || []} noteLabel={t.summaryRiskMitigation} sources={sources} />
 
           {hasMore && collapsible && (
             <button
@@ -285,27 +299,10 @@ export default function SummaryDetails({
                 </section>
               )}
               {compare.length > 0 && <CompareTable rows={compare} answer={summary?.answer} sources={sources} />}
-              {/* решта плану на тиждень — після першого кроку, з його ж нумерацією */}
-              {restPlan.length > 0 && (
-                <section className="chat__summary-group chat__summary-group--plan">
-                  <h4 className="chat__summary-label">{t.summaryPlanRest}</h4>
-                  <ol className="chat__summary-plan">
-                    {restPlan.map((item, itemIndex) => (
-                      <li key={`plan-${itemIndex}`}>
-                        <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 2}</span>
-                        <span>
-                          <InlineText text={item} sources={sources} />
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              )}
               <Pairs id="unknowns" title={t.summaryUnknowns} items={view.unknowns || []} noteLabel={t.summaryUnknownHow} sources={sources} />
               {paths}
               <Bullets id="pros" title={t.summaryPros} items={listFor(view, 'pros')} sources={sources} />
               <Bullets id="cons" title={t.summaryCons} items={listFor(view, 'cons')} sources={sources} />
-              <Pairs id="risks" title={t.summaryRisks} items={view.riskPlan || []} noteLabel={t.summaryRiskMitigation} sources={sources} />
               {view.planB && (
                 <section className="chat__summary-group chat__summary-group--planB">
                   <h4 className="chat__summary-label">{t.summaryPlanB}</h4>

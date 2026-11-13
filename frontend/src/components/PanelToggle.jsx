@@ -32,8 +32,8 @@ export default function PanelToggle({ controls, phoneOpen = false, members = nul
       aria-controls={controls}
     >
       {members ? (
-        // у чаті — сама команда: клік показує чи ховає її налаштування
-        <TeamAvatars members={members} />
+        // у чаті — сама команда в ряд: клік показує чи ховає її налаштування
+        <TeamAvatars members={members} layout="row" />
       ) : (
         // на телефоні панель — висувна «Учасники», тож і значок — люди, а не друге «меню»
         <HugeiconsIcon icon={isPhone ? UserGroupIcon : SidebarLeftIcon} size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -45,6 +45,6 @@ export default function PanelToggle({ controls, phoneOpen = false, members = nul
 PanelToggle.propTypes = {
   controls: PropTypes.string.isRequired,
   phoneOpen: PropTypes.bool,
-  // учасники дискусії: замість значка панелі — їхні аватарки
+  // учасники дискусії: замість значка панелі — їхні аватарки в ряд
   members: PropTypes.arrayOf(PropTypes.shape({ key: PropTypes.string.isRequired, color: PropTypes.string })),
 };

@@ -1604,7 +1604,7 @@ export default function ChatPage() {
     <div
       className={`debate-page chat-page ${isPanelOpen ? 'debate-page--panel-open' : ''} ${panelCollapsed ? 'debate-page--panel-collapsed' : ''}`}
     >
-      {/* кнопка панелі — аватарки команди: видно, хто сперечається, і клік відкриває налаштування */}
+      {/* кнопка панелі — аватарки команди в ряд: видно, хто сперечається, і клік відкриває налаштування */}
       <PanelToggle
         controls="chat-settings"
         phoneOpen={isPanelOpen}
