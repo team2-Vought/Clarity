@@ -19,10 +19,12 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* сторінка йде під виріз (viewport-fit=cover): тло — на весь екран,
+   а вміст у горизонтальному положенні телефона не заходить під «чубчик» */
 #root {
   max-width: none;
   margin: 0;
-  padding: 0;
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   text-align: left;
 }
 
