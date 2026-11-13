@@ -325,7 +325,7 @@ export const en = {
     lead: 'Several AIs with different characters discuss your question, and judges check the conclusion. Here is what to know to get the most out of it.',
     contents: 'Contents',
     start: 'Start a discussion',
-    disclaimer: 'Clarity is an assistant, not a professional. For health, legal or big money matters, check with a doctor, lawyer or financial advisor.',
+    disclaimer: 'Clarity is an assistant, not a professional. For health, legal or big money matters, check with a doctor, lawyer or financial advisor. If things feel very hard right now, Clarity will point you to a real person to talk to.',
     sections: [
       {
         id: 'flow',
@@ -333,13 +333,13 @@ export const en = {
         title: 'How a discussion goes',
         lead: 'From question to conclusion in seven steps. There is nothing to click: the discussion runs by itself, and you can step in at any time.',
         items: [
-          { title: 'Clarification', text: 'The moderator reads the question and, if details are missing, asks up to four short questions. Your answers become part of the context.' },
+          { title: 'Clarification', text: 'The moderator reads the question and, if details are missing, asks up to six short questions — about what could change the advice — and explains why each one matters. Pick an option or answer in your own words; the last one is “Anything else the team should know?”.' },
           { title: 'Opening', text: 'Each participant forms a first position. They write at the same time, so this is the fastest stage.' },
           { title: 'Debate', text: 'Participants take turns replying to each other: agreeing, disputing, bringing arguments. The order changes every round.' },
           { title: 'Moderator’s solution', text: 'The moderator brings the arguments together into one solution and marks where participants did not agree.' },
           { title: 'AI Devil’s check', text: 'A separate critic looks for risks, false assumptions and gaps in the solution.' },
           { title: 'Response to criticism', text: 'Participants answer the critique: they admit weak spots or defend the solution.' },
-          { title: 'Conclusion', text: 'The decision with the moderator’s confidence, the paths considered, arguments for and against, risks, the minority view and a plan for the week.' },
+          { title: 'Conclusion', text: 'A one-line verdict, the decision, the conditions under which it is right, and a first step. Everything else is in “Full breakdown” (more in “After the conclusion”).' },
         ],
       },
       {
@@ -349,7 +349,7 @@ export const en = {
         lead: 'Chosen with the button to the left of the input field. It shapes what the conclusion looks like.',
         items: [
           { title: 'Yes or no', text: 'For “should I…” questions. The moderator gives a clear verdict, and you see how many participants agree with it.' },
-          { title: 'One of the options', text: 'When there are 2 to 8 concrete options: cities, offers, laptop models. Participants compare them and pick one. Add weighted criteria to see a score matrix and why the winner won.' },
+          { title: 'One of the options', text: 'When there are 2 to 8 concrete options: cities, offers, laptop models. Participants compare them and pick one, and the conclusion has a For / Against table for each. Add weighted criteria to see a score matrix and why the winner won.' },
           { title: 'Open answer', text: 'For open “how…” or “what to do…” questions. The conclusion is a detailed answer with an action plan.' },
           { title: 'Quick answer', text: 'For simple questions — the “Quick answer” switch in the same menu to the left of the field. One short piece of advice in about 15 seconds, no debate; if it is not enough — “Discuss in depth”.' },
         ],
@@ -358,7 +358,7 @@ export const en = {
         id: 'cast',
         kind: 'cards',
         title: 'Participants',
-        lead: 'A discussion has 2 to 5 participants. Each has a role and, optionally, character traits that change their tone and priorities. The line-up, models and traits are set in the “Participants” panel of the new discussion page; a good line-up can be saved as a team. In the role menu you can also create your own: a lawyer, a doctor or your cautious dad.',
+        lead: 'A discussion has 2 to 5 participants. A new discussion starts with the “Balanced” line-up; pick another ready-made one — “Money & career”, “Relationships & life” or “New ideas” — with the “N participants” label at the top centre. “Set up manually…” opens the panel where you change roles, models and character traits, save a good line-up as a team, or create your own role: a lawyer, a doctor or your cautious dad.',
         items: [
           { title: 'Logician', text: 'Sticks to facts, chains of reasoning and evidence. Speaks in a measured, to-the-point way.' },
           { title: 'Skeptic', text: 'Questions assumptions and looks for weak spots in other people’s arguments.' },
@@ -371,7 +371,7 @@ export const en = {
         id: 'judges',
         kind: 'cards',
         title: 'Judges',
-        lead: 'Judges don’t argue — they assess. Their models can be changed under “More”.',
+        lead: 'Judges don’t argue — they assess. Their models can be changed under “Advanced”.',
         items: [
           { title: 'Moderator', text: 'Asks clarifying questions, brings the arguments together into a solution and writes the final conclusion.' },
           { title: 'AI Devil', text: 'A deliberate critic. It looks for where the solution could fail — so you learn about it before, not after.' },
@@ -391,13 +391,13 @@ export const en = {
       {
         id: 'during',
         kind: 'cards',
-        title: 'During and after the discussion',
+        title: 'During the discussion',
         lead: 'You are not just a spectator: you can steer the discussion.',
         items: [
           { title: 'Add circumstances', text: 'Write in the field below right during the debate — participants take it into account in their next replies.' },
+          { title: 'Mark what matters', text: 'Mark a whole reply or highlight a passage as “Important”, “Agree” or “Doubt”, with a note if you like. Participants take it into account, and everything is collected in “My notes” in the chat panel. The reply menu also has “Ask to explain” and “Factual error”.' },
           { title: 'Stop or finish', text: '“Stop” pauses the discussion — you can continue it later. “Finish” ends it right away, without the moderator’s conclusion.' },
-          { title: 'Follow-ups after the conclusion', text: 'Ask everyone another question — participants discuss it for an extra round, and the moderator updates the conclusion. Or pick one participant under “To”: only they answer, and the conclusion stays.' },
-          { title: 'Share and save', text: 'The conclusion can be copied, downloaded as PDF or Markdown, or opened with a read-only link. “Repeat” creates a new discussion with the same line-up.' },
+          { title: 'If a model fails', text: 'When a participant’s model runs out of quota or stops answering, the participant carries on with another available model, so the discussion doesn’t stop. You can turn this off in “Settings → New discussion”. A model that just failed is marked as temporarily unavailable in the model list.' },
         ],
       },
       {
@@ -406,11 +406,23 @@ export const en = {
         title: 'After the conclusion',
         lead: 'The conclusion is not the end: you can keep working with it.',
         items: [
+          { title: 'What the conclusion holds', text: 'At the top — the verdict, the decision, the conditions under which it is right and a first step; below them — risks with what to do about them and a plan for the week. “Full breakdown” opens the rest: arguments for and against, dissenting views, what to find out, a plan B and the signals that should make you reconsider.' },
           { title: 'Paths considered', text: 'Under the decision — the paths the team weighed: the chosen one, alternatives and rejected ones, with how well each fits you.' },
           { title: 'Decision tree', text: 'A map of those paths: where each leads (“if…, then…”), who backed it, pros and cons, and the team’s train of thought from the question to the conclusion. Built once, on request.' },
-          { title: 'Plan for the week', text: 'A few concrete steps you can take in the coming days, and the signals that should make you reconsider.' },
+          { title: 'Follow-ups after the conclusion', text: 'Ask everyone another question — participants discuss it for an extra round, and the moderator updates the conclusion. Or pick one participant under “To”: only they answer, and the conclusion stays.' },
+          { title: 'Share and save', text: 'The conclusion can be copied; the “Save” menu downloads it as PDF or the whole discussion as Markdown, and it can be opened with a read-only link. “Repeat” creates a new discussion with the same line-up.' },
+        ],
+      },
+      {
+        id: 'journal',
+        kind: 'cards',
+        title: 'Journal and history',
+        lead: 'Clarity remembers your decisions and helps you come back to them.',
+        items: [
           { title: 'Decision journal', text: 'The “To journal” button under the conclusion: save what you decided — in a week, a month or three Clarity will ask how it went. The answers gather in the “Journal”.' },
-          { title: 'Marks and reactions', text: 'Highlight what matters in an AI reply, add a note or a doubt, or react (“convincing”, “factual error”). The participants take it into account, and everything is collected in “My notes”.' },
+          { title: 'Revisit the decision', text: 'Something changed? “Revisit the decision” in a journal entry starts a new discussion that takes into account how things are going. The entry and the new discussion link to each other.' },
+          { title: 'Learning from past decisions', text: 'In new discussions the team sees how your earlier journal decisions turned out and takes that experience into account.' },
+          { title: 'History', text: 'All discussions are in “History”: search by question or decision, and pin the important ones to the top.' },
         ],
       },
       {
@@ -424,7 +436,19 @@ export const en = {
           { title: 'Add constraints', text: 'What can’t change: a deadline, an amount, commitments.' },
           { title: 'Fill in “About me”', text: 'Age, family, finances, values and attitude to risk — in “Settings → About me”. Then you don’t have to explain them every time.' },
           { title: 'Attach a document', text: 'An offer, a contract, a CV or a listing — with the paperclip in the question field, or just drag the file in. Participants will rely on its numbers and terms.' },
-          { title: 'Turn on search', text: 'For prices, laws or recent events: participants find sources, and links appear under their replies. The switch is under “More”.' },
+          { title: 'Turn on search', text: 'For prices, laws or recent events: participants find sources, and links appear under their replies. The switch is under “Advanced”.' },
+          { title: 'Write in your language', text: 'Participants, the moderator and AI Devil reply in the language of your question, even if the interface is in another one.' },
+        ],
+      },
+      {
+        id: 'comfort',
+        kind: 'cards',
+        title: 'Comfort',
+        lead: 'Make Clarity fit you and your device.',
+        items: [
+          { title: 'Low-vision mode', text: 'One switch: larger text, high contrast, a legible font, a clear focus ring and a large cursor. Each option can also be changed on its own. Open it from the menu, in “Settings → Accessibility” or with Alt + Shift + V.' },
+          { title: 'Theme and language', text: 'Light, dark or system theme, the interface language and the example questions under the field — in “Settings → Interface”.' },
+          { title: 'On a phone, like an app', text: 'Add Clarity to your home screen and it opens full screen, without the browser bars. On iPhone: Safari → “Share” → “Add to Home Screen”. On Android: Chrome → ⋮ → “Add to Home screen”.' },
         ],
       },
       {
@@ -433,9 +457,10 @@ export const en = {
         title: 'Models, limits and privacy',
         lead: 'What happens to your data and requests.',
         items: [
-          { title: 'Models, keys and limits', text: 'Clarity works with models from different providers. You can add your own API keys in “Settings → Models, keys & limits” — then requests are billed to your account with the provider.' },
-          { title: 'Daily limits', text: 'The number of new discussions and AI replies per day is limited. See what is left at the top of “Settings → Models, keys & limits”; counters reset at midnight.' },
-          { title: 'Privacy', text: 'Keys are stored encrypted and visible only to you. Only you see a discussion until you open a link to it — and you can close that access at any time.' },
+          { title: 'Models and keys', text: 'Clarity works with models from different providers. You can add your own API keys in “Settings → Models, keys & limits” — then requests are billed to your account with the provider.' },
+          { title: 'Daily limits', text: 'The number of new discussions and AI replies per day is limited; counters reset at midnight, and what is left is shown at the top of “Settings → Models, keys & limits”. Replies on your own keys don’t count towards the limits.' },
+          { title: 'Privacy', text: 'Keys are stored encrypted and visible only to you. Only you see a discussion until you open a link to it — and you can close that access at any time. Your marks are not shown on the link.' },
+          { title: 'Your data', text: 'In “Settings → Security & data” you can download all your data as one file, see the devices you are signed in on and sign out of any of them.' },
         ],
       },
     ],
