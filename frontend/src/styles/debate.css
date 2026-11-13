@@ -3323,10 +3323,12 @@ body:has(.app-shell) {
   position: absolute;
   z-index: 1;
   right: -8px;
-  bottom: 0;
+  /* до самого низу панелі: прокручуваний вміст трохи довший за кнопку,
+     і без цього визирав би з-під неї */
+  bottom: -32px;
   left: -8px;
-  height: 72px;
-  background: linear-gradient(transparent, var(--panel) 55%);
+  height: 104px;
+  background: linear-gradient(transparent, var(--panel) 40%);
   pointer-events: none;
 }
 
