@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -168,6 +169,66 @@ const readMarksTipSeen = () => {
   }
 };
 
+
+/**
+ * Під питанням: що модератор і учасники ще врахували — профіль «Про мене»,
+ * перегляд рішення з журналу, як вийшли минулі рішення. Один пункт — своїм
+ * рядком; два й більше — однією фразою з іконками внахлест, щоб не було стосу рядків.
+ */
+function ContextNote({ discussion }) {
+  const items = [
+    discussion.profile_used && { key: 'profile', icon: IdentityCardIcon, full: t.profileUsed, part: t.contextProfile },
+    discussion.revisit && {
+      key: 'revisit',
+      icon: RepeatIcon,
+      link: `/journal?review=${discussion.revisit.id}`,
+      full: t.revisitOf,
+      part: t.contextRevisit,
+    },
+    discussion.history_used > 0 && {
+      key: 'history',
+      icon: Book02Icon,
+      full: t.historyUsed(discussion.history_used),
+      part: t.contextHistory(discussion.history_used),
+    },
+  ].filter(Boolean);
+  if (!items.length) return null;
+
+  const text = (item, label) => (item.link ? <Link to={item.link}>{label}</Link> : label);
+  if (items.length === 1) {
+    const [item] = items;
+    return (
+      <p className="chat__profile-note">
+        <HugeiconsIcon icon={item.icon} size={14} aria-hidden="true" />
+        {text(item, item.full)}
+      </p>
+    );
+  }
+  return (
+    <p className="chat__profile-note">
+      <span className="chat__context-icons" aria-hidden="true">
+        {items.map((item) => (
+          <span key={item.key} className="chat__context-icon">
+            <HugeiconsIcon icon={item.icon} size={13} />
+          </span>
+        ))}
+      </span>
+      <span>
+        {t.contextLead}
+        {items.map((item, index) => (
+          <span key={item.key}>
+            {index === 0 ? ' ' : index === items.length - 1 ? t.contextAnd : ', '}
+            {text(item, item.part)}
+          </span>
+        ))}
+      </span>
+    </p>
+  );
+}
+
+ContextNote.propTypes = {
+  discussion: PropTypes.object.isRequired,
+};
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -1929,27 +1990,8 @@ export default function ChatPage() {
                   </div>
                 )}
                 <TopicNotice topic={discussion.safety} className="chat__topic" />
-                {discussion.profile_used && (
-                  // модератор і учасники знають про людину з «Про мене» — показуємо, що це враховано
-                  <p className="chat__profile-note">
-                    <HugeiconsIcon icon={IdentityCardIcon} size={14} aria-hidden="true" />
-                    {t.profileUsed}
-                  </p>
-                )}
-                {discussion.revisit && (
-                  // дискусія почалась із «Переглянути рішення» — шлях назад до запису журналу
-                  <p className="chat__profile-note">
-                    <HugeiconsIcon icon={RepeatIcon} size={14} aria-hidden="true" />
-                    <Link to={`/journal?review=${discussion.revisit.id}`}>{t.revisitOf}</Link>
-                  </p>
-                )}
-                {discussion.history_used > 0 && (
-                  // минулі рішення з журналу й те, як вони вийшли, — теж у контексті
-                  <p className="chat__profile-note">
-                    <HugeiconsIcon icon={Book02Icon} size={14} aria-hidden="true" />
-                    {t.historyUsed(discussion.history_used)}
-                  </p>
-                )}
+                {/* що ще враховано: один пункт — як є, кілька — одним рядком з іконками внахлест */}
+                <ContextNote discussion={discussion} />
               </div>
             </header>
           )}

@@ -1243,6 +1243,11 @@ export const uk = {
     clarifications: 'Уточнення для модератора',
     profileUsed: 'З урахуванням вашого профілю «Про мене»',
     revisitOf: 'Перегляд рішення з вашого журналу',
+    contextLead: 'Враховано',
+    contextAnd: ' і ',
+    contextProfile: 'ваш профіль «Про мене»',
+    contextRevisit: 'рішення з журналу, яке ви переглядаєте',
+    contextHistory: (count) => `як вийшли ваші минулі рішення (${count})`,
     historyUsed: (count) => `З урахуванням того, як вийшли ваші минулі рішення (${count})`,
     attachments: 'Додані файли',
     noteAttachHint: 'Файли підуть разом із наступним уточненням — учасники їх побачать',
@@ -1274,6 +1279,13 @@ export const uk = {
     summaryRiskMitigation: 'Що робити:',
     summaryPlanB: 'План Б',
     summaryMore: 'Повний розбір',
+    summaryMoreCount: (count) => {
+      const tens = count % 100;
+      const word = count % 10 === 1 && tens !== 11
+        ? 'розділ'
+        : count % 10 >= 2 && count % 10 <= 4 && (tens < 12 || tens > 14) ? 'розділи' : 'розділів';
+      return `${count} ${word}`;
+    },
     summaryLess: 'Згорнути розбір',
     summaryCompare: 'Порівняння варіантів',
     summaryCompareOption: 'Варіант',

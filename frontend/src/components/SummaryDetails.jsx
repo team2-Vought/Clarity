@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
@@ -132,6 +132,53 @@ export default function SummaryDetails({
 }) {
   // коротко — вердикт, рішення, умови, план на тиждень і ризики; решта — за «Повним розбором»
   const [isFullOpen, setIsFullOpen] = useState(!collapsible);
+  // згортання: розбір плавно стискається, і лише потім зникає з розмітки
+  const [isClosing, setIsClosing] = useState(false);
+  const fullRef = useRef(null);
+  const moreRef = useRef(null);
+  const closingRef = useRef(null);
+  const expanded = isFullOpen && !isClosing;
+
+  useEffect(() => () => closingRef.current?.cancel(), []);
+
+  const toggleFull = () => {
+    const full = fullRef.current;
+    if (!isFullOpen || isClosing) {
+      closingRef.current?.cancel();
+      setIsClosing(false);
+      setIsFullOpen(true);
+      return;
+    }
+    const reduced = document.documentElement.dataset.motion === 'reduced'
+      || Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    if (!full || reduced || typeof full.animate !== 'function') {
+      setIsFullOpen(false);
+      return;
+    }
+    // рядок «Згорнути розбір» плавно повертається в поле зору, а вміст під ним
+    // стискається — сторінка не «перекидається» різко, коли розбір зникає
+    moreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setIsClosing(true);
+    const animation = full.animate(
+      [
+        { height: `${full.offsetHeight}px`, marginTop: getComputedStyle(full).marginTop, opacity: 1 },
+        { height: '0px', marginTop: '0px', opacity: 0 },
+      ],
+      { duration: 220, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }
+    );
+    closingRef.current = animation;
+    // таймер на запас: у фоновій вкладці подія finish може не прийти, і розбір завис би
+    let done = false;
+    const finish = () => {
+      if (done || closingRef.current !== animation) return;
+      done = true;
+      closingRef.current = null;
+      setIsClosing(false);
+      setIsFullOpen(false);
+    };
+    animation.onfinish = finish;
+    window.setTimeout(finish, 280);
+  };
   let index = 0;
   const step = () => (animate ? { '--i': index++ } : undefined);
   const verdict = describeVerdict(summary, mode, options);
@@ -143,18 +190,19 @@ export default function SummaryDetails({
   const nextStep = plan.length === 0 && summary?.recommendation ? String(summary.recommendation) : '';
   const compare = view.compare || [];
   const fullId = useId();
-  // чи є що показати в «Повному розборі»
-  const hasMore = Boolean(
-    revision
-    || paths
-    || compare.length
-    || view.unknowns?.length
-    || view.planB
-    || triggers.length
-    || view.dissent?.length
-    || listFor(view, 'pros').length
-    || listFor(view, 'cons').length
-  );
+  // скільки розділів у «Повному розборі» — показуємо на рядку, що його відкриває
+  const hiddenCount = [
+    revision,
+    paths,
+    compare.length,
+    view.unknowns?.length,
+    view.planB,
+    triggers.length,
+    (view.dissent || listFor(view, 'dissent')).length,
+    listFor(view, 'pros').length,
+    listFor(view, 'cons').length,
+  ].filter(Boolean).length;
+  const hasMore = hiddenCount > 0;
 
   return (
     <>
@@ -278,18 +326,24 @@ export default function SummaryDetails({
           {hasMore && collapsible && (
             <button
               type="button"
+              ref={moreRef}
               className="chat__summary-more"
-              onClick={() => setIsFullOpen((open) => !open)}
-              aria-expanded={isFullOpen}
+              onClick={toggleFull}
+              aria-expanded={expanded}
               aria-controls={fullId}
             >
-              {isFullOpen ? t.summaryLess : t.summaryMore}
-              <HugeiconsIcon icon={ArrowDown01Icon} size={16} aria-hidden="true" />
+              {/* рядок-розділ, як «Ризики» чи «План на тиждень»: підпис зліва,
+                  скільки розділів сховано й стрілка — справа */}
+              <span className="chat__summary-label">{expanded ? t.summaryLess : t.summaryMore}</span>
+              <span className="chat__summary-more-side">
+                {!expanded && t.summaryMoreCount(hiddenCount)}
+                <HugeiconsIcon icon={ArrowDown01Icon} size={16} aria-hidden="true" />
+              </span>
             </button>
           )}
 
           {hasMore && isFullOpen && (
-            <div id={fullId} className="chat__summary-full">
+            <div id={fullId} ref={fullRef} className={`chat__summary-full ${isClosing ? 'chat__summary-full--closing' : ''}`}>
               {revision && (
                 <section className="chat__summary-group chat__summary-group--revision">
                   <h4 className="chat__summary-label">{t.summaryRevision}</h4>

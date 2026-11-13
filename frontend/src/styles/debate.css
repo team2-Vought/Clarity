@@ -4241,6 +4241,32 @@ ol.chat__reveal {
   font-size: 0.8125rem;
 }
 
+/* перенесений рядок — теж праворуч, під бульбашкою питання */
+.chat__profile-note > span:last-child {
+  text-align: right;
+}
+
+/* кілька пунктів — іконки внахлест, як аватарки команди */
+.chat__context-icons {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.chat__context-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--soft);
+  box-shadow: 0 0 0 2px var(--main-bg);
+  color: var(--muted);
+}
+
+.chat__context-icon + .chat__context-icon {
+  margin-left: -7px;
+}
+
 .chat__profile-note a {
   color: inherit;
   text-decoration: underline;
@@ -5237,30 +5263,45 @@ ol.chat__reveal {
   font-weight: 500;
 }
 
-/* «Повний розбір»: тиха кнопка під коротким висновком */
+/* «Повний розбір» — рядок-розділ на всю ширину, як «Ризики» чи «План на тиждень»:
+   та сама лінія згори й підпис; праворуч — скільки розділів сховано й стрілка */
 .chat__summary-more {
-  display: inline-flex;
-  align-self: flex-start;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  padding: 8px 14px;
-  border: 1px solid var(--line-soft);
-  border-radius: 999px;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 0 4px;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
   background: transparent;
-  color: var(--ink);
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
   font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
+  text-align: left;
   cursor: pointer;
-  transition: background 0.15s, var(--press);
+  transition: color 0.15s ease;
 }
 
-.chat__summary-more:hover {
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+.chat__summary-more .chat__summary-label {
+  color: inherit;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+}
+
+.chat__summary-more-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+.chat__summary-more:hover,
+.chat__summary-more[aria-expanded='true'] {
+  color: var(--ink);
 }
 
 .chat__summary-more:focus-visible {
+  border-radius: var(--r-sm);
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -5280,7 +5321,7 @@ ol.chat__reveal {
   flex-direction: column;
   gap: inherit;
   margin-top: 14px;
-  animation: summary-full-in 0.32s var(--ease-standard, ease) both;
+  animation: summary-full-in 0.22s var(--ease-standard, ease) both;
 }
 
 @keyframes summary-full-in {
@@ -5293,6 +5334,12 @@ ol.chat__reveal {
 
 :root[data-motion='reduced'] .chat__summary-full {
   animation: none;
+}
+
+/* згортання — висоту й прозорість веде анімація з JS; вміст не вилазить за межі */
+.chat__summary-full--closing {
+  overflow: hidden;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7349,9 +7396,11 @@ ol.chat__reveal {
   font-size: 0.8125rem;
 }
 
+/* «Налаштувати вручну…» — по центру меню, окремо від складів */
 .team-strip__item--manual {
+  justify-content: center;
   margin-top: 2px;
-  padding-left: 58px;
+  text-align: center;
   border-top: 1px solid var(--line-soft);
   border-radius: 0 0 var(--r-md) var(--r-md);
   color: var(--muted);
