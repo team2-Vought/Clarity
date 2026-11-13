@@ -3312,15 +3312,21 @@ body:has(.app-shell) {
     0 1px 3px rgba(18, 18, 18, 0.06);
 }
 
-.debate__panel-body + .debate__more-toggle::before {
+/* перехід — окремий шар панелі під кнопкою (а не її ::before: той
+   малювався б поверх власного білого фону кнопки) */
+.debate__panel-view:has(> .debate__panel-body + .debate__more-toggle) {
+  position: relative;
+}
+
+.debate__panel-view:has(> .debate__panel-body + .debate__more-toggle)::after {
   content: '';
   position: absolute;
-  z-index: -1;
-  inset: -40px -8px 50%;
-  background: linear-gradient(
-    color-mix(in srgb, var(--panel) 0%, transparent),
-    var(--panel) 75%
-  );
+  z-index: 1;
+  right: -8px;
+  bottom: 0;
+  left: -8px;
+  height: 72px;
+  background: linear-gradient(transparent, var(--panel) 55%);
   pointer-events: none;
 }
 
