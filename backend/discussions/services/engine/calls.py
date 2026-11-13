@@ -263,6 +263,48 @@ def _run_json_plan(plan, provider_factory, discussion):
     raise last_error
 
 
+# збої, після яких варто спробувати іншу модель: решта — не про модель
+FALLBACK_CODES = frozenset({'provider_error', 'provider_config', 'provider_quota', 'empty_response'})
+
+
+def _complete_persona(plan, provider_factory, discussion, board):
+    """Репліка учасника його моделлю; якщо модель не відповіла — запасною.
+
+    Запасні моделі (`plan.fallback_models`) готує `_prepare_step`; людина може
+    вимкнути заміну. Повідомлення зберігається з моделлю, що справді відповіла
+    (`plan.used_model`).
+    """
+    models = [plan.model_id, *[m for m in plan.fallback_models if m != plan.model_id]]
+    last_error = None
+    for model_id in models:
+        if model_id != plan.model_id and not _bill(plan, model_id, discussion.user_id):
+            last_error = daily_limit_error()
+            continue
+        try:
+            raw = _complete(
+                provider_factory,
+                model_id,
+                plan.system,
+                plan.prompt,
+                plan.temperature,
+                on_text=(lambda text: board.update(plan, text)) if board is not None else None,
+            )
+        except EngineError as exc:
+            if exc.code not in FALLBACK_CODES:
+                raise
+            # упали всі — людина бачить помилку саме моделі, яку обрала
+            last_error = last_error if model_id != plan.model_id else exc
+            logger.warning(
+                'Participant model failed, trying fallback',
+                extra={'model': model_id, 'code': exc.code},
+            )
+            continue
+        if model_id != plan.model_id:
+            plan.used_model = model_id
+        return raw
+    raise last_error
+
+
 def _majority_stance(discussion, personas):
     """Найпоширеніша остання позиція учасників (для режимів з вибором)."""
     latest = {}
@@ -282,14 +324,7 @@ def _run_plan(plan, provider_factory, discussion):
     mode, options = _mode_ctx(discussion)
     if plan.json_kind is None:
         board = _drafts.get()
-        raw = _complete(
-            provider_factory,
-            plan.model_id,
-            plan.system,
-            plan.prompt,
-            plan.temperature,
-            on_text=(lambda text: board.update(plan, text)) if board is not None else None,
-        )
+        raw = _complete_persona(plan, provider_factory, discussion, board)
         reply = parse_reply(raw, mode, options)
         if not plan.can_search:
             reply['search_query'] = ''

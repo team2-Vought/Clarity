@@ -65,6 +65,7 @@ export async function downloadSummaryPdf({ question, summary, lists, sources, t 
   ];
 
   if (summary.answer) content.push(labelled(t.summaryAnswer, summary.answer));
+  if (summary.headline) content.push({ text: summary.headline, fontSize: 13, bold: true, margin: [0, 0, 0, 8] });
   content.push(labelled(t.summaryDecision, summary.decision));
   if (summary.confirmed === false && summary.revision) {
     content.push(labelled(t.summaryRevision, summary.revision));

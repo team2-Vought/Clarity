@@ -9,14 +9,18 @@ import {
   Delete02Icon,
   Mail01Icon,
   PencilEdit02Icon,
+  RepeatIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { deleteDecision, fetchJournal, updateDecision } from '../api/journal';
+import { fetchDiscussion } from '../api/discussions';
 import { fetchSettings } from '../api/settings';
 import { refreshJournalDue } from '../hooks/useJournalDue';
 import { useToasts } from '../hooks/useToasts';
 import { InlineText } from '../components/MessageMarkdown';
 import { copy, locale } from '../copy';
+import { en } from '../copy/en';
+import { uk } from '../copy/uk';
 import LoadError from '../components/LoadError';
 import EmptyState from '../components/EmptyState';
 import { confirmAction } from '../utils/confirm';
@@ -43,6 +47,11 @@ const formatDate = (value) => {
 // виринає з розмиття, із затримкою за своїм номером (--item). При закритті
 // блоки гаснуть у зворотному порядку — за місцем у картці (--rank)
 const reveal = (index, rank = index) => ({ '--item': index, '--rank': rank });
+
+const clip = (text, limit) => {
+  const value = String(text || '').trim();
+  return value.length > limit ? `${value.slice(0, limit - 1).trimEnd()}…` : value;
+};
 
 const prefersReducedMotion = () =>
   document.documentElement.dataset.motion === 'reduced'
@@ -246,6 +255,44 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
     reviewTimer.current = setTimeout(finish, REVIEW_CLOSE_MS);
   };
 
+  // «Переглянути рішення»: нова дискусія з тим самим складом, у питанні — що
+  // вирішили тоді, як вийшло й що зроблено; людина дописує, що змінилося
+  const [revisiting, setRevisiting] = useState(false);
+  const revisit = async () => {
+    if (revisiting) return;
+    setRevisiting(true);
+    // рамка питання — мовою самого рішення, а не інтерфейсу: учасники відповідатимуть нею
+    const ownCopy = /[а-яіїєґ]/i.test(`${entry.question} ${entry.decision}`) ? uk.journal : en.journal;
+    const date = new Date(entry.created_at);
+    const question = ownCopy.revisitQuestion({
+      date: Number.isNaN(date.getTime())
+        ? ''
+        : new Intl.DateTimeFormat(ownCopy === uk.journal ? 'uk-UA' : 'en-GB', { dateStyle: 'long' }).format(date),
+      question: clip(entry.question, 1500),
+      decision: clip(entry.decision, 1000),
+      outcome: entry.outcome ? ownCopy.outcomes[entry.outcome] : '',
+      reflection: clip(entry.reflection || '', 600),
+      done: done.size,
+      total: steps.length,
+    });
+    let team = {};
+    if (entry.discussion_id) {
+      try {
+        const source = await fetchDiscussion(entry.discussion_id);
+        team = {
+          personas: source.personas,
+          moderatorModel: source.moderator_model,
+          devilModel: source.devil_model,
+          rounds: source.rounds,
+          webSearch: source.web_search,
+        };
+      } catch {
+        // дискусію могли видалити — тоді склад за замовчуванням
+      }
+    }
+    navigate('/home', { state: { template: { ...team, question, mode: 'open', revisit: true } } });
+  };
+
   const meta = [t.decidedOn(formatDate(entry.created_at))];
   if (entry.status === 'waiting') meta.push(t.askOn(formatDate(entry.check_at)));
   if (entry.status === 'reviewed') meta.push(t.reviewedOn(formatDate(entry.reviewed_at)));
@@ -301,6 +348,16 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
       )}
 
       <div className="journal__tools">
+        <button
+          type="button"
+          className="journal__icon-button"
+          onClick={revisit}
+          disabled={revisiting}
+          aria-label={t.revisit}
+          title={t.revisitHint}
+        >
+          <HugeiconsIcon icon={RepeatIcon} size={18} aria-hidden="true" />
+        </button>
         {entry.discussion_id && (
           <button
             type="button"
@@ -337,6 +394,19 @@ function JournalEntry({ entry, focused, onChange, onRemove }) {
         <div className="journal__result">
           <span className={`journal__chip journal__chip--${entry.outcome}`}>{t.outcomes[entry.outcome]}</span>
           {entry.reflection && <p className="journal__reflection">{entry.reflection}</p>}
+          {/* вийшло не так, як хотілося, — найкращий момент подумати ще раз */}
+          {entry.outcome !== 'good' && (
+            <button
+              type="button"
+              className="journal__button journal__button--soft journal__revisit"
+              onClick={revisit}
+              disabled={revisiting}
+              title={t.revisitHint}
+            >
+              <HugeiconsIcon icon={RepeatIcon} size={16} aria-hidden="true" />
+              {t.revisit}
+            </button>
+          )}
         </div>
       )}
 

@@ -213,6 +213,24 @@ def normalize_review(data):
     }
 
 
+def _pairs(value, first, second, *, limit, item_limit=400):
+    """[{first, second}] з відповіді моделі; рядок — лише перша частина без другої."""
+    if isinstance(value, (str, dict)):
+        value = [value]
+    result = []
+    for item in value if isinstance(value, list) else []:
+        if isinstance(item, dict):
+            head = _text(item.get(first), limit=item_limit)
+            tail = _text(item.get(second), limit=item_limit)
+        else:
+            head, tail = _text(item, limit=item_limit), ''
+        if head and head not in {pair[first] for pair in result}:
+            result.append({first: head, second: tail})
+        if len(result) >= limit:
+            break
+    return result
+
+
 def normalize_summary(data, best_solution, mode, options):
     data = data if isinstance(data, dict) else {}
     best_solution = best_solution if isinstance(best_solution, dict) else {}
@@ -221,9 +239,14 @@ def normalize_summary(data, best_solution, mode, options):
         'decision': decision,
         'confirmed': _as_bool(data.get('confirmed'), None),
         'revision': _text(data.get('revision'), limit=2000),
-        'pros': _text_list(data.get('pros')),
-        'cons': _text_list(data.get('cons')),
-        'risks': _text_list(data.get('risks')),
+        'headline': _text(data.get('headline'), limit=200),
+        'conditions': _text_list(data.get('conditions'), limit=3, item_limit=300),
+        'pros': _text_list(data.get('pros'), limit=4),
+        'cons': _text_list(data.get('cons'), limit=4),
+        # ризики з тим, як їх зменшити; `risks` — лише назви, для старих читачів
+        'risk_plan': _pairs(data.get('risks'), 'risk', 'mitigation', limit=4),
+        'unknowns': _pairs(data.get('unknowns'), 'question', 'how', limit=3),
+        'plan_b': _text(data.get('plan_b'), limit=600),
         'dissenting_points': (
             _text_list(data.get('dissenting_points'))
             or _text_list(best_solution.get('dissenting_points'))
@@ -234,6 +257,7 @@ def normalize_summary(data, best_solution, mode, options):
         'next_steps': _text_list(data.get('next_steps'), limit=5, item_limit=300),
         'change_triggers': _text_list(data.get('change_triggers'), limit=4, item_limit=300),
     }
+    result['risks'] = [item['risk'] for item in result['risk_plan']]
     best_answer = _answer(best_solution.get('answer'), mode, options)
     answer = (
         _answer(data.get('answer'), mode, options)
@@ -270,7 +294,10 @@ def _plain(value, limit):
 
 
 def normalize_clarify(data):
-    """{ready, questions: [{id, question, options}]}; без запитань — готово."""
+    """{ready, questions: [{id, question, why, options}]}; без запитань — готово.
+
+    Порожні options — відкрите питання (число, назва): людина вписує відповідь.
+    """
     data = data if isinstance(data, dict) else {}
     questions = []
     raw = data.get('questions') if isinstance(data.get('questions'), list) else []
@@ -286,8 +313,16 @@ def normalize_clarify(data):
                 variants.append(option)
             if len(variants) >= prompts.CLARIFY_MAX_OPTIONS:
                 break
-        if text and len(variants) >= 2:
-            questions.append({'id': f'q{len(questions) + 1}', 'question': text, 'options': variants})
+        # один варіант — не вибір: таке питання показуємо як відкрите
+        if len(variants) < 2:
+            variants = []
+        if text:
+            questions.append({
+                'id': f'q{len(questions) + 1}',
+                'question': text,
+                'why': _plain(item.get('why'), 200),
+                'options': variants,
+            })
         if len(questions) >= prompts.CLARIFY_MAX_QUESTIONS:
             break
     ready = _as_bool(data.get('ready'), True) or not questions

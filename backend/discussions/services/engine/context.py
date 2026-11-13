@@ -260,6 +260,30 @@ def _model_for_persona(persona):
     return persona.get('model') or _default_model()
 
 
+PERSONA_FALLBACKS = 3
+
+
+def model_fallback_enabled(user):
+    """Чи може учасник, чия модель не відповіла, перейти на іншу (налаштування людини)."""
+    prefs = getattr(user, 'preferences', None)
+    return not isinstance(prefs, dict) or prefs.get('model_fallback', True) is not False
+
+
+def _persona_fallbacks(discussion, persona):
+    """Запасні моделі учасника в порядку спроб, якщо його модель не відповіла.
+
+    Спершу — моделі, яких немає в жодного учасника: так погляди лишаються різними;
+    далі — решта доступних. Людина може вимкнути заміну в налаштуваннях.
+    """
+    if not model_fallback_enabled(discussion.user):
+        return []
+    own = _model_for_persona(persona)
+    taken = {_model_for_persona(item) for item in _resolved_personas(discussion)}
+    available = [model_id for model_id in available_model_ids() if model_id != own]
+    ordered = [m for m in available if m not in taken] + [m for m in available if m in taken]
+    return ordered[:PERSONA_FALLBACKS]
+
+
 def _mode_ctx(discussion):
     return discussion.mode, list(discussion.options or [])
 

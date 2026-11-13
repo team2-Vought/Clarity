@@ -19,6 +19,7 @@ from .context import (
     _mode_ctx,
     _model_for_persona,
     _notes_since,
+    _persona_fallbacks,
     _reply_target,
     _resolved_personas,
     _speaker_order,
@@ -56,6 +57,19 @@ def _judge_plan(discussion, personas, judge, **kwargs):
 
 
 def _prepare_step(discussion):
+    """LLM-виклики кроку; учасникам — запасні моделі на випадок збою.
+
+    Запасні визначаємо тут, у потоці кроку: самі виклики йдуть паралельно в
+    інших потоках, і читати звідти базу (налаштування людини) не варто.
+    """
+    plans = _build_plans(discussion)
+    for plan in plans:
+        if plan.json_kind is None:
+            plan.fallback_models = _persona_fallbacks(discussion, plan.persona)
+    return plans
+
+
+def _build_plans(discussion):
     """Будує LLM-виклики для поточного кроку.
 
     Вступ і відповідь на Devil — паралельні кроки: по виклику на кожного

@@ -237,7 +237,11 @@ export default function DebatePage() {
   const hasOwnKeys = models.some((m) => m.own_key);
   const allOwnKeys = chosenModels.length > 0 && chosenModels.every((m) => m.own_key);
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
-  const activeLabel = activeParticipant?.name || `${t.participant} ${activeIndex + 1}`;
+  // безіменний учасник зветься назвою своєї ролі — так само його назве й сервер
+  const roleNameOf = (slug) => personas.find((persona) => persona.slug === slug)?.name || '';
+  const activeLabel = activeParticipant?.name.trim()
+    || roleNameOf(activeParticipant?.slug)
+    || t.participantN(activeIndex + 1);
   // файли до питання: сервер одразу читає з них текст; поки читає — старт чекає
   const {
     files,
@@ -923,8 +927,8 @@ export default function DebatePage() {
                   )}
                   {participants.map((p, i) => {
                     const active = p.slug === activeParticipant?.slug;
-                    const label = p.name.trim() || t.participantN(i + 1);
-                    const roleName = personas.find((persona) => persona.slug === p.slug)?.name || '';
+                    const roleName = roleNameOf(p.slug);
+                    const label = p.name.trim() || roleName || t.participantN(i + 1);
                     const modelName = shortModel(models.find((m) => m.id === p.model));
                     return (
                       <button
@@ -934,7 +938,7 @@ export default function DebatePage() {
                         style={{ '--chip': p.color }}
                         aria-pressed={active}
                         aria-label={t.selectParticipant(label)}
-                        title={[label, roleName, modelName].filter(Boolean).join(' · ')}
+                        title={[...new Set([label, roleName])].concat(modelName).filter(Boolean).join(' · ')}
                         onClick={() => selectParticipant(p.slug)}
                       >
                         <HugeiconsIcon icon={roleIcon(p.slug)} size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -1043,7 +1047,7 @@ export default function DebatePage() {
                         onChange={(e) => updateName(e.target.value)}
                         onBlur={() => updateName(activeParticipant.name.trim())}
                         onKeyDown={handleNameKeyDown}
-                        placeholder={t.participantN(activeIndex + 1)}
+                        placeholder={roleNameOf(activeParticipant.slug) || t.participantN(activeIndex + 1)}
                         aria-label={t.participantName}
                         disabled={isCreating}
                       />

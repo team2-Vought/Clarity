@@ -7,12 +7,71 @@ import { copy } from '../copy';
 
 const t = copy.chat;
 
+const listFor = (view, key) => view.lists.find((list) => list.key === key)?.items || [];
+
+function Bullets({ id, title, items, sources }) {
+  if (!items.length) return null;
+  return (
+    <section className={`chat__summary-group chat__summary-group--${id}`}>
+      <h4 className="chat__summary-label">{title}</h4>
+      <ul>
+        {items.map((item, itemIndex) => (
+          <li key={`${id}-${itemIndex}`}>
+            <InlineText text={item} sources={sources} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+Bullets.propTypes = {
+  id: PropTypes.string.isRequired,
+  title: PropTypes.string.isRequired,
+  items: PropTypes.arrayOf(PropTypes.string).isRequired,
+  sources: PropTypes.instanceOf(Map).isRequired,
+};
+
+/** Пункт і що з ним робити: ризик → як зменшити, невідоме → як з'ясувати. */
+function Pairs({ id, title, items, noteLabel, sources }) {
+  if (!items.length) return null;
+  return (
+    <section className={`chat__summary-group chat__summary-group--${id}`}>
+      <h4 className="chat__summary-label">{title}</h4>
+      <ul className="chat__summary-pairs">
+        {items.map((item, itemIndex) => (
+          <li key={`${id}-${itemIndex}`}>
+            <span className="chat__summary-pair-main">
+              <InlineText text={item.main} sources={sources} />
+            </span>
+            {item.note && (
+              <span className="chat__summary-pair-note">
+                <span className="chat__summary-pair-label">{noteLabel}</span>
+                <InlineText text={item.note} sources={sources} />
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+Pairs.propTypes = {
+  id: PropTypes.string.isRequired,
+  title: PropTypes.string.isRequired,
+  items: PropTypes.arrayOf(PropTypes.shape({ main: PropTypes.string, note: PropTypes.string })).isRequired,
+  noteLabel: PropTypes.string.isRequired,
+  sources: PropTypes.instanceOf(Map).isRequired,
+};
+
 /**
  * Зміст підсумку дискусії. Головна відповідь виглядає по-різному залежно від
  * формату: велике «ТАК»/«НІ», усі варіанти з голосами й виділеним переможцем
  * або рішення-стаття для вільної відповіді. Далі однаково для всіх форматів:
- * рядок згоди й оцінки та розділи, розділені тонкими лініями, — перегляд після
- * AI Devil, аргументи й наступний крок. Спільний для чату, публічного
+ * вердикт одним реченням, рядок згоди й оцінки та розділи, розділені тонкими
+ * лініями: перегляд після AI Devil, умови, план (спершу — дії), що з'ясувати,
+ * аргументи, ризики з тим, як їх зменшити, план Б, коли передумати, окремі думки. Спільний для чату, публічного
  * посилання й демо на лендингу.
  * `animate` — блоки проявляються по черзі (CSS-змінна --i).
  * `paths` — розділ «Розглянуті шляхи» (лише в чаті): після перегляду, перед аргументами.
@@ -86,6 +145,13 @@ export default function SummaryDetails({
           </h3>
         )}
 
+        {/* вердикт одним реченням — те, що людина запам'ятає */}
+        {view.headline && (
+          <p className="chat__summary-tagline">
+            <InlineText text={view.headline} sources={sources} />
+          </p>
+        )}
+
         <p className="chat__summary-decision">
           <InlineText text={view.decision} sources={sources} />
         </p>
@@ -127,27 +193,17 @@ export default function SummaryDetails({
               </p>
             </section>
           )}
-          {paths}
-          {view.lists.map(({ key, title, items }) => (
-            <section key={key} className={`chat__summary-group chat__summary-group--${key}`}>
-              <h4 className="chat__summary-label">{title}</h4>
-              <ul>
-                {items.map((item, itemIndex) => (
-                  <li key={`${key}-${itemIndex}`}>
-                    <InlineText text={item} sources={sources} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+          <Bullets id="conditions" title={t.summaryConditions} items={view.conditions || []} sources={sources} />
+          {/* план — одразу після вердикту: перший крок виділено, решта — на тиждень */}
           {plan.length > 0 && (
             <section className="chat__summary-group chat__summary-group--plan">
               <h4 className="chat__summary-label">{t.summaryPlan}</h4>
               <ol className="chat__summary-plan">
                 {plan.map((item, itemIndex) => (
-                  <li key={`plan-${itemIndex}`}>
+                  <li key={`plan-${itemIndex}`} className={itemIndex === 0 ? 'chat__summary-plan-first' : undefined}>
                     <span className="chat__summary-plan-num" aria-hidden="true">{itemIndex + 1}</span>
                     <span>
+                      {itemIndex === 0 && <span className="chat__summary-plan-tag">{t.summaryFirstStep}</span>}
                       <InlineText text={item} sources={sources} />
                     </span>
                   </li>
@@ -163,18 +219,21 @@ export default function SummaryDetails({
               </p>
             </section>
           )}
-          {triggers.length > 0 && (
-            <section className="chat__summary-group chat__summary-group--triggers">
-              <h4 className="chat__summary-label">{t.summaryTriggers}</h4>
-              <ul>
-                {triggers.map((item, itemIndex) => (
-                  <li key={`trigger-${itemIndex}`}>
-                    <InlineText text={item} sources={sources} />
-                  </li>
-                ))}
-              </ul>
+          <Pairs id="unknowns" title={t.summaryUnknowns} items={view.unknowns || []} noteLabel={t.summaryUnknownHow} sources={sources} />
+          {paths}
+          <Bullets id="pros" title={t.summaryPros} items={listFor(view, 'pros')} sources={sources} />
+          <Bullets id="cons" title={t.summaryCons} items={listFor(view, 'cons')} sources={sources} />
+          <Pairs id="risks" title={t.summaryRisks} items={view.riskPlan || []} noteLabel={t.summaryRiskMitigation} sources={sources} />
+          {view.planB && (
+            <section className="chat__summary-group chat__summary-group--planB">
+              <h4 className="chat__summary-label">{t.summaryPlanB}</h4>
+              <p>
+                <InlineText text={view.planB} sources={sources} />
+              </p>
             </section>
           )}
+          <Bullets id="triggers" title={t.summaryTriggers} items={triggers} sources={sources} />
+          <Bullets id="dissent" title={t.summaryDissent} items={view.dissent || listFor(view, 'dissent')} sources={sources} />
         </div>
       )}
     </>
@@ -184,6 +243,7 @@ export default function SummaryDetails({
 SummaryDetails.propTypes = {
   summary: PropTypes.object.isRequired,
   view: PropTypes.shape({
+    headline: PropTypes.string,
     decision: PropTypes.string,
     confirmed: PropTypes.bool,
     confidence: PropTypes.number,

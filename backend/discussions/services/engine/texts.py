@@ -92,8 +92,15 @@ def _final_text(summary):
     summary = summary if isinstance(summary, dict) else {}
     parts = [_answer_line(summary.get('answer'))]
 
+    headline = _text(summary.get('headline'), limit=200)
+    if headline:
+        parts.append(f'**{_unbold(headline)}**')
     decision = _text(summary.get('decision'), _no_decision(), limit=2000)
     parts.append(_section(L('Фінальне рішення', 'Final solution'), decision))
+    parts.append(_section(
+        L('За яких умов', 'Under which conditions'),
+        _bullets(_text_list(summary.get('conditions'), limit=3)),
+    ))
 
     if summary.get('confirmed') is False:
         revision = _text(summary.get('revision'), limit=2000)
@@ -118,6 +125,19 @@ def _final_text(summary):
             f'Participant agreement: **{agree} of {total}**.',
         ))
 
+    risks = [
+        f'{item.get("risk")} — {item.get("mitigation")}' if item.get('mitigation') else str(item.get('risk'))
+        for item in summary.get('risk_plan') or []
+        if isinstance(item, dict) and item.get('risk')
+    ]
+    parts.append(_section(L('Ризики і як їх зменшити', 'Risks and how to reduce them'), _bullets(risks)))
+    unknowns = [
+        f'{item.get("question")} — {item.get("how")}' if item.get('how') else str(item.get('question'))
+        for item in summary.get('unknowns') or []
+        if isinstance(item, dict) and item.get('question')
+    ]
+    parts.append(_section(L('Що з’ясувати', 'What to find out'), _bullets(unknowns)))
+    parts.append(_section(L('План Б', 'Plan B'), _text(summary.get('plan_b'), limit=600)))
     parts.append(_section(
         L('Окремі думки', 'Dissenting opinions'),
         _bullets(_text_list(summary.get('dissenting_points'), limit=4)),

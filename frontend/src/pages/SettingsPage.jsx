@@ -586,6 +586,12 @@ export default function SettingsPage() {
           checked={Boolean(prefs.web_search)}
           onChange={(value) => savePreference({ web_search: value })}
         />
+        <SwitchRow
+          title={t.modelFallbackLabel}
+          hint={t.modelFallbackHint}
+          checked={prefs.model_fallback !== false}
+          onChange={(value) => savePreference({ model_fallback: value })}
+        />
       </div>
       <p className="settings__footnote">{t.debateLead}</p>
       <CustomRolesSettings />

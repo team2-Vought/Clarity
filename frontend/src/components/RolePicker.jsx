@@ -54,7 +54,9 @@ export default function RolePicker({ personas, participants, value, onChange, on
         const active = persona.slug === value;
         const holderIndex = participants.findIndex((p) => p.slug === persona.slug);
         const holder = !active && holderIndex >= 0 ? participants[holderIndex] : null;
-        const holderLabel = holder ? holder.name.trim() || t.participantN(holderIndex + 1) : '';
+        const holderLabel = holder ? holder.name.trim()
+          || personas.find((item) => item.slug === holder.slug)?.name
+          || t.participantN(holderIndex + 1) : '';
         return (
           <button
             key={persona.slug}

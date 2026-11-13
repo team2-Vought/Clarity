@@ -42,14 +42,22 @@ export function discussionMarkdown(discussion, { labels, phaseLabel, authorOf, a
   if (summary?.decision) {
     lines.push(`## ${labels.summary}`, '');
     if (summary.answer) lines.push(`**${labels.summaryAnswer}:** ${summary.answer}`, '');
+    if (summary.headline) lines.push(`**${summary.headline}**`, '');
     lines.push(`**${labels.summaryDecision}:** ${summary.decision}`, '');
     if (summary.confirmed === false && summary.revision) {
       lines.push(`**${labels.summaryRevision}:** ${summary.revision}`, '');
     }
+    const pair = (main, note) => (main && note ? `${main} — ${note}` : main || '');
+    const riskPlan = Array.isArray(summary.risk_plan) && summary.risk_plan.length
+      ? summary.risk_plan.map((item) => pair(item?.risk, item?.mitigation))
+      : summary.risks;
     [
+      [labels.summaryConditions, summary.conditions],
       [labels.summaryPros, summary.pros],
       [labels.summaryCons, summary.cons],
-      [labels.summaryRisks, summary.risks],
+      [labels.summaryRisks, riskPlan],
+      [labels.summaryUnknowns, (summary.unknowns || []).map((item) => pair(item?.question, item?.how))],
+      [labels.summaryPlanB, summary.plan_b ? [summary.plan_b] : []],
       [labels.summaryDissent, summary.dissenting_points],
     ].forEach(([title, items]) => {
       const list = listOf(items);

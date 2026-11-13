@@ -99,7 +99,7 @@ describe('DebatePage', () => {
     setMyProfile({ name: 'Оксана', about: { enabled: true, age: '25_34', values: ['family'] } });
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     // «Про мене» — перемикач у меню формату біля поля питання
     await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
@@ -117,7 +117,7 @@ describe('DebatePage', () => {
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     setMyProfile({ name: 'Оксана', about: { enabled: true, age: '', values: [] } });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
     await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
     expect(
       screen.getByRole('menuitem', { name: 'Заповнити «Про мене»' })
@@ -138,7 +138,7 @@ describe('DebatePage', () => {
     vi.mocked(uploadAttachment).mockResolvedValueOnce({ id: 'f2', name: 'flat.txt', kind: 'text' });
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто погоджуватись на оффер?');
 
     const input = document.querySelector('input[type="file"]');
@@ -169,7 +169,7 @@ describe('DebatePage', () => {
     const user = userEvent.setup();
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     await user.click(screen.getByRole('button', { name: /Формат відповіді/ }));
     // перемикач лишає меню відкритим, вибір формату — закриває
@@ -195,16 +195,16 @@ describe('DebatePage', () => {
     }));
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
-    await user.click(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' }));
+    await user.click(within(sheetOf('Логік')).getByRole('button', { name: 'Роль: Логік' }));
     await user.click(screen.getByRole('menuitem', { name: 'Створити свою роль' }));
     const dialog = screen.getByRole('dialog', { name: 'Своя роль' });
     await user.click(within(dialog).getByRole('button', { name: 'Юрист' }));
     await user.click(within(dialog).getByRole('button', { name: 'Створити' }));
 
     expect(createCustomRole).toHaveBeenCalledWith(expect.objectContaining({ name: 'Юрист' }));
-    expect(await within(sheetOf('Учасник 1')).findByRole('button', { name: 'Роль: Юрист' })).toBeInTheDocument();
+    expect(await within(sheetOf('Юрист')).findByRole('button', { name: 'Роль: Юрист' })).toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи підписувати цей договір оренди?{Enter}');
     expect(vi.mocked(createDiscussion).mock.calls[0][0].personas[0].slug).toBe('c-abc');
   });
@@ -212,7 +212,7 @@ describe('DebatePage', () => {
   it('питання про кризу одразу показує, куди звернутися', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
     expect(screen.queryByText('7333')).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Я не хочу більше жити');
     expect(screen.getByText('7333')).toBeInTheDocument();
@@ -226,39 +226,40 @@ describe('DebatePage', () => {
       preferences: { onboarding_done: true },
     });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
     expect(screen.queryByRole('region', { name: 'Вітаємо в Clarity' })).not.toBeInTheDocument();
   });
 
   it('показує склад жетонами, а зайняту роль у меню — недоступною з підказкою, хто її має', async () => {
     const user = userEvent.setup();
     renderPage();
-    expect(await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' })).toHaveAttribute(
+    expect(await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
-    expect(screen.getByRole('button', { name: 'Вибрати учасника «Учасник 2»' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Вибрати учасника «Емоційний»' })).toBeInTheDocument();
 
-    await user.click(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' }));
+    await user.click(within(sheetOf('Логік')).getByRole('button', { name: 'Роль: Логік' }));
     const roles = screen.getByRole('menu', { name: 'Роль' });
     const taken = within(roles).getByRole('menuitemradio', { name: /Емоційний/ });
     expect(taken).toHaveAttribute('aria-disabled', 'true');
-    expect(taken).toHaveAttribute('title', 'Цю роль уже має «Учасник 2»');
+    expect(taken).toHaveAttribute('title', 'Цю роль уже має «Емоційний»');
 
     await user.click(taken);
-    expect(within(sheetOf('Учасник 1')).getByRole('button', { name: 'Роль: Логік' })).toBeInTheDocument();
+    expect(within(sheetOf('Логік')).getByRole('button', { name: 'Роль: Логік' })).toBeInTheDocument();
   });
 
   it('зміна ролі оновлює анкету на місці, без перемонтування', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
-    const sheet = sheetOf('Учасник 1');
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
+    const sheet = sheetOf('Логік');
 
     await user.click(within(sheet).getByRole('button', { name: 'Роль: Логік' }));
     await user.click(screen.getByRole('menuitemradio', { name: /Скептик/ }));
 
-    expect(sheetOf('Учасник 1')).toBe(sheet);
+    // безіменний учасник зветься назвою ролі — нова роль, нова назва, та сама анкета
+    expect(sheetOf('Скептик')).toBe(sheet);
     expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Роль: Скептик' })).toHaveAttribute('aria-expanded', 'false');
   });
@@ -282,7 +283,7 @@ describe('DebatePage', () => {
   it('пошук в інтернеті увімкнено в меню формату, а «Додатково» змінює раунди', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
     expect(screen.getByRole('menuitemcheckbox', { name: /^Пошук в інтернеті/ })).toHaveAttribute('aria-checked', 'true');
@@ -304,7 +305,7 @@ describe('DebatePage', () => {
     const user = userEvent.setup();
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     await user.click(screen.getByRole('button', { name: /^Додатково/ }));
     await user.click(screen.getByRole('radio', { name: 'До згоди' }));
@@ -326,7 +327,7 @@ describe('DebatePage', () => {
       preferences: { default_until_consensus: true },
     });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     await user.click(screen.getByRole('button', { name: /^Додатково/ }));
     expect(screen.getByRole('radio', { name: 'До згоди' })).toHaveAttribute('aria-checked', 'true');
@@ -335,7 +336,7 @@ describe('DebatePage', () => {
   it('картка-підказка підставляє питання в поле, і підказки ховаються', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     const group = screen.getByRole('group', { name: 'Приклади питань' });
     const card = within(group).getAllByRole('button')[0];
@@ -353,7 +354,7 @@ describe('DebatePage', () => {
   it('вимкнені в налаштуваннях приклади запитів не показуються', async () => {
     localStorage.setItem('clarity:suggestions', 'off');
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     expect(screen.queryByRole('group', { name: 'Приклади питань' })).not.toBeInTheDocument();
   });
@@ -362,7 +363,7 @@ describe('DebatePage', () => {
     const user = userEvent.setup();
     vi.mocked(createDiscussion).mockResolvedValue({ id: 'abc' });
     renderPage();
-    await screen.findByRole('button', { name: 'Вибрати учасника «Учасник 1»' });
+    await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
 

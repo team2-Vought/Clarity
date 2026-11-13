@@ -9,24 +9,54 @@ const listOf = (value) =>
 
 const fold = (value) => String(value ?? '').trim().toLowerCase();
 
-/** Нормалізований підсумок для показу: модель може пропустити чи зіпсувати поля. */
+const pairsOf = (value, first, second) =>
+  (Array.isArray(value) ? value : [])
+    .map((item) => ({
+      main: String(item?.[first] ?? '').trim(),
+      note: String(item?.[second] ?? '').trim(),
+    }))
+    .filter((item) => item.main);
+
+const joinPair = ({ main, note }) => (note ? `${main} — ${note}` : main);
+
+/**
+ * Нормалізований підсумок для показу: модель може пропустити чи зіпсувати поля.
+ * `lists` — усі розділи-списки рядками в порядку показу (для копіювання й PDF);
+ * `riskPlan` і `unknowns` — ті самі ризики й невідомі парами для картки.
+ * Старі підсумки не мають headline, умов, плану Б тощо — тоді розділів просто немає.
+ */
 export function describeSummary(summary) {
   const confidence = Number.isFinite(Number(summary?.confidence)) && summary?.confidence !== null
     ? Math.max(0, Math.min(100, Math.round(Number(summary.confidence))))
     : null;
+  // ризики з тим, як їх зменшити; у старих підсумках — лише рядки
+  const riskPlan = pairsOf(summary?.risk_plan, 'risk', 'mitigation');
+  const risks = riskPlan.length ? riskPlan : listOf(summary?.risks).map((main) => ({ main, note: '' }));
+  const unknowns = pairsOf(summary?.unknowns, 'question', 'how');
+  const planB = summary?.plan_b ? String(summary.plan_b).trim() : '';
+  const dissent = listOf(summary?.dissenting_points);
   return {
+    headline: summary?.headline ? String(summary.headline).trim() : '',
     decision: summary?.decision ? String(summary.decision) : '',
     confirmed: typeof summary?.confirmed === 'boolean' ? summary.confirmed : null,
     confidence,
     agreement: summary?.agreement?.total ? summary.agreement : null,
+    conditions: listOf(summary?.conditions),
     // план дій: кроки на тиждень і сигнали, коли варто переглянути рішення
     plan: listOf(summary?.next_steps),
     triggers: listOf(summary?.change_triggers),
+    riskPlan: risks,
+    unknowns,
+    planB,
+    dissent,
     lists: [
+      { key: 'conditions', title: t.summaryConditions, items: listOf(summary?.conditions) },
       { key: 'pros', title: t.summaryPros, items: listOf(summary?.pros) },
       { key: 'cons', title: t.summaryCons, items: listOf(summary?.cons) },
-      { key: 'risks', title: t.summaryRisks, items: listOf(summary?.risks) },
-      { key: 'dissent', title: t.summaryDissent, items: listOf(summary?.dissenting_points) },
+      { key: 'risks', title: t.summaryRisks, items: risks.map(joinPair) },
+      { key: 'unknowns', title: t.summaryUnknowns, items: unknowns.map(joinPair) },
+      { key: 'planB', title: t.summaryPlanB, items: planB ? [planB] : [] },
+      { key: 'dissent', title: t.summaryDissent, items: dissent },
     ].filter((list) => list.items.length > 0),
   };
 }

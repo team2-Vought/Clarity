@@ -40,6 +40,32 @@ def due_entries(user, now=None):
     ).order_by('check_at')
 
 
+LESSONS_MAX = 5
+
+
+def past_lessons(user, limit=LESSONS_MAX):
+    """Підсумовані рішення людини — що вирішила, як вийшло й що зрозуміла.
+
+    Знімок кладеться в профіль нової дискусії (`profile['history']`): модератор
+    і учасники бачать, що людині вже спрацювало, а що ні. Запис без «Як вийшло»
+    нічого не вчить — його не беремо.
+    """
+    entries = (
+        Decision.objects.filter(user=user, reviewed_at__isnull=False)
+        .exclude(outcome='')
+        .order_by('-reviewed_at')[:limit]
+    )
+    return [
+        {
+            'question': ' '.join(entry.question.split())[:200],
+            'decision': ' '.join(entry.decision.split())[:300],
+            'outcome': entry.outcome,
+            'reflection': ' '.join(entry.reflection.split())[:300],
+        }
+        for entry in entries
+    ]
+
+
 def journal_state(discussion):
     """Що бачить чат під підсумком: чи рішення вже в журналі й коли спитаємо."""
     entry = getattr(discussion, 'journal_entry', None)

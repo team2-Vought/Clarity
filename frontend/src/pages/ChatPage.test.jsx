@@ -296,7 +296,7 @@ describe('ChatPage', () => {
   it('модератор питає в чаті: варіант і своя відповідь ідуть на сервер, раннер не підштовхується', async () => {
     const user = userEvent.setup();
     const questions = [
-      { id: 'q1', question: 'Який у вас досвід?', options: ['До року', 'Понад три роки'] },
+      { id: 'q1', question: 'Який у вас досвід?', why: 'Від досвіду залежить ризик.', options: ['До року', 'Понад три роки'] },
       { id: 'q2', question: 'Що найважливіше?', options: ['Гроші', 'Розвиток'] },
       { id: 'q3', question: 'Є запасний план?', options: ['Так', 'Ні'] },
     ];
@@ -323,7 +323,9 @@ describe('ChatPage', () => {
     const card = await screen.findByRole('form', { name: /Уточніть кілька деталей/ });
     expect(runDiscussion).not.toHaveBeenCalled();
     // по одному питанню за раз; вибір варіанта гортає далі
-    expect(within(card).getByText('1 з 3')).toBeInTheDocument();
+    // питання модератора й останнім — «Що ще команді варто знати?»; під питанням — навіщо питають
+    expect(within(card).getByText('1 з 4')).toBeInTheDocument();
+    expect(within(card).getByText('Від досвіду залежить ризик.')).toBeInTheDocument();
     expect(within(card).queryByText('Що найважливіше?')).not.toBeInTheDocument();
     await user.click(within(card).getByRole('radio', { name: /Понад три роки/ }));
     expect(await within(card).findByText('Що найважливіше?')).toBeInTheDocument();
@@ -335,12 +337,16 @@ describe('ChatPage', () => {
     await user.type(within(card).getByRole('textbox', { name: 'Своя відповідь: Що найважливіше?' }), 'Команда');
     expect(within(card).getByRole('radio', { name: /Гроші/ })).toHaveAttribute('aria-checked', 'false');
     await user.click(within(card).getByRole('button', { name: 'Далі' }));
+    await user.click(within(card).getByRole('button', { name: 'Далі' }));
+    // останній крок — вільне поле для того, про що модератор не спитав
+    await user.type(within(card).getByRole('textbox', { name: 'Що ще команді варто знати?' }), 'Дружина проти');
     await user.click(within(card).getByRole('button', { name: 'Почати дискусію' }));
 
     expect(answerClarify).toHaveBeenCalledWith('d1', [
       { question: 'Який у вас досвід?', answer: 'Понад три роки' },
       { question: 'Що найважливіше?', answer: 'Команда' },
       { question: 'Є запасний план?', answer: '' },
+      { question: 'Що ще команді варто знати?', answer: 'Дружина проти' },
     ]);
     expect(screen.queryByRole('form', { name: /Уточніть кілька деталей/ })).not.toBeInTheDocument();
     expect(screen.getByText('Понад три роки')).toBeInTheDocument();

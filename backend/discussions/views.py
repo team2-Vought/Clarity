@@ -19,6 +19,7 @@ from accounts import email_verify
 from backend.i18n import L, current
 
 from .account_settings import preferences_of
+from .journal import past_lessons
 from .models import Attachment, CustomPersona, Discussion, Highlight, Message, Team
 from .personas import (
     CONSENSUS_MAX_ROUNDS,
@@ -322,11 +323,16 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
             return _discussion_limit_response()
         about = about_of(request.user)
         use_profile = data.get('use_profile', about['enabled'])
+        profile = about_snapshot(about) if use_profile else {}
+        # як вийшли минулі рішення з журналу — щоб порада врахувала досвід людини
+        lessons = past_lessons(request.user) if use_profile else []
+        if lessons:
+            profile['history'] = lessons
         quick = data.get('quick', False)
         discussion = Discussion.objects.create(
             user=request.user,
             question=data['question'],
-            profile=about_snapshot(about) if use_profile else {},
+            profile=profile,
             mode=data.get('mode', Discussion.Mode.OPEN),
             options=data.get('options') or [],
             personas=data['personas'],

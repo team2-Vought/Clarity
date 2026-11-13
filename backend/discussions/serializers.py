@@ -15,6 +15,7 @@ from .personas import (
     PERSONA_BY_SLUG,
     QUESTION_MAX,
     QUESTION_MIN,
+    localize,
 )
 from .attachment_views import attachment_payload
 from .services.criteria import CRITERIA_MAX, WEIGHT_MAX, WEIGHT_MIN
@@ -69,7 +70,6 @@ MODEL_UNAVAILABLE = lazy_L(
     'The model “{model}” is unavailable: add a key in backend/.env or choose another one',
 )
 NAMES_DUPLICATE = lazy_L('Імена учасників мають бути різними', 'Participant names must be different')
-DEFAULT_NAME = lazy_L('Учасник {index}', 'Participant {index}')
 NAME_INVALID = lazy_L('Ім’я містить недопустимі символи', 'The name contains invalid characters')
 TRAITS_TYPE = lazy_L('Риси характеру мають бути списком', 'Character traits must be a list')
 TRAITS_TOO_MANY = lazy_L('Максимум 20 рис характеру', 'A maximum of 20 character traits')
@@ -113,7 +113,8 @@ _SENTENCE_END = re.compile(r'(?<=[.!?…])\s')
 OPTION_MAX = 8
 TRAITS_MAX = 20
 TRAIT_LENGTH_MAX = 40
-CLARIFICATIONS_MAX = 6
+# питання модератора (до 6) і «Що ще важливо знати?»
+CLARIFICATIONS_MAX = 7
 CLARIFICATION_QUESTION_MAX = 300
 CLARIFICATION_ANSWER_MAX = 500
 
@@ -315,10 +316,11 @@ class CreateDiscussionSerializer(serializers.Serializer):
                 model = validate_model_id(item.get('model'))
                 if model:
                     persona['model'] = model
-            # Користувач не бачить архетипів персон («Логік», «Скептик»), лише
-            # своїх учасників, тож безіменному даємо те саме ім'я, що й в UI.
-            # своя роль без окремого імені зветься назвою ролі — «Юрист», а не «Учасник 3»
-            effective_name = name or (custom.name if custom else DEFAULT_NAME.format(index=index + 1))
+            # безіменний учасник зветься назвою своєї ролі мовою інтерфейсу —
+            # «Логік», «Юрист», а не «Учасник 3»; так само його підписує й UI
+            effective_name = name or (
+                custom.name if custom else localize(PERSONA_BY_SLUG[slug])['name']
+            )
             persona['name'] = effective_name
             folded_name = effective_name.casefold()
             if folded_name in seen_names:
@@ -527,6 +529,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
     live = serializers.SerializerMethodField()
     # сам профіль клієнту не потрібен — лише те, що його враховано
     profile_used = serializers.SerializerMethodField()
+    history_used = serializers.SerializerMethodField()
     # хто платить: own — усе на ключах людини (без денного ліміту), server чи mixed
     billing = serializers.SerializerMethodField()
     journal = serializers.SerializerMethodField()
@@ -543,7 +546,11 @@ class DiscussionSerializer(serializers.ModelSerializer):
         return runner.is_working(obj)
 
     def get_profile_used(self, obj):
-        return bool(obj.profile)
+        return any(key != 'history' for key in obj.profile or {})
+
+    def get_history_used(self, obj):
+        history = (obj.profile or {}).get('history')
+        return len(history) if isinstance(history, list) else 0
 
     def get_billing(self, obj):
         with user_context(obj.user):
@@ -598,6 +605,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'clarifications',
             'clarify_questions',
             'profile_used',
+            'history_used',
             'billing',
             'journal',
             'attachments',

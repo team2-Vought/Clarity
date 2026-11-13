@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from discussions.models import Discussion, Message
 from discussions.personas import CONSENSUS_MAX_ROUNDS
 from discussions.services import engine, runner
+from discussions.services.engine.context import _model_for_persona, _resolved_personas
 from discussions.services.providers import ProviderError
 
 from .fakes import FakeProvider
@@ -431,6 +432,9 @@ class RunnerTests(Base):
         def broken(model_id):
             raise ProviderError('bad key', status=401)
 
+        # без заміни моделі: інакше учасники пробували б запасні
+        self.user.preferences = {'model_fallback': False}
+        self.user.save(update_fields=['preferences'])
         other = self.make(personas=['logician', 'skeptic'], rounds=1)
         calls = []
 
@@ -442,6 +446,42 @@ class RunnerTests(Base):
         other.refresh_from_db()
         self.assertEqual(other.status, Discussion.Status.FAILED)
         self.assertEqual(len(calls), 2)  # один крок вступу, без повторів
+
+
+class ModelFallbackTests(Base):
+    def failing(self, broken_model):
+        calls = []
+
+        def factory(model_id):
+            calls.append(model_id)
+            if model_id == broken_model:
+                raise ProviderError('quota', status=429)
+            return self.provider
+
+        return factory, calls
+
+    def test_participant_switches_to_another_model_when_its_own_fails(self):
+        discussion = self.make(personas=['logician', 'skeptic'], rounds=1)
+        broken = _model_for_persona(_resolved_personas(discussion)[0])
+        factory, calls = self.failing(broken)
+        runner.run(discussion.pk, provider_factory=factory)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.phase, Discussion.Phase.DONE)
+        self.assertIn(broken, calls)
+        # репліки «зламаного» учасника збережено з моделлю, що справді відповіла
+        own = discussion.messages.filter(persona_slug='logician').values_list('model_id', flat=True)
+        self.assertTrue(own)
+        self.assertNotIn(broken, set(own))
+
+    def test_fallback_can_be_turned_off(self):
+        self.user.preferences = {'model_fallback': False}
+        self.user.save(update_fields=['preferences'])
+        discussion = self.make(personas=['logician', 'skeptic'], rounds=1)
+        broken = _model_for_persona(_resolved_personas(discussion)[0])
+        factory, _ = self.failing(broken)
+        runner.run(discussion.pk, provider_factory=factory)
+        discussion.refresh_from_db()
+        self.assertEqual(discussion.status, Discussion.Status.FAILED)
 
 
 class UntilConsensusTests(Base):

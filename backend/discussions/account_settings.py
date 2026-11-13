@@ -50,6 +50,8 @@ DEFAULT_PREFERENCES = {
     'onboarding_done': False,
     # лист «Як ваше рішення?», коли настав час підбити підсумок
     'journal_emails': True,
+    # учасник, чия модель не відповіла (квота, ключ, збій), говорить запасною
+    'model_fallback': True,
 }
 
 
@@ -78,6 +80,7 @@ class PreferencesSerializer(serializers.Serializer):
         required=False, min_value=MIN_AI, max_value=MAX_AI
     )
     web_search = serializers.BooleanField(required=False)
+    model_fallback = serializers.BooleanField(required=False)
     onboarding_done = serializers.BooleanField(required=False)
     journal_emails = serializers.BooleanField(required=False)
 

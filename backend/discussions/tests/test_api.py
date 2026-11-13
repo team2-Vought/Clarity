@@ -295,7 +295,7 @@ class DiscussionApiTests(TestCase):
         # вступ паралельний: один крок повертає репліки всіх учасників
         self.assertEqual(
             [m['persona_name'] for m in step.data['messages']],
-            ['Юрист', 'Учасник 2'],
+            ['Юрист', 'Креативник'],
         )
         self.assertIn('thesis', step.data['messages'][0])
         self.assertEqual(step.data['discussion']['phase'], 'debate')
@@ -304,9 +304,9 @@ class DiscussionApiTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(len(second.data['messages']), 1)
         self.assertEqual(second.data['message']['persona_name'], 'Юрист')
-        self.assertEqual(second.data['message']['reply_to'], 'Учасник 2')
+        self.assertEqual(second.data['message']['reply_to'], 'Креативник')
 
-    def test_unnamed_participants_get_numbered_names(self):
+    def test_unnamed_participants_are_named_after_their_role(self):
         self.auth()
         response = self.client.post(
             '/api/discussions/',
@@ -323,12 +323,22 @@ class DiscussionApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(
             [p['name'] for p in response.data['personas']],
-            ['Учасник 1', 'Оля', 'Учасник 3'],
+            ['Логік', 'Оля', 'Креативник'],
         )
         step = self.client.post(f'/api/discussions/{response.data["id"]}/advance/')
         names = [m['persona_name'] for m in step.data['messages']]
-        self.assertEqual(names, ['Учасник 1', 'Оля', 'Учасник 3'])
-        self.assertNotIn('Логік', ' '.join(call['prompt'] for call in self.provider.calls))
+        self.assertEqual(names, ['Логік', 'Оля', 'Креативник'])
+
+    def test_role_names_follow_the_interface_language(self):
+        self.auth()
+        response = self.client.post(
+            '/api/discussions/',
+            {'question': 'Should I launch my own product?', 'personas': ['logician', 'emotional']},
+            format='json',
+            HTTP_ACCEPT_LANGUAGE='en',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual([p['name'] for p in response.data['personas']], ['Logician', 'Empath'])
 
     def test_name_clashing_with_default_is_rejected(self):
         self.auth()
@@ -336,7 +346,8 @@ class DiscussionApiTests(TestCase):
             '/api/discussions/',
             {
                 'question': 'Чи варто запускати власний продукт?',
-                'personas': [{'slug': 'logician', 'name': 'Учасник 2'}, {'slug': 'skeptic'}],
+                # безіменний скептик зветься «Скептик» — те саме ім'я в логіка заборонене
+                'personas': [{'slug': 'logician', 'name': 'Скептик'}, {'slug': 'skeptic'}],
             },
             format='json',
         )
@@ -801,7 +812,7 @@ class DiscussionApiTests(TestCase):
         created = self.client.post('/api/teams/', payload, format='json')
         self.assertEqual(created.status_code, 201)
         self.assertEqual(created.data['name'], 'Моя команда')
-        self.assertEqual([p['name'] for p in created.data['personas']], ['Аналітик', 'Учасник 2'])
+        self.assertEqual([p['name'] for p in created.data['personas']], ['Аналітик', 'Скептик'])
 
         payload['personas'] = ['creative', 'pragmatist', 'emotional']
         updated = self.client.post('/api/teams/', payload, format='json')
@@ -900,7 +911,11 @@ class ClarifyApiTests(TestCase):
         self.assertEqual(discussion.phase, Discussion.Phase.CLARIFY)
         self.assertEqual(
             discussion.clarify_questions,
-            [{'id': 'q1', 'question': 'Який у вас бюджет?', 'options': ['До 10 000 $', '10–20 тис. $']}],
+            [
+                {'id': 'q1', 'question': 'Який у вас бюджет?', 'why': '', 'options': ['До 10 000 $', '10–20 тис. $']},
+                # один варіант — не вибір: питання стає відкритим
+                {'id': 'q2', 'question': 'Питання без варіантів', 'why': '', 'options': []},
+            ],
         )
         self.assertFalse(discussion.messages.filter(role=Message.Role.AI).exists())
         self.assertEqual(len(self.provider.calls), 1)
@@ -940,7 +955,7 @@ class ClarifyApiTests(TestCase):
         discussion.refresh_from_db()
         engine.advance(discussion)
         prompt = self.provider.calls[-1]['prompt']
-        self.assertIn('Уточнення від користувача:', prompt)
+        self.assertIn('Уточнення від користувача', prompt)
         self.assertIn('- Який у вас бюджет? — До 10 000 $', prompt)
         self.assertNotIn('Пропущене питання', prompt)
 

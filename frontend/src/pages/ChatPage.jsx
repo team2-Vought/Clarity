@@ -10,6 +10,7 @@ import {
   FlashIcon,
   GlobalSearchIcon,
   HighlighterIcon,
+  Book02Icon,
   IdentityCardIcon,
   Link01Icon,
   PencilEdit02Icon,
@@ -48,7 +49,7 @@ import LoadError from '../components/LoadError';
 import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown from '../components/MessageMarkdown';
-import ClarifyCard from '../components/ClarifyCard';
+import ClarifyCard, { EXTRA_ID as CLARIFY_EXTRA_ID } from '../components/ClarifyCard';
 import ErrorNotice from '../components/ErrorNotice';
 import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
@@ -1191,10 +1192,13 @@ export default function ChatPage() {
     try {
       const answers = skip
         ? []
-        : discussion.clarify_questions.map((item) => ({
-            question: item.question,
-            answer: answerOf(clarifyAnswers[item.id]),
-          }));
+        : [
+            ...discussion.clarify_questions.map((item) => ({
+              question: item.question,
+              answer: answerOf(clarifyAnswers[item.id]),
+            })),
+            { question: copy.debate.clarifyExtra, answer: answerOf(clarifyAnswers[CLARIFY_EXTRA_ID]) },
+          ];
       const data = await answerClarify(discussion.id, answers);
       setClarifiedAt(Date.now());
       applyState(data);
@@ -1915,6 +1919,13 @@ export default function ChatPage() {
                   <p className="chat__profile-note">
                     <HugeiconsIcon icon={IdentityCardIcon} size={14} aria-hidden="true" />
                     {t.profileUsed}
+                  </p>
+                )}
+                {discussion.history_used > 0 && (
+                  // минулі рішення з журналу й те, як вони вийшли, — теж у контексті
+                  <p className="chat__profile-note">
+                    <HugeiconsIcon icon={Book02Icon} size={14} aria-hidden="true" />
+                    {t.historyUsed(discussion.history_used)}
                   </p>
                 )}
               </div>
