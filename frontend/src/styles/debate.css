@@ -3296,6 +3296,34 @@ body:has(.app-shell) {
   transform: translateX(-2px);
 }
 
+/* футер «летить» над вмістом: прокручувана частина тягнеться під кнопку
+   до низу панелі, а кнопка лежить зверху — з легкою тінню і білястим
+   переходом, у якому вміст плавно тане, заходячи під неї */
+.debate__panel-body:has(+ .debate__more-toggle) {
+  padding-bottom: 76px;
+}
+
+.debate__panel-body + .debate__more-toggle {
+  position: relative;
+  z-index: 2;
+  margin-top: -64px;
+  box-shadow:
+    0 6px 20px rgba(18, 18, 18, 0.08),
+    0 1px 3px rgba(18, 18, 18, 0.06);
+}
+
+.debate__panel-body + .debate__more-toggle::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -40px -8px 50%;
+  background: linear-gradient(
+    color-mix(in srgb, var(--panel) 0%, transparent),
+    var(--panel) 75%
+  );
+  pointer-events: none;
+}
+
 .debate__more-toggle:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -6169,7 +6197,11 @@ ol.chat__reveal {
    без проміжку над собою, тож нічого під ним не зсуває */
 .chat__sources--summary {
   display: grid;
+  /* колонка не ширша за висновок: інакше довга назва джерела
+     розтягує сітку й виходить за край екрана */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 0fr;
+  min-width: 0;
   margin-top: -18px;
   opacity: 0;
   transition:
@@ -6185,6 +6217,7 @@ ol.chat__reveal {
 }
 
 .chat__sources-fold {
+  min-width: 0;
   min-height: 0;
   overflow: clip;
 }
@@ -6256,7 +6289,12 @@ ol.chat__reveal {
   background: color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
+.chat__sources li {
+  min-width: 0;
+}
+
 .chat__source-title {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6265,6 +6303,10 @@ ol.chat__reveal {
 
 .chat__source-domain {
   flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-left: auto;
   color: var(--muted);
   font-size: 0.8125rem;

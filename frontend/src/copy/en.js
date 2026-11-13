@@ -1073,7 +1073,7 @@ export const en = {
   tree: {
     pathsTitle: 'Paths considered',
     pathsOpen: 'Open the decision tree',
-    pathsEmpty: 'See which paths the team considered',
+    pathsEmpty: 'Generate the decision tree',
     pathStatus: { chosen: 'chosen', rejected: 'rejected' },
     title: 'Decision tree',
     back: 'Back',

@@ -1076,7 +1076,7 @@ export const uk = {
   tree: {
     pathsTitle: 'Розглянуті шляхи',
     pathsOpen: 'Відкрити дерево рішень',
-    pathsEmpty: 'Подивитися, які шляхи розглядала команда',
+    pathsEmpty: 'Згенерувати дерево рішень',
     pathStatus: { chosen: 'обрано', rejected: 'відкинуто' },
     title: 'Дерево рішень',
     back: 'Назад',

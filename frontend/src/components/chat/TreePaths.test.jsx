@@ -34,7 +34,7 @@ describe('розділ «Розглянуті шляхи»', () => {
   it('поки дерева немає — один рядок, що пропонує його скласти', async () => {
     const onOpen = vi.fn();
     render(<TreePaths tree={null} onOpen={onOpen} />);
-    await userEvent.click(screen.getByRole('button', { name: /Подивитися, які шляхи розглядала команда/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Згенерувати дерево рішень/ }));
     expect(onOpen).toHaveBeenCalledWith('');
   });
 });

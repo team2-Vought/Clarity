@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Landing from '../components/Landing';
 import { Background } from './AuthLayout';
 import { getSession } from '../api/client';
@@ -22,6 +22,10 @@ export default function LandingPage() {
     }
     navigate(signedIn ? '/home' : '/register');
   };
+
+  // Хто вже увійшов, повертаючись на сайт, одразу потрапляє в новий чат,
+  // а не на лендинг з кнопкою «Відкрити Clarity»
+  if (signedIn) return <Navigate to="/home" replace />;
 
   return (
     <div className="page page--landing">
