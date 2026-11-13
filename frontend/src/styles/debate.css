@@ -392,7 +392,7 @@ body:has(.app-shell) {
   width: auto;
   /* 12px — поле між карткою й краями екрана, далі власні відступи картки;
      праворуч ще запас під переліт ширини */
-  padding: 28px 36px 28px 12px;
+  padding: 28px 36px calc(var(--edge-bottom) + 16px) 12px;
   background: var(--panel);
   pointer-events: auto;
   clip-path: inset(
@@ -430,7 +430,7 @@ body:has(.app-shell) {
   --drawer-w: var(--drawer-max);
   --drawer-top: 12px;
   --drawer-left: 12px;
-  --drawer-bottom: 12px;
+  --drawer-bottom: var(--edge-bottom);
   --drawer-rt: 28px;
   --drawer-rb: 28px;
   visibility: visible;
@@ -5798,7 +5798,7 @@ ol.chat__reveal {
     gap: 20px;
     /* верхній відступ — усередині прокручуваної частини (нижче): так вміст
        доїжджає до заокругленого краю картки, а не обрізається рівною лінією */
-    padding: 0 14px calc(14px + 12px) calc(14px + var(--sheet-spare));
+    padding: 0 14px calc(14px + var(--edge-bottom)) calc(14px + var(--sheet-spare));
     background: var(--panel);
     clip-path: inset(var(--sheet-top) 0 var(--sheet-bottom) var(--sheet-left) round var(--sheet-r));
     visibility: hidden;
@@ -5824,7 +5824,7 @@ ol.chat__reveal {
   .debate-page--panel-open .debate__form-panel {
     --sheet-top: 0px;
     --sheet-left: var(--sheet-spare);
-    --sheet-bottom: 12px;
+    --sheet-bottom: var(--edge-bottom);
     --sheet-r: 28px;
     visibility: visible;
     transition:
