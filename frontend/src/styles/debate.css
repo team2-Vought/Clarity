@@ -2353,8 +2353,7 @@ body:has(.app-shell) {
 }
 
 .debate__team-apply:focus-visible,
-.debate__team-remove:focus-visible,
-.debate__link-button:focus-visible {
+.debate__team-remove:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -3487,86 +3486,6 @@ span.debate__tag {
   display: inline-flex;
   align-items: center;
   cursor: default;
-}
-
-.debate__share {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 40px;
-  padding: 0 4px 0 12px;
-  border-radius: var(--r-md);
-  background: var(--well);
-}
-
-.debate__share input {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-}
-
-.debate__share-copy {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s, var(--press);
-}
-
-.debate__share-copy:hover {
-  background: var(--card);
-  color: var(--ink);
-}
-
-.debate__share-copy:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
-.debate__share-create {
-  align-self: flex-start;
-  height: auto;
-  min-height: 32px;
-  padding-block: 6px;
-  white-space: normal;
-  text-align: left;
-}
-
-/* текстова дія в панелі чату («Створити посилання», «Закрити доступ») */
-.debate__link-button {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.8125rem;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.debate__link-button:hover:not(:disabled) {
-  color: var(--ink);
-}
-
-.debate__link-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .debate__title {
@@ -7570,49 +7489,6 @@ ol.chat__reveal {
 /* поле чату сховане, поки модератор чекає відповідей у своїй картці */
 .chat__composer-box[hidden] {
   display: none;
-}
-
-/* Етапи дискусії над рядком «Аналізуємо…»: шість коротких рисок і підпис */
-.chat__stages {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  width: 100%;
-  max-width: 880px;
-  margin-top: 18px;
-  padding-left: 44px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-/* рядок «Аналізуємо…» одразу під етапами, без великого проміжку */
-.chat__stages + .chat__thought {
-  margin-top: 6px;
-}
-
-.chat__stages-bar {
-  display: flex;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.chat__stages-bar li {
-  width: 18px;
-  height: 4px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--ink) 12%, transparent);
-  transition: background 0.3s;
-}
-
-.chat__stages-bar li[data-state='done'] {
-  background: color-mix(in srgb, var(--ink) 55%, transparent);
-}
-
-.chat__stages-bar li[data-state='current'] {
-  background: var(--ink);
 }
 
 /* перемикачі в «Розширених»: тісніші за сторінку налаштувань */

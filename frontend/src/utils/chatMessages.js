@@ -1,4 +1,5 @@
 import { citedIds, plainText } from './markdown';
+import { copy } from '../copy';
 
 // Стан чату: злиття опитувань, чернетки, кроки індикатора «Аналізуємо…».
 
@@ -80,3 +81,12 @@ export const isIdle = (data) =>
   && !data.stop_requested
   && data.status !== 'failed'
   && !awaitsClarify(data);
+
+// Етапи повної дискусії: «Крок 2 з 6 · Дебати» — префікс рядка «Аналізуємо…».
+// Швидка відповідь чи відповідь одному учаснику етапів не мають — ''.
+const STAGES = ['opening', 'debate', 'synthesis', 'devil', 'rebuttal', 'final'];
+
+export const stageLabel = (phase) => {
+  const index = STAGES.indexOf(phase);
+  return index < 0 ? '' : copy.chat.stageOf(index + 1, STAGES.length, copy.chat.stages[phase]);
+};

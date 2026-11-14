@@ -7,13 +7,11 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Attachment01Icon,
-  Copy01Icon,
   FlashIcon,
   GlobalSearchIcon,
   HighlighterIcon,
   Book02Icon,
   IdentityCardIcon,
-  Link01Icon,
   PencilEdit02Icon,
   RepeatIcon,
 } from '@hugeicons/core-free-icons';
@@ -53,7 +51,6 @@ import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown from '../components/MessageMarkdown';
 import ClarifyCard, { EXTRA_ID as CLARIFY_EXTRA_ID } from '../components/ClarifyCard';
-import StageProgress from '../components/chat/StageProgress';
 import ErrorNotice from '../components/ErrorNotice';
 import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
@@ -76,6 +73,7 @@ import {
   awaitsClarify,
   doneStep,
   draftMessagesOf,
+  stageLabel,
   isIdle,
   lastSeqOf,
   mergeMessages,
@@ -647,9 +645,12 @@ export default function ChatPage() {
   // що саме зараз роблять AI: пошук → рядок, який написала модель → етап,
   // поки модель ще не встигла описати крок
   const live = discussion?.live;
-  const thoughtLabel = live?.search
+  const thoughtStatus = live?.search
     ? t.searching(live.search)
     : live?.status || t.phaseStatus[discussion?.phase] || t.advancing;
+  // один індикатор на всю дискусію: етап — префіксом у тому ж рядку
+  const stage = discussion?.quick ? '' : stageLabel(discussion?.phase);
+  const thoughtLabel = stage ? `${stage} · ${thoughtStatus}` : thoughtStatus;
 
   // Завершені запуски лишають у чаті згорнутий рядок «Аналізовано за …» після
   // своєї останньої репліки — розгорнувши його, видно, що саме аналізували.
@@ -1415,6 +1416,7 @@ export default function ChatPage() {
     try {
       await unshareDiscussion(discussion.id);
       setDiscussion((current) => (current ? { ...current, share_token: null } : current));
+      setIsShareAsking(false);
       pushToast(t.shareClosed, 'success');
     } catch (err) {
       setActionError(actionFailure(err, t.shareError));
@@ -1882,52 +1884,6 @@ export default function ChatPage() {
                   </div>
                 )}
 
-                <div className="debate__field">
-                  <h3 className="debate__field-title">{t.share}</h3>
-                  {shareUrl ? (
-                    <>
-                      <div className="debate__share">
-                        <input
-                          type="text"
-                          value={shareUrl}
-                          readOnly
-                          onFocus={(e) => e.target.select()}
-                          aria-label={t.shareLink}
-                        />
-                        <button
-                          type="button"
-                          className="debate__share-copy"
-                          onClick={() => copyLink(shareUrl)}
-                          aria-label={t.copyLink}
-                          title={t.copyLink}
-                        >
-                          <HugeiconsIcon icon={Copy01Icon} size={15} aria-hidden="true" />
-                        </button>
-                      </div>
-                      <p className="debate__share-note">
-                        {discussion.share_personal ? t.sharePersonalShown : t.sharePersonalHidden}
-                      </p>
-                      <button
-                        type="button"
-                        className="debate__link-button"
-                        onClick={handleUnshare}
-                        disabled={isSharing}
-                      >
-                        {t.unshare}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="debate__pill debate__share-create"
-                      onClick={handleShare}
-                      disabled={isSharing}
-                    >
-                      <HugeiconsIcon icon={Link01Icon} size={15} strokeWidth={1.8} aria-hidden="true" />
-                      {t.createShareLink}
-                    </button>
-                  )}
-                </div>
               </section>
 
               {/* у кінці прокручуваного вмісту, а не прикріплено до футера панелі */}
@@ -2084,7 +2040,7 @@ export default function ChatPage() {
               sourcesById={sourcesById}
               animate={animateSummary}
               onExportMarkdown={handleExportMarkdown}
-              onShare={shareUrl ? () => copyLink(shareUrl) : handleShare}
+              onShare={handleShare}
               isSharing={isSharing}
               onRepeat={handleRepeat}
               onDeepen={discussion.quick ? handleDeepen : undefined}
@@ -2116,13 +2072,19 @@ export default function ChatPage() {
             <ShareDialog
               profileUsed={Boolean(discussion?.profile_used)}
               busy={isSharing}
+              shareUrl={shareUrl}
+              sharePersonal={Boolean(discussion?.share_personal)}
               onConfirm={createShare}
+              onCopy={async () => {
+                await copyLink(shareUrl);
+                setIsShareAsking(false);
+              }}
+              onUnshare={handleUnshare}
               onClose={() => setIsShareAsking(false)}
             />
           )}
 
 
-          {showThoughtLine && !discussion?.quick && <StageProgress phase={discussion?.phase} />}
           {showThoughtLine && (
             <ThoughtLine
               working={isRunning}

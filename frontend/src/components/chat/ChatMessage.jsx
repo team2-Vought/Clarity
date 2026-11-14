@@ -153,8 +153,8 @@ function ChatMessage({
   ) : (
     <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
   );
-  // поки учасник пише: скільки думає, чи готовий; якщо мовчить довше звичайного —
-  // чесно кажемо про це й даємо замінити модель
+  // Під чернеткою — лише винятки: модель замінили або вона думає довше
+  // звичайного (тоді й кнопка заміни). Звичайний хід показує рядок «Аналізуємо…»
   const slow =
     draft
     && !message.draftDone
@@ -162,14 +162,10 @@ function ChatMessage({
     && Boolean(onSwapModel)
     && slowAfter > 0
     && message.draftElapsed >= slowAfter;
-  const draftState = draft ? (
+  const swapped = draft && message.draftSwapped && !message.content;
+  const draftState = slow || swapped ? (
     <div className="chat__draft-state" role="status">
-      {message.draftSwapped && !message.content && <p>{t.draftSwapped}</p>}
-      {message.draftDone ? (
-        <span>{t.draftDone}</span>
-      ) : !message.content ? (
-        <span>{t.draftThinking(message.draftElapsed)}</span>
-      ) : null}
+      {swapped && !slow && <p>{t.draftSwapped}</p>}
       {slow && (
         <p className="chat__draft-slow">
           <span>{t.draftSlow(authorName)}</span>

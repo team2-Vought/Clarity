@@ -156,8 +156,8 @@ describe('ChatPage', () => {
     };
     vi.mocked(fetchDiscussion).mockResolvedValue(running);
     const { unmount } = renderPage();
-    // модель ще не описала крок — видно етап
-    expect(await screen.findByText('Обмінюємося аргументами…')).toBeInTheDocument();
+    // модель ще не описала крок — видно етап; номер кроку — префіксом того ж рядка
+    expect(await screen.findByText('Крок 2 з 6 · Дебати · Обмінюємося аргументами…')).toBeInTheDocument();
     unmount();
 
     vi.mocked(fetchDiscussion).mockResolvedValue({
@@ -165,7 +165,7 @@ describe('ChatPage', () => {
       live: { status: 'Порівнюємо зарплати й ризики…', search: '' },
     });
     const second = renderPage();
-    expect(await screen.findByText('Порівнюємо зарплати й ризики…')).toBeInTheDocument();
+    expect(await screen.findByText('Крок 2 з 6 · Дебати · Порівнюємо зарплати й ризики…')).toBeInTheDocument();
     second.unmount();
 
     vi.mocked(fetchDiscussion).mockResolvedValue({
@@ -174,7 +174,7 @@ describe('ChatPage', () => {
     });
     renderPage();
     expect(
-      await screen.findByText('Шукаємо в інтернеті «медіанна зарплата в стартапах 2026»…')
+      await screen.findByText('Крок 2 з 6 · Дебати · Шукаємо в інтернеті «медіанна зарплата в стартапах 2026»…')
     ).toBeInTheDocument();
   });
 

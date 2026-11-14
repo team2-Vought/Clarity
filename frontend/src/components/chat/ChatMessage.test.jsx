@@ -29,10 +29,15 @@ const renderDraft = (message, props = {}) =>
   );
 
 describe('чернетка учасника', () => {
-  it('показує, скільки учасник думає', () => {
+  it('у звичайному ході під чернеткою нічого немає', () => {
     renderDraft(draftOf({ elapsed: 12 }), { onSwapModel: () => {} });
-    expect(screen.getByText(t.draftThinking(12))).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('button', { name: t.draftSwap })).toBeNull();
+  });
+
+  it('пояснює, що модель замінили', () => {
+    renderDraft(draftOf({ elapsed: 3, swapped: true }), { onSwapModel: () => {} });
+    expect(screen.getByText(t.draftSwapped)).toBeTruthy();
   });
 
   it('після порогу чесно каже про затримку й дає замінити модель', async () => {
@@ -43,9 +48,9 @@ describe('чернетка учасника', () => {
     expect(onSwapModel).toHaveBeenCalledWith('emotional');
   });
 
-  it('готовий учасник чекає на інших без кнопки заміни', () => {
+  it('готовий учасник не має ні підпису, ні кнопки заміни', () => {
     renderDraft(draftOf({ elapsed: 50, done: true, text: 'Готова відповідь.' }), { onSwapModel: () => {} });
-    expect(screen.getByText(t.draftDone)).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('button', { name: t.draftSwap })).toBeNull();
   });
 });
