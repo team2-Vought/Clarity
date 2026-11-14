@@ -5834,8 +5834,10 @@ ol.chat__reveal {
     content: '';
     position: fixed;
     inset: 12px 12px auto auto;
-    height: calc(100vh - 24px);
-    height: calc(100dvh - 24px);
+    /* низ — там само, де низ картки (--edge-bottom): інакше на весь екран
+       тінь виступала під карткою напівпрозорою рамкою */
+    height: calc(100vh - 12px - var(--edge-bottom));
+    height: calc(100dvh - 12px - var(--edge-bottom));
     z-index: calc(var(--z-drawer) + 4);
     width: min(360px, calc(100vw - 72px));
     border-radius: var(--r-xl);
