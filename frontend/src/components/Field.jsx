@@ -18,7 +18,7 @@ export default function Field({ label, type = 'text', error, hint, placeholder, 
   const id = useId();
   const [visible, setVisible] = useState(false);
   const isPassword = type === 'password';
-  const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
+  const describedBy = [error && `${id}-err`, hint && `${id}-hint`].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className="field">
@@ -29,7 +29,7 @@ export default function Field({ label, type = 'text', error, hint, placeholder, 
           type={isPassword && visible ? 'text' : type}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={describedBy}
-          placeholder={error || placeholder}
+          placeholder={placeholder}
           {...inputProps}
         />
         {isPassword && (
@@ -44,16 +44,16 @@ export default function Field({ label, type = 'text', error, hint, placeholder, 
           </button>
         )}
       </div>
-      {/* помилка живе в placeholder; для скрінрідерів — прихований текст */}
+      {/* помилка — під полем, де її видно навіть у заповненому полі */}
       {error && (
-        <span className="sr-only" id={`${id}-err`}>
+        <p className="field__msg field__msg--error" id={`${id}-err`} role="alert">
           {error}
-        </span>
-      )}
-      {!error && hint && (
-        <p className="field__msg" id={`${id}-hint`}>
-          {hint}
         </p>
+      )}
+      {hint && (typeof hint === 'string' ? !error : true) && (
+        <div className="field__msg" id={`${id}-hint`}>
+          {hint}
+        </div>
       )}
     </div>
   );
@@ -64,7 +64,8 @@ Field.propTypes = {
   name: PropTypes.string.isRequired,
   type: PropTypes.string,
   error: PropTypes.string,
-  hint: PropTypes.string,
+  // рядок або власний вміст (чек-лист пароля лишається й поруч із помилкою)
+  hint: PropTypes.node,
   value: PropTypes.string,
   onChange: PropTypes.func,
   onBlur: PropTypes.func,

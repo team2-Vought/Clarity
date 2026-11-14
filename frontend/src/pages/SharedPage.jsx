@@ -203,6 +203,7 @@ export default function SharedPage() {
                   sources={sourcesById}
                   mode={discussion.mode}
                   options={discussion.options}
+                  factChecks={discussion.fact_checks || undefined}
                 />
                 {discussion.sources?.length > 0 && (
                   <div className="shared__sources">

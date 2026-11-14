@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AiBrain01Icon, BookOpen01Icon, GlobalSearchIcon, Tick02Icon } from '@hugeicons/core-free-icons';
-import Shot from './Shot';
 import { copy } from '../../copy';
 
 const t = copy.landing;
 
+// Чотири речі, яких немає в звичайному чаті: різні моделі, факти з джерелами,
+// карта відкинутих шляхів і журнал, що перевіряє пораду часом
 export default function Features() {
-  const [mode, setMode] = useState(t.modes.items[0].key);
-  const activeMode = t.modes.items.find((m) => m.key === mode);
-
   return (
     <section className="lp-section lp-features" id="features" aria-labelledby="features-title">
       <header className="lp-section__head" data-reveal>
@@ -53,46 +50,6 @@ export default function Features() {
           </div>
         </article>
 
-        <article className="lp-tile lp-tile--modes" data-reveal>
-          <h3>{t.modes.title}</h3>
-          <div className="lp-segment" role="radiogroup" aria-label={t.modes.title}>
-            {t.modes.items.map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                role="radio"
-                aria-checked={mode === m.key}
-                className={mode === m.key ? 'is-active' : ''}
-                onClick={() => setMode(m.key)}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          <p key={mode} className="lp-segment__hint">
-            {activeMode.hint}
-          </p>
-        </article>
-
-        <article className="lp-tile lp-tile--history" data-reveal>
-          <div className="lp-tile__copy">
-            <h3>{t.history.title}</h3>
-            <p>{t.history.text}</p>
-          </div>
-          <div className="lp-tile__shot">
-            <Shot name="history" alt={t.history.alt} />
-          </div>
-        </article>
-
-        <article className="lp-tile lp-tile--mobile" data-reveal>
-          <div className="lp-tile__copy">
-            <h3>{t.mobile.title}</h3>
-            <p>{t.mobile.text}</p>
-          </div>
-          <div className="lp-phone">
-            <Shot name="mobile" alt={t.mobile.alt} width={1170} height={2532} />
-          </div>
-        </article>
         <article className="lp-tile lp-tile--tree" data-reveal>
           <div className="lp-tile__copy">
             <h3>{t.tree.title}</h3>

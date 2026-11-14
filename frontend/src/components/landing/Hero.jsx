@@ -78,14 +78,14 @@ export default function Hero({ onStart, question, onQuestionChange }) {
 
   return (
     <section className="lp-hero" aria-labelledby="landing-title">
-      <h1 id="landing-title" className="lp-hero__title" data-reveal>
+      <h1 id="landing-title" className="lp-hero__title lp-enter">
         {t.titleStart} <span className="lp-gradient-text">{t.titleAccent}</span> {t.titleEnd}
       </h1>
-      <p className="lp-hero__text" data-reveal>
+      <p className="lp-hero__text lp-enter" style={{ '--delay': '60ms' }}>
         {t.text}
       </p>
 
-      <form className="lp-ask" onSubmit={submit} data-reveal>
+      <form className="lp-ask lp-enter" style={{ '--delay': '120ms' }} onSubmit={submit}>
         <label className="sr-only" htmlFor="lp-ask-input">
           {t.askLabel}
         </label>
@@ -105,7 +105,7 @@ export default function Hero({ onStart, question, onQuestionChange }) {
         </button>
       </form>
 
-      <div className="lp-stage" ref={stageRef} data-reveal>
+      <div className="lp-stage lp-enter" style={{ '--delay': '180ms' }} ref={stageRef}>
         <div className="lp-frame">
           <Shot name="debate" alt={t.heroShot} eager />
         </div>

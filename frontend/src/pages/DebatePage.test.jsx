@@ -87,7 +87,15 @@ describe('DebatePage', () => {
     });
     renderPage();
     const card = await screen.findByRole('region', { name: 'Вітаємо в Clarity' });
-    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
+    // не переказ лендингу, а висновок справжньої форми на прикладі
+    expect(within(card).getByText('Приклад питання')).toBeInTheDocument();
+    expect(within(card).getByText('Так')).toBeInTheDocument();
+
+    // приклад підставляється в поле питання
+    await user.click(within(card).getByRole('button', { name: 'Спробувати цей приклад' }));
+    expect(screen.getByRole('textbox', { name: 'Опис' })).toHaveValue(
+      'Випустити продукт зараз із відомими недоліками чи відкласти реліз на місяць?'
+    );
 
     await user.click(within(card).getByRole('button', { name: 'Зрозуміло' }));
     expect(screen.queryByRole('region', { name: 'Вітаємо в Clarity' })).not.toBeInTheDocument();
@@ -101,12 +109,16 @@ describe('DebatePage', () => {
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
-    // «Про мене» — перемикач у меню формату біля поля питання
+    // заповнений «Про мене» діє сам; вимикається в «Додатково»
     await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
-    const toggle = screen.getByRole('menuitemcheckbox', { name: /^Враховувати «Про мене»/ });
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('menuitemcheckbox', { name: /«Про мене»/ })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: /^Додатково/ }));
+    const toggle = screen.getByRole('switch', { name: /^Враховувати «Про мене»/ });
+    expect(toggle).toBeChecked();
     await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
 
     await user.type(screen.getByRole('textbox', { name: 'Опис' }), 'Чи варто переходити на нову роботу?{Enter}');
     expect(vi.mocked(createDiscussion).mock.calls[0][0].useProfile).toBe(false);
@@ -280,16 +292,18 @@ describe('DebatePage', () => {
     expect(screen.getByRole('textbox', { name: 'Варіанти' })).toBeInTheDocument();
   });
 
-  it('пошук в інтернеті увімкнено в меню формату, а «Додатково» змінює раунди', async () => {
+  it('пошук в інтернеті увімкнено в «Додатково», там же змінюються раунди', async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByRole('button', { name: 'Вибрати учасника «Логік»' });
 
+    // у меню біля поля — лише щоденне: файл, формат, швидка відповідь
     await user.click(screen.getByRole('button', { name: /^Формат відповіді й параметри:/ }));
-    expect(screen.getByRole('menuitemcheckbox', { name: /^Пошук в інтернеті/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('menuitemcheckbox', { name: /^Пошук в інтернеті/ })).not.toBeInTheDocument();
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: /^Додатково/ }));
+    expect(screen.getByRole('switch', { name: /^Пошук в інтернеті/ })).toBeChecked();
     // одного раунду замало для дискусії — такого варіанта немає
     expect(screen.queryByRole('radio', { name: '1 раунд' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: '3 раунди' }));

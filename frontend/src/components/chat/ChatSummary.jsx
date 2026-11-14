@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useSearchParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Copy01Icon,
@@ -45,7 +46,9 @@ export default function ChatSummary({
   const [copyState, setCopyState] = useState('');
   const [pdfState, setPdfState] = useState('');
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
-  const journal = useJournal(discussion);
+  // /chat/<id>?journal=1 — прийшли з журналу записати рішення
+  const [params] = useSearchParams();
+  const journal = useJournal(discussion, { openInitially: params.get('journal') === '1' });
   const summary = discussion.final_summary;
   const {
     decision: summaryDecision,
@@ -135,6 +138,7 @@ export default function ChatSummary({
         options={discussion.options}
         animate={animate}
         paths={onOpenTree ? <TreePaths tree={discussion.decision_tree} onOpen={onOpenTree} /> : null}
+        factChecks={discussion.devil_review?.fact_checks || undefined}
       />
       {discussion.matrix && (
         <div style={summaryStep()}>

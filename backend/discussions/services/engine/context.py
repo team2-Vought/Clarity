@@ -272,13 +272,14 @@ def model_fallback_enabled(user):
     return not isinstance(prefs, dict) or prefs.get('model_fallback', True) is not False
 
 
-def _persona_fallbacks(discussion, persona):
+def _persona_fallbacks(discussion, persona, manual=False):
     """Запасні моделі учасника в порядку спроб, якщо його модель не відповіла.
 
     Спершу — моделі, яких немає в жодного учасника: так погляди лишаються різними;
-    далі — решта доступних. Людина може вимкнути заміну в налаштуваннях.
+    далі — решта доступних. Людина може вимкнути автозаміну в налаштуваннях;
+    `manual=True` — список для кнопки «Замінити модель», він є завжди.
     """
-    if not model_fallback_enabled(discussion.user):
+    if not manual and not model_fallback_enabled(discussion.user):
         return []
     own = _model_for_persona(persona)
     taken = {_model_for_persona(item) for item in _resolved_personas(discussion)}

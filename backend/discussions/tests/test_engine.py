@@ -294,7 +294,9 @@ class EngineTests(TestCase):
     def test_describe_step_names_what_each_step_works_on(self):
         opening = engine.describe_step(self.discussion)
         self.assertEqual([item['slug'] for item in opening], ['logician', 'skeptic', 'creative'])
-        self.assertIn('Чи варто змінювати роботу на стартап?', opening[0]['text'])
+        # питання людини не повторюємо в кожному рядку — лише що робить учасник
+        self.assertNotIn('Чи варто змінювати роботу на стартап?', opening[0]['text'])
+        self.assertTrue(opening[0]['text'])
 
         seen = set()
         while self.discussion.phase != Discussion.Phase.DONE:
@@ -654,6 +656,31 @@ class StructuredTextTests(TestCase):
         self.assertIn('### Слабкі місця\n\n- Немає плану Б', text)
         self.assertNotIn('Контраргументи', text)
 
+    def test_devil_text_lists_fact_checks(self):
+        review = engine.parsing.normalize_review({
+            'verdict': 'Рішення тримається',
+            'fact_checks': [
+                {'claim': '5–10 годин на тиждень — це ~50 годин на рік', 'ok': False,
+                 'correct': '260–520 годин (5–10 × 52)'},
+                {'claim': 'Go має вбудовану конкурентність', 'ok': 'true', 'correct': 'зайве'},
+                {'claim': 'без висновку', 'ok': 'можливо'},
+                'не словник',
+            ],
+        })
+        self.assertEqual(review['fact_checks'], [
+            {'claim': '5–10 годин на тиждень — це ~50 годин на рік', 'ok': False,
+             'correct': '260–520 годин (5–10 × 52)'},
+            {'claim': 'Go має вбудовану конкурентність', 'ok': True, 'correct': ''},
+        ])
+        text = engine.texts._devil_text(review)
+        self.assertIn('### Перевірка чисел і фактів', text)
+        self.assertIn('- ✗ 5–10 годин на тиждень — це ~50 годин на рік → правильно: 260–520 годин (5–10 × 52)', text)
+        self.assertIn('- ✓ Go має вбудовану конкурентність', text)
+
+    def test_devil_text_without_checks_has_no_section(self):
+        text = engine.texts._devil_text(engine.parsing.normalize_review({'verdict': 'Ок'}))
+        self.assertNotIn('Перевірка чисел', text)
+
     def test_markdown_reply_keeps_formatting_and_plain_thesis(self):
         reply = engine.parse_reply(
             '**Не варто** переходити зараз.\n\n- ризик перший\n- ризик другий\n\nПОЗИЦІЯ: суперечка',
@@ -716,11 +743,18 @@ class LiveStatusTests(EngineTests):
         self.assertEqual(seen, ['зарплати в стартапах'])
         self.assertEqual(
             self.live(),
-            {'status': 'Порівнюємо стартап зі стабільною роботою…', 'search': '', 'drafts': []},
+            {
+                'status': 'Порівнюємо стартап зі стабільною роботою…',
+                'search': '',
+                'drafts': [],
+                'slow_after': 35,
+            },
         )
 
         Discussion.objects.filter(pk=self.discussion.pk).update(advance_token=None)
-        self.assertEqual(self.live(), {'status': '', 'search': '', 'drafts': []})
+        self.assertEqual(
+            self.live(), {'status': '', 'search': '', 'drafts': [], 'slow_after': 35}
+        )
 
     def test_status_failure_is_silent(self):
         provider = mock.Mock()
@@ -801,6 +835,24 @@ class StreamingTests(EngineTests):
         engine.advance(self.discussion, provider_factory=lambda model_id: plain)
         self.discussion.refresh_from_db()
         self.assertEqual(self.discussion.live_drafts, [])
+
+
+class EchoedInstructionTests(TestCase):
+    def test_echoed_search_instruction_is_removed_from_reply(self):
+        raw = (
+            'Go is the better choice.\n\nReason two.\n\n'
+            'Web search — when needed, not mandatory. Only if your argument really lacks '
+            'facts, add one more line “SEARCH: a short search query”.\n\n'
+            'THESIS: Go fits\nSTANCE: Go'
+        )
+        reply = engine.parse_reply(raw, Discussion.Mode.OPEN, [])
+        self.assertEqual(reply['content'], 'Go is the better choice.\n\nReason two.')
+        self.assertEqual(engine.draft_text(raw), 'Go is the better choice.\n\nReason two.')
+
+    def test_ordinary_mention_of_search_stays(self):
+        raw = 'Порада.\n\nWeb search showed nothing new here.\nТЕЗА: т'
+        reply = engine.parse_reply(raw, Discussion.Mode.OPEN, [])
+        self.assertIn('Web search showed nothing new here.', reply['content'])
 
 
 class DraftTextTests(TestCase):

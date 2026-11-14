@@ -84,8 +84,25 @@ def _devil_text(review):
         L('Контраргументи', 'Counterarguments'),
         _bullets(_text_list(review.get('counter_arguments'), limit=3)),
     ))
+    parts.append(_section(L('Перевірка чисел і фактів', 'Numbers and facts checked'), _fact_lines(review)))
     text = '\n\n'.join(part for part in parts if part).strip()
     return text or L('AI Devil не знайшов додаткових ризиків.', 'AI Devil found no additional risks.')
+
+
+def _fact_lines(review):
+    """«✓ твердження» / «✗ твердження → правильно: …» — що AI Devil перевірив."""
+    lines = []
+    for check in review.get('fact_checks') or []:
+        if not isinstance(check, dict) or not check.get('claim'):
+            continue
+        claim = _unbold(_text(check.get('claim'), limit=300)).rstrip(' .;')
+        if check.get('ok'):
+            lines.append(f'- ✓ {claim}')
+        else:
+            correct = _text(check.get('correct'), limit=400).rstrip(' .;')
+            fix = L(f' → правильно: {correct}', f' → correct: {correct}') if correct else ''
+            lines.append(f'- ✗ {claim}{fix}')
+    return '\n'.join(lines)
 
 
 def _final_text(summary):

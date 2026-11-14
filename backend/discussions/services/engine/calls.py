@@ -6,9 +6,13 @@ from __future__ import annotations
 
 import contextvars
 import logging
+import queue
+import threading
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+
+from django.conf import settings
 
 from backend.i18n import L
 
@@ -42,6 +46,17 @@ from .context import _mode_ctx, _resolved_personas
 from .live import _drafts, _set_live
 
 logger = logging.getLogger(__name__)
+
+
+# збої, після яких варто спробувати іншу модель: решта — не про модель
+FALLBACK_CODES = frozenset({
+    'provider_error',
+    'provider_config',
+    'provider_quota',
+    'provider_timeout',
+    'model_swapped',
+    'empty_response',
+})
 
 
 def _json_repair_prompt(plan, raw, problems):
@@ -103,6 +118,106 @@ def _provider_failure(model_id, exc):
     )
 
 
+class _Abandoned(Exception):
+    """Виклик моделі покинуто: `reason` — 'timeout', 'swap' (людина попросила
+    замінити модель) або 'stopped' (крок зупинили)."""
+
+    def __init__(self, reason):
+        super().__init__(reason)
+        self.reason = reason
+
+
+# як часто сторожовий потік передає чернетку й перевіряє дедлайн; і як часто
+# питає базу, чи не попросили замінити модель
+WATCH_TICK_SECONDS = 0.2
+CANCEL_CHECK_SECONDS = 1.0
+
+
+def _watched(call, *, on_text, deadline, cancelled):
+    """Виконує `call(on_text)` у окремому потоці з загальним дедлайном.
+
+    Потік провайдера лише чекає мережу; чернетки він кладе в чергу, а записує
+    їх у базу цей (викликаючий) потік — так база не бачить нових потоків.
+    Якщо модель мовчить довше за `deadline` або `cancelled()` повертає причину,
+    виклик покидається: потік провайдера доживе до свого мережевого таймауту,
+    але його текст уже нікуди не піде.
+    """
+    updates = queue.SimpleQueue()
+    outcome = {}
+    done = threading.Event()
+    abandoned = threading.Event()
+
+    def relay(text):
+        if not abandoned.is_set():
+            updates.put(text)
+
+    def work():
+        try:
+            outcome['text'] = call(relay if on_text is not None else None)
+        except BaseException as exc:  # noqa: BLE001 — передаємо в потік кроку
+            outcome['error'] = exc
+        finally:
+            done.set()
+
+    threading.Thread(
+        target=contextvars.copy_context().run, args=(work,), daemon=True
+    ).start()
+    started = time.monotonic()
+    next_check = started + CANCEL_CHECK_SECONDS
+    while True:
+        finished = done.wait(WATCH_TICK_SECONDS)
+        latest = None
+        while True:
+            try:
+                latest = updates.get_nowait()
+            except queue.Empty:
+                break
+        if latest is not None and on_text is not None:
+            on_text(latest)
+        if finished:
+            break
+        now = time.monotonic()
+        if deadline and now - started > deadline:
+            abandoned.set()
+            raise _Abandoned('timeout')
+        if cancelled is not None and now >= next_check:
+            next_check = now + CANCEL_CHECK_SECONDS
+            reason = cancelled()
+            if reason:
+                abandoned.set()
+                raise _Abandoned(reason)
+    if 'error' in outcome:
+        raise outcome['error']
+    return outcome.get('text')
+
+
+def _abandoned_error(model_id, exc):
+    label = model_label(model_id)
+    if exc.reason == 'stopped':
+        return EngineError(
+            'Крок зупинено.', detail=f'{model_id}: stopped', code='stopped', retryable=False
+        )
+    if exc.reason == 'swap':
+        return EngineError(
+            'Модель замінено на прохання людини.',
+            detail=f'{model_id}: swapped by user',
+            code='model_swapped',
+            public=L(
+                f'Модель «{label}» замінено на вашу вимогу.',
+                f'The model “{label}” was replaced at your request.',
+            ),
+        )
+    return EngineError(
+        'Модель не відповіла вчасно.',
+        detail=f'{model_id}: deadline exceeded',
+        code='provider_timeout',
+        public=L(
+            f'Модель «{label}» не відповіла вчасно. Спробуйте ще раз або оберіть іншу модель.',
+            f'The model “{label}” did not respond in time. Try again or choose another model.',
+        ),
+    )
+
+
 def _complete(
     provider_factory,
     model_id,
@@ -112,29 +227,58 @@ def _complete(
     json_mode=False,
     on_text=None,
     reply_in_user_language=True,
+    deadline=None,
+    cancelled=None,
 ):
+    """Один виклик моделі із загальним дедлайном (типово — з налаштувань:
+    для JSON суддів довший). `cancelled()` — причина покинути виклик або ''."""
     started = time.monotonic()
     # пишемо людині її мовою: мову питання називаємо в кінці системного промпту
     language = reply_language.instruction() if reply_in_user_language else ''
     if language:
         system = f'{system}\n\n{language}'
-    kwargs = {'json_mode': True} if json_mode else {}
+    if deadline is None:
+        deadline = (
+            settings.LLM_JUDGE_DEADLINE_SECONDS if json_mode else settings.LLM_CALL_DEADLINE_SECONDS
+        )
     try:
         provider = provider_factory(model_id) if provider_factory else get_provider(model_id)
-        if on_text is not None and getattr(provider, 'supports_streaming', False):
-            kwargs['on_text'] = on_text
-        text = provider.complete(
-            system=system,
-            prompt=prompt,
-            temperature=temperature,
-            **kwargs,
+        streams = on_text is not None and getattr(provider, 'supports_streaming', False)
+
+        def call(relay):
+            kwargs = {'json_mode': True} if json_mode else {}
+            if streams and relay is not None:
+                kwargs['on_text'] = relay
+            return provider.complete(
+                system=system,
+                prompt=prompt,
+                temperature=temperature,
+                **kwargs,
+            )
+
+        if settings.LLM_WATCHDOG:
+            text = _watched(
+                call,
+                on_text=on_text if streams else None,
+                deadline=deadline,
+                cancelled=cancelled,
+            )
+        else:
+            text = call(on_text if streams else None)
+    except _Abandoned as exc:
+        logger.warning(
+            'LLM call abandoned',
+            extra={'model': model_id, 'reason': exc.reason, 'seconds': round(time.monotonic() - started, 1)},
         )
+        raise _abandoned_error(model_id, exc) from exc
     except ProviderError as exc:
         logger.warning(
             'LLM provider error',
             extra={'model': model_id, 'error': str(exc)},
         )
         raise _provider_failure(model_id, exc) from exc
+    except EngineError:
+        raise
     except Exception as exc:
         logger.exception('Unexpected LLM provider failure', extra={'model': model_id})
         raise EngineError(
@@ -251,12 +395,7 @@ def _run_json_plan(plan, provider_factory, discussion):
         try:
             data = _complete_json(provider_factory, plan, model_id, mode, options)
         except EngineError as exc:
-            if exc.code not in {
-                'provider_error',
-                'provider_config',
-                'provider_quota',
-                'empty_response',
-            }:
+            if exc.code not in FALLBACK_CODES:
                 raise
             last_error = exc
             logger.warning(
@@ -269,16 +408,15 @@ def _run_json_plan(plan, provider_factory, discussion):
     raise last_error
 
 
-# збої, після яких варто спробувати іншу модель: решта — не про модель
-FALLBACK_CODES = frozenset({'provider_error', 'provider_config', 'provider_quota', 'empty_response'})
 
 
 def _complete_persona(plan, provider_factory, discussion, board):
     """Репліка учасника його моделлю; якщо модель не відповіла — запасною.
 
     Запасні моделі (`plan.fallback_models`) готує `_prepare_step`; людина може
-    вимкнути заміну. Повідомлення зберігається з моделлю, що справді відповіла
-    (`plan.used_model`).
+    вимкнути автозаміну, але кнопка «Замінити модель» працює й тоді
+    (`plan.swap_models`). Модель, що мовчить довше за дедлайн, теж замінюється.
+    Повідомлення зберігається з моделлю, що справді відповіла (`plan.used_model`).
     """
     fallbacks = [m for m in plan.fallback_models if m != plan.model_id]
     # своя модель учасника «відпочиває» після збою квоти чи ключа — спершу запасні
@@ -286,11 +424,18 @@ def _complete_persona(plan, provider_factory, discussion, board):
         models = [*fallbacks, plan.model_id]
     else:
         models = [plan.model_id, *fallbacks]
+    spare = [m for m in plan.swap_models if m not in models]
+    slug = plan.persona['slug']
     last_error = None
-    for model_id in models:
+    index = 0
+    while index < len(models):
+        model_id = models[index]
+        index += 1
         if model_id != plan.model_id and not _bill(plan, model_id, discussion.user_id):
             last_error = daily_limit_error()
             continue
+        if board is not None:
+            board.attempt(plan, model_id)
         try:
             raw = _complete(
                 provider_factory,
@@ -299,10 +444,14 @@ def _complete_persona(plan, provider_factory, discussion, board):
                 plan.prompt,
                 plan.temperature,
                 on_text=(lambda text: board.update(plan, text)) if board is not None else None,
+                cancelled=board.cancel_check(slug) if board is not None else None,
             )
         except EngineError as exc:
             if exc.code not in FALLBACK_CODES:
                 raise
+            # людина просить іншу модель, а запасних не лишилось — беремо з ручного списку
+            if exc.code == 'model_swapped' and index >= len(models) and spare:
+                models.append(spare.pop(0))
             # упали всі — людина бачить помилку саме моделі, яку обрала
             last_error = last_error if model_id != plan.model_id else exc
             logger.warning(
@@ -312,6 +461,8 @@ def _complete_persona(plan, provider_factory, discussion, board):
             continue
         if model_id != plan.model_id:
             plan.used_model = model_id
+        if board is not None:
+            board.finish(plan, raw)
         return raw
     raise last_error
 

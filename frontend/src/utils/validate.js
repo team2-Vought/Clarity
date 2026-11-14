@@ -5,7 +5,13 @@ const t = copy.validation;
 const ALLOWED = /^[A-Za-z0-9!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]+$/;
 const WEAK = ['password', 'qwerty', 'admin', 'letmein', 'welcome', 'iloveyou', 'abc123'];
 
-export const PASSWORD_HINT = t.passwordHint;
+// Вимоги до пароля для живого чек-листа: людина бачить їх ще до відправки
+export const passwordChecks = (pw = '') => [
+  { key: 'length', met: pw.length >= 8 },
+  { key: 'letter', met: /[A-Za-z]/.test(pw) },
+  { key: 'digit', met: /[0-9]/.test(pw) },
+  { key: 'special', met: /[^A-Za-z0-9]/.test(pw) },
+];
 
 export function validateEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());

@@ -82,6 +82,7 @@ def _claim(discussion_id, token):
         discussion.live_status = ''
         discussion.live_search = ''
         discussion.live_drafts = []
+        discussion.live_swaps = {}
         if discussion.status in {Discussion.Status.NEW, Discussion.Status.FAILED}:
             discussion.status = Discussion.Status.IN_PROGRESS
             discussion.error = ''
@@ -96,6 +97,7 @@ def _claim(discussion_id, token):
                 'live_status',
                 'live_search',
                 'live_drafts',
+                'live_swaps',
                 'status',
                 'error',
                 'error_code',

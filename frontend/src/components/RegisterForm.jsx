@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import Field from './Field';
 import { useForm } from '../hooks/useForm';
-import { PASSWORD_HINT, validateEmail, validatePassword } from '../utils/validate';
+import { passwordChecks, validateEmail, validatePassword } from '../utils/validate';
 import { copy } from '../copy';
 
 const t = copy.register;
@@ -14,6 +14,31 @@ const validate = {
   password: (v) => validatePassword(v) || '',
   repeat: (v, all) => (v && v === all.password ? '' : v8n.mismatch),
   terms: (v) => (v ? '' : t.termsRequired),
+};
+
+/** Вимоги до пароля, що відмічаються, поки людина друкує, — до відправки форми. */
+export function PasswordChecklist({ password = '' }) {
+  // Один рядок замість переліку з чотирьох пунктів: до набору — коротка
+  // вимога, під час набору — лише те, чого ще бракує, наприкінці — галочка
+  const missing = passwordChecks(password).filter((check) => !check.met);
+  if (!password) return <span className="field__checks">{v8n.passwordShortHint}</span>;
+  if (!missing.length) {
+    return (
+      <span className="field__checks" data-met="true" aria-live="polite">
+        <span aria-hidden="true">✓ </span>
+        {v8n.passwordAllMet}
+      </span>
+    );
+  }
+  return (
+    <span className="field__checks" aria-live="polite">
+      {v8n.passwordStillNeeded(missing.map(({ key }) => v8n.passwordRules[key]))}
+    </span>
+  );
+}
+
+PasswordChecklist.propTypes = {
+  password: PropTypes.string,
 };
 
 /** «Я приймаю Умови й Політику» — посилання відкриваються в новій вкладці, щоб не втратити форму. */
@@ -33,6 +58,8 @@ export default function RegisterForm({ onSubmit, onSwitch, alternative = null })
     validate,
     labels: t.toastLabels,
     invalidToast: t.invalidToast,
+    // помилки видно під полями — тост унизу лише дублював би їх
+    inlineErrors: true,
     onSubmit: (v) =>
       onSubmit?.({
         name: v.name.trim(),
@@ -73,7 +100,7 @@ export default function RegisterForm({ onSubmit, onSwitch, alternative = null })
         value={values.password}
         onChange={handleChange}
         error={errors.password}
-        hint={PASSWORD_HINT}
+        hint={<PasswordChecklist password={values.password} />}
       />
       <Field
         label={t.repeatLabel}

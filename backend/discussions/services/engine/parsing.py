@@ -210,7 +210,32 @@ def normalize_review(data):
         'risks': risks,
         'weak_spots': _text_list(data.get('weak_spots')),
         'counter_arguments': _text_list(data.get('counter_arguments')),
+        'fact_checks': _fact_checks(data.get('fact_checks')),
     }
+
+
+MAX_FACT_CHECKS = 5
+
+
+def _fact_checks(value):
+    """[{claim, ok, correct}] — числа й факти, які перевірив AI Devil.
+
+    Без однозначного ok перевірка нічого не каже людині — її пропускаємо;
+    correct лишається лише для хибних тверджень.
+    """
+    checks = []
+    for item in value if isinstance(value, list) else []:
+        if not isinstance(item, dict):
+            continue
+        claim = _text(item.get('claim'), limit=300)
+        ok = _as_bool(item.get('ok'), None)
+        if not claim or ok is None:
+            continue
+        correct = '' if ok else _text(item.get('correct'), limit=400)
+        checks.append({'claim': claim, 'ok': ok, 'correct': correct})
+        if len(checks) >= MAX_FACT_CHECKS:
+            break
+    return checks
 
 
 def _pairs(value, first, second, *, limit, item_limit=400):
@@ -468,6 +493,25 @@ def _normalize_stance(value, mode, options):
     return ''
 
 
+# Початки службових інструкцій промпту. Деякі моделі переписують їх у відповідь
+# (наприклад, абзац про пошук) — людина не має бачити «кухню» платформи.
+_ECHOED_INSTRUCTIONS = (
+    'Пошук в інтернеті — за потреби',
+    'Web search — when needed',
+    'Після основного тексту додай службові рядки',
+    'After the main text add service lines',
+)
+_ECHO_RE = re.compile(
+    r'^[ \t>*_]*(?:' + '|'.join(re.escape(item) for item in _ECHOED_INSTRUCTIONS) + r').*?(?:\n\s*\n|\Z)',
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
+
+
+def strip_echoed_instructions(text):
+    """Прибирає з репліки абзаци, які модель переписала з інструкцій промпту."""
+    return _ECHO_RE.sub('', str(text or '')).strip()
+
+
 def parse_reply(raw, mode, options):
     """Відокремлює службові рядки ТЕЗА/ПОЗИЦІЯ/ПОШУК від тексту репліки.
 
@@ -491,7 +535,7 @@ def parse_reply(raw, mode, options):
     content = text
     for match in sorted(last.values(), key=lambda item: item.start(), reverse=True):
         content = content[: match.start()] + content[match.end():]
-    content = re.sub(r'\n{3,}', '\n\n', content).strip() or text.strip()
+    content = re.sub(r'\n{3,}', '\n\n', strip_echoed_instructions(content)).strip() or text.strip()
     if not thesis:
         thesis = prompts.fallback_thesis(content)
     return {

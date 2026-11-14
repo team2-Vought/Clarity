@@ -374,7 +374,6 @@ export default function SettingsPage() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
   const [sendKey, setSendKey] = useState(readSendKey);
   const [suggestions, setSuggestions] = useState(readSuggestions);
   const [language, setLanguage] = useState(readLanguagePref);
@@ -474,8 +473,22 @@ export default function SettingsPage() {
   const limits = data?.limits || { min_ai: 2, max_ai: 5, min_rounds: 2, max_rounds: 3 };
   // провайдери без жодної моделі (Ollama й custom без налаштувань) — лише приміткою внизу
   const providers = (data?.providers || []).filter((provider) => provider.models > 0);
-  const shownProviders =
-    filter === 'available' ? providers.filter((provider) => provider.available) : providers;
+  // спершу те, що вже працює; провайдери без ключа — окремо й необов'язково:
+  // новачок не має бачити десяток «потрібен ключ» як головне на сторінці
+  const readyProviders = providers.filter((provider) => provider.available);
+  const keyProviders = providers.filter((provider) => !provider.available);
+  const providerCard = (provider) => (
+    <ProviderCard
+      key={provider.id}
+      provider={provider}
+      tone={MARK_TONES[providers.indexOf(provider) % MARK_TONES.length]}
+      models={models.filter((model) => model.provider_id === provider.id)}
+      defaultModel={chosenDefault}
+      onSaveKey={handleSaveKey}
+      onRemoveKey={handleRemoveKey}
+      onMakeDefault={(value) => savePreference({ default_model: value })}
+    />
+  );
 
   // ліміти — угорі: власний ключ їх знімає, тож вони поруч із ключами
   const renderModels = () => (
@@ -488,38 +501,22 @@ export default function SettingsPage() {
         {t.usageLead} {t.usageKeysNote}
       </p>
 
-      <div className="settings__toolbar">
-        <span className="settings__count">{t.availableCount(availableModels.length, models.length)}</span>
-        <Pills
-          label={t.filterLabel}
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: t.filterAll },
-            { value: 'available', label: t.filterAvailable },
-          ]}
-        />
-      </div>
-
-      {shownProviders.length ? (
-        <ul className="settings__providers">
-          {shownProviders.map((provider) => (
-            <ProviderCard
-              key={provider.id}
-              provider={provider}
-              tone={MARK_TONES[providers.indexOf(provider) % MARK_TONES.length]}
-              models={models.filter((model) => model.provider_id === provider.id)}
-              defaultModel={chosenDefault}
-              onSaveKey={handleSaveKey}
-              onRemoveKey={handleRemoveKey}
-              onMakeDefault={(value) => savePreference({ default_model: value })}
-            />
-          ))}
-        </ul>
+      <h3 className="settings__group-title">{t.readyTitle}</h3>
+      {readyProviders.length ? (
+        <ul className="settings__providers">{readyProviders.map(providerCard)}</ul>
       ) : (
         <p className="settings__empty">{t.noAvailable}</p>
       )}
-      <p className="settings__footnote">{t.localNote}</p>
+
+      {keyProviders.length > 0 && (
+        <details className="settings__more" open={!readyProviders.length}>
+          <summary className="settings__more-summary">
+            <span>{t.ownKeysTitle(keyProviders.length)}</span>
+            <span className="settings__more-hint">{t.ownKeysLead}</span>
+          </summary>
+          <ul className="settings__providers">{keyProviders.map(providerCard)}</ul>
+        </details>
+      )}
     </>
   );
 

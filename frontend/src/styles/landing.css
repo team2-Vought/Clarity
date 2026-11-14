@@ -42,12 +42,27 @@ html:has(.page--landing) {
 }
 
 /* ---------- Поява під час прокрутки ---------- */
+/* Коротко й ледь помітно: блок починає з'являтися ще до того, як дійде до
+   екрана (Landing.jsx), тож під час прокрутки порожніх екранів не буває */
 [data-reveal] {
   opacity: 0;
-  transform: translateY(26px);
+  transform: translateY(12px);
   transition:
-    opacity 0.8s var(--ease-out) var(--delay, 0ms),
-    transform 0.8s var(--ease-out) var(--delay, 0ms);
+    opacity 0.45s var(--ease-out) var(--delay, 0ms),
+    transform 0.45s var(--ease-out) var(--delay, 0ms);
+}
+
+/* Перший екран видно з першого кадру: лише коротка поява без очікування
+   прокрутки чи скрипта */
+.lp-enter {
+  animation: lp-enter 0.4s var(--ease-out) var(--delay, 0ms) both;
+}
+
+@keyframes lp-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 [data-reveal].is-in {
@@ -67,7 +82,7 @@ html:has(.page--landing) {
   gap: 16px;
   padding: 14px var(--lp-gutter);
   transition: background 0.3s, box-shadow 0.3s, backdrop-filter 0.3s;
-  animation: fade-in 0.5s ease-out both;
+  animation: fade-in 0.3s ease-out both;
 }
 
 .lp-header--scrolled {
@@ -112,6 +127,11 @@ html:has(.page--landing) {
 
 .lp-header__actions .btn {
   margin-top: 0;
+  white-space: nowrap;
+}
+
+.lp-header__cta-short {
+  display: none;
 }
 
 .lp-header__nav a:focus-visible {
@@ -786,18 +806,13 @@ html:has(.page--landing) {
 
 .lp-tile--models,
 .lp-tile--search,
-.lp-tile--modes,
-.lp-tile--mobile { grid-column: span 2; }
-.lp-tile--history { grid-column: span 4; }
 .lp-tile--tree,
 .lp-tile--journal { grid-column: span 3; }
 .lp-tile--journal { --delay: 80ms; }
 
 .lp-tile--models .lp-tile__icon { background: color-mix(in srgb, var(--pink) 70%, transparent); }
 .lp-tile--search .lp-tile__icon { background: color-mix(in srgb, var(--sky) 70%, transparent); }
-.lp-tile--search,
-.lp-tile--mobile { --delay: 80ms; }
-.lp-tile--modes { --delay: 160ms; }
+.lp-tile--search { --delay: 80ms; }
 
 /* мініатюра дерева рішень: точка-питання й шляхи від неї, обраний — персиковий */
 .lp-tree {
@@ -1000,91 +1015,6 @@ html:has(.page--landing) {
   65%, 100% { opacity: 1; transform: none; }
 }
 
-.lp-segment {
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 6px;
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-}
-
-.lp-segment button {
-  padding: 11px 14px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.25s, color 0.25s, box-shadow 0.25s, var(--press);
-}
-
-/* вибране в перемикачі — чорним, як у застосунку */
-.lp-segment button.is-active {
-  background: var(--text);
-  color: var(--bg);
-}
-
-.lp-segment button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 1px;
-}
-
-.lp-tile p.lp-segment__hint {
-  margin-top: 4px;
-  font-size: 0.9375rem;
-  animation: rise-in 0.4s var(--ease-out) both;
-}
-
-.lp-tile--history,
-.lp-tile--mobile {
-  padding-bottom: 0;
-}
-
-/* скрін заповнює картку до самого низу й обрізається її краями */
-.lp-tile__shot {
-  position: relative;
-  flex: 1;
-  min-height: 260px;
-  margin: 14px -26px 0 0;
-  border-top-left-radius: var(--r-md);
-  border: 1px solid var(--line-soft);
-  border-right: 0;
-  border-bottom: 0;
-  overflow: hidden;
-  box-shadow: var(--shadow-xl);
-}
-
-.lp-tile__shot .shot {
-  position: absolute;
-  inset: 0;
-}
-
-.lp-tile__shot .shot__img {
-  height: 100%;
-  object-fit: cover;
-  object-position: left top;
-}
-
-.lp-phone {
-  width: min(220px, 80%);
-  margin: auto auto 0;
-  padding: 8px 8px 0;
-  border-radius: var(--r-2xl) var(--r-2xl) 0 0;
-  background: #121212;
-  box-shadow: var(--shadow-xl);
-}
-
-.lp-phone .shot {
-  height: 280px;
-  overflow: hidden;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-}
-
 /* ---------- Заклик ---------- */
 .lp-cta {
   position: relative;
@@ -1228,15 +1158,6 @@ html:has(.page--landing) {
 
   .lp-tile--models,
   .lp-tile--search,
-  .lp-tile--modes,
-  .lp-tile--mobile {
-    grid-column: span 1;
-  }
-
-  .lp-tile--history {
-    grid-column: span 2;
-  }
-
   .lp-tile--tree,
   .lp-tile--journal {
     grid-column: span 1;
@@ -1244,13 +1165,26 @@ html:has(.page--landing) {
 }
 
 @media (max-width: 639px) {
+  /* вхід лишається: тому, хто повертається, не треба шукати його внизу */
   .lp-header__login {
+    padding: 8px 10px;
+    font-size: 0.9375rem;
+  }
+
+  .lp-header__actions {
+    gap: 4px;
+  }
+
+  .lp-header__actions .btn--sm {
+    padding: 9px 16px;
+  }
+
+  .lp-header__cta-full {
     display: none;
   }
 
-
-  .lp-header__actions .btn--sm {
-    padding: 11px 18px;
+  .lp-header__cta-short {
+    display: inline;
   }
 
   .lp-ask {
@@ -1326,21 +1260,14 @@ html:has(.page--landing) {
 
   .lp-tile--models,
   .lp-tile--search,
-  .lp-tile--history,
-  .lp-tile--modes,
   .lp-tile--tree,
-  .lp-tile--journal,
-  .lp-tile--mobile {
+  .lp-tile--journal {
     grid-column: auto;
   }
 
   .lp-tile {
     padding: 22px;
     border-radius: var(--r-xl);
-  }
-
-  .lp-tile__shot {
-    margin-right: -22px;
   }
 
   .lp-cta {
@@ -1354,6 +1281,10 @@ html:has(.page--landing) {
   [data-reveal] {
     opacity: 1;
     transform: none;
+  }
+
+  .lp-enter {
+    animation: none;
   }
 
   .lp-stage .lp-frame {
@@ -1375,10 +1306,68 @@ html:has(.page--landing) {
   transform: none;
 }
 
+:root[data-motion='reduced'] .lp-enter {
+  animation: none;
+}
+
 :root[data-motion='reduced'] .lp-stage .lp-frame {
   transform: none;
 }
 
 :root[data-motion='reduced']:has(.page--landing) {
   scroll-behavior: auto;
+}
+
+/* ---------- Чому команда, а не один чат-бот ---------- */
+.lp-why__list {
+  display: grid;
+  gap: 12px;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-why__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 12px;
+}
+
+.lp-why__one,
+.lp-why__team {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  line-height: 1.5;
+}
+
+.lp-why__one {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--muted);
+}
+
+.lp-why__team {
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.lp-why__who {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 639px) {
+  .lp-why__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
 }

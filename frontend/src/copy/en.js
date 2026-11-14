@@ -14,6 +14,8 @@ export const en = {
   landing: {
     login: 'Sign in',
     register: 'Create account',
+    // коротка назва кнопки для вузької шапки на телефоні
+    registerShort: 'Sign up',
     openApp: 'Open Clarity',
     pageTitle: 'Clarity — a team of AI minds for hard decisions',
     navLabel: 'Navigation',
@@ -36,29 +38,17 @@ export const en = {
     floatConsensus: 'Participant agreement',
 
 
-    howTitle: 'From doubt to decision — in five steps',
+    howTitle: 'From doubt to decision — in three steps',
     steps: [
       {
         title: 'Describe your situation',
-        text: 'In your own words, as you would to a friend. Pick a format: “yes or no”, one of several options, or a detailed plan.',
-        shot: 'home',
-        alt: 'Clarity home screen: the team line-up and the question field',
-      },
-      {
-        title: 'The moderator asks for details',
-        text: 'A few short questions — so the advice fits you, not the “average user”.',
+        text: 'In your own words, as you would to a friend. The moderator asks a few short questions — so the advice fits you, not the “average user”.',
         shot: 'debate',
         alt: 'The question with the moderator’s follow-ups and a participant’s opening position',
       },
       {
-        title: 'The team argues',
-        text: 'Each participant thinks with its own model and character, replies to the others and looks up facts online when needed.',
-        shot: 'moderator',
-        alt: 'The participants have reached agreement and the moderator proposes a solution',
-      },
-      {
-        title: 'AI Devil attacks the solution',
-        text: 'A dedicated critic looks for risks and holes in the logic. The team has to answer them.',
+        title: 'The team argues, AI Devil attacks',
+        text: 'Each participant thinks with its own model and character and looks up facts when needed. Then AI Devil hunts for holes in the chosen solution, and the team has to answer.',
         shot: 'devil',
         alt: 'AI Devil lists the risks of the proposed solution',
       },
@@ -123,6 +113,25 @@ export const en = {
       },
     ],
 
+    // чим команда відрізняється від одного чат-бота
+    whyTitle: 'Why a team, not one chatbot',
+    whyText: 'One model answers with one voice — and often just agrees with you. Clarity makes the views collide.',
+    whyOne: 'One chatbot',
+    whyTeam: 'Clarity',
+    why: [
+      {
+        one: 'Gives one confident answer.',
+        team: 'Several characters on different models reach different conclusions — you see where they disagree.',
+      },
+      {
+        one: 'Rarely argues with its own advice.',
+        team: 'AI Devil attacks the chosen solution, and the team has to answer.',
+      },
+      {
+        one: 'Sounds equally sure every time.',
+        team: 'You get the level of agreement, the minority view and the risks — not just a verdict.',
+      },
+    ],
     demoTitle: 'Hear how it sounds',
     demoText: 'A real discussion takes a few minutes. Here is the short version.',
     demoReplay: 'Replay',
@@ -173,31 +182,18 @@ export const en = {
 
     featuresTitle: 'Everything you need to think wider',
     models: {
-      title: 'Any model',
-      text: 'Each participant can think with a different model — so the views really differ. Add your own key or run locally with Ollama.',
-      list: ['OpenAI', 'Anthropic', 'Gemini', 'Groq', 'Cerebras', 'DeepSeek', 'Mistral', 'OpenRouter', 'Ollama'],
+      title: 'Truly different minds',
+      text: 'Each participant runs on a different AI model, so the views don’t blur into one. You see which model speaks above every reply.',
+      list: ['Logician · Qwen', 'Empath · Gemini', 'Skeptic · GPT-OSS'],
     },
     search: {
       title: 'Facts from the web',
       text: 'Participants look up fresh data when the question needs it, and cite their sources.',
       query: 'average one-bedroom rent, Berlin 2026',
     },
-    modes: {
-      title: 'Answer format',
-      items: [
-        { key: 'yes_no', label: 'Yes or no', hint: 'The moderator delivers a clear verdict' },
-        { key: 'choose_one', label: 'One of the options', hint: 'Participants compare the options and pick one' },
-        { key: 'open', label: 'Open answer', hint: 'A detailed answer and an action plan' },
-      ],
-    },
-    history: {
-      title: 'Decision history',
-      text: 'Return to any discussion, pin what matters, find anything with search.',
-      alt: 'The discussion history page',
-    },
     tree: {
-      title: 'Decision tree',
-      text: 'After the discussion — a map of the paths the team weighed: what was chosen, what was rejected and where each leads.',
+      title: 'See the paths you didn’t take',
+      text: 'After the discussion — a map of the options the team weighed: what was chosen, what was rejected and where each leads.',
       paths: ['Move with a safety net', 'Move right away', 'Stay'],
     },
     journal: {
@@ -205,11 +201,6 @@ export const en = {
       text: 'Save the decision — in a week or a month Clarity will ask how it went. That’s how you see which advice really works.',
       when: 'In 30 days',
       question: 'How is the move to Lviv going?',
-    },
-    mobile: {
-      title: 'Always at hand',
-      text: 'A full discussion from your phone: the same team, the same conclusions.',
-      alt: 'Clarity on a phone',
     },
 
     ctaTitle: 'Your next hard decision — not on your own',
@@ -470,13 +461,9 @@ export const en = {
     label: 'Getting started',
     title: 'Welcome to',
     brand: 'Clarity',
-    lead: 'Describe a decision — the AIs will do the rest.',
-    steps: [
-      { title: 'Describe the situation', text: 'What you are deciding and what matters to you.' },
-      { title: 'The AIs argue', text: 'Different characters debate, AI Devil hunts for weak spots.' },
-      { title: 'Get a conclusion', text: 'Arguments, risks and a next step in 1–3 minutes.' },
-    ],
-    defaults: 'Everything is set up. Fill in “Settings → About me” for personal advice.',
+    lead: 'Describe your decision below — this is what you’ll get back in a couple of minutes.',
+    exampleQuestion: 'Example question',
+    tryExample: 'Try this example',
     dismiss: 'Got it',
     more: 'How it works',
   },
@@ -493,6 +480,9 @@ export const en = {
     emptyTitle: 'No decisions in the journal yet',
     empty: 'After a discussion, press “To journal” under the conclusion — in a week or a month Clarity will ask how it went.',
     emptyAction: 'Start a discussion',
+    emptyRecent: 'Pick a recent discussion and write down what you decided — in a week or a month Clarity will ask how it went.',
+    recentTitle: 'Recent discussions',
+    recordDecision: 'Record decision',
     due: 'Time to look back',
     waiting: 'Too early to ask',
     reviewed: 'Looked back on',
@@ -603,10 +593,9 @@ export const en = {
     defaultModel: 'Default model',
     defaultModelHint: 'The first participant of a new discussion gets this model, the rest get other available ones so the views differ.',
     defaultModelAuto: 'Automatic',
-    availableCount: (available, total) => `${available} of ${total} models available`,
-    filterLabel: 'Which providers to show',
-    filterAll: 'All',
-    filterAvailable: 'Available',
+    readyTitle: 'Ready to use',
+    ownKeysTitle: (count) => `Add your own key · ${count} more ${plural(count, 'provider', 'providers')}`,
+    ownKeysLead: 'Optional: everything already works without it. Your own key removes the daily limits and unlocks more models.',
     noAvailable: 'No model is available yet. Add a key for any provider below — many have a free tier.',
     modelsCount: (count) => `${count} ${plural(count, 'model', 'models')}`,
     status: {
@@ -637,7 +626,6 @@ export const en = {
     modelUnavailable: 'key required',
     isDefault: 'default',
     makeDefault: (label) => `Make “${label}” the default model`,
-    localNote: 'Local models (Ollama) and a custom OpenAI-compatible endpoint are configured on the server in backend/.env.',
 
     rolesTitle: 'Your roles',
     rolesHint: 'A lawyer, a financial advisor or your cautious dad — roles appear in a participant’s role menu.',
@@ -826,6 +814,7 @@ export const en = {
     title: 'Discussion history',
     subtitle: 'Return to earlier decisions or delete what you no longer need.',
     newDiscussion: 'New discussion',
+    fewHint: 'Pin the important ones and search them all — handy once there are more.',
     loading: 'Loading history…',
     loadError: 'Could not load history',
     retry: 'Try again',
@@ -1085,6 +1074,8 @@ export const en = {
     namePlaceholder: 'Name',
     description: 'Description',
     placeholderDescription: 'Describe the problem in detail',
+    // вузьке поле на телефоні: довша підказка обрізалась на півслові
+    placeholderShort: 'What are you deciding?',
     start: 'Start a discussion',
     creating: 'Creating the discussion…',
     errorCreate: 'Could not create the discussion',
@@ -1097,7 +1088,7 @@ export const en = {
     clarifyOpenPlaceholder: 'Your answer',
     clarifyExtra: 'Anything else the team should know?',
     clarifyExtraWhy: 'Optional. Circumstances the moderator didn’t ask about: what holds you back, what you fear, what you’ve already tried.',
-    clarifyExtraPlaceholder: 'E.g. “My partner is against moving”, “I tried this once and it failed”',
+    clarifyExtraPlaceholder: 'Anything that matters, in your own words',
     clarifyCustomLabel: (question) => `Your own answer: ${question}`,
     clarifySkip: 'Skip all',
     clarifyNextButton: 'Next',
@@ -1185,6 +1176,17 @@ export const en = {
   },
 
   chat: {
+    // етапи дискусії під рядком «Аналізуємо…»: де ми зараз і скільки лишилось
+    stages: {
+      opening: 'Opening positions',
+      debate: 'Debate',
+      synthesis: 'Solution',
+      devil: 'AI Devil check',
+      rebuttal: 'Replies to criticism',
+      final: 'Conclusion',
+    },
+    stageOf: (index, total, label) => `Step ${index} of ${total} · ${label}`,
+    stagesLabel: 'Discussion progress',
     messages: 'Messages',
     clarifyNoteHint: 'First answer the moderator above or skip the questions',
     clarifyNoteHintShort: 'Answer the moderator above',
@@ -1282,6 +1284,13 @@ export const en = {
     summaryConfirmed: 'Confirmed after AI Devil',
     summaryRevision: 'What changed',
     summaryConfidence: 'Confidence',
+    // що з чисел і фактів перевірив AI Devil — рядок під вердиктом
+    factChecksSummary: (total, fixed) =>
+      `AI Devil checked ${total} ${plural(total, 'number or fact', 'numbers and facts')}` +
+      (fixed ? ` · ${fixed} corrected` : ' · all correct'),
+    factOk: 'correct',
+    factWrong: 'wrong',
+    factCorrect: 'Correct:',
     summaryConfidenceHint: 'The moderator model’s subjective estimate, not a statistical probability.',
     summaryAgreement: 'Participant agreement',
     summaryAgreementValue: (agree, total) => `${agree} of ${total}`,
@@ -1364,6 +1373,14 @@ export const en = {
     pdfPreparing: 'Preparing the PDF…',
     pdfError: 'Could not create the PDF. Please try again.',
     skipTyping: 'Click to show in full',
+    // participant state while the reply is being written
+    draftThinking: (seconds) => `Thinking… ${seconds} s`,
+    draftDone: 'Done — waiting for the others',
+    draftSwapped: 'The previous model did not answer in time — another one continues.',
+    draftSlow: (name) => `${name} is taking longer than usual.`,
+    draftSwap: 'Switch model',
+    draftSwapping: 'Switching…',
+    draftSwapFailed: 'Could not switch the model. Please try again.',
     copied: 'Copied',
     copyError: 'Could not copy',
     fallbackParticipant: (index) => `Participant ${index}`,
@@ -1447,7 +1464,6 @@ export const en = {
     passwordRequired: 'Enter your password',
     nameRequired: 'Enter your name',
     mismatch: 'The passwords do not match',
-    passwordHint: 'At least 8 characters: Latin letters, digits and a special character',
     passwordShort: 'The password is too short',
     passwordLatinOnly: 'Use Latin letters only',
     passwordBadChar: 'One of the characters is not allowed',
@@ -1455,6 +1471,16 @@ export const en = {
     passwordNoDigit: 'Add digits',
     passwordNoSpecial: 'Add special characters',
     passwordWeak: 'This password doesn’t look strong',
+    // підказка під полем пароля: один рядок, що змінюється під час набору
+    passwordShortHint: '8+ characters: a Latin letter, a digit and a symbol',
+    passwordStillNeeded: (items) => `Still needed: ${items.join(', ')}`,
+    passwordAllMet: 'Strong password',
+    passwordRules: {
+      length: '8+ characters',
+      letter: 'a Latin letter',
+      digit: 'a digit',
+      special: 'a symbol like ! or #',
+    },
   },
 
   errors: {

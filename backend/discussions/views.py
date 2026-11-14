@@ -561,6 +561,37 @@ class DiscussionStopView(OwnedDiscussionView):
         return Response(_discussion_state(discussion), status=status.HTTP_200_OK)
 
 
+class DiscussionSwapModelView(OwnedDiscussionView):
+    """«Замінити модель»: учасник, що думає довше звичайного, переходить на
+    іншу модель. Рушій помічає запит за секунду й продовжує запасною моделлю."""
+
+    def post(self, request, pk):
+        discussion = self.get_discussion(request, pk)
+        if discussion is None:
+            return _not_found()
+        slug = str(request.data.get('slug') or '')[:64]
+        with transaction.atomic():
+            locked = Discussion.objects.select_for_update().filter(pk=discussion.pk).first()
+            writing = {
+                draft.get('slug')
+                for draft in (locked.live_drafts or [])
+                if isinstance(draft, dict) and not draft.get('done')
+            }
+            if not locked.advance_token or slug not in writing:
+                return Response(
+                    {'detail': L(
+                        'Цей учасник зараз не пише відповідь.',
+                        'This participant is not writing a reply right now.',
+                    )},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            swaps = dict(locked.live_swaps or {})
+            swaps[slug] = int(swaps.get(slug, 0)) + 1
+            locked.live_swaps = swaps
+            locked.save(update_fields=['live_swaps'])
+        return Response({'ok': True}, status=status.HTTP_202_ACCEPTED)
+
+
 class DiscussionNotCrisisView(OwnedDiscussionView):
     """«Я питаю про інше»: дискусію, яку зупинила криза ще до старту, запускаємо
     як звичайну. Кризу й далі може розпізнати модератор під час перевірки контексту."""

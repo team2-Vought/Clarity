@@ -27,6 +27,7 @@ import {
   shareDiscussion,
   finishDiscussion,
   stopDiscussion,
+  swapParticipantModel,
   notCrisisDiscussion,
   unshareDiscussion,
   updateDiscussion,
@@ -52,6 +53,7 @@ import { usePanelMorph } from '../hooks/usePanelMorph';
 import ThoughtLine from '../components/ThoughtLine';
 import MessageMarkdown from '../components/MessageMarkdown';
 import ClarifyCard, { EXTRA_ID as CLARIFY_EXTRA_ID } from '../components/ClarifyCard';
+import StageProgress from '../components/chat/StageProgress';
 import ErrorNotice from '../components/ErrorNotice';
 import { discussionErrorKind, requestErrorKind } from '../utils/errorKind';
 import { answerOf } from '../utils/clarify';
@@ -348,7 +350,9 @@ export default function ChatPage() {
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
     const drafted = new Set(
-      (discussionRef.current?.live?.drafts || []).map((draft) => draft.slug)
+      (discussionRef.current?.live?.drafts || [])
+        .filter((draft) => draft.text)
+        .map((draft) => draft.slug)
     );
     const streamed = (data.messages || []).filter(
       (message) => message.role === 'ai' && drafted.has(message.persona_slug)
@@ -1064,6 +1068,27 @@ export default function ChatPage() {
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });
   }, [summaryShown, animateSummary]);
+
+  // «Замінити модель» для учасника, що думає довше звичайного
+  const [swappingSlugs, setSwappingSlugs] = useState(() => new Set());
+  const handleSwapModel = useCallback(async (slug) => {
+    if (!discussion) return;
+    setSwappingSlugs((current) => new Set([...current, slug]));
+    try {
+      await swapParticipantModel(discussion.id, slug);
+    } catch (err) {
+      setActionError(actionFailure(err, t.draftSwapFailed));
+    } finally {
+      // кнопка повертається, лише якщо й нова модель затримається
+      setTimeout(() => {
+        setSwappingSlugs((current) => {
+          const next = new Set(current);
+          next.delete(slug);
+          return next;
+        });
+      }, 4000);
+    }
+  }, [discussion]);
 
   const handleStop = async () => {
     if (!discussion) return;
@@ -2035,6 +2060,9 @@ export default function ChatPage() {
               onExplain={handleExplain}
               onReportWrong={handleReportWrong}
               onShowMarks={handleShowMarks}
+              slowAfter={discussion?.live?.slow_after || 0}
+              onSwapModel={message.draft ? handleSwapModel : undefined}
+              swapping={Boolean(message.draft) && swappingSlugs.has(message.persona_slug)}
               tip={message.id === tipMessageId ? (
                 <p className="chat__marks-tip">
                   <span>{m.tip}</span>
@@ -2094,6 +2122,7 @@ export default function ChatPage() {
           )}
 
 
+          {showThoughtLine && !discussion?.quick && <StageProgress phase={discussion?.phase} />}
           {showThoughtLine && (
             <ThoughtLine
               working={isRunning}
@@ -2188,7 +2217,13 @@ export default function ChatPage() {
                   </div>
                 </div>
               )}
-              <form className="debate__prompt chat__composer-box" onSubmit={handleSendNote}>
+              {/* поки модератор чекає відповідей, писати можна лише в його картці:
+                  два поля вводу одночасно плутали, куди саме писати */}
+              <form
+                className="debate__prompt chat__composer-box"
+                onSubmit={handleSendNote}
+                hidden={isAwaitingClarify}
+              >
                 {/* формат видно, але після старту дискусії його вже не змінити;
                     у тому ж меню — файли до уточнення, швидка відповідь і пошук */}
                 <ModePicker value={discussion.mode} locked extras={composerExtras} />

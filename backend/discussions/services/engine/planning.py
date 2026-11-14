@@ -66,6 +66,7 @@ def _prepare_step(discussion):
     for plan in plans:
         if plan.json_kind is None:
             plan.fallback_models = _persona_fallbacks(discussion, plan.persona)
+            plan.swap_models = _persona_fallbacks(discussion, plan.persona, manual=True)
     return plans
 
 

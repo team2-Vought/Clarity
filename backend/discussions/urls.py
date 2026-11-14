@@ -17,6 +17,7 @@ from .views import (
     DiscussionRunView,
     DiscussionShareView,
     DiscussionStopView,
+    DiscussionSwapModelView,
     DiscussionTreeView,
     FreeModelListView,
     HighlightDetailView,
@@ -55,6 +56,11 @@ urlpatterns = [
         name='discussion-clarify',
     ),
     path('discussions/<uuid:pk>/stop/', DiscussionStopView.as_view(), name='discussion-stop'),
+    path(
+        'discussions/<uuid:pk>/swap-model/',
+        DiscussionSwapModelView.as_view(),
+        name='discussion-swap-model',
+    ),
     path(
         'discussions/<uuid:pk>/not-crisis/',
         DiscussionNotCrisisView.as_view(),

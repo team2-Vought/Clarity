@@ -94,7 +94,10 @@ def clarify_prompt(question, mode='open', options=None, profile=None, documents=
             '- why — one sentence (up to 20 words) on how the answer changes the '
             'advice, so the person sees why it is asked;\n'
             f'- options — from 2 to {CLARIFY_MAX_OPTIONS} short answers (up to 6 '
-            'words) that do not overlap. Use concrete values and ranges '
+            'words) that do not overlap. Each option must read as a complete '
+            'answer on its own, without the question next to it, and repeat the '
+            'subject: “No, the company plans neither”, not “Neither on roadmap”; '
+            '“Yes, Go is planned”, not “Go soon”. Use concrete values and ranges '
             '(“under $500”, “3–6 months”), not “low / medium / high” and not '
             '“significant / minor”. Only when the question is about facts outside '
             'the person (other people’s plans, contract terms, the state of a '
@@ -133,7 +136,10 @@ def clarify_prompt(question, mode='open', options=None, profile=None, documents=
         '- why — одне речення (до 20 слів): як відповідь змінить пораду, щоб людина '
         'бачила, навіщо питають;\n'
         f'- options — від 2 до {CLARIFY_MAX_OPTIONS} коротких відповідей (до 6 слів), '
-        'що не перетинаються. Конкретні значення й діапазони («до $500», «3–6 '
+        'що не перетинаються. Кожен варіант має бути зрозумілою відповіддю й без '
+        'самого питання поруч і називати, про що він: «Ні, компанія не планує '
+        'жодної», а не «Жодна не в планах»; «Так, планують Go», а не «Go скоро». '
+        'Конкретні значення й діапазони («до $500», «3–6 '
         'місяців»), а не «низькі / середні / високі» чи «значні / незначні». Лише '
         'коли питання про факти поза людиною (плани інших, умови договору, стан '
         'компанії чи речі, яку купують), яких вона може '
@@ -154,17 +160,23 @@ def clarify_prompt(question, mode='open', options=None, profile=None, documents=
 
 def question_with_clarifications(question, clarifications):
     """Запитання разом із відповідями на уточнення модератора — для всіх промптів."""
+    asked, answered = L('Питання модератора', 'Moderator’s question'), L(
+        'Відповідь людини', 'The person’s answer'
+    )
     lines = [
-        f'- {_inline(item.get("question"))} — {_inline(item.get("answer"))}'
+        f'- {asked}: {_inline(item.get("question"))}\n  {answered}: {_inline(item.get("answer"))}'
         for item in clarifications or []
         if isinstance(item, dict) and _inline(item.get('answer'))
     ]
     if not lines:
         return question
     heading = L(
-        'Уточнення від користувача (якщо людина чогось не знає — це невідоме: '
-        'врахуй обидва варіанти й скажи, як це з’ясувати):',
-        'Clarifications from the user (if the person does not know something, it '
-        'is an unknown: consider both possibilities and say how to find out):',
+        'Уточнення від користувача. Кожна відповідь стосується лише питання над '
+        'нею — не розширюй її змісту. Якщо людина чогось не знає — це невідоме: '
+        'врахуй обидва варіанти й скажи, як це з’ясувати:',
+        'Clarifications from the user. Each answer refers only to the question '
+        'above it — do not stretch its meaning. If the person does not know '
+        'something, it is an unknown: consider both possibilities and say how to '
+        'find out:',
     )
     return f'{question}\n\n{heading}\n' + '\n'.join(lines)

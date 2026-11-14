@@ -8,6 +8,45 @@ import { copy } from '../copy';
 
 const t = copy.chat;
 
+const NO_CHECKS = [];
+
+/** «Перевірено AI Devil: 3, виправлено 1» — розгортається в перелік ✓/✗. */
+function FactChecks({ checks, sources }) {
+  if (!checks.length) return null;
+  const fixed = checks.filter((check) => !check.ok).length;
+  return (
+    <details className="chat__summary-facts">
+      <summary>
+        <span className="chat__summary-facts-mark" data-fixed={fixed ? 'true' : undefined} aria-hidden="true">
+          {fixed ? '!' : '✓'}
+        </span>
+        {t.factChecksSummary(checks.length, fixed)}
+      </summary>
+      <ul>
+        {checks.map((check, index) => (
+          <li key={index} data-ok={check.ok ? 'true' : 'false'}>
+            <span className="chat__summary-facts-sign" aria-hidden="true">{check.ok ? '✓' : '✗'}</span>
+            <span>
+              <InlineText text={check.claim} sources={sources} />
+              <span className="sr-only">{check.ok ? ` — ${t.factOk}` : ` — ${t.factWrong}`}</span>
+              {!check.ok && check.correct && (
+                <span className="chat__summary-facts-fix">
+                  {t.factCorrect} <InlineText text={check.correct} sources={sources} />
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+FactChecks.propTypes = {
+  checks: PropTypes.arrayOf(PropTypes.object).isRequired,
+  sources: PropTypes.instanceOf(Map).isRequired,
+};
+
 const listFor = (view, key) => view.lists.find((list) => list.key === key)?.items || [];
 
 function Bullets({ id, title, items, sources }) {
@@ -119,6 +158,7 @@ CompareTable.propTypes = {
  * посилання й демо на лендингу.
  * `animate` — блоки проявляються по черзі (CSS-змінна --i).
  * `paths` — розділ «Розглянуті шляхи» (лише в чаті): після перегляду, перед аргументами.
+ * `factChecks` — що з чисел і фактів перевірив AI Devil: [{claim, ok, correct}].
  */
 export default function SummaryDetails({
   summary,
@@ -129,6 +169,7 @@ export default function SummaryDetails({
   animate = false,
   paths = null,
   collapsible = true,
+  factChecks = NO_CHECKS,
 }) {
   // коротко — вердикт, рішення, умови, план на тиждень і ризики; решта — за «Повним розбором»
   const [isFullOpen, setIsFullOpen] = useState(!collapsible);
@@ -292,6 +333,12 @@ export default function SummaryDetails({
         </div>
       )}
 
+      {factChecks.length > 0 && (
+        <div style={step()}>
+          <FactChecks checks={factChecks} sources={sources} />
+        </div>
+      )}
+
       {(revision || paths || view.lists.length > 0 || nextStep || plan.length > 0 || triggers.length > 0) && (
         <div className="chat__summary-sections" style={step()}>
           <Bullets id="conditions" title={t.summaryConditions} items={view.conditions || []} sources={sources} />
@@ -389,6 +436,7 @@ SummaryDetails.propTypes = {
   }).isRequired,
   sources: PropTypes.instanceOf(Map).isRequired,
   paths: PropTypes.node,
+  factChecks: PropTypes.arrayOf(PropTypes.object),
   collapsible: PropTypes.bool,
   mode: PropTypes.oneOf(['open', 'yes_no', 'choose_one']),
   options: PropTypes.arrayOf(PropTypes.string),

@@ -956,7 +956,8 @@ class ClarifyApiTests(TestCase):
         engine.advance(discussion)
         prompt = self.provider.calls[-1]['prompt']
         self.assertIn('Уточнення від користувача', prompt)
-        self.assertIn('- Який у вас бюджет? — До 10 000 $', prompt)
+        self.assertIn('Питання модератора: Який у вас бюджет?', prompt)
+        self.assertIn('Відповідь людини: До 10 000 $', prompt)
         self.assertNotIn('Пропущене питання', prompt)
 
     def test_answers_rejected_when_not_awaiting(self):

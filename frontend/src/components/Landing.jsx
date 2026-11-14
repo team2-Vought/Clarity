@@ -6,12 +6,14 @@ import HowItWorks from './landing/HowItWorks';
 import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
 import Features from './landing/Features';
+import Why from './landing/Why';
 import { useDeviceTheme } from '../hooks/useDeviceTheme';
 import PublicFooter from './PublicFooter';
 import { copy } from '../copy';
 
 const t = copy.landing;
-const NAV = ['how', 'team', 'demo', 'features'];
+// у тому ж порядку, що й секції сторінки
+const NAV = ['demo', 'how', 'team', 'features'];
 export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart }) {
   // лендинг завжди в темі пристрою, а не в тій, що обрана в застосунку
   useDeviceTheme();
@@ -19,18 +21,20 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
   const [scrolled, setScrolled] = useState(false);
   const rootRef = useRef(null);
 
-  // блоки з data-reveal плавно з'являються, коли доходять до екрана
+  // блоки з data-reveal плавно з'являються трохи раніше, ніж доходять до
+  // екрана (запас знизу — пів екрана): швидка прокрутка не бачить порожнечі
   useEffect(() => {
     const items = rootRef.current?.querySelectorAll('[data-reveal]') ?? [];
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+          // і те, що вже прогорнули (наприклад, перехід за якорем), — теж
+          if (!entry.isIntersecting && entry.boundingClientRect.top > 0) return;
           entry.target.classList.add('is-in');
           observer.unobserve(entry.target);
         });
       },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.08 }
+      { rootMargin: '0px 0px 50% 0px', threshold: 0 }
     );
     items.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
@@ -65,17 +69,28 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
               {t.login}
             </button>
           )}
-          <button type="button" className="btn btn--sm" onClick={signedIn ? start : onRegister}>
-            {primaryLabel}
+          <button
+            type="button"
+            className="btn btn--sm lp-header__cta"
+            onClick={signedIn ? start : onRegister}
+            aria-label={primaryLabel}
+          >
+            {/* на вузькому екрані — коротка назва, щоб кнопка не ламалась у два рядки */}
+            <span className="lp-header__cta-full">{primaryLabel}</span>
+            <span className="lp-header__cta-short" aria-hidden="true">
+              {signedIn ? primaryLabel : t.registerShort}
+            </span>
           </button>
         </div>
       </header>
 
       <main className="lp-main">
+        {/* спершу — чим це інше й живий приклад, потім механіка */}
         <Hero onStart={onStart} question={question} onQuestionChange={setQuestion} />
+        <Why />
+        <LiveDemo />
         <HowItWorks />
         <Team />
-        <LiveDemo />
         <Features />
 
         <section className="lp-cta" aria-labelledby="cta-title" data-reveal>

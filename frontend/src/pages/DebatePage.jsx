@@ -6,7 +6,6 @@ import {
   ArrowRight01Icon,
   Attachment01Icon,
   FlashIcon,
-  GlobalSearchIcon,
   IdentityCardIcon,
   BeachIcon,
   BookmarkAdd01Icon,
@@ -40,6 +39,7 @@ import {
 } from '../components/DebateIcons';
 import ErrorNotice from '../components/ErrorNotice';
 import OnboardingCard from '../components/OnboardingCard';
+import { SwitchRow } from '../components/SettingsControls';
 import DueDecisionCard from '../components/DueDecisionCard';
 import VerifyEmailCard from '../components/VerifyEmailCard';
 import ModePicker from '../components/ModePicker';
@@ -192,6 +192,8 @@ export default function DebatePage() {
   const [untilConsensus, setUntilConsensus] = useState(false);
   const [consensusMax, setConsensusMax] = useState(6);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  // поле питання треба сфокусувати, щойно в нього підставиться приклад
+  const focusQuestionRef = useRef(false);
   // на телефоні панель налаштувань — висувна, відкривається кнопкою «≡»
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { panelCollapsed = false, registerPanelToggle, togglePanel } = useOutletContext() ?? {};
@@ -301,31 +303,15 @@ export default function DebatePage() {
       checked: quick,
       onSelect: () => setQuick((value) => !value),
     },
-    // поки профіль не завантажився, пункту «Про мене» немає
-    about && (aboutFilled
-      ? {
-          key: 'profile',
-          icon: IdentityCardIcon,
-          label: t.profileMenu,
-          hint: t.profileMenuHint,
-          checked: useProfile,
-          onSelect: () => setUseProfileChoice(!useProfile),
-        }
-      : {
-          key: 'profile',
-          icon: IdentityCardIcon,
-          label: t.profileMenuEmpty,
-          hint: t.profileEmpty,
-          onSelect: () => navigate('/settings?tab=about'),
-        }),
-    {
-      key: 'search',
-      icon: GlobalSearchIcon,
-      label: t.webSearch,
-      hint: searchStatus.available ? t.webSearchMenuHint : t.webSearchUnavailable,
-      checked: webSearch,
-      disabled: !searchStatus.available,
-      onSelect: () => setWebSearch((value) => !value),
+    // щодня потрібні лише файл, формат і швидка відповідь; вебпошук і
+    // заповнений профіль працюють самі, а вимикаються в «Розширених».
+    // Порожній профіль лишаємо тут — як запрошення його заповнити
+    about && !aboutFilled && {
+      key: 'profile',
+      icon: IdentityCardIcon,
+      label: t.profileMenuEmpty,
+      hint: t.profileEmpty,
+      onSelect: () => navigate('/settings?tab=about'),
     },
   ].filter(Boolean);
 
@@ -454,6 +440,14 @@ export default function DebatePage() {
     return () => clearTimeout(timer);
   }, [loadData, navigate]);
 
+  useEffect(() => {
+    if (!focusQuestionRef.current) return;
+    focusQuestionRef.current = false;
+    const el = questionRef.current;
+    el?.focus();
+    el?.setSelectionRange(el.value.length, el.value.length);
+  }, [description]);
+
   // Поле промпту росте разом із текстом; після max-height з'являється скрол.
   useLayoutEffect(() => {
     const el = questionRef.current;
@@ -470,6 +464,17 @@ export default function DebatePage() {
     if (!el) return;
     el.focus();
     requestAnimationFrame(() => el.setSelectionRange(text.length, text.length));
+  };
+
+  // «Спробувати цей приклад» з картки першого запуску: питання «так чи ні»,
+  // як і висновок, показаний у картці
+  const tryExample = (question) => {
+    setMode('yes_no');
+    setOptions([]);
+    setDescription(question);
+    saveDraft(question);
+    // фокус — після рендеру з новим текстом (курсор у кінці питання)
+    focusQuestionRef.current = true;
   };
 
   const handleQuestionKeyDown = (e) => {
@@ -878,6 +883,25 @@ export default function DebatePage() {
                 </div>
               </div>
 
+              <div className="debate__sheet debate__sheet--switches">
+                <SwitchRow
+                  title={t.webSearch}
+                  hint={searchStatus.available ? t.webSearchMenuHint : t.webSearchUnavailable}
+                  checked={webSearch}
+                  disabled={!searchStatus.available || isCreating}
+                  onChange={setWebSearch}
+                />
+                {aboutFilled && (
+                  <SwitchRow
+                    title={t.profileMenu}
+                    hint={t.profileMenuHint}
+                    checked={useProfile}
+                    disabled={isCreating}
+                    onChange={setUseProfileChoice}
+                  />
+                )}
+              </div>
+
               <div className="debate__sheet">
                 <div className="debate__field debate__field--first">
                   <h3 className="debate__field-title">{t.judges}</h3>
@@ -1183,7 +1207,11 @@ export default function DebatePage() {
 
         <VerifyEmailCard />
         {showOnboarding ? (
-          <OnboardingCard onDismiss={finishOnboarding} onMore={() => navigate('/help')} />
+          <OnboardingCard
+            onDismiss={finishOnboarding}
+            onTry={tryExample}
+            onMore={() => navigate('/help')}
+          />
         ) : (
           // настав час спитати «Як воно?» про рішення з журналу
           <DueDecisionCard />
@@ -1254,7 +1282,7 @@ export default function DebatePage() {
             <textarea
               ref={questionRef}
               className="debate__composer-input"
-              placeholder={t.placeholderDescription}
+              placeholder={isPhone ? t.placeholderShort : t.placeholderDescription}
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);

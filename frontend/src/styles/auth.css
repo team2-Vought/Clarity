@@ -199,10 +199,11 @@
 }
 
 /* стан помилки */
+/* хибне поле — червона рамка й ледь помітний відтінок, а не суцільна заливка */
 .field__box[data-invalid='true'],
 .field__box[data-invalid='true']:focus-within {
-  background: var(--error-fill);
-  border-color: transparent;
+  background: color-mix(in srgb, var(--error) 6%, var(--input-bg));
+  border-color: var(--error);
   box-shadow: none;
 }
 
@@ -229,11 +230,6 @@
   transition: background-color 600000s 0s, color 600000s 0s;
 }
 /* у стані помилки текст помилки живе в placeholder — він має бути читабельним на червоному */
-.field__box[data-invalid='true'] input::placeholder {
-  color: var(--on-accent);
-  opacity: 1;
-  font-weight: 500;
-}
 
 .field__eye {
   display: grid;
@@ -259,6 +255,16 @@
 
 .field__msg--error {
   color: var(--error);
+}
+
+/* підказка до пароля: один рядок, зелений, коли вимоги виконано */
+.field__checks {
+  display: block;
+  transition: color 0.2s;
+}
+
+.field__checks[data-met='true'] {
+  color: var(--success);
 }
 
 /* ---------- Згода з Умовами ---------- */

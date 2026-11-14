@@ -74,6 +74,9 @@ function ChatMessage({
   onReportWrong,
   onShowMarks,
   tip = null,
+  slowAfter = 0,
+  onSwapModel,
+  swapping = false,
 }) {
   const speakerKey = speakerKeyOf(message);
   const { color, side } = speakers.get(speakerKey) || { color: USER_COLOR, side: 'left' };
@@ -150,6 +153,38 @@ function ChatMessage({
   ) : (
     <MessageMarkdown blocks={parseBlocks(message.content)} sources={sourcesById} />
   );
+  // поки учасник пише: скільки думає, чи готовий; якщо мовчить довше звичайного —
+  // чесно кажемо про це й даємо замінити модель
+  const slow =
+    draft
+    && !message.draftDone
+    && !message.content
+    && Boolean(onSwapModel)
+    && slowAfter > 0
+    && message.draftElapsed >= slowAfter;
+  const draftState = draft ? (
+    <div className="chat__draft-state" role="status">
+      {message.draftSwapped && !message.content && <p>{t.draftSwapped}</p>}
+      {message.draftDone ? (
+        <span>{t.draftDone}</span>
+      ) : !message.content ? (
+        <span>{t.draftThinking(message.draftElapsed)}</span>
+      ) : null}
+      {slow && (
+        <p className="chat__draft-slow">
+          <span>{t.draftSlow(authorName)}</span>
+          <button
+            type="button"
+            className="chat__draft-swap"
+            onClick={() => onSwapModel(message.persona_slug)}
+            disabled={swapping}
+          >
+            {swapping ? t.draftSwapping : t.draftSwap}
+          </button>
+        </p>
+      )}
+    </div>
+  ) : null;
   const ownSources = typing || draft ? [] : messageSources(message, sourcesById);
   // позначки й виділення — лише для готових реплік AI у власній дискусії
   const markable =
@@ -291,6 +326,7 @@ function ChatMessage({
                 {text}
               </div>
             </div>
+            {draftState}
             {/* файли, додані до уточнення, — під ним, як під самим питанням */}
             {message.attachments?.length > 0 && (
               <div className="chat__attachments" role="list" aria-label={t.attachments}>
@@ -395,6 +431,9 @@ ChatMessage.propTypes = {
   onReportWrong: PropTypes.func,
   onShowMarks: PropTypes.func,
   tip: PropTypes.node,
+  slowAfter: PropTypes.number,
+  onSwapModel: PropTypes.func,
+  swapping: PropTypes.bool,
 };
 
 export default memo(ChatMessage);

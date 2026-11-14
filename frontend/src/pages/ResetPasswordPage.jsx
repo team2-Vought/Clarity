@@ -4,7 +4,8 @@ import { AuthPage } from './AuthLayout';
 import Field from '../components/Field';
 import { checkResetLink, confirmPasswordReset } from '../api/auth';
 import { useForm } from '../hooks/useForm';
-import { PASSWORD_HINT, validatePassword } from '../utils/validate';
+import { PasswordChecklist } from '../components/RegisterForm';
+import { validatePassword } from '../utils/validate';
 import { copy } from '../copy';
 
 const t = copy.reset;
@@ -38,6 +39,7 @@ export default function ResetPasswordPage() {
     validate,
     labels: t.toastLabels,
     invalidToast: t.invalidToast,
+    inlineErrors: true,
     onSubmit: async (v) => {
       await confirmPasswordReset({
         uid,
@@ -89,7 +91,7 @@ export default function ResetPasswordPage() {
             value={values.password}
             onChange={handleChange}
             error={errors.password}
-            hint={PASSWORD_HINT}
+            hint={<PasswordChecklist password={values.password} />}
           />
           <Field
             label={t.repeatLabel}

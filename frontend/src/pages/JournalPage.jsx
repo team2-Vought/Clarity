@@ -13,7 +13,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { deleteDecision, fetchJournal, updateDecision } from '../api/journal';
-import { fetchDiscussion } from '../api/discussions';
+import { fetchDiscussion, fetchDiscussions } from '../api/discussions';
 import { fetchSettings } from '../api/settings';
 import { refreshJournalDue } from '../hooks/useJournalDue';
 import { useToasts } from '../hooks/useToasts';
@@ -553,6 +553,69 @@ JournalEntry.propTypes = {
 };
 
 /** Журнал рішень: що чекає на «Як воно?», що ще чекає свого часу й історія підсумків. */
+const RECENT_TO_RECORD = 3;
+
+/**
+ * Порожній журнал: замість лише пояснення — останні завершені дискусії, рішення
+ * з яких можна записати одним натиском (відкривається форма під висновком).
+ * Завершених немає — звичайний порожній стан із кнопкою нової дискусії.
+ */
+function EmptyJournal({ navigate }) {
+  const [recent, setRecent] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchDiscussions({ status: 'done', limit: RECENT_TO_RECORD, signal: controller.signal })
+      .then((data) => setRecent((data?.results || []).filter((item) => item.phase === 'done')))
+      .catch(() => setRecent([]));
+    return () => controller.abort();
+  }, []);
+
+  if (recent === null) return null;
+  if (!recent.length) {
+    return (
+      <EmptyState
+        page
+        icon={Book02Icon}
+        title={t.emptyTitle}
+        text={t.empty}
+        action={{ label: t.emptyAction, onClick: () => navigate('/home') }}
+      />
+    );
+  }
+  return (
+    <section className="journal__recent" aria-labelledby="journal-recent-title">
+      <EmptyState icon={Book02Icon} title={t.emptyTitle} text={t.emptyRecent} />
+      <h2 id="journal-recent-title" className="history__group-title">{t.recentTitle}</h2>
+      <ul className="journal__recent-list">
+        {recent.map((item) => (
+          <li key={item.id} className="journal__recent-item">
+            <span className="journal__recent-text">
+              <span className="journal__recent-title">{item.title || item.question}</span>
+              {item.finished_at && (
+                <span className="journal__recent-date">
+                  {new Date(item.finished_at).toLocaleDateString(locale, { day: 'numeric', month: 'long' })}
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              className="journal__recent-record"
+              onClick={() => navigate(`/chat/${item.id}?journal=1`)}
+            >
+              {t.recordDecision}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+EmptyJournal.propTypes = {
+  navigate: PropTypes.func.isRequired,
+};
+
 export default function JournalPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -623,15 +686,7 @@ export default function JournalPage() {
             </div>
           )}
 
-          {entries?.length === 0 && (
-            <EmptyState
-              page
-              icon={Book02Icon}
-              title={t.emptyTitle}
-              text={t.empty}
-              action={{ label: t.emptyAction, onClick: () => navigate('/home') }}
-            />
-          )}
+          {entries?.length === 0 && <EmptyJournal navigate={navigate} />}
 
           {groups.map((group) => (
             <section key={group.key} className="journal__group" aria-labelledby={`journal-${group.key}`}>

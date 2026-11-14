@@ -8,7 +8,16 @@ import { copy } from '../copy';
  * validate: { fieldName: (value, allValues) => errorMessage | '' }
  * labels: { fieldName: 'Коротка назва' } — для детального тосту помилок
  */
-export function useForm({ initialValues, validate, labels, onSubmit, invalidToast, onError }) {
+export function useForm({
+  initialValues,
+  validate,
+  labels,
+  onSubmit,
+  invalidToast,
+  onError,
+  // помилки показані під полями: без тосту, фокус — на перше хибне поле
+  inlineErrors = false,
+}) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -50,6 +59,11 @@ export function useForm({ initialValues, validate, labels, onSubmit, invalidToas
       }
       const failed = Object.entries(fieldResults).filter(([, msg]) => msg);
       if (failed.length > 0) {
+        if (inlineErrors) {
+          const form = e.currentTarget || e.target;
+          form?.querySelector?.(`[name="${failed[0][0]}"]`)?.focus();
+          return;
+        }
         // тост із конкретними причинами: "Пароль: занадто короткий; Пошта: ..."
         const details = failed
           .map(([field, msg]) => (labels?.[field] ? `${labels[field]}: ${msg}` : msg))
@@ -76,7 +90,7 @@ export function useForm({ initialValues, validate, labels, onSubmit, invalidToas
         setLoading(false);
       }
     },
-    [invalidToast, labels, onError, onSubmit, pushToast, validate, values],
+    [inlineErrors, invalidToast, labels, onError, onSubmit, pushToast, validate, values],
   );
 
   return { values, errors, loading, handleChange, validateField, handleSubmit };

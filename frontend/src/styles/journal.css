@@ -929,3 +929,85 @@ button.journal__summary {
 .journal__revisits .journal__revisit-next {
   color: var(--muted);
 }
+
+/* Порожній журнал: пояснення й останні завершені дискусії з кнопкою «Записати» */
+.journal__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(640px, 100%);
+  margin: clamp(24px, 8vh, 72px) auto 0;
+}
+
+.journal__recent .empty-state {
+  margin-bottom: 12px;
+}
+
+.journal__recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journal__recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+}
+
+.journal__recent-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.journal__recent-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal__recent-date {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.journal__recent-record {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s, var(--press);
+}
+
+.journal__recent-record:hover {
+  opacity: 0.88;
+}
+
+.journal__recent-record:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  .journal__recent-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

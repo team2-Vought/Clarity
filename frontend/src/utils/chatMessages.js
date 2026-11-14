@@ -41,6 +41,11 @@ export const draftMessagesOf = (discussion) =>
     reply_to: draft.reply_to || '',
     reply_to_slug: draft.reply_to_slug || '',
     content: draft.text,
+    model_id: draft.model || '',
+    // стан учасника для бульбашки: скільки думає, чи вже готовий, чи замінили модель
+    draftElapsed: draft.elapsed || 0,
+    draftDone: Boolean(draft.done),
+    draftSwapped: Boolean(draft.swapped),
   }));
 
 export const lastSeqOf = (discussion) =>

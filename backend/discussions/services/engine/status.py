@@ -50,15 +50,33 @@ def _focus(persona, text):
     return {'slug': persona['slug'], 'name': persona['name'], 'text': text}
 
 
-def _question_focus(discussion):
-    """Що саме вирішують у вступі: питання й варіанти, а не загальне «формує позицію»."""
+def _live_drafts(discussion):
+    """Чернетки поточного кроку за slug — лише поки крок справді триває."""
+    if not discussion.live_token or discussion.live_token != discussion.advance_token:
+        return {}
+    return {
+        draft.get('slug'): draft
+        for draft in (discussion.live_drafts or [])
+        if isinstance(draft, dict)
+    }
+
+
+def _opening_state(discussion, draft):
+    """Що зараз робить учасник у вступі — коротко, без повтору питання людини:
+    питання вже видно над чатом, а чотири однакові рядки з ним були шумом."""
+    if draft.get('swapped') and not draft.get('text'):
+        return L(
+            'перейшов на іншу модель — попередня не відповіла вчасно',
+            'switched to another model — the previous one did not answer in time',
+        )
+    if draft.get('text'):
+        return L('пише вступну позицію', 'writes an opening position')
     mode, options = _mode_ctx(discussion)
-    question = _quote(discussion.question)
     if mode == Discussion.Mode.YES_NO:
-        return L(f'вирішує «так» чи «ні»: {question}', f'decides “yes” or “no”: {question}')
+        return L('зважує «так» чи «ні»', 'weighs “yes” or “no”')
     if mode == Discussion.Mode.CHOOSE_ONE and options:
-        return L('обирає між ', 'chooses between ') + ', '.join(_quote(option, 40) for option in options[:4])
-    return L(f'шукає відповідь на {question}', f'looks for an answer to {question}')
+        return L(f'порівнює {len(options)} варіанти', f'compares {len(options)} options')
+    return L('обмірковує позицію', 'thinks over a position')
 
 
 def _stance_tally(messages, personas):
@@ -206,8 +224,14 @@ def _describe_step(discussion):
 
     if phase == Discussion.Phase.OPENING:
         done = _speakers_done(messages, phase)
-        text = _question_focus(discussion)
-        return [_focus(persona, text) for persona in personas if persona['slug'] not in done]
+        drafts = _live_drafts(discussion)
+        focus = []
+        for persona in personas:
+            draft = drafts.get(persona['slug']) or {}
+            if persona['slug'] in done or draft.get('done'):
+                continue
+            focus.append(_focus(persona, _opening_state(discussion, draft)))
+        return focus
 
     if phase == Discussion.Phase.DEBATE:
         order = _speaker_order(personas, discussion.current_round)

@@ -25,6 +25,9 @@ import { describeError } from '../utils/errorKind';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.history;
+// менше стількох дискусій — наприкінці картка «Нова дискусія»
+const FEW_ITEMS = 4;
+const NEW_CARD = { newCard: true };
 
 const VIEW_KEY = 'clarity:history-view';
 const SKELETON_COUNT = 6;
@@ -304,11 +307,16 @@ export default function HistoryPage() {
   );
 
   // картки розкладаються по колонках зліва направо, рядок за рядком
+  // поки дискусій кілька, сітка не стоїть напівпорожньою: наприкінці — картка
+  // «Нова дискусія» з підказкою, що вміє Історія
+  const showNewCard = !isLoading && !isFiltered && visible.length > 0 && visible.length < FEW_ITEMS;
+
   const columns = useMemo(() => {
     const result = Array.from({ length: columnCount }, () => []);
-    (isLoading ? skeletons : visible).forEach((item, index) => result[index % columnCount].push(item));
+    const cards = isLoading ? skeletons : showNewCard ? [...visible, NEW_CARD] : visible;
+    cards.forEach((item, index) => result[index % columnCount].push(item));
     return result;
-  }, [visible, columnCount, isLoading, skeletons]);
+  }, [visible, columnCount, isLoading, skeletons, showNewCard]);
 
   const groups = useMemo(() => {
     const buckets = new Map();
@@ -383,6 +391,19 @@ export default function HistoryPage() {
   const hasItems = !isLoading && (items.length > 0 || isFiltered);
 
   const renderCard = (item, options) => {
+    if (item === NEW_CARD) {
+      return (
+        <li key="new" className="history__card history__card--new">
+          <button type="button" className="history__open" onClick={() => navigate('/home')}>
+            <span className="history__new-icon" aria-hidden="true">
+              <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
+            </span>
+            <span className="history__question">{t.newDiscussion}</span>
+          </button>
+          <p className="history__preview">{t.fewHint}</p>
+        </li>
+      );
+    }
     if ('skeleton' in item) {
       return (
         <li key={`skeleton-${item.skeleton}`} className="history__card history__card--skeleton" aria-hidden="true">
@@ -527,7 +548,9 @@ export default function HistoryPage() {
                     {group.items.map((item) => renderCard(item, { timeOnlyRecent: true }))}
                   </ul>
                 </section>
-              ))
+              )).concat(showNewCard ? [
+                <ul key="new" className="history__list">{renderCard(NEW_CARD)}</ul>,
+              ] : [])
             ))}
 
           {!isLoading && nextOffset !== null && (
@@ -585,7 +608,8 @@ export default function HistoryPage() {
               onClick={() => (isSearchOpen ? closeSearch() : openSearch())}
               aria-label={isSearchOpen ? t.closeSearch : t.openSearch}
               aria-expanded={isSearchOpen}
-              title={isSearchOpen ? t.closeSearch : t.openSearch}
+              data-tip-side="left"
+              data-tip={isSearchOpen ? t.closeSearch : t.openSearch}
               disabled={!hasItems}
             >
               <HugeiconsIcon className="history__search-icon" icon={Search01Icon} size={22} aria-hidden="true" />
@@ -604,7 +628,8 @@ export default function HistoryPage() {
                 className={`history__rail-button history__view${view === key ? ' history__view--active' : ''}`}
                 aria-pressed={view === key}
                 aria-label={label}
-                title={label}
+                data-tip-side="left"
+                data-tip={label}
                 onClick={() => changeView(key)}
               >
                 <HugeiconsIcon icon={icon} size={22} aria-hidden="true" />
@@ -617,7 +642,8 @@ export default function HistoryPage() {
             className={`history__rail-button history__archive${isArchive ? ' history__archive--active' : ''}`}
             aria-pressed={isArchive}
             aria-label={t.archiveSection}
-            title={t.archiveSection}
+            data-tip-side="left"
+            data-tip={t.archiveSection}
             onClick={() => setIsArchive((current) => !current)}
           >
             <HugeiconsIcon icon={Archive02Icon} size={22} aria-hidden="true" />
@@ -629,7 +655,8 @@ export default function HistoryPage() {
           className="history__rail-button history__new"
           onClick={() => navigate('/home')}
           aria-label={t.newDiscussion}
-          title={t.newDiscussion}
+          data-tip-side="left"
+          data-tip={t.newDiscussion}
         >
           <HugeiconsIcon icon={PencilEdit02Icon} size={22} aria-hidden="true" />
         </button>

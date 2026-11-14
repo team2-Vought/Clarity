@@ -13,6 +13,7 @@ import threading
 import time
 
 from ...models import Discussion
+from .parsing import strip_echoed_instructions
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ def draft_text(raw):
     """Текст недописаної репліки для показу: без роздумів моделі й службових
     рядків наприкінці — зокрема рядка, що ще друкується («ТЕЗ…»)."""
     text = _THINK_RE.sub('', str(raw or '')).replace('\r\n', '\n')
+    text = strip_echoed_instructions(text)
     match = _DRAFT_SERVICE_RE.search(text)
     if match:
         text = text[: match.start()]
@@ -75,6 +77,9 @@ class _DraftBoard:
     потоків; у базу йде знімок усіх чернеток, тож вони не затирають одна одну.
     Запис прив'язаний до lease-токена — після кроку чи «Зупинити» він нічого
     не змінює.
+
+    Кожна чернетка знає, якою моделлю пишеться, коли почала (`started`, епоха)
+    і чи вже готова (`done`) — так інтерфейс чесно показує, хто затримує крок.
     """
 
     def __init__(self, discussion_id, token):
@@ -84,31 +89,96 @@ class _DraftBoard:
         self.drafts = {}
         self.flushed_at = 0.0
 
+    def _entry(self, plan):
+        persona = plan.persona
+        return self.drafts.setdefault(
+            persona['slug'],
+            {
+                'slug': persona['slug'],
+                'name': persona['name'],
+                'phase': plan.phase,
+                'round': plan.debate_round,
+                'reply_to': plan.reply_to,
+                'reply_to_slug': plan.reply_to_slug,
+                'text': '',
+                'model': '',
+                'started': time.time(),
+                'swapped': False,
+                'done': False,
+            },
+        )
+
+    def attempt(self, plan, model_id):
+        """Учасник починає писати моделлю `model_id` (знову — якщо попередня
+        не відповіла чи її замінили)."""
+        with self.lock:
+            entry = self._entry(plan)
+            if entry['model'] and entry['model'] != model_id:
+                entry['swapped'] = True
+            entry.update(model=model_id, text='', started=time.time(), done=False)
+            snapshot = self._snapshot()
+        self._write(snapshot)
+
     def update(self, plan, raw):
         text = draft_text(raw)
-        persona = plan.persona
         with self.lock:
-            entry = self.drafts.setdefault(
-                persona['slug'],
-                {
-                    'slug': persona['slug'],
-                    'name': persona['name'],
-                    'phase': plan.phase,
-                    'round': plan.debate_round,
-                    'reply_to': plan.reply_to,
-                    'reply_to_slug': plan.reply_to_slug,
-                    'text': '',
-                },
-            )
-            if entry['text'] == text:
+            entry = self._entry(plan)
+            if entry['text'] == text or entry['done']:
                 return
             entry['text'] = text
             now = time.monotonic()
             # порожній текст (потік обірвався й почнеться знову) — записуємо одразу
             if text and now - self.flushed_at < DRAFT_FLUSH_SECONDS:
                 return
-            self.flushed_at = now
-            snapshot = [dict(item) for item in self.drafts.values()]
+            snapshot = self._snapshot()
+        self._write(snapshot)
+
+    def finish(self, plan, raw):
+        """Відповідь готова: записуємо її цілком, навіть якщо останній шматок
+        прийшов швидше за інтервал запису, — інакше чернетка «обривалась»."""
+        with self.lock:
+            entry = self._entry(plan)
+            entry.update(text=draft_text(raw), done=True)
+            snapshot = self._snapshot()
+        self._write(snapshot)
+
+    def cancel_check(self, slug):
+        """Функція для сторожа виклику: 'swap' — людина попросила замінити
+        модель учасника, 'stopped' — крок зупинили, '' — працюємо далі."""
+        baseline = self._swaps()
+        if baseline is None:
+            return lambda: 'stopped'
+        base = baseline.get(slug, 0)
+
+        def check():
+            swaps = self._swaps()
+            if swaps is None:
+                return 'stopped'
+            return 'swap' if swaps.get(slug, 0) > base else ''
+
+        return check
+
+    def _swaps(self):
+        try:
+            row = (
+                Discussion.objects.filter(pk=self.discussion_id, advance_token=self.token)
+                .values_list('live_swaps', flat=True)
+                .first()
+            )
+        except Exception as exc:
+            logger.warning('Swap check failed', extra={'error': str(exc)})
+            return {}
+        if row is None and not Discussion.objects.filter(
+            pk=self.discussion_id, advance_token=self.token
+        ).exists():
+            return None
+        return row if isinstance(row, dict) else {}
+
+    def _snapshot(self):
+        self.flushed_at = time.monotonic()
+        return [dict(item) for item in self.drafts.values()]
+
+    def _write(self, snapshot):
         try:
             Discussion.objects.filter(
                 pk=self.discussion_id, advance_token=self.token

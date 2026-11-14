@@ -27,6 +27,18 @@ class DetectTests(SimpleTestCase):
         question = 'Should I move to Berlin?\n\nУточнення від користувача:\n- Budget? — 2000 EUR'
         self.assertEqual(reply_language.detect(question), 'en')
 
+    def test_full_clarifications_block_is_ignored(self):
+        from backend.i18n import using
+        from discussions.services.prompts import question_with_clarifications
+
+        with using('uk'):
+            question = question_with_clarifications(
+                'Should I learn Rust or Go next?',
+                [{'question': 'Чи планує компанія перейти на одну з мов?', 'answer': 'Ні, жодної'}],
+            )
+        self.assertIn('Відповідь людини: Ні, жодної', question)
+        self.assertEqual(reply_language.detect(question), 'en')
+
     def test_unsure_means_no_instruction(self):
         self.assertEqual(reply_language.detect('42?'), '')
         with reply_language.replying_to('42?'):

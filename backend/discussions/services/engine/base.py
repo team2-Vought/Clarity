@@ -75,6 +75,8 @@ class StepPlan:
     debate_round: int | None = None
     json_kind: str | None = None
     fallback_models: list = field(default_factory=list)
+    # моделі для ручної заміни «Замінити модель»: є, навіть якщо автозаміну вимкнено
+    swap_models: list = field(default_factory=list)
     # виклик зараховано в денний ліміт (платить сервер); див. calls._bill
     billed: bool = False
     can_search: bool = False

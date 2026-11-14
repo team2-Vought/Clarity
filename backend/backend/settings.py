@@ -345,6 +345,20 @@ LLM_RETRY_MAX_DELAY_SECONDS = float(os.getenv('LLM_RETRY_MAX_DELAY_SECONDS', '6'
 LLM_RATE_LIMIT_MAX_DELAY_SECONDS = float(
     os.getenv('LLM_RATE_LIMIT_MAX_DELAY_SECONDS', '20')
 )
+# Загальна межа на один виклик моделі (з усіма повторами): учасник, що мовчить
+# довше, переходить на запасну модель, а не тримає всю дискусію.
+LLM_CALL_DEADLINE_SECONDS = float(os.getenv('LLM_CALL_DEADLINE_SECONDS', '75'))
+# Для суддів (рішення, Devil, висновок): JSON довший і пишеться без потоку.
+LLM_JUDGE_DEADLINE_SECONDS = float(os.getenv('LLM_JUDGE_DEADLINE_SECONDS', '150'))
+# Скільки потік може мовчати між шматками тексту, перш ніж вважатися обірваним.
+# Сторож виклику (окремий потік із дедлайном і кнопкою «Замінити модель»).
+# У тестах вимкнено: фейкові провайдери читають тестову базу, яку інший потік
+# не бачить; сам сторож перевіряють окремі тести з override_settings.
+LLM_WATCHDOG = not TESTING
+LLM_STALL_SECONDS = float(os.getenv('LLM_STALL_SECONDS', '30'))
+# Через стільки секунд без готової відповіді інтерфейс каже «думає довше звичайного»
+# і пропонує замінити модель учасника.
+LLM_SLOW_SECONDS = int(os.getenv('LLM_SLOW_SECONDS', '35'))
 LLM_MAX_OUTPUT_TOKENS = int(os.getenv('LLM_MAX_OUTPUT_TOKENS', '1600'))
 LLM_HISTORY_MAX_CHARS = int(os.getenv('LLM_HISTORY_MAX_CHARS', '24000'))
 # Lease кроку дискусії: короткий, бо його продовжує heartbeat, поки крок триває.

@@ -150,12 +150,11 @@ export default function Sidebar({
               type="button"
               className={`sidebar__item ${active ? 'sidebar__item--active' : ''}`}
               style={{ '--i': index }}
-              title={
-                item.key === 'debates' && active
-                  ? t.togglePanel
-                  : collapsed
-                    ? item.label
-                    : undefined
+              // миттєва підказка з назвою, поки видно лише іконки
+              data-tip={
+                collapsed
+                  ? item.key === 'debates' && active ? t.togglePanel : item.label
+                  : undefined
               }
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
@@ -185,7 +184,7 @@ export default function Sidebar({
           style={{ '--i': NAV_ITEMS.length }}
           onClick={onToggleTheme}
           aria-label={themeActionLabel}
-          title={collapsed ? themeActionLabel : undefined}
+          data-tip={collapsed ? themeActionLabel : undefined}
         >
           {theme === 'dark' ? <ThemeIcon /> : <MoonIcon />}
           <span className="sidebar__label">{themeActionLabel}</span>
@@ -196,7 +195,7 @@ export default function Sidebar({
           style={{ '--i': NAV_ITEMS.length + 1 }}
           onClick={handleLogout}
           aria-label={t.logout}
-          title={collapsed ? t.logout : undefined}
+          data-tip={collapsed ? t.logout : undefined}
         >
           <LogoutIcon />
           <span className="sidebar__label">{t.logout}</span>

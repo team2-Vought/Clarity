@@ -83,6 +83,15 @@ export function answerClarify(id, answers) {
 }
 
 /** Зупинка після поточного кроку. */
+// «Замінити модель»: учасник, що думає довше звичайного, продовжить іншою моделлю
+export function swapParticipantModel(id, slug) {
+  return request(`/api/discussions/${id}/swap-model/`, {
+    method: 'POST',
+    auth: true,
+    body: { slug },
+  });
+}
+
 export function stopDiscussion(id) {
   return request(`/api/discussions/${id}/stop/`, { method: 'POST', auth: true });
 }

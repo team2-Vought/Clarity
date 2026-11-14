@@ -146,6 +146,8 @@ class Discussion(models.Model):
     live_search = models.CharField(max_length=300, blank=True, default='', editable=False)
     # Репліки, які моделі ще пишуть: [{slug, name, phase, round, reply_to, reply_to_slug, text}]
     live_drafts = models.JSONField(default=list, blank=True, editable=False)
+    # «Замінити модель» під час кроку: {slug: скільки разів попросили}
+    live_swaps = models.JSONField(default=dict, blank=True, editable=False)
 
     best_solution = models.JSONField(null=True, blank=True)
     devil_review = models.JSONField(null=True, blank=True)

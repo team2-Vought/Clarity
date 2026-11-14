@@ -883,3 +883,32 @@
     animation: none;
   }
 }
+
+/* «Нова дискусія» в кінці короткої історії — пунктирна, тихіша за справжні картки */
+.history__card--new {
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.history--grid .history__card--new {
+  background: transparent;
+  box-shadow: none;
+}
+
+.history__card--new .history__open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.history__new-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}

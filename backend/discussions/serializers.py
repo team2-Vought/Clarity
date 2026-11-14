@@ -1,4 +1,5 @@
 import re
+import time
 
 from django.conf import settings
 from rest_framework import serializers
@@ -594,14 +595,30 @@ class DiscussionSerializer(serializers.ModelSerializer):
     def get_live(self, obj):
         """Живий статус поточного кроку: {status, search, drafts}; порожньо між кроками.
 
-        drafts — репліки, які моделі ще пишуть (лише з текстом)."""
+        drafts — учасники, що зараз пишуть: текст (може бути порожнім, поки
+        модель думає), модель, скільки секунд минуло (`elapsed`) і чи готово.
+        `slow_after` — після скількох секунд без відповіді інтерфейс пропонує
+        замінити модель."""
+        slow_after = int(settings.LLM_SLOW_SECONDS)
         if not obj.live_token or obj.live_token != obj.advance_token or not engine.is_running(obj):
-            return {'status': '', 'search': '', 'drafts': []}
-        drafts = [
-            draft for draft in (obj.live_drafts or [])
-            if isinstance(draft, dict) and draft.get('text')
-        ]
-        return {'status': obj.live_status, 'search': obj.live_search, 'drafts': drafts}
+            return {'status': '', 'search': '', 'drafts': [], 'slow_after': slow_after}
+        now = time.time()
+        drafts = []
+        for draft in obj.live_drafts or []:
+            if not isinstance(draft, dict):
+                continue
+            item = {key: value for key, value in draft.items() if key != 'started'}
+            try:
+                item['elapsed'] = max(0, int(now - float(draft.get('started') or now)))
+            except (TypeError, ValueError):
+                item['elapsed'] = 0
+            drafts.append(item)
+        return {
+            'status': obj.live_status,
+            'search': obj.live_search,
+            'drafts': drafts,
+            'slow_after': slow_after,
+        }
 
     class Meta:
         model = Discussion
@@ -756,6 +773,8 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
     personas = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
     clarifications = serializers.SerializerMethodField()
+    # лише перевірка чисел від AI Devil: та сама, що вже видно в його репліці
+    fact_checks = serializers.SerializerMethodField()
 
     class Meta:
         model = Discussion
@@ -778,6 +797,7 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             'criteria',
             'matrix',
             'final_summary',
+            'fact_checks',
             'messages',
             'created_at',
             'finished_at',
@@ -798,6 +818,11 @@ class SharedDiscussionSerializer(serializers.ModelSerializer):
             for item in obj.personas
             if isinstance(item, dict)
         ]
+
+    def get_fact_checks(self, obj):
+        review = obj.devil_review if isinstance(obj.devil_review, dict) else {}
+        checks = review.get('fact_checks')
+        return checks if isinstance(checks, list) else []
 
     def get_clarifications(self, obj):
         # відповіді на уточнення — найособистіше в дискусії: лише з дозволу автора

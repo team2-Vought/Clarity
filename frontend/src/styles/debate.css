@@ -123,6 +123,14 @@ body:has(.app-shell) {
   display: none;
 }
 
+/* смуга іконок не прокручується, коли все вміщається, — тоді й миттєві
+   підказки з назвами (data-tip) не обрізаються її краєм */
+@media (min-height: 560px) {
+  .sidebar--rail.sidebar--collapsed {
+    overflow: visible;
+  }
+}
+
 .sidebar__brand {
   display: flex;
   align-items: center;
@@ -973,63 +981,86 @@ body:has(.app-shell) {
   font-size: 0.9375rem;
 }
 
-.debate__onboarding-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.debate__onboarding-step {
+.debate__onboarding-example {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px 14px;
+  gap: 8px;
+  margin: 0;
+}
+
+.debate__onboarding-question {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.debate__onboarding-question-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* стислий висновок прикладу на білій картці */
+.debate__onboarding-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
   border-radius: var(--r-lg);
   background: var(--card);
 }
 
-.debate__onboarding-num {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin-bottom: 4px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--card);
+.debate__onboarding-verdict {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.debate__onboarding-verdict .chat__summary-word--yes {
+  text-transform: uppercase;
+}
+
+.debate__onboarding-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+
+.debate__onboarding-facts dt {
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.debate__onboarding-step-title {
+.debate__onboarding-facts dd {
+  margin: 2px 0 0;
   font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.debate__onboarding-step-text {
-  color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.45;
-}
-
-.debate__onboarding-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.45;
 }
 
 .debate__onboarding-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.debate__onboarding-buttons {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .debate__onboarding-more,
+.debate__onboarding-try,
 .debate__onboarding-dismiss {
   display: inline-flex;
   align-items: center;
@@ -1053,6 +1084,16 @@ body:has(.app-shell) {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
+.debate__onboarding-try {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.debate__onboarding-try:hover {
+  background: color-mix(in srgb, var(--ink) 5%, var(--card));
+}
+
 .debate__onboarding-dismiss {
   background: var(--ink);
   color: var(--card);
@@ -1063,6 +1104,7 @@ body:has(.app-shell) {
 }
 
 .debate__onboarding-more:active,
+.debate__onboarding-try:active,
 .debate__onboarding-dismiss:active {
   scale: var(--press-scale);
 }
@@ -1070,22 +1112,6 @@ body:has(.app-shell) {
 @media (max-width: 639px) {
   .debate__onboarding {
     padding: 18px 16px 16px;
-  }
-
-  .debate__onboarding-steps {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .debate__onboarding-step {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr);
-    column-gap: 10px;
-    padding: 12px;
-  }
-
-  .debate__onboarding-num {
-    grid-row: span 2;
-    margin-bottom: 0;
   }
 }
 
@@ -3754,6 +3780,55 @@ span.debate__tag {
 
 .chat__avatar {
   background: var(--avatar, #414bb2);
+}
+
+/* Стан учасника під чернеткою: «Думає… 12 с», «Готово — чекає на інших»,
+   а якщо модель мовчить довше звичайного — пояснення й кнопка заміни */
+.chat__draft-state {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.chat__row--right .chat__draft-state {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.chat__draft-state p {
+  margin: 0;
+}
+
+.chat__draft-slow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--ink);
+}
+
+.chat__draft-swap {
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat__draft-swap:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.chat__draft-swap:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .chat__head {
@@ -7490,4 +7565,141 @@ ol.chat__reveal {
     transform: none;
     transition: opacity 0.15s ease, visibility 0s linear 0.15s;
   }
+}
+
+/* поле чату сховане, поки модератор чекає відповідей у своїй картці */
+.chat__composer-box[hidden] {
+  display: none;
+}
+
+/* Етапи дискусії над рядком «Аналізуємо…»: шість коротких рисок і підпис */
+.chat__stages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  width: 100%;
+  max-width: 880px;
+  margin-top: 18px;
+  padding-left: 44px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* рядок «Аналізуємо…» одразу під етапами, без великого проміжку */
+.chat__stages + .chat__thought {
+  margin-top: 6px;
+}
+
+.chat__stages-bar {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__stages-bar li {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  transition: background 0.3s;
+}
+
+.chat__stages-bar li[data-state='done'] {
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.chat__stages-bar li[data-state='current'] {
+  background: var(--ink);
+}
+
+/* перемикачі в «Розширених»: тісніші за сторінку налаштувань */
+.debate__sheet--switches {
+  padding-block: 4px;
+}
+
+.debate__sheet--switches .settings__row {
+  padding: 12px 0;
+}
+
+.debate__sheet--switches .settings__row-hint {
+  font-size: 0.8125rem;
+}
+
+/* «AI Devil перевірив 3 числа й факти» під вердиктом; розгортається в перелік */
+.chat__summary-facts {
+  font-size: 0.9375rem;
+}
+
+.chat__summary-facts summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chat__summary-facts summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat__summary-facts summary:hover {
+  color: var(--ink);
+}
+
+.chat__summary-facts summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+.chat__summary-facts-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chat__summary-facts-mark[data-fixed='true'] {
+  background: color-mix(in srgb, var(--warning, #c77700) 18%, transparent);
+  color: var(--warning, #c77700);
+}
+
+.chat__summary-facts ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__summary-facts li {
+  display: flex;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.chat__summary-facts-sign {
+  flex-shrink: 0;
+  width: 1em;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.chat__summary-facts li[data-ok='false'] .chat__summary-facts-sign {
+  color: var(--error);
+}
+
+.chat__summary-facts-fix {
+  display: block;
+  color: var(--muted);
 }

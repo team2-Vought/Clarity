@@ -7,12 +7,17 @@ import { ToastProvider } from '../components/Toast';
 import JournalPage from './JournalPage';
 import { fetchJournal, updateDecision } from '../api/journal';
 import { fetchSettings } from '../api/settings';
+import { fetchDiscussions } from '../api/discussions';
 
 vi.mock('../api/journal', () => ({
   fetchJournal: vi.fn(),
   fetchJournalDue: vi.fn(() => Promise.resolve({ count: 0, next: null })),
   updateDecision: vi.fn(),
   deleteDecision: vi.fn(),
+}));
+vi.mock('../api/discussions', () => ({
+  fetchDiscussion: vi.fn(),
+  fetchDiscussions: vi.fn(() => Promise.resolve({ results: [] })),
 }));
 vi.mock('../api/settings', () => ({
   fetchSettings: vi.fn(),
@@ -121,5 +126,28 @@ describe('JournalPage', () => {
     vi.mocked(fetchJournal).mockResolvedValue({ results: [], due_count: 0 });
     renderPage();
     expect(await screen.findByText(/У журналі ще немає рішень/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Почати дискусію' })).toBeInTheDocument();
+  });
+
+  it('порожній журнал пропонує записати рішення з нещодавніх дискусій', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchJournal).mockResolvedValue({ results: [], due_count: 0 });
+    vi.mocked(fetchDiscussions).mockResolvedValueOnce({
+      results: [{ id: 'd9', title: 'Rust чи Go?', phase: 'done', finished_at: '2026-11-14T12:00:00Z' }],
+    });
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/journal']}>
+          <Routes>
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/chat/:id" element={<p>Чат відкрито</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    );
+    expect(await screen.findByText('Rust чи Go?')).toBeInTheDocument();
+    expect(fetchDiscussions).toHaveBeenCalledWith(expect.objectContaining({ status: 'done' }));
+    await user.click(screen.getByRole('button', { name: 'Записати рішення' }));
+    expect(screen.getByText('Чат відкрито')).toBeInTheDocument();
   });
 });

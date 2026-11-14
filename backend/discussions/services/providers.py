@@ -164,7 +164,10 @@ def _post_with_retries(url, *, headers, payload, timeout, provider_label):
 def _stream_events(url, *, headers, payload, timeout, provider_label):
     """Дані подій SSE (рядки після `data:`). Помилку HTTP кидає одразу — без
     повторів: їх зробить звичайний запит, на який перейде виклик."""
-    with httpx.stream('POST', url, headers=headers, json=payload, timeout=timeout) as response:
+    # read — пауза між шматками потоку: модель, що замовкла посеред відповіді,
+    # не має тримати крок до загального таймауту
+    stream_timeout = httpx.Timeout(timeout, read=min(timeout, settings.LLM_STALL_SECONDS))
+    with httpx.stream('POST', url, headers=headers, json=payload, timeout=stream_timeout) as response:
         if response.status_code >= 400:
             response.read()
             quota = response.status_code == 429 and _quota_exhausted(response)
