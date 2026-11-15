@@ -1,4 +1,52 @@
+<div align="center">
+
+<img src="frontend/src/assets/logo-thinking.svg" width="120" alt="Clarity logo" />
+
 # Clarity
+
+**An AI council for hard decisions.**
+
+Several AI participants with different personalities debate your question, a moderator turns the arguments into a decision, and an AI Devil hunts for its weak spots. You get a verdict with pros, risks, the minority view and a next step.
+
+**[🌐 Try it live](https://clarity-three-xi.vercel.app/)** · [Case study](https://ttjelky.github.io/portfolio/en/work/clarity/)
+
+![Django](https://img.shields.io/badge/Django-6-092E20?style=flat&logo=django&logoColor=white)
+![DRF](https://img.shields.io/badge/Django_REST_Framework-a30000?style=flat)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+
+<img src="frontend/public/landing/verdict-light-en.webp" width="100%" alt="Clarity verdict" />
+
+</div>
+
+## How it works
+
+```
+question → moderator's clarifying questions → openings → debate (2–3 rounds or until consensus)
+         → moderator's decision → AI Devil check → participants respond → verdict
+```
+
+| Debate | AI Devil |
+|:-:|:-:|
+| <img src="frontend/public/landing/debate-light-en.webp" alt="AI participants debating" /> | <img src="frontend/public/landing/devil-light-en.webp" alt="AI Devil reviewing the decision" /> |
+
+## Features
+
+- **Debate engine** — a Django state machine runs the discussion one step at a time; steps run in a web-server thread or a separate worker
+- **Any model** — OpenAI, Anthropic, Gemini, Groq, Cerebras, DeepSeek, Mistral, OpenRouter, Ollama or a custom endpoint; each participant can think on its own model
+- **Real-world context** — web search (Tavily, Brave, SearXNG, Wikipedia) and attachments: PDF, Word, text, photos
+- **After the decision** — a decision journal that later emails “How did it go?”, shareable public links, Ukrainian and English UI (the AI answers in the same language)
+- **Accounts** — email or Google sign-in, password reset, rate limits, email verification in production
+- **Tested** — 450+ backend tests, frontend tests and CI
+
+## Author
+
+Idea, logo, code, architecture and final design — **[Oleksii Bezklynskyi](https://github.com/ttjelky)**. Built as a team project of team2-Vought.
+
+---
+
+## Документація для розробника (UA)
 
 Clarity допомагає ухвалювати рішення: кілька AI-учасників із різними
 характерами обговорюють ваше питання, модератор зводить аргументи в рішення,
