@@ -82,6 +82,8 @@ class DiscussionApiTests(TestCase):
         for item in response.data['models']:
             self.assertNotIn('mock', item['provider'].lower())
 
+    # обрана модель Groq має бути доступна й без ключа в середовищі (CI)
+    @override_settings(LLM_GROQ_API_KEY='gsk-test')
     def test_persona_model_and_traits_accepted(self):
         self.auth()
         response = self.client.post(

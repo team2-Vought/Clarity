@@ -448,6 +448,8 @@ class RunnerTests(Base):
         self.assertEqual(len(calls), 2)  # один крок вступу, без повторів
 
 
+# без ключів у середовищі (CI) резервної моделі немає — даємо фіктивні
+@override_settings(**KEYS)
 class ModelFallbackTests(Base):
     def failing(self, broken_model):
         calls = []
