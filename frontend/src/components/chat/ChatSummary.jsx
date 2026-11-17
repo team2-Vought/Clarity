@@ -11,6 +11,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import SummaryDetails from '../SummaryDetails';
 import FeedbackBar from './FeedbackBar';
+import GuestCard from '../GuestCard';
 import SaveMenu from './SaveMenu';
 import JournalForm, { JournalButton } from './JournalCard';
 import { useJournal } from '../../hooks/useJournal';
@@ -226,6 +227,7 @@ export default function ChatSummary({
           initial={discussion.feedback || ''}
           initialNote={discussion.feedback_note || ''}
         />
+        <GuestCard where="chat" />
       </div>
     </section>
   );

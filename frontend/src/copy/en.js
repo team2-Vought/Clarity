@@ -19,7 +19,7 @@ export const en = {
     openApp: 'Open Clarity',
     pageTitle: 'Clarity — a team of AI minds for hard decisions',
     navLabel: 'Navigation',
-    nav: { how: 'How it works', team: 'Team', demo: 'Demo', features: 'Features' },
+    nav: { how: 'How it works', team: 'Team', demo: 'Demo', examples: 'Examples', features: 'Features' },
 
     titleStart: 'One question —',
     titleAccent: 'a whole team',
@@ -34,6 +34,8 @@ export const en = {
       'Take time off because of burnout?',
     ],
     askSubmit: 'Start a discussion',
+    askHint: 'No sign-up needed — your first discussion is on us.',
+    askStarting: 'Gathering the team…',
     heroShot: 'A discussion in Clarity: the question, the moderator’s follow-ups and a participant’s first reply',
     floatConsensus: 'Participant agreement',
 
@@ -204,7 +206,8 @@ export const en = {
     },
 
     ctaTitle: 'Your next hard decision — not on your own',
-    ctaText: 'Create an account and your first discussion starts in a minute.',
+    proof: (rate, total) => `${rate}% of decisions made on Clarity’s advice turned out well — by people’s own “How is it going?” (${total} looked back on).`,
+    ctaText: 'Ask your question at the top of the page — no sign-up needed. Or create an account to keep every decision.',
     ctaTextSignedIn: 'Ask a new question — the team is ready.',
     footer: '© 2026 Clarity',
     footerNav: 'Legal and support',
@@ -471,6 +474,11 @@ export const en = {
   journal: {
     title: 'Decision journal',
     toolbar: 'Journal tools',
+    statsTitle: 'How Clarity’s advice works for you',
+    statsRateText: (good, total) => `of decisions made on Clarity’s advice turned out well — ${good} of ${total}.`,
+    statsNoFollowed: 'Keep Clarity’s conclusion as is when you record a decision — and here you will see how often its advice works.',
+    statsEmpty: 'The counter appears after your first “How is it going?”: it shows how often Clarity’s advice actually works for you.',
+    statsBarLabel: ({ good, mixed, bad }) => `Looked back on: well — ${good}, mixed — ${mixed}, badly — ${bad}`,
     loadError: 'Could not load the journal',
     retry: 'Try again',
     emailsHint: 'An email “How is your decision going?” when it is time to look back.',
@@ -1675,6 +1683,55 @@ export const en = {
     footnote: 'Applies only on this device and to every page at once. Open this panel quickly: Alt + Shift + V.',
   },
 
+  voice: {
+    dictate: 'Dictate',
+    dictateStop: 'Stop dictation',
+    listen: 'Read replies aloud',
+    listenHint: 'Each participant speaks in its own voice. New replies are read as they arrive.',
+    play: 'Listen',
+    stop: 'Stop',
+    demoListen: 'Listen to the debate',
+    demoStop: 'Stop the voices',
+  },
+  examples: {
+    title: 'Real discussions — open any',
+    text: 'Full runs of the Clarity team on everyday hard choices: every argument, AI Devil’s attack and the final verdict.',
+    open: 'Open the discussion',
+    label: 'Example discussion',
+    more: 'More examples',
+    items: {
+      relocate: {
+        tag: 'Career · Move',
+        title: 'Relocate for +40% salary?',
+        teaser: 'A backend developer, an offer abroad, a partner who can join only in six months.',
+      },
+      launch: {
+        tag: 'Startup · Product',
+        title: 'Ship with known bugs or wait a month?',
+        teaser: 'A booking SaaS, 120 barbershops on the waitlist and 5 months of runway.',
+      },
+      masters: {
+        tag: 'Study · Career',
+        title: 'Master’s abroad or experience first?',
+        teaser: 'A grant in Prague that does not cover living costs vs a junior analyst job.',
+      },
+      freelance: {
+        tag: 'Work · Burnout',
+        title: 'Quit the agency for freelance?',
+        teaser: 'A UX designer with 7 years of experience, 2 clients and savings for 8 months.',
+      },
+    },
+  },
+  guest: {
+    label: 'Guest mode',
+    homeText: 'You are trying Clarity without an account: one discussion is on us. Create an account — your discussion moves into it, and you can start new ones every day.',
+    chatText: 'Like the result? Create an account to keep this discussion, add it to the journal and start new ones.',
+    settingsText: 'Settings, the journal emails and your own API keys come with an account. Your guest discussion moves into it.',
+    create: 'Create account',
+    signIn: 'I have an account',
+    sidebar: 'Save — create account',
+    adopted: 'The guest discussion is now in your account.',
+  },
   verifyEmail: {
     title: 'Email confirmation',
     checking: 'Confirming the email…',

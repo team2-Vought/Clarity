@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Alert02Icon, Unlink04Icon } from '@hugeicons/core-free-icons';
 import { fetchSharedDiscussion } from '../api/discussions';
+import { EXAMPLE_SLUGS, fetchExample, isExample } from '../utils/examples';
 import { getSession } from '../api/client';
 import { AvatarIcon } from '../components/DebateIcons';
 import MessageMarkdown from '../components/MessageMarkdown';
@@ -33,7 +34,9 @@ const dateFormat = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'lon
 
 /** Дискусія за публічним посиланням: лише читання, без входу й без поля вводу. */
 export default function SharedPage() {
-  const { token } = useParams();
+  // /examples/<slug> — дискусія з галереї: той самий перегляд, дані — зі статичного JSON
+  const { token, slug } = useParams();
+  const example = slug ? copy.examples.items[slug] : null;
   const navigate = useNavigate();
   const [discussion, setDiscussion] = useState(null);
   // { closed, message }: закрите посилання — окремий стан, інша помилка — з її текстом
@@ -41,7 +44,12 @@ export default function SharedPage() {
 
   useEffect(() => {
     let alive = true;
-    fetchSharedDiscussion(token)
+    const load = slug
+      ? isExample(slug)
+        ? fetchExample(slug)
+        : Promise.reject(Object.assign(new Error(''), { status: 404 }))
+      : fetchSharedDiscussion(token);
+    load
       .then((data) => {
         if (alive) setDiscussion(data);
       })
@@ -51,9 +59,9 @@ export default function SharedPage() {
     return () => {
       alive = false;
     };
-  }, [token]);
+  }, [token, slug]);
 
-  usePageTitle(discussion?.title || '');
+  usePageTitle(example?.title || discussion?.title || '');
 
   const messages = useMemo(() => discussion?.messages || [], [discussion]);
   const question = messages.find((message) => message.role === 'user');
@@ -88,7 +96,7 @@ export default function SharedPage() {
         actions={[
           {
             label: signedIn ? t.ctaSignedIn : t.cta,
-            onClick: () => navigate(signedIn ? '/home' : '/register'),
+            onClick: () => navigate(signedIn ? '/home' : '/'),
           },
         ]}
       />
@@ -101,7 +109,8 @@ export default function SharedPage() {
         <Logo onHome={() => navigate('/')} wordmark />
         <div className="shared__actions">
           <VisionTrigger compact />
-          <Link to={getSession() ? '/home' : '/register'} className="shared__cta">
+          {/* без акаунта — на лендинг: там питання можна поставити одразу, гостем */}
+          <Link to={getSession() ? '/home' : '/'} className="shared__cta">
             {getSession() ? t.ctaSignedIn : t.cta}
           </Link>
         </div>
@@ -117,10 +126,10 @@ export default function SharedPage() {
         {discussion && (
           <>
             <div className="shared__intro">
-              <p className="shared__label">{t.label}</p>
-              <h1 className="shared__title">{discussion.title}</h1>
+              <p className="shared__label">{example ? copy.examples.label : t.label}</p>
+              <h1 className="shared__title">{example?.title || discussion.title}</h1>
               <p className="shared__meta">
-                {dateFormat.format(new Date(discussion.created_at))}
+                {example ? example.tag : dateFormat.format(new Date(discussion.created_at))}
                 {names.length > 0 && ` · ${t.participants(names.join(', '))}`}
               </p>
             </div>
@@ -222,6 +231,18 @@ export default function SharedPage() {
               </section>
             ) : (
               <p className="shared__status">{t.inProgress}</p>
+            )}
+            {example && (
+              <nav className="shared__more" aria-label={copy.examples.more}>
+                <span className="chat__summary-label">{copy.examples.more}</span>
+                <ul>
+                  {EXAMPLE_SLUGS.filter((other) => other !== slug).map((other) => (
+                    <li key={other}>
+                      <Link to={`/examples/${other}`}>{copy.examples.items[other].title}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
             )}
           </>
         )}

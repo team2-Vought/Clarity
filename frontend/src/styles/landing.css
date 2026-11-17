@@ -104,6 +104,7 @@ html:has(.page--landing) {
 
 .lp-header__nav a {
   padding: 8px 16px;
+  white-space: nowrap;
   border-radius: var(--r-pill);
   font-size: 0.9375rem;
   font-weight: 500;
@@ -211,6 +212,17 @@ html:has(.page--landing) {
 
 .lp-ask:focus-within {
   box-shadow: var(--shadow-xl), 0 0 0 6px color-mix(in srgb, var(--pink) 35%, transparent);
+}
+
+.lp-ask__hint {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lp-ask__send:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .lp-ask__input {
@@ -753,6 +765,41 @@ html:has(.page--landing) {
   outline-offset: 2px;
 }
 
+.lp-demo__voice {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px 0 13px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, var(--press);
+}
+
+.lp-demo__voice:hover {
+  opacity: 0.88;
+}
+
+.lp-demo__voice--on {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.lp-demo__voice:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 /* ---------- Можливості (бенто) ---------- */
 .lp-bento {
   display: grid;
@@ -1116,6 +1163,11 @@ html:has(.page--landing) {
 
 /* ---------- Адаптив ---------- */
 @media (max-width: 1100px) {
+  /* п'ять пунктів меню вміщаються в рядок і на вужчому екрані */
+  .lp-header__nav a {
+    padding: 8px 10px;
+  }
+
   .lp-personas {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1370,4 +1422,95 @@ html:has(.page--landing) {
     grid-template-columns: minmax(0, 1fr);
     gap: 6px;
   }
+}
+
+/* лічильник журналу над закликом — лише коли підсумків досить */
+.lp-cta__proof {
+  margin: 0 0 4px;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* ---------- Галерея прикладів ---------- */
+.lp-examples__grid {
+  display: grid;
+  /* стільки колонок, скільки тем мовою інтерфейсу (3 чи 4) */
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 1000px) {
+  .lp-examples__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .lp-examples__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.lp-example {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 24px;
+  border-radius: var(--r-xl);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.lp-example:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-xl);
+}
+
+.lp-example:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.lp-example__tag {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lp-example__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.lp-example__teaser {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.lp-example__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-example { transition: none; }
+  .lp-example:hover { transform: none; }
 }

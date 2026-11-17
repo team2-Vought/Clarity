@@ -1011,3 +1011,88 @@ button.journal__summary {
     align-items: stretch;
   }
 }
+
+/* ---------- Точність порад (JournalStats) ---------- */
+.journal__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  background: var(--soft);
+}
+
+.journal__stats-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.journal__stats-note {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.journal__stats-rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.journal__stats-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.journal__stats-text {
+  flex: 1 1 220px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.journal__stats-bar {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+}
+
+.journal__stats-part {
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: var(--r-pill);
+}
+
+.journal__stats-part--good { background: var(--success); }
+.journal__stats-part--mixed { background: var(--warning); }
+.journal__stats-part--bad { background: var(--error); }
+
+.journal__stats-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.journal__stats-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.journal__stats-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

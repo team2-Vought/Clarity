@@ -1,4 +1,4 @@
-import { forgetSession, request, setSession } from './client';
+import { forgetSession, request, setGuestSession, setSession } from './client';
 
 // Сервер ставить ключ входу в httpOnly-cookie сам; тут лише позначаємо, що увійшли
 
@@ -26,6 +26,16 @@ export async function login({ email, password }) {
     body: { email, password },
   });
   setSession(true);
+  // дискусії гостя з цього пристрою сервер переніс в акаунт (adopted_discussions)
+  setGuestSession(false);
+  return data;
+}
+
+/** Увійти гостем: одна дискусія без реєстрації. Помилка — гостьовий режим недоступний. */
+export async function startGuest() {
+  const data = await request('/api/auth/guest/', { method: 'POST' });
+  setSession(true);
+  setGuestSession(Boolean(data?.user?.is_guest));
   return data;
 }
 
@@ -41,6 +51,7 @@ export async function googleLogin(accessToken) {
     body: { access_token: accessToken },
   });
   setSession(true);
+  setGuestSession(false);
   return data;
 }
 
@@ -111,6 +122,7 @@ export async function confirmPasswordReset({ uid, token, password, confirm_passw
     body: { uid, token, password, confirm_password },
   });
   setSession(true);
+  setGuestSession(false);
   return data;
 }
 

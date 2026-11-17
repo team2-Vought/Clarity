@@ -23,6 +23,8 @@ import ModelPicker from '../components/ModelPicker';
 import LoadError from '../components/LoadError';
 import { describeError } from '../utils/errorKind';
 import ProfileSettings from '../components/ProfileSettings';
+import GuestCard from '../components/GuestCard';
+import { useMyProfile } from '../hooks/useMyProfile';
 import PrivacySettings from '../components/PrivacySettings';
 import AboutSettings from '../components/AboutSettings';
 import CustomRolesSettings from '../components/CustomRolesSettings';
@@ -365,6 +367,7 @@ export default function SettingsPage() {
   const notify = useNotifyPrefs();
   const navigate = useNavigate();
   usePageTitle(copy.settings.title);
+  const { isGuest } = useMyProfile();
   const { themeMode, setThemeMode } = useOutletContext();
   const { pushToast } = useToasts();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -731,6 +734,9 @@ export default function SettingsPage() {
         className="settings__load-error"
       />
     );
+  } else if (isGuest && (tab === 'profile' || tab === 'security')) {
+    // у гостя немає пошти й пароля — замість них пропозиція створити акаунт
+    content = <GuestCard where="settings" />;
   } else if (tab === 'profile') content = <ProfileSettings />;
   else if (tab === 'security') {
     content = (

@@ -1,0 +1,31 @@
+# Render Free засинає після ~15 хв без запитів, і перше відкриття чекає до хвилини.
+# Робота будить API кожні 10 хвилин. Одного сервісу, що працює постійно (~744 год),
+# вистачає 750 безкоштовних годин Render на місяць.
+#
+# Адреса — та сама, що в frontend/vercel.json; іншу можна задати змінною
+# репозиторію API_HEALTH_URL (Settings → Secrets and variables → Actions → Variables).
+# GitHub запускає розклад «приблизно вчасно» — перед виступом про всяк випадок
+# відкрийте /api/health/ вручну або Actions → Keep API warm → Run workflow.
+
+name: Keep API warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://clarity-api-8fia.onrender.com/api/health/' }}
+    steps:
+      - name: Ping the API
+        run: |
+          # холодний старт триває до хвилини — чекаємо з запасом
+          curl --fail --silent --show-error --max-time 120 --retry 2 --retry-delay 5 "$API_HEALTH_URL"

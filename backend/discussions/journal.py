@@ -5,6 +5,8 @@
 
 from datetime import timedelta
 
+from django.core.cache import cache
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -97,6 +99,7 @@ class DecisionSerializer(serializers.ModelSerializer):
             'created_at',
             'status',
             'revisits',
+            'followed_advice',
         ]
 
     def get_status(self, obj):
@@ -122,6 +125,31 @@ class CreateDecisionSerializer(serializers.Serializer):
         error_messages={'blank': REQUIRED, 'required': REQUIRED},
     )
     remind_in_days = serializers.ChoiceField(choices=REMIND_CHOICES, default=30)
+    # клієнт знає, чи людина лишила підставлений висновок Clarity без змін
+    followed_advice = serializers.BooleanField(required=False, allow_null=True, default=None)
+
+
+# Публічний лічильник на лендингу — лише коли підсумків достатньо, щоб відсоток щось означав
+PUBLIC_STATS_MIN = 20
+PUBLIC_STATS_CACHE = 'journal:public-stats'
+
+
+def outcome_stats(entries):
+    """Як вийшли підсумовані рішення: усього й окремо ті, що за порадою Clarity.
+
+    rate — частка «Добре» серед рішень за порадою (None, доки таких немає).
+    «По-різному» не рахуємо ні успіхом, ні провалом, але показуємо."""
+    reviewed = entries.filter(reviewed_at__isnull=False).exclude(outcome='')
+    data = reviewed.aggregate(
+        total=Count('pk'),
+        good=Count('pk', filter=Q(outcome=Decision.Outcome.GOOD)),
+        mixed=Count('pk', filter=Q(outcome=Decision.Outcome.MIXED)),
+        bad=Count('pk', filter=Q(outcome=Decision.Outcome.BAD)),
+        followed=Count('pk', filter=Q(followed_advice=True)),
+        followed_good=Count('pk', filter=Q(followed_advice=True, outcome=Decision.Outcome.GOOD)),
+    )
+    data['rate'] = round(100 * data['followed_good'] / data['followed']) if data['followed'] else None
+    return data
 
 
 class UpdateDecisionSerializer(serializers.Serializer):
@@ -154,6 +182,7 @@ class JournalListView(APIView):
             {
                 'results': DecisionSerializer(entries, many=True).data,
                 'due_count': due_entries(request.user, now).count(),
+                'stats': outcome_stats(Decision.objects.filter(user=request.user)),
             },
             status=status.HTTP_200_OK,
         )
@@ -184,6 +213,7 @@ class JournalListView(APIView):
                 'language': discussion.language,
                 'check_at': check_at,
                 'reminded_at': None,
+                'followed_advice': data['followed_advice'],
             },
         )
         return Response(
@@ -228,6 +258,25 @@ class JournalDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         entry.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class JournalStatsView(APIView):
+    """Публічний лічильник: як часто спрацьовують рішення за порадою Clarity.
+
+    Лише агреговані числа без жодних даних людей; поки підсумків менше за
+    PUBLIC_STATS_MIN — {'ready': false}, і лендинг лічильника не показує."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        data = cache.get(PUBLIC_STATS_CACHE)
+        if data is None:
+            stats = outcome_stats(Decision.objects.filter(user__is_guest=False))
+            ready = stats['followed'] >= PUBLIC_STATS_MIN
+            data = {'ready': ready, **({'rate': stats['rate'], 'followed': stats['followed']} if ready else {})}
+            cache.set(PUBLIC_STATS_CACHE, data, 600)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class JournalUnsubscribeView(APIView):

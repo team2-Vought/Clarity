@@ -11,12 +11,18 @@ export function fetchJournalDue() {
 }
 
 /** Записати рішення дискусії; повторний запис оновлює те саме рішення. */
-export function recordDecision({ discussion, decision, remindInDays }) {
+/** followedAdvice — людина лишила висновок Clarity без змін: з таких рішень журнал рахує точність порад. */
+export function recordDecision({ discussion, decision, remindInDays, followedAdvice }) {
   return request('/api/journal/', {
     method: 'POST',
     auth: true,
-    body: { discussion, decision, remind_in_days: remindInDays },
+    body: { discussion, decision, remind_in_days: remindInDays, followed_advice: followedAdvice },
   });
+}
+
+/** Публічний лічильник: { ready, rate?, followed? } — рахується лише з достатньої кількості підсумків. */
+export function fetchJournalStats() {
+  return request('/api/journal/stats/');
 }
 
 /** Підсумок (outcome, reflection), зроблені кроки (done_steps) чи «ще рано» (remind_in_days). */

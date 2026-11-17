@@ -26,6 +26,8 @@ import EmptyState from '../components/EmptyState';
 import { confirmAction } from '../utils/confirm';
 import { describeError } from '../utils/errorKind';
 import { usePageTitle } from '../hooks/usePageTitle';
+import JournalStats from '../components/JournalStats';
+import { journalStats } from '../utils/journalStats';
 
 const t = copy.journal;
 const OUTCOMES = ['good', 'mixed', 'bad'];
@@ -659,6 +661,9 @@ export default function JournalPage() {
     ].filter((group) => group.items.length > 0);
   }, [entries]);
 
+  // точність порад рахуємо з самих записів — оновлюється одразу після «Як воно?»
+  const stats = useMemo(() => journalStats(entries), [entries]);
+
   const isLoading = !error && entries === null;
 
   return (
@@ -687,6 +692,8 @@ export default function JournalPage() {
           )}
 
           {entries?.length === 0 && <EmptyJournal navigate={navigate} />}
+
+          {entries?.length > 0 && <JournalStats stats={stats} />}
 
           {groups.map((group) => (
             <section key={group.key} className="journal__group" aria-labelledby={`journal-${group.key}`}>

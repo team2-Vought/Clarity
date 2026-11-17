@@ -317,6 +317,8 @@ REST_FRAMEWORK = {
         'google_login': '20/min',
         # реєстрація з однієї адреси: живій людині вистачить із запасом
         'register': '5/hour',
+        # гостьовий вхід: журі чи клас за одним Wi-Fi ділять адресу, тож із запасом
+        'guest': '20/hour',
         # повторний лист підтвердження пошти
         'email_verify': '5/hour',
         # повний експорт даних — важкий запит, живій людині досить кількох на годину
@@ -433,6 +435,14 @@ SEARCH_MAX_SOURCES_IN_PROMPT = int(os.getenv('SEARCH_MAX_SOURCES_IN_PROMPT', '16
 DISCUSSION_DAILY_ADVANCE_LIMIT = int(
     os.getenv('DISCUSSION_DAILY_ADVANCE_LIMIT', '200')
 )
+
+# Гостьовий режим (accounts.guest): одна дискусія без реєстрації з лендингу.
+# GUEST_DAILY_LIMIT — скільки гостей на добу на весь сайт (захищає серверні ключі),
+# 0 вимикає гостьовий режим. Гостей без реєстрації прибирає `delete_stale_guests`.
+GUEST_DAILY_LIMIT = int(os.getenv('GUEST_DAILY_LIMIT', '200'))
+GUEST_DISCUSSION_LIMIT = int(os.getenv('GUEST_DISCUSSION_LIMIT', '1'))
+GUEST_REPLY_LIMIT = int(os.getenv('GUEST_REPLY_LIMIT', '60'))
+GUEST_TTL_DAYS = int(os.getenv('GUEST_TTL_DAYS', '7'))
 
 LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
 LLM_ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()

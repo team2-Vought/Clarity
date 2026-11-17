@@ -36,13 +36,12 @@ question → moderator's clarifying questions → openings → debate (2–3 rou
 - **Debate engine** — a Django state machine runs the discussion one step at a time; steps run in a web-server thread or a separate worker
 - **Any model** — OpenAI, Anthropic, Gemini, Groq, Cerebras, DeepSeek, Mistral, OpenRouter, Ollama or a custom endpoint; each participant can think on its own model
 - **Real-world context** — web search (Tavily, Brave, SearXNG, Wikipedia) and attachments: PDF, Word, text, photos
-- **After the decision** — a decision journal that later emails “How did it go?”, shareable public links, Ukrainian and English UI (the AI answers in the same language)
+- **Try without signing up** — a question on the landing page starts a real discussion as a guest; signing up later moves it into the account
+- **Voice** — participants read their replies aloud, each in its own voice and tone, and questions can be dictated (Web Speech API, in the browser)
+- **Examples gallery** — full real discussions on everyday choices, open without an account
+- **After the decision** — a decision journal that later emails “How did it go?” and shows how often Clarity’s advice actually worked out, shareable public links, Ukrainian and English UI (the AI answers in the same language)
 - **Accounts** — email or Google sign-in, password reset, rate limits, email verification in production
-- **Tested** — 450+ backend tests, frontend tests and CI
-
-## Author
-
-Idea, logo, code, architecture and final design — **[Oleksii Bezklynskyi](https://github.com/ttjelky)**. Built as a team project of team2-Vought.
+- **Tested** — 550+ backend tests, 150+ frontend tests and CI
 
 ---
 
@@ -181,6 +180,10 @@ Vercel віддає інтерфейс, API живе на Render, база — �
   перезапуск чи засинання сервера обриває дискусію, доки людина не запустить її
   знову. Поки чат відкритий, він опитує сервер, і той не засинає.
 - **Засинання.** Після ~15 хв без запитів API засинає, перше відкриття — до хвилини.
+  Тому `.github/workflows/keep-warm.yml` будить його кожні 10 хвилин (адреса — як у
+  `frontend/vercel.json`, інша — змінною репозиторію `API_HEALTH_URL`), а сайт сам
+  надсилає `/api/health/` при відкритті. Розклад GitHub запускається «приблизно
+  вчасно», тож перед показом про всяк випадок відкрийте `/api/health/` вручну.
 - **Листи журналу** шле GitHub Actions раз на годину (`.github/workflows/reminders.yml`).
   GitHub вимикає розклад у репозиторії без комітів 60 днів — тоді ввімкніть знову в Actions.
 - **Пошта — Brevo на порту 2525:** Render Free закриває SMTP-порти 25, 465 і 587.
@@ -389,6 +392,36 @@ JSON-файлом. Його ж пропонує форма видалення а
 разом для пошти з усіх адрес (50 за годину — година паузи для входу паролем).
 Друга стеля стримує перебір з багатьох адрес; власниця тоді входить через
 Google або відновлює пароль — це знімає блокування одразу.
+
+## Гостьовий режим і приклади
+
+**Гість.** Питання з лендингу запускає дискусію без реєстрації: сервер
+(`POST /api/auth/guest/`, `accounts/guest.py`) створює гостя — звичайного
+користувача з позначкою `is_guest`, службовою поштою й без пароля — і входить
+ним тим самим cookie. Гостю доступна `GUEST_DISCUSSION_LIMIT` (1) дискусія і
+`GUEST_REPLY_LIMIT` (60) AI-відповідей за весь час, а всього гостей на добу —
+`GUEST_DAILY_LIMIT` (200; `0` вимикає режим). Реєстрація чи вхід на тому ж
+пристрої переносять дискусії, журнал і вкладення гостя в акаунт. Гостей без
+реєстрації старших за `GUEST_TTL_DAYS` (7) днів видаляє `manage.py
+delete_stale_guests` — у безкоштовному деплої її запускає той самий щогодинний
+розклад, що й листи журналу. Листів гостям не шлемо.
+
+Безкоштовні ключі моделей мають ліміти за хвилину (Groq — 8000 токенів): якщо
+кілька людей стартують гостями одночасно, кроки сповільнюються й повторюються.
+Для показу на публіку додайте платний ключ хоча б одного провайдера.
+
+**Приклади.** `frontend/public/examples/<slug>.<uk|en>.json` — справжні
+прогони рушія у форматі публічного посилання; сторінка `/examples/<slug>`
+показує їх тим самим переглядом, що й `/shared/<token>`. Список тем —
+`frontend/src/utils/examples.js`, назви й описи — `copy.examples`. Перегенерувати
+(наприклад, на сильнішій моделі перед показом): `python manage.py generate_examples`
+(`<slug> --force` — одну тему заново); питання тем — у самій команді.
+
+**Точність порад.** Записуючи рішення в журнал, інтерфейс позначає, чи людина
+лишила висновок Clarity без змін (`followed_advice`). З підсумованих таких
+записів журнал показує, яка частка вийшла «Добре»; публічний
+`GET /api/journal/stats/` віддає той самий відсоток по сайту лише від 20
+підсумків, і тоді лендинг його показує.
 
 ## Ліміти
 

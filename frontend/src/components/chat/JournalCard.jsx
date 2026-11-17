@@ -91,10 +91,13 @@ export default function JournalForm({ discussion, journal }) {
     event.preventDefault();
     setBusy(true);
     try {
+      const suggested = prefill(discussion.final_summary).trim();
       const saved = await recordDecision({
         discussion: discussion.id,
         decision: decision.trim(),
         remindInDays: days,
+        // переписав висновок — це вже власне рішення, а не порада Clarity
+        followedAdvice: suggested ? decision.trim() === suggested : null,
       });
       setEntry({ id: saved.id, check_at: saved.check_at, status: saved.status });
       setOpen(false);

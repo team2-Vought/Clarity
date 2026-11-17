@@ -43,10 +43,43 @@ try {
 // наступна людина не має її побачити, тож вихід її стирає.
 // Налаштування пристрою (тема, мова, звук) — не особисті, лишаються.
 const PRIVATE_KEYS = ['clarity:draft-question'];
+// гостьовий вхід без реєстрації (accounts/guest.py на сервері): сторінки входу
+// й реєстрації для гостя не ховаються — саме там він зберігає дискусію в акаунт
+const GUEST_KEY = 'clarity:guest';
+
+/** Чи на цьому пристрої увійшли гостем. */
+export function isGuestSession() {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setGuestSession(guest) {
+  try {
+    if (guest) localStorage.setItem(GUEST_KEY, '1');
+    else localStorage.removeItem(GUEST_KEY);
+  } catch {
+    /* ignore (приватний режим тощо) */
+  }
+}
+
+/** Розбудити API заздалегідь: безкоштовний сервер засинає, і перший запит чекає до хвилини.
+ *  Лендинг і сторінки входу шлють цей запит одразу — поки людина читає, сервер прокидається. */
+let woken = false;
+export function wakeServer() {
+  if (woken) return;
+  woken = true;
+  fetch(`${BASE_URL}/api/health/`, { credentials: 'omit' }).catch(() => {
+    woken = false;
+  });
+}
 
 /** Вийшли з акаунта: стираємо позначку входу й особисте з цього браузера. */
 export function forgetSession() {
   setSession(false);
+  setGuestSession(false);
   for (const key of PRIVATE_KEYS) {
     try {
       localStorage.removeItem(key);

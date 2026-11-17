@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 import VisionDialog from './components/VisionDialog';
 import BugReportDialog from './components/BugReportDialog';
 import ConfirmDialog from './components/ConfirmDialog';
-import { getSession } from './api/client';
+import { getSession, wakeServer } from './api/client';
 import logoThinking from './assets/logo-thinking.svg';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -66,6 +66,8 @@ function RouteFallback() {
 // Увійшовши — основні сторінки застосунку; інакше — лише вхід і реєстрацію.
 function usePreloadPages() {
   useEffect(() => {
+    // будимо API, поки людина дивиться на першу сторінку (Render Free засинає)
+    wakeServer();
     const pages = getSession()
       ? [loadDebate, loadChat, loadHistory, loadJournal, loadSettings]
       : [loadLogin, loadRegister];
@@ -97,6 +99,7 @@ export default function App() {
             <Route path="/privacy" element={<LegalPage doc="privacy" />} />
             <Route path="/terms" element={<LegalPage doc="terms" />} />
             <Route path="/shared/:token" element={<SharedPage />} />
+            <Route path="/examples/:slug" element={<SharedPage />} />
             <Route element={<Layout />}>
               <Route path="/home" element={<DebatePage />} />
               <Route path="/chat/:id" element={<ChatPage />} />

@@ -1,11 +1,11 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { getSession } from '../api/client';
+import { getSession, setGuestSession } from '../api/client';
 import { me } from '../api/auth';
 
 // фото, ім'я й «Про мене» поточного користувача — одні на весь застосунок;
 // прив'язані до токена, щоб після входу в інший акаунт не лишилося чуже фото.
 // about — null, поки профіль не завантажився
-const EMPTY = { avatar: '', name: '', email: '', about: null, verificationRequired: false };
+const EMPTY = { avatar: '', name: '', email: '', about: null, verificationRequired: false, isGuest: false };
 let profile = EMPTY;
 let loadedFor = null;
 let pending = null;
@@ -29,7 +29,10 @@ export function setMyProfile(user) {
     about: user?.about || null,
     // пошту ще не підтверджено, а без цього дискусії не стартують (банер на головній)
     verificationRequired: Boolean(user?.verification_required),
+    // гість без реєстрації: замість налаштувань акаунта — пропозиція його створити
+    isGuest: Boolean(user?.is_guest),
   };
+  setGuestSession(profile.isGuest);
   loadedFor = getSession();
   notify();
 }

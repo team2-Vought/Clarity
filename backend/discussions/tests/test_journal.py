@@ -142,3 +142,61 @@ class JournalTests(TestCase):
         self.assertEqual(mail.outbox, [])
         # в застосунку нагадування лишається
         self.assertEqual(self.client.get('/api/journal/due/').data['count'], 1)
+
+
+class JournalStatsTests(TestCase):
+    # ті самі помічники, що й у JournalTests, без повторного прогону його тестів
+    setUp = JournalTests.setUp
+    make_discussion = JournalTests.make_discussion
+    record = JournalTests.record
+
+    def review(self, outcome, followed, user=None):
+        discussion = self.make_discussion(user=user)
+        entry = Decision.objects.create(
+            user=user or self.user,
+            discussion=discussion,
+            question='q',
+            decision='d',
+            check_at=timezone.now(),
+            outcome=outcome,
+            reviewed_at=timezone.now(),
+            followed_advice=followed,
+        )
+        return entry
+
+    def test_record_keeps_followed_advice(self):
+        response = self.record(followed_advice=True)
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Decision.objects.get(pk=response.data['id']).followed_advice)
+
+    def test_stats_rate_counts_only_followed_advice(self):
+        self.review('good', True)
+        self.review('bad', True)
+        self.review('mixed', True)
+        self.review('good', True)
+        # переписане рішення не впливає на «порада спрацювала»
+        self.review('bad', False)
+        stats = self.client.get('/api/journal/').data['stats']
+        self.assertEqual(stats['total'], 5)
+        self.assertEqual(stats['followed'], 4)
+        self.assertEqual(stats['followed_good'], 2)
+        self.assertEqual(stats['rate'], 50)
+
+    def test_stats_without_reviews(self):
+        stats = self.client.get('/api/journal/').data['stats']
+        self.assertEqual(stats['total'], 0)
+        self.assertIsNone(stats['rate'])
+
+    def test_public_stats_hidden_until_enough_reviews(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        anonymous = APIClient()
+        self.assertEqual(anonymous.get('/api/journal/stats/').data, {'ready': False})
+        for index in range(20):
+            self.review('good' if index % 4 else 'bad', True)
+        cache.clear()
+        data = anonymous.get('/api/journal/stats/').data
+        self.assertTrue(data['ready'])
+        self.assertEqual(data['followed'], 20)
+        self.assertEqual(data['rate'], 75)

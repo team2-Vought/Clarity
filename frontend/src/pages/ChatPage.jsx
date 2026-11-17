@@ -14,6 +14,7 @@ import {
   IdentityCardIcon,
   PencilEdit02Icon,
   RepeatIcon,
+  VolumeHighIcon,
 } from '@hugeicons/core-free-icons';
 import {
   fetchDiscussion,
@@ -96,6 +97,8 @@ import ShareDialog from '../components/ShareDialog';
 import DecisionTreeDialog from '../components/tree/DecisionTreeDialog';
 import { treeColorOf } from '../utils/treeView';
 import { useRunAlerts } from '../hooks/useRunAlerts';
+import { useReadAloud } from '../hooks/useReadAloud';
+import DictateButton from '../components/DictateButton';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -528,6 +531,9 @@ export default function ChatPage() {
       ),
     [messages, questionMessage, hiddenFinalId]
   );
+  // озвучення: кожен учасник своїм голосом (utils/voice.js)
+  // до завантаження — null: інакше історія чату вважалась би «новими» репліками й зазвучала
+  const readAloud = useReadAloud(messages ? visibleMessages : null);
 
   // поля дискусії — окремими змінними, щоб React Compiler бачив ті самі залежності, що й useMemo
   const discussionSources = discussion?.sources;
@@ -1226,6 +1232,18 @@ export default function ChatPage() {
   // те саме меню, що й у полі нового питання: формат видно, але вже не змінити
   const composerExtras = discussion
     ? [
+        ...(readAloud.supported
+          ? [
+              {
+                key: 'voice',
+                icon: VolumeHighIcon,
+                label: copy.voice.listen,
+                hint: copy.voice.listenHint,
+                checked: readAloud.enabled,
+                onSelect: readAloud.toggle,
+              },
+            ]
+          : []),
         {
           key: 'attach',
           icon: Attachment01Icon,
@@ -2007,6 +2025,8 @@ export default function ChatPage() {
               sourcesById={sourcesById}
               copiedId={copiedId}
               onCopy={handleCopyMessage}
+              speaking={readAloud.speakingId === message.id}
+              onSpeak={readAloud.supported ? readAloud.speakMessage : undefined}
               flashed={Boolean(flashId) && flashId === message.id}
               onJump={jumpToMessage}
               userAvatar={userAvatar}
@@ -2252,6 +2272,7 @@ export default function ChatPage() {
                         e.target.value = '';
                       }}
                     />
+                    <DictateButton value={note} onChange={setNote} disabled={noteLocked} />
                     {showStop ? (
                       // поки дискусія йде, а поле порожнє, кнопка відправки зупиняє її;
                       // щойно користувач почне писати — знову можна надіслати уточнення

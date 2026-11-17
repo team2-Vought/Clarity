@@ -174,7 +174,16 @@ def _too_many(message):
     )
 
 
-def _discussion_limit_response(own_key_hint=True):
+def _discussion_limit_response(own_key_hint=True, user=None):
+    if getattr(user, 'is_guest', False):
+        response = _too_many(L(
+            'У гостьовому режимі — одна дискусія. Створіть акаунт, щоб продовжити: '
+            'ця дискусія перейде в нього.',
+            'Guest mode includes one discussion. Create an account to continue — '
+            'this discussion will move into it.',
+        ))
+        response.data['code'] = 'guest_limit'
+        return response
     limit = int(settings.DISCUSSION_DAILY_LIMIT)
     if own_key_hint:
         return _too_many(L(
@@ -202,7 +211,7 @@ def _count_toward_limit(discussion):
         if engine.billing(discussion) == engine.context.OWN:
             return None
     if usage.over_discussion_limit(discussion.user):
-        return _discussion_limit_response()
+        return _discussion_limit_response(user=discussion.user)
     # умовний UPDATE: паралельні запити не спишуть слот двічі
     if Discussion.objects.filter(pk=discussion.pk, limit_counted=False).update(limit_counted=True):
         usage.record(discussion.user_id, discussions=1)
@@ -320,7 +329,7 @@ class DiscussionListCreateView(UserModelsMixin, APIView):
         # людина в кризі бачить допомогу навіть тоді, коли ліміт дискусій вичерпано:
         # моделей така дискусія не кличе
         if counted and usage.over_discussion_limit(request.user):
-            return _discussion_limit_response()
+            return _discussion_limit_response(user=request.user)
         about = about_of(request.user)
         use_profile = data.get('use_profile', about['enabled'])
         profile = about_snapshot(about) if use_profile else {}

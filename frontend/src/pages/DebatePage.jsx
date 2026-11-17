@@ -42,6 +42,8 @@ import OnboardingCard from '../components/OnboardingCard';
 import { SwitchRow } from '../components/SettingsControls';
 import DueDecisionCard from '../components/DueDecisionCard';
 import VerifyEmailCard from '../components/VerifyEmailCard';
+import GuestCard from '../components/GuestCard';
+import DictateButton from '../components/DictateButton';
 import ModePicker from '../components/ModePicker';
 import ModelPicker from '../components/ModelPicker';
 import PanelToggle from '../components/PanelToggle';
@@ -243,6 +245,16 @@ export default function DebatePage() {
   const chosenModels = participants.map((p) => models.find((m) => m.id === p.model)).filter(Boolean);
   const hasOwnKeys = models.some((m) => m.own_key);
   const allOwnKeys = chosenModels.length > 0 && chosenModels.every((m) => m.own_key);
+
+  // Питання з лендингу (гостьовий вхід) стартує саме, щойно команда готова:
+  // людина вже натиснула «Почати» там — другий клік тут був би зайвим
+  const autostartRef = useRef(Boolean(location.state?.autostart));
+  useEffect(() => {
+    if (!autostartRef.current || isLoading || !allParticipantsHaveModels || !description.trim()) return;
+    autostartRef.current = false;
+    navigate(location.pathname, { replace: true, state: null });
+    formRef.current?.requestSubmit();
+  }, [isLoading, allParticipantsHaveModels, description, navigate, location.pathname]);
   const activeIndex = Math.max(0, participants.indexOf(activeParticipant));
   // безіменний учасник зветься назвою своєї ролі — так само його назве й сервер
   const roleNameOf = (slug) => personas.find((persona) => persona.slug === slug)?.name || '';
@@ -1206,6 +1218,7 @@ export default function DebatePage() {
         )}
 
         <VerifyEmailCard />
+        <GuestCard />
         {showOnboarding ? (
           <OnboardingCard
             onDismiss={finishOnboarding}
@@ -1310,6 +1323,14 @@ export default function DebatePage() {
                   addFiles(e.target.files);
                   e.target.value = '';
                 }}
+              />
+              <DictateButton
+                value={description}
+                onChange={(text) => {
+                  setDescription(text);
+                  saveDraft(text);
+                }}
+                disabled={isCreating}
               />
               <button
                 type="submit"

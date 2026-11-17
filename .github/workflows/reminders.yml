@@ -61,3 +61,6 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
       - run: python manage.py send_decision_reminders
         if: steps.config.outputs.enabled == 'true'
+      # гості без реєстрації живуть GUEST_TTL_DAYS днів (accounts/guest.py)
+      - run: python manage.py delete_stale_guests
+        if: steps.config.outputs.enabled == 'true'

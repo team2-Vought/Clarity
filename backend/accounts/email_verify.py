@@ -29,7 +29,8 @@ def required():
 
 def blocked(user):
     """Чи заборонено цій людині запускати дискусії, доки пошту не підтверджено."""
-    return required() and not getattr(user, 'email_verified', True)
+    # гість пошти не має: його стримують гостьові ліміти (accounts.guest)
+    return required() and not getattr(user, 'email_verified', True) and not getattr(user, 'is_guest', False)
 
 
 def make_token(user):

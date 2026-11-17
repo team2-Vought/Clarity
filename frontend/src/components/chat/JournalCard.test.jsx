@@ -59,6 +59,8 @@ describe('JournalCard', () => {
       discussion: 'd1',
       decision: 'Так. Варто переїжджати, якщо оренда до 15 000.',
       remindInDays: 7,
+      // висновок лишили як є — це рішення за порадою Clarity
+      followedAdvice: true,
     });
     expect(await screen.findByRole('button', { name: /У журналі · спитаємо/ })).toBeInTheDocument();
   });

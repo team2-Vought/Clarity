@@ -2,7 +2,13 @@ from django.urls import path
 
 from .account_settings import ProviderKeyView, SettingsView
 from .attachment_views import AttachmentDetailView, AttachmentUploadView
-from .journal import JournalDetailView, JournalDueView, JournalListView, JournalUnsubscribeView
+from .journal import (
+    JournalDetailView,
+    JournalDueView,
+    JournalListView,
+    JournalStatsView,
+    JournalUnsubscribeView,
+)
 from .views import (
     DiscussionAdvanceView,
     DiscussionClarifyView,
@@ -103,6 +109,7 @@ urlpatterns = [
     path('attachments/<uuid:pk>/', AttachmentDetailView.as_view(), name='attachment-detail'),
     path('journal/', JournalListView.as_view(), name='journal'),
     path('journal/due/', JournalDueView.as_view(), name='journal-due'),
+    path('journal/stats/', JournalStatsView.as_view(), name='journal-stats'),
     path(
         'journal/unsubscribe/<str:token>/',
         JournalUnsubscribeView.as_view(),

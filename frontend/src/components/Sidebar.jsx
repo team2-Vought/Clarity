@@ -4,6 +4,8 @@ import Logo from './Logo';
 import { logout } from '../api/auth';
 import { copy } from '../copy';
 import { useJournalDue } from '../hooks/useJournalDue';
+import { useMyProfile } from '../hooks/useMyProfile';
+import { isGuestSession } from '../api/client';
 
 const t = copy.nav;
 
@@ -110,7 +112,16 @@ export default function Sidebar({
   const navigate = useNavigate();
   const themeActionLabel = theme === 'dark' ? t.themeLight : t.themeDark;
 
+  // гість (без реєстрації): замість «Вийти» — зберегти дискусію в новий акаунт
+  const { isGuest } = useMyProfile();
+  const guest = isGuest || isGuestSession();
+  const exitLabel = guest ? copy.guest.sidebar : t.logout;
+
   const handleLogout = async () => {
+    if (guest) {
+      navigate('/register');
+      return;
+    }
     try {
       await logout();
     } finally {
@@ -194,11 +205,11 @@ export default function Sidebar({
           className="sidebar__control sidebar__control--logout"
           style={{ '--i': NAV_ITEMS.length + 1 }}
           onClick={handleLogout}
-          aria-label={t.logout}
-          data-tip={collapsed ? t.logout : undefined}
+          aria-label={exitLabel}
+          data-tip={collapsed ? exitLabel : undefined}
         >
           <LogoutIcon />
-          <span className="sidebar__label">{t.logout}</span>
+          <span className="sidebar__label">{exitLabel}</span>
         </button>
       </div>
     </aside>

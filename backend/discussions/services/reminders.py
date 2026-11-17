@@ -78,7 +78,9 @@ def send_due_reminders(now=None):
     """Надсилає листи для записів, яким настав час; повертає, скільки надіслано."""
     now = now or timezone.now()
     entries = Decision.objects.filter(
-        reviewed_at__isnull=True, reminded_at__isnull=True, check_at__lte=now, user__is_active=True
+        reviewed_at__isnull=True, reminded_at__isnull=True, check_at__lte=now, user__is_active=True,
+        # у гостя службова пошта: лист нікуди не дійде
+        user__is_guest=False,
     ).select_related('user')
     sent = 0
     for entry in entries:

@@ -45,7 +45,7 @@ function useTypedPlaceholder(phrases, paused) {
   return text;
 }
 
-export default function Hero({ onStart, question, onQuestionChange }) {
+export default function Hero({ onStart, question, onQuestionChange, starting = false, signedIn = false }) {
   const [focused, setFocused] = useState(false);
   const placeholder = useTypedPlaceholder(t.askPlaceholders, focused || question.length > 0);
   const stageRef = useRef(null);
@@ -73,7 +73,7 @@ export default function Hero({ onStart, question, onQuestionChange }) {
 
   const submit = (e) => {
     e.preventDefault();
-    onStart(question.trim());
+    if (!starting) onStart(question.trim());
   };
 
   return (
@@ -100,10 +100,21 @@ export default function Hero({ onStart, question, onQuestionChange }) {
           maxLength={6000}
           autoComplete="off"
         />
-        <button type="submit" className="lp-ask__send" aria-label={t.askSubmit}>
+        <button
+          type="submit"
+          className="lp-ask__send"
+          aria-label={t.askSubmit}
+          disabled={starting}
+          aria-busy={starting}
+        >
           <ArrowUpIcon />
         </button>
       </form>
+      {!signedIn && (
+        <p className="lp-ask__hint lp-enter" style={{ '--delay': '150ms' }} role="status">
+          {starting ? t.askStarting : t.askHint}
+        </p>
+      )}
 
       <div className="lp-stage lp-enter" style={{ '--delay': '180ms' }} ref={stageRef}>
         <div className="lp-frame">
@@ -126,4 +137,6 @@ Hero.propTypes = {
   onStart: PropTypes.func.isRequired,
   question: PropTypes.string.isRequired,
   onQuestionChange: PropTypes.func.isRequired,
+  starting: PropTypes.bool,
+  signedIn: PropTypes.bool,
 };

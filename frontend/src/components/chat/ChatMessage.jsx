@@ -4,6 +4,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowTurnBackwardIcon,
   Copy01Icon,
+  StopIcon as StopSpeakIcon,
+  VolumeHighIcon,
   HighlighterIcon,
   Search01Icon,
   Tick02Icon,
@@ -64,6 +66,8 @@ function ChatMessage({
   sourcesById,
   copiedId = null,
   onCopy,
+  speaking = false,
+  onSpeak,
   flashed = false,
   onJump,
   userAvatar,
@@ -344,6 +348,18 @@ function ChatMessage({
                 >
                   <HugeiconsIcon icon={copyStatus === 'done' ? Tick02Icon : Copy01Icon} size={16} />
                 </button>
+                {onSpeak && MARKABLE_ROLES.includes(message.role) && message.id && (
+                  <button
+                    type="button"
+                    className={`chat__icon-button chat__speak${speaking ? ' chat__speak--on' : ''}`}
+                    onClick={() => onSpeak(message)}
+                    aria-pressed={speaking}
+                    aria-label={speaking ? copy.voice.stop : copy.voice.play}
+                    title={speaking ? copy.voice.stop : copy.voice.play}
+                  >
+                    <HugeiconsIcon icon={speaking ? StopSpeakIcon : VolumeHighIcon} size={16} />
+                  </button>
+                )}
                 {markable && (
                   <MarkMenu
                     mark={message.reaction || ''}
@@ -414,6 +430,8 @@ ChatMessage.propTypes = {
   sourcesById: PropTypes.instanceOf(Map).isRequired,
   copiedId: PropTypes.string,
   onCopy: PropTypes.func,
+  speaking: PropTypes.bool,
+  onSpeak: PropTypes.func,
   flashed: PropTypes.bool,
   onJump: PropTypes.func,
   userAvatar: PropTypes.node,

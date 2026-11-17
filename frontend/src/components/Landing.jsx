@@ -5,6 +5,8 @@ import Hero from './landing/Hero';
 import HowItWorks from './landing/HowItWorks';
 import Team from './landing/Team';
 import LiveDemo from './landing/LiveDemo';
+import Examples from './landing/Examples';
+import { fetchJournalStats } from '../api/journal';
 import Features from './landing/Features';
 import Why from './landing/Why';
 import { useDeviceTheme } from '../hooks/useDeviceTheme';
@@ -13,8 +15,8 @@ import { copy } from '../copy';
 
 const t = copy.landing;
 // у тому ж порядку, що й секції сторінки
-const NAV = ['demo', 'how', 'team', 'features'];
-export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart }) {
+const NAV = ['demo', 'examples', 'how', 'team', 'features'];
+export default function Landing({ signedIn, starting = false, onLogin, onRegister, onHome, onStart }) {
   // лендинг завжди в темі пристрою, а не в тій, що обрана в застосунку
   useDeviceTheme();
   const [question, setQuestion] = useState('');
@@ -45,6 +47,20 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // публічний лічильник журналу: сервер віддає відсоток, лише коли підсумків досить
+  const [proof, setProof] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetchJournalStats()
+      .then((data) => {
+        if (alive && data?.ready) setProof(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const primaryLabel = signedIn ? t.openApp : t.register;
@@ -86,9 +102,16 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
 
       <main className="lp-main">
         {/* спершу — чим це інше й живий приклад, потім механіка */}
-        <Hero onStart={onStart} question={question} onQuestionChange={setQuestion} />
+        <Hero
+          onStart={onStart}
+          question={question}
+          onQuestionChange={setQuestion}
+          starting={starting}
+          signedIn={signedIn}
+        />
         <Why />
         <LiveDemo />
+        <Examples />
         <HowItWorks />
         <Team />
         <Features />
@@ -97,6 +120,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
           <h2 id="cta-title" className="lp-cta__title">
             {t.ctaTitle}
           </h2>
+          {proof && <p className="lp-cta__proof">{t.proof(proof.rate, proof.followed)}</p>}
           <p className="lp-cta__text">{signedIn ? t.ctaTextSignedIn : t.ctaText}</p>
           <div className="lp-cta__actions">
             <button type="button" className="btn" onClick={signedIn ? start : onRegister}>
@@ -118,6 +142,7 @@ export default function Landing({ signedIn, onLogin, onRegister, onHome, onStart
 
 Landing.propTypes = {
   signedIn: PropTypes.bool,
+  starting: PropTypes.bool,
   onLogin: PropTypes.func.isRequired,
   onRegister: PropTypes.func.isRequired,
   onHome: PropTypes.func,

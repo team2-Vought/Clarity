@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from backend.i18n import L, lazy_L
 
-from . import email_change, email_verify, google, tokens
+from . import email_change, email_verify, google, guest, tokens
 from .about import about_of
 from .devices import describe_device
 from .export import export_user
@@ -71,6 +71,8 @@ def user_payload(user):
         'email_verified': user.email_verified,
         # чи чекають дискусії на підтвердження пошти (банер на головній)
         'verification_required': email_verify.blocked(user),
+        # гість без реєстрації (accounts.guest): застосунок пропонує зберегти дискусію в акаунт
+        'is_guest': user.is_guest,
     }
 
 
@@ -83,8 +85,68 @@ def inactive_response():
 
 def signed_in(request, user, data, code=status.HTTP_200_OK):
     """Відповідь входу: ключ пристрою — лише в httpOnly-cookie, у тілі його немає.
-    Вхід іде повз django.contrib.auth.login, тож last_login оновлює tokens.issue."""
+    Вхід іде повз django.contrib.auth.login, тож last_login оновлює tokens.issue.
+    Якщо на пристрої був гість, його дискусії переходять у цей акаунт."""
+    moved = guest.adopt(request, user)
+    if moved:
+        data = {**data, 'adopted_discussions': moved}
     return tokens.sign_in(Response(data, status=code), user, request)
+
+
+def guest_forbidden():
+    return Response(
+        {
+            'detail': L(
+                'Створіть акаунт, щоб змінювати це налаштування.',
+                'Create an account to change this setting.',
+            ),
+            'code': 'guest',
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+class GuestView(APIView):
+    """POST — увійти гостем: одна дискусія без реєстрації (accounts.guest)."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'guest'
+
+    def post(self, request):
+        # як і змінювальні запити з cookie (accounts.authentication): чужий сайт
+        # не поставить цей заголовок, тож не підмінить людині вхід гостьовим
+        if not request.META.get('HTTP_X_REQUESTED_WITH'):
+            return Response(
+                {'detail': L('Запит відхилено (CSRF).', 'Request rejected (CSRF).')},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not guest.enabled():
+            return Response(
+                {'detail': L('Гостьовий режим вимкнено.', 'Guest mode is turned off.'), 'code': 'guest_off'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        # той самий гість на цьому пристрої — не плодимо нових
+        current = tokens.find(request.COOKIES.get(settings.AUTH_COOKIE_NAME))
+        if current is not None and current.user.is_active:
+            # уже в акаунті (чи вже гість) на цьому пристрої — нового гостя не створюємо
+            return Response({'user': user_payload(current.user)}, status=status.HTTP_200_OK)
+        if guest.over_daily_cap():
+            return Response(
+                {
+                    'detail': L(
+                        'Гостьові місця на сьогодні закінчились. Створіть акаунт — це хвилина.',
+                        'Guest spots for today are taken. Create an account — it takes a minute.',
+                    ),
+                    'code': 'guest_cap',
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        user = guest.create()
+        return tokens.sign_in(
+            Response({'user': user_payload(user)}, status=status.HTTP_201_CREATED), user, request
+        )
 
 
 class RegisterView(APIView):
@@ -217,6 +279,8 @@ class MeView(APIView):
             user.save(update_fields=changed)
         payload = user_payload(user)
         new_email = serializer.validated_data.get('email')
+        if new_email and user.is_guest:
+            return guest_forbidden()
         if new_email and new_email != user.email:
             # нова пошта діє лише після підтвердження з листа на неї
             if not email_change.send_confirmation(user, new_email):
@@ -288,6 +352,8 @@ class PasswordView(APIView):
 
     def post(self, request):
         user = request.user
+        if user.is_guest:
+            return guest_forbidden()
         serializer = PasswordChangeSerializer(
             data=request.data, context={'user': user, 'ip': tokens.client_ip(request)}
         )

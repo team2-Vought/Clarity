@@ -399,6 +399,9 @@ class Decision(models.Model):
     reminded_at = models.DateTimeField('лист надіслано', null=True, blank=True)
     outcome = models.CharField('як вийшло', max_length=8, choices=Outcome.choices, blank=True)
     reflection = models.TextField('що зрозумів', max_length=1000, blank=True)
+    # людина записала саме те, що порадила Clarity (не переписала висновок) —
+    # з таких записів журнал рахує, як часто порада спрацьовує; None — невідомо (старі записи)
+    followed_advice = models.BooleanField('за порадою Clarity', null=True, blank=True)
     reviewed_at = models.DateTimeField('підсумовано', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

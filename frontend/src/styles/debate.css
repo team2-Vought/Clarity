@@ -922,6 +922,10 @@ body:has(.app-shell) {
   color: var(--card);
 }
 
+.debate__due-later--push {
+  margin-left: auto;
+}
+
 .debate__due-later:active:not(:disabled),
 .debate__due-tell:active:not(:disabled) {
   scale: var(--press-scale);
@@ -1270,6 +1274,41 @@ body:has(.app-shell) {
   color: var(--muted);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
+}
+
+.debate__dictate {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, var(--press);
+}
+
+.debate__dictate:hover:not(:disabled) {
+  background: var(--soft);
+  color: var(--text);
+}
+
+/* слухає — пульсує, щоб було видно, що мікрофон увімкнено */
+.debate__dictate--on {
+  background: color-mix(in srgb, var(--pink) 30%, transparent);
+  color: var(--text);
+  animation: dictate-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes dictate-pulse {
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--pink) 25%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debate__dictate--on { animation: none; }
 }
 
 .debate__send {
@@ -4175,6 +4214,11 @@ ol.chat__reveal {
   margin-bottom: 4px;
 }
 
+.chat__speak--on {
+  color: var(--text);
+  background: var(--soft);
+}
+
 .chat__actions .chat__copy {
   flex-shrink: 0;
   width: 28px;
@@ -6775,6 +6819,36 @@ ol.chat__reveal {
 .shared__sources a {
   color: inherit;
   overflow-wrap: anywhere;
+}
+
+/* приклад із галереї: внизу — інші приклади */
+.shared__more {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.shared__more ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shared__more a {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--soft);
+  color: inherit;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.shared__more a:hover {
+  background: var(--control-active);
 }
 
 /* ---------- Уточнення модератора перед стартом ----------

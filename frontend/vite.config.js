@@ -66,7 +66,8 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'http://localhost:8000',
+          // порт 8000 зайнятий іншим проєктом — VITE_API_PROXY=http://localhost:8001
+          target: process.env.VITE_API_PROXY || 'http://localhost:8000',
           changeOrigin: true,
         },
       },

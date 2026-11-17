@@ -19,6 +19,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # пошту підтверджено: вхід через Google, посилання з листа чи відновлення пароля.
     # Реєстрація паролем її не підтверджує — хтось міг зареєструвати чужу адресу
     email_verified = models.BooleanField('пошту підтверджено', default=False)
+    # гість: спробував Clarity без реєстрації (accounts.guest). Пошта службова,
+    # пароля немає; реєстрація чи вхід переносять його дискусію в справжній акаунт
+    is_guest = models.BooleanField('гість', default=False)
 
     objects = UserManager()
 
