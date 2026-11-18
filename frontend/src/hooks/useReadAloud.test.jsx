@@ -10,6 +10,8 @@ describe('useReadAloud', () => {
   beforeEach(() => {
     spoken = [];
     localStorage.setItem('clarity:read-aloud', 'on');
+    // AI-голосу на сервері немає (503) — читає браузер
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
     window.SpeechSynthesisUtterance = class {
       constructor(text) {
         this.text = text;
@@ -26,6 +28,7 @@ describe('useReadAloud', () => {
   });
   afterEach(() => {
     localStorage.clear();
+    vi.unstubAllGlobals();
     delete window.speechSynthesis;
     delete window.SpeechSynthesisUtterance;
   });
@@ -37,8 +40,22 @@ describe('useReadAloud', () => {
     rerender({ messages: [msg(1), msg(2)] });
     rerender({ messages: [msg(1), msg(2), msg(3)] });
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     });
     expect(spoken).toEqual(['Репліка 3']);
   });
+
+  it('stays busy until a new reply has been read, so voice mode can hold the next one', async () => {
+    const { result, rerender } = renderHook(({ messages }) => useReadAloud(messages), {
+      initialProps: { messages: [msg(1)] },
+    });
+    rerender({ messages: [msg(1), msg(2)] });
+    expect(result.current.busy).toBe(true);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    expect(spoken).toEqual(['Репліка 2']);
+    expect(result.current.busy).toBe(false);
+  });
 });
+

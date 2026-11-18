@@ -112,6 +112,25 @@ export function setSession(signedIn) {
   }
 }
 
+/** Двійкова відповідь (аудіо): Blob або ApiError зі статусом (0 — немає зв'язку). */
+export async function requestBlob(path, { method = 'POST', body, signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': lang, 'X-Requested-With': 'XMLHttpRequest' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: 'include',
+      signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    throw new ApiError(0, null);
+  }
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  return res.blob();
+}
+
 export async function request(path, { method = 'GET', body, auth = false, signal } = {}) {
   // мова інтерфейсу: нею сервер пише помилки, а AI — відповіді нових дискусій
   // файли йдуть як multipart: заголовок із межею частин ставить сам браузер

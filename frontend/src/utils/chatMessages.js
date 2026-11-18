@@ -29,9 +29,22 @@ export const mergeMessages = (current, incoming) => {
   return [...(current || []), ...fresh].sort((a, b) => a.seq - b.seq);
 };
 
+/**
+ * Чернетки, які варто показати в чаті. Пише один учасник — його текст видно наживо.
+ * Пишуть кілька одночасно — бульбашок не показуємо (лише «Аналізуємо…»), а готові
+ * репліки потім друкуються по черзі. Виняток — учасник, що завис: його бульбашка
+ * з пропозицією замінити модель.
+ */
+export const visibleDraftsOf = (live) => {
+  const drafts = live?.drafts || [];
+  if (drafts.length <= 1) return drafts;
+  const slowAfter = live?.slow_after || 0;
+  return drafts.filter((draft) => slowAfter > 0 && !draft.done && (draft.elapsed || 0) >= slowAfter);
+};
+
 // Репліки, які моделі ще пишуть, — у вигляді повідомлень для спільного рендеру
 export const draftMessagesOf = (discussion) =>
-  (discussion?.live?.drafts || []).map((draft) => ({
+  visibleDraftsOf(discussion?.live).map((draft) => ({
     id: `draft-${draft.slug}`,
     draft: true,
     role: 'ai',

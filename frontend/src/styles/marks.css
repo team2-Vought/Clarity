@@ -19,6 +19,11 @@
 ::highlight(clarity-important) { background-color: var(--mark-important); }
 ::highlight(clarity-agree) { background-color: var(--mark-agree); }
 ::highlight(clarity-doubt) { background-color: var(--mark-doubt); }
+/* рядок, який зараз читають уголос */
+::highlight(clarity-reading) {
+  background-color: color-mix(in srgb, var(--info) 26%, transparent);
+  color: inherit;
+}
 
 /* висока контрастність: колір фону плюс товсте підкреслення — не лише колір */
 :root[data-contrast='high'] {

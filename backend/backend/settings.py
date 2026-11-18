@@ -327,6 +327,8 @@ REST_FRAMEWORK = {
         'password_reset': '5/min',
         # фото читає модель — не даємо завантажувати потоком
         'attachments': '20/min',
+        # озвучення реплік AI-голосом: довга репліка — кілька шматків поспіль
+        'tts': '60/min',
         # реакції й виділення в чаті: людина може клацати швидко, але не тисячами
         'message_marks': '120/min',
         # звіти про баги: і гостям, тож не даємо засипати скриньку спамом
@@ -445,6 +447,8 @@ GUEST_REPLY_LIMIT = int(os.getenv('GUEST_REPLY_LIMIT', '60'))
 GUEST_TTL_DAYS = int(os.getenv('GUEST_TTL_DAYS', '7'))
 
 LLM_OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
+# модель мовлення для «Читати вголос» (ключ — той самий GEMINI_API_KEY)
+TTS_GEMINI_MODEL = os.getenv('TTS_GEMINI_MODEL', 'gemini-3.8-flash-tts').strip()
 LLM_ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 LLM_GEMINI_API_KEY = (
     os.getenv('GEMINI_API_KEY', '').strip() or os.getenv('GOOGLE_API_KEY', '').strip()

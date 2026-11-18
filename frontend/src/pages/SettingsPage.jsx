@@ -49,6 +49,8 @@ import {
   writeSendKey,
   writeSuggestions,
 } from '../utils/devicePrefs';
+import { useElevatorMusic } from '../hooks/useElevatorMusic';
+import { canPlayMusic, elevatorMusic } from '../utils/elevatorMusic';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 const t = copy.settings;
@@ -379,6 +381,7 @@ export default function SettingsPage() {
   const [error, setError] = useState(null);
   const [sendKey, setSendKey] = useState(readSendKey);
   const [suggestions, setSuggestions] = useState(readSuggestions);
+  const music = useElevatorMusic();
   const [language, setLanguage] = useState(readLanguagePref);
 
   // тексти читаються під час завантаження, тож нова мова — це перезавантаження
@@ -656,6 +659,14 @@ export default function SettingsPage() {
   const renderNotifications = () => (
     <>
       <div className="settings__sheet">
+        {canPlayMusic() && (
+          <SwitchRow
+            title={t.elevatorLabel}
+            hint={t.elevatorHint}
+            checked={music.enabled}
+            onChange={elevatorMusic.setEnabled}
+          />
+        )}
         <SwitchRow
           title={t.soundLabel}
           hint={t.soundHint}

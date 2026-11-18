@@ -2,6 +2,7 @@ from django.urls import path
 
 from .account_settings import ProviderKeyView, SettingsView
 from .attachment_views import AttachmentDetailView, AttachmentUploadView
+from .tts import SpeechView
 from .journal import (
     JournalDetailView,
     JournalDueView,
@@ -44,6 +45,7 @@ urlpatterns = [
     path('settings/', SettingsView.as_view(), name='settings'),
     path('settings/keys/<str:provider>/', ProviderKeyView.as_view(), name='settings-key'),
     path('models/', FreeModelListView.as_view(), name='models'),
+    path('tts/', SpeechView.as_view(), name='tts'),
     path('discussions/', DiscussionListCreateView.as_view(), name='discussion-list'),
     path(
         'discussions/<uuid:pk>/',

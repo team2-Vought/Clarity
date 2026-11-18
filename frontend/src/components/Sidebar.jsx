@@ -6,6 +6,8 @@ import { copy } from '../copy';
 import { useJournalDue } from '../hooks/useJournalDue';
 import { useMyProfile } from '../hooks/useMyProfile';
 import { isGuestSession } from '../api/client';
+import { useElevatorMusic } from '../hooks/useElevatorMusic';
+import { elevatorMusic } from '../utils/elevatorMusic';
 
 const t = copy.nav;
 
@@ -58,7 +60,23 @@ const MoonIcon = () => (
   </svg>
 );
 
-// той самий динамік, але замість хвиль — хрестик
+// динамік музики ліфта: хвилі, поки грає; хрестик, коли вимкнено
+const SpeakerIcon = ({ muted }) => (
+  <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
+    <path d="M12.5 5V20C12.5 21.25 11 21.9 10.08 21.04L7.14 18.26C6.87 18.03 6.54 17.89 6.18 17.89H4.18C3.04 17.89 2.1 16.96 2.1 15.81V9.19C2.1 8.04 3.03 7.11 4.18 7.11H6.18C6.53 7.11 6.87 6.97 7.14 6.74L10.08 3.96C11 3.1 12.5 3.75 12.5 5Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10" />
+    {muted ? (
+      <path d="M16.5 9.5L22 15M22 9.5L16.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    ) : (
+      <>
+        <path className="sidebar__wave" d="M17.19 8.71C17.86 9.75 18.24 10.99 18.24 12.31C18.24 13.63 17.86 14.86 17.19 15.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path className="sidebar__wave sidebar__wave--far" d="M21.74 7.25C22.49 8.78 22.9 10.49 22.9 12.31C22.9 14.13 22.49 15.83 21.74 17.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </>
+    )}
+  </svg>
+);
+
+SpeakerIcon.propTypes = { muted: PropTypes.bool };
+
 const LogoutIcon = () => (
   <svg width="35" height="35" viewBox="0 0 25 25" fill="none" aria-hidden="true">
     <path d="M11.5126 4.0625H7.2876C6.18303 4.0625 5.2876 4.95793 5.2876 6.0625V18.9375C5.2876 20.0421 6.18303 20.9375 7.2876 20.9375H11.5126" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -116,6 +134,11 @@ export default function Sidebar({
   const { isGuest } = useMyProfile();
   const guest = isGuest || isGuestSession();
   const exitLabel = guest ? copy.guest.sidebar : t.logout;
+
+  // музика ліфта: динамік з'являється, поки дискусія триває (якщо її увімкнули в налаштуваннях)
+  const music = useElevatorMusic();
+  const showMusic = music.enabled && music.active;
+  const musicLabel = music.muted ? t.musicOn : t.musicOff;
 
   const handleLogout = async () => {
     if (guest) {
@@ -189,6 +212,20 @@ export default function Sidebar({
       </nav>
 
       <div className="sidebar__controls">
+        {showMusic && (
+          <button
+            type="button"
+            className={`sidebar__control sidebar__control--music ${music.muted ? 'sidebar__control--off' : ''}`}
+            style={{ '--i': NAV_ITEMS.length }}
+            onClick={elevatorMusic.toggleMuted}
+            aria-label={musicLabel}
+            aria-pressed={!music.muted}
+            data-tip={collapsed ? musicLabel : undefined}
+          >
+            <SpeakerIcon muted={music.muted} />
+            <span className="sidebar__label">{musicLabel}</span>
+          </button>
+        )}
         <button
           type="button"
           className="sidebar__control"

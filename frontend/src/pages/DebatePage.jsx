@@ -40,6 +40,8 @@ import {
 import ErrorNotice from '../components/ErrorNotice';
 import OnboardingCard from '../components/OnboardingCard';
 import { SwitchRow } from '../components/SettingsControls';
+import { readPref as readVoiceMode, writePref as writeVoiceMode } from '../hooks/useReadAloud';
+import { canReadAloud, unlockAudio } from '../utils/voice';
 import DueDecisionCard from '../components/DueDecisionCard';
 import VerifyEmailCard from '../components/VerifyEmailCard';
 import GuestCard from '../components/GuestCard';
@@ -182,6 +184,15 @@ export default function DebatePage() {
   );
   const [searchStatus, setSearchStatus] = useState({ available: false, provider: '', limited: false });
   const [webSearch, setWebSearch] = useState(false);
+  // голосовий режим = озвучення в чаті: репліки читаються вголос по черзі,
+  // і наступна не з'являється, доки не дочитали попередню
+  const [voiceMode, setVoiceMode] = useState(readVoiceMode);
+  const changeVoiceMode = (on) => {
+    // клік — жест людини: тут же розблоковуємо звук, щоб голос зазвучав і пізніше
+    if (on) unlockAudio();
+    setVoiceMode(on);
+    writeVoiceMode(on);
+  };
   const [moderatorModel, setModeratorModel] = useState('');
   const [devilModel, setDevilModel] = useState('');
   const [mode, setMode] = useState('open');
@@ -903,6 +914,15 @@ export default function DebatePage() {
                   disabled={!searchStatus.available || isCreating}
                   onChange={setWebSearch}
                 />
+                {canReadAloud() && (
+                  <SwitchRow
+                    title={copy.voice.modeLabel}
+                    hint={copy.voice.modeHint}
+                    checked={voiceMode}
+                    disabled={isCreating}
+                    onChange={changeVoiceMode}
+                  />
+                )}
                 {aboutFilled && (
                   <SwitchRow
                     title={t.profileMenu}

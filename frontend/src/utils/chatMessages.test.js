@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftMessagesOf, isIdle, lastSeqOf, mergeMessages } from './chatMessages';
+import { draftMessagesOf, isIdle, visibleDraftsOf, lastSeqOf, mergeMessages } from './chatMessages';
 import { stanceLabel, stanceTone } from './chatView';
 
 describe('mergeMessages', () => {
@@ -68,5 +68,22 @@ describe('мітка позиції учасника', () => {
   });
   it('в «одному з варіантів» — обраний варіант', () => {
     expect(stanceLabel({ stance: 'Київ' }, 'choose_one')).toBe('Обирає «Київ»');
+  });
+});
+
+describe('visibleDraftsOf', () => {
+  const draft = (slug, extra = {}) => ({ slug, text: 'текст', elapsed: 5, ...extra });
+
+  it('shows a lone writer live', () => {
+    expect(visibleDraftsOf({ drafts: [draft('skeptic')] })).toHaveLength(1);
+  });
+
+  it('hides bubbles while several participants write at once', () => {
+    expect(visibleDraftsOf({ drafts: [draft('skeptic'), draft('logician')], slow_after: 40 })).toEqual([]);
+  });
+
+  it('still shows a stuck participant so its model can be swapped', () => {
+    const stuck = draft('logician', { elapsed: 50 });
+    expect(visibleDraftsOf({ drafts: [draft('skeptic'), stuck], slow_after: 40 })).toEqual([stuck]);
   });
 });

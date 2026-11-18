@@ -216,6 +216,50 @@ describe('ChatPage', () => {
     expect(document.querySelector('.chat__bubble--typing')).toBeNull();
   });
 
+  it('голосовий режим: наступна репліка з’являється, лише коли попередню дочитали', async () => {
+    localStorage.setItem('clarity:read-aloud', 'on');
+    const utterances = [];
+    window.SpeechSynthesisUtterance = class {
+      constructor(text) {
+        this.text = text;
+      }
+    };
+    window.speechSynthesis = { speak: (u) => utterances.push(u), cancel: vi.fn(), getVoices: () => [] };
+    // AI-голосу на сервері немає — читає браузер, і ми самі кажемо, коли він закінчив
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
+    const running = {
+      ...structuredClone(DISCUSSION),
+      status: 'in_progress',
+      phase: 'opening',
+      is_finished: false,
+      is_running: true,
+      messages: DISCUSSION.messages.slice(0, 1),
+      thinking: [],
+      live: { status: '', search: '', drafts: [] },
+    };
+    vi.mocked(fetchDiscussion)
+      .mockResolvedValueOnce(running)
+      .mockResolvedValueOnce({ ...running, messages: DISCUSSION.messages.slice(1, 3) })
+      .mockResolvedValue({ ...running, messages: [] });
+    renderPage();
+
+    // перша репліка з’явилась і звучить, друга чекає
+    await waitFor(() => expect(utterances.map((u) => u.text)).toEqual(['Так, варто.']), { timeout: 4000 });
+    const chatText = () => document.querySelector('.chat__messages, main')?.textContent || document.body.textContent;
+    expect(document.getElementById('message-a1')).not.toBeNull();
+    expect(document.getElementById('message-a2')).toBeNull();
+    expect(chatText()).not.toContain('Залежить від людей.');
+
+    // дочитали — з’являється й звучить наступна
+    utterances[0].onend();
+    await waitFor(() => expect(document.getElementById('message-a2')).not.toBeNull(), { timeout: 4000 });
+    await waitFor(() => expect(utterances.map((u) => u.text)).toEqual(['Так, варто.', 'Залежить від людей.']));
+
+    delete window.speechSynthesis;
+    delete window.SpeechSynthesisUtterance;
+    vi.unstubAllGlobals();
+  }, 12000);
+
   it('після аналізу лишає згорнутий рядок «Аналізовано за …» з кроками', async () => {
     const user = userEvent.setup();
     const at = (seconds) => new Date(Date.UTC(2026, 9, 23, 9, 0, seconds)).toISOString();

@@ -74,6 +74,7 @@ import {
   awaitsClarify,
   doneStep,
   draftMessagesOf,
+  visibleDraftsOf,
   stageLabel,
   isIdle,
   lastSeqOf,
@@ -98,6 +99,7 @@ import DecisionTreeDialog from '../components/tree/DecisionTreeDialog';
 import { treeColorOf } from '../utils/treeView';
 import { useRunAlerts } from '../hooks/useRunAlerts';
 import { useReadAloud } from '../hooks/useReadAloud';
+import { elevatorMusic } from '../utils/elevatorMusic';
 import DictateButton from '../components/DictateButton';
 import { STILL_GLYPH, THINKING_GLYPH } from '../components/chat/thoughtGlyphs';
 import { isSendShortcut } from '../utils/devicePrefs';
@@ -350,8 +352,9 @@ export default function ChatPage() {
 
   const applyState = useCallback((data, { replaceMessages = false } = {}) => {
     if (!data) return;
+    // лише чернетки, які були на екрані: решта реплік друкується звичайно, по черзі
     const drafted = new Set(
-      (discussionRef.current?.live?.drafts || [])
+      visibleDraftsOf(discussionRef.current?.live)
         .filter((draft) => draft.text)
         .map((draft) => draft.slug)
     );
@@ -531,9 +534,32 @@ export default function ChatPage() {
       ),
     [messages, questionMessage, hiddenFinalId]
   );
-  // озвучення: кожен учасник своїм голосом (utils/voice.js)
+  // Голосовий режим (озвучення увімкнене): репліка з'явилась — прозвучала — тоді наступна.
+  // Сервер тим часом генерує далі, тож чекати менше.
+  // releasedCount — скільки реплік уже можна показати. Лише зростає: показана репліка
+  // не ховається, навіть коли голос її читає. Наступну відпускаємо, коли голос вільний.
+  const [releasedCount, setReleasedCount] = useState(0);
+  const holdForVoice =
+    revealedCount < visibleMessages.length
+    && visibleMessages[revealedCount].role !== 'user'
+    && revealedCount + 1 > releasedCount;
+  const revealUpTo = holdForVoice ? revealedCount : revealedCount + 1;
+  // озвучення: кожен учасник своїм голосом (utils/voice.js); читаємо те, що на екрані.
   // до завантаження — null: інакше історія чату вважалась би «новими» репліками й зазвучала
-  const readAloud = useReadAloud(messages ? visibleMessages : null);
+  const readAloud = useReadAloud(messages ? visibleMessages.slice(0, revealUpTo) : null, messages);
+  // голос вільний (чи озвучення вимкнене) — відпускаємо наступну; під час рендеру, без ефекту
+  if (!readAloud.busy && releasedCount < revealedCount + 1) setReleasedCount(revealedCount + 1);
+  // музика ліфта (налаштування → сповіщення) грає, поки дискусія триває, і стихає під голос
+  useEffect(() => {
+    elevatorMusic.setActive(isRunning);
+  }, [isRunning]);
+  useEffect(() => () => elevatorMusic.setActive(false), []);
+  useEffect(() => {
+    elevatorMusic.setDucked(Boolean(readAloud.speakingId));
+  }, [readAloud.speakingId]);
+  const speakingName = readAloud.loading
+    ? (messages || []).find((message) => message.id === readAloud.speakingId)?.persona_name
+    : '';
 
   // поля дискусії — окремими змінними, щоб React Compiler бачив ті самі залежності, що й useMemo
   const discussionSources = discussion?.sources;
@@ -621,9 +647,11 @@ export default function ChatPage() {
     Math.max(Date.parse(currentRun?.start.created_at) || 0, clarifiedAt) || undefined;
   const pendingMessage =
     revealedCount < visibleMessages.length ? visibleMessages[revealedCount] : null;
-  const typingMessage = pendingMessage && pendingMessage.role !== 'user' ? pendingMessage : null;
-  const isRevealing = Boolean(typingMessage);
-  const shownMessages = visibleMessages.slice(0, revealedCount + 1);
+  const typingMessage =
+    pendingMessage && pendingMessage.role !== 'user' && !holdForVoice ? pendingMessage : null;
+  // поки голос дочитує попередню, наступна вже є, але чекає — як і під час «друку»
+  const isRevealing = Boolean(typingMessage) || holdForVoice;
+  const shownMessages = visibleMessages.slice(0, revealUpTo);
   // чернетки — після всіх показаних реплік; поки щось «друкується», вони чекають
   const draftMessages = useMemo(
     () => (isRevealing || !isRunning ? [] : draftMessagesOf(discussion)),
@@ -2142,6 +2170,17 @@ export default function ChatPage() {
               >
                 <HugeiconsIcon icon={ArrowDown02Icon} size={18} />
               </button>
+            )}
+            {readAloud.loading && (
+              // AI-голос готується кілька секунд — інакше здається, що кнопка не спрацювала
+              <div className="toast toast--info chat__voice-toast" role="status">
+                <span className="toast__icon" aria-hidden="true">
+                  <span className="chat__voice-spinner" />
+                </span>
+                <p>
+                  {speakingName ? copy.voice.preparingWho(speakingName) : copy.voice.preparing}
+                </p>
+              </div>
             )}
             {isAwaitingClarify && (
               // питання модератора — просто над полем вводу, як у Claude
