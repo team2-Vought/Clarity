@@ -13,7 +13,7 @@ export const en = {
 
   landing: {
     login: 'Sign in',
-    register: 'Create account',
+    register: 'Sign up',
     // коротка назва кнопки для вузької шапки на телефоні
     registerShort: 'Sign up',
     openApp: 'Open Clarity',
@@ -37,7 +37,6 @@ export const en = {
     askHint: 'No sign-up needed — your first discussion is on us.',
     askStarting: 'Gathering the team…',
     heroShot: 'A discussion in Clarity: the question, the moderator’s follow-ups and a participant’s first reply',
-    floatConsensus: 'Participant agreement',
 
 
     howTitle: 'From doubt to decision — in three steps',

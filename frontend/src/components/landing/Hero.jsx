@@ -120,14 +120,6 @@ export default function Hero({ onStart, question, onQuestionChange, starting = f
         <div className="lp-frame">
           <Shot name="debate" alt={t.heroShot} eager />
         </div>
-
-        <div className="lp-float lp-float--consensus" aria-hidden="true">
-          <span className="lp-float__label">{t.floatConsensus}</span>
-          <span className="lp-float__value">88%</span>
-          <span className="lp-meter">
-            <span style={{ width: '88%' }} />
-          </span>
-        </div>
       </div>
     </section>
   );
