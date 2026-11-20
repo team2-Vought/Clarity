@@ -345,9 +345,10 @@ server {
         add_header X-Content-Type-Options nosniff always;
         add_header Content-Security-Policy "frame-ancestors 'none'" always;
     }
-    # бандли мають хеш в імені — їх можна кешувати назавжди
+    # бандли мають хеш в імені — їх можна кешувати назавжди. Без always:
+    # кешуємо лише успішні відповіді, а 404 (файл ще не доїхав під час деплою) — ні
     location /assets/ {
-        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Content-Type-Options nosniff always;
     }
 }
