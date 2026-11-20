@@ -21,6 +21,8 @@ export default function Landing({ signedIn, starting = false, onLogin, onRegiste
   useDeviceTheme();
   const [question, setQuestion] = useState('');
   const [scrolled, setScrolled] = useState(false);
+  // гортають униз — шапка трохи зменшується, угору — повертається
+  const [compact, setCompact] = useState(false);
   const rootRef = useRef(null);
 
   // блоки з data-reveal плавно з'являються трохи раніше, ніж доходять до
@@ -43,7 +45,17 @@ export default function Landing({ signedIn, starting = false, onLogin, onRegiste
   }, []);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 12);
+      // невеликий поріг, щоб шапка не тремтіла від дрібних рухів
+      if (y < 80) setCompact(false);
+      else if (y - last > 4) setCompact(true);
+      else if (last - y > 4) setCompact(false);
+      else return;
+      last = y;
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -68,7 +80,9 @@ export default function Landing({ signedIn, starting = false, onLogin, onRegiste
 
   return (
     <div className="lp" ref={rootRef}>
-      <header className={`lp-header${scrolled ? ' lp-header--scrolled' : ''}`}>
+      <header
+        className={`lp-header${scrolled ? ' lp-header--scrolled' : ''}${compact ? ' lp-header--compact' : ''}`}
+      >
         <div className="lp-header__brand">
           <Logo onHome={onHome} wordmark />
         </div>

@@ -1,8 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Refresh01Icon, StopIcon, VolumeHighIcon } from '@hugeicons/core-free-icons';
-import { canSpeak, createSpeaker } from '../../utils/voice';
+import { Refresh01Icon } from '@hugeicons/core-free-icons';
 import { prefersReducedMotion } from './personaTones';
 import ThoughtLine from '../ThoughtLine';
 import ParagraphReveal from '../ParagraphReveal';
@@ -15,7 +14,7 @@ import { parseBlocks } from '../../utils/markdown';
 import { roleIcon } from '../../utils/debateOptions';
 import logoThinking from '../../assets/logo-thinking.svg';
 import logoStill from '../../assets/clarity-logo.webp';
-import { copy, lang } from '../../copy';
+import { copy } from '../../copy';
 
 const t = copy.landing;
 const tc = copy.chat;
@@ -42,7 +41,7 @@ const STILL_GLYPH = <img className="chat__thought-logo chat__thought-logo--still
 
 // Один «прогін» дискусії: думає → репліка проявляється абзацами → наступна…
 // Ключ ззовні перезапускає його з початку.
-function DemoRun({ reduced, speaker = null }) {
+function DemoRun({ reduced }) {
   // shown — скільки реплік уже показано повністю; typing — чи друкується наступна
   const [shown, setShown] = useState(reduced ? MESSAGES.length : 0);
   const [typing, setTyping] = useState(false);
@@ -55,16 +54,6 @@ function DemoRun({ reduced, speaker = null }) {
     const timer = setTimeout(() => (finished ? setSummary(true) : setTyping(true)), THINK_MS);
     return () => clearTimeout(timer);
   }, [typing, finished, summary]);
-
-  // з голосом наступна репліка чекає, доки договорить попередня
-  const speechRef = useRef(Promise.resolve());
-  useEffect(() => {
-    if (!typing || !speaker) return;
-    const message = MESSAGES[shown];
-    speechRef.current = speaker.say(message.content, {
-      key: message.role === 'ai' ? message.persona_slug : message.role,
-    });
-  }, [typing, shown, speaker]);
 
   const thinkingPhase = finished ? 'final' : MESSAGES[shown].phase;
   const visible = MESSAGES.slice(0, typing ? shown + 1 : shown);
@@ -114,10 +103,8 @@ function DemoRun({ reduced, speaker = null }) {
                     <ParagraphReveal
                       content={message.content}
                       onDone={() => {
-                        speechRef.current.then(() => {
-                          setShown((n) => n + 1);
-                          setTyping(false);
-                        });
+                        setShown((n) => n + 1);
+                        setTyping(false);
                       }}
                     >
                       {(blocks, pending) => (
@@ -172,7 +159,6 @@ function DemoRun({ reduced, speaker = null }) {
 
 DemoRun.propTypes = {
   reduced: PropTypes.bool.isRequired,
-  speaker: PropTypes.object,
 };
 
 export default function LiveDemo() {
@@ -181,15 +167,6 @@ export default function LiveDemo() {
   const [run, setRun] = useState(0);
   const [reduced] = useState(prefersReducedMotion);
   const question = useMemo(() => parseBlocks(t.demoQuestion), []);
-  // «Послухати дебати»: демо починається спочатку, і кожен учасник говорить своїм голосом
-  const speaker = useMemo(() => (canSpeak() ? createSpeaker(lang) : null), []);
-  const [voiced, setVoiced] = useState(false);
-  useEffect(() => () => speaker?.stop(), [speaker]);
-  const toggleVoice = () => {
-    speaker.stop();
-    setVoiced((on) => !on);
-    setRun((r) => r + 1);
-  };
 
   // стартує, коли вікно демо вперше з'являється на екрані
   useEffect(() => {
@@ -221,26 +198,12 @@ export default function LiveDemo() {
         <button
           type="button"
           className="lp-demo__replay"
-          onClick={() => {
-            speaker?.stop();
-            setRun((r) => r + 1);
-          }}
+          onClick={() => setRun((r) => r + 1)}
           aria-label={t.demoReplay}
           title={t.demoReplay}
         >
           <HugeiconsIcon icon={Refresh01Icon} size={17} strokeWidth={1.9} />
         </button>
-        {speaker && (
-          <button
-            type="button"
-            className={`lp-demo__voice${voiced ? ' lp-demo__voice--on' : ''}`}
-            onClick={toggleVoice}
-            aria-pressed={voiced}
-          >
-            <HugeiconsIcon icon={voiced ? StopIcon : VolumeHighIcon} size={17} strokeWidth={1.9} />
-            <span>{voiced ? copy.voice.demoStop : copy.voice.demoListen}</span>
-          </button>
-        )}
 
         <div className="chat__main lp-demo__chat">
           <header className="chat__row chat__row--right chat__row--user">
@@ -264,7 +227,7 @@ export default function LiveDemo() {
               <DemoRun reduced />
             </div>
             <div className="lp-demo__live">
-              {run > 0 && <DemoRun key={run} reduced={reduced} speaker={voiced ? speaker : null} />}
+              {run > 0 && <DemoRun key={run} reduced={reduced} />}
             </div>
           </div>
         </div>

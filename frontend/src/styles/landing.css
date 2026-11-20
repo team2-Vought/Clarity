@@ -90,7 +90,12 @@ html:has(.page--landing) {
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   box-shadow: var(--shadow-md);
-  transition: background 0.3s, box-shadow 0.3s;
+  transition:
+    background 0.3s,
+    box-shadow 0.3s,
+    width 0.35s var(--ease-out),
+    padding 0.35s var(--ease-out),
+    top 0.35s var(--ease-out);
   animation: fade-in 0.3s ease-out both;
 }
 
@@ -102,6 +107,24 @@ html:has(.page--landing) {
 
 .lp-header__brand {
   justify-self: start;
+  /* flex, а не рядок тексту: інакше лого сідає на базову лінію й стоїть вище центру */
+  display: flex;
+  align-items: center;
+}
+
+.lp-header .logo img {
+  transition: height 0.35s var(--ease-out);
+}
+
+/* гортають униз: капсула трохи менша — більше місця для сторінки */
+.lp-header--compact {
+  top: 8px;
+  width: min(980px, calc(100% - 2 * var(--lp-gutter)));
+  padding: 4px 4px 4px 16px;
+}
+
+.lp-header--compact .logo img {
+  height: 26px;
 }
 
 .lp-header__nav {
@@ -712,41 +735,6 @@ html:has(.page--landing) {
   outline-offset: 2px;
 }
 
-.lp-demo__voice {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 16px 0 13px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s, var(--press);
-}
-
-.lp-demo__voice:hover {
-  opacity: 0.88;
-}
-
-.lp-demo__voice--on {
-  background: var(--soft);
-  color: var(--ink);
-}
-
-.lp-demo__voice:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
 /* ---------- Можливості (бенто) ---------- */
 .lp-bento {
   display: grid;
@@ -1169,6 +1157,12 @@ html:has(.page--landing) {
     width: calc(100% - 24px);
     margin-top: 8px;
     padding: 6px 6px 6px 14px;
+  }
+
+  .lp-header--compact {
+    top: 6px;
+    width: calc(100% - 32px);
+    padding: 3px 3px 3px 12px;
   }
 
   /* вхід лишається: тому, хто повертається, не треба шукати його внизу */
