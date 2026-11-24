@@ -1,0 +1,9 @@
+name = "clarity-keep-warm"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+HEALTH_URL = "https://clarity-three-xi.vercel.app/api/health/"

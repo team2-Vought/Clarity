@@ -65,15 +65,52 @@ export function setGuestSession(guest) {
   }
 }
 
-/** Розбудити API заздалегідь: безкоштовний сервер засинає, і перший запит чекає до хвилини.
- *  Лендинг і сторінки входу шлють цей запит одразу — поки людина читає, сервер прокидається. */
-let woken = false;
+/** Розбудити API й тримати теплим: Render Free засинає після ~15 хв тиші,
+ *  тож пінгуємо при відкритті, кожні 10 хв у видимій вкладці та при поверненні до неї. */
+export const KEEP_WARM_INTERVAL_MS = 10 * 60 * 1000;
+const MIN_PING_GAP_MS = 60 * 1000;
+let lastWakeAt = 0;
+let wakeInFlight = false;
+
 export function wakeServer() {
-  if (woken) return;
-  woken = true;
-  fetch(`${BASE_URL}/api/health/`, { credentials: 'omit' }).catch(() => {
-    woken = false;
-  });
+  const now = Date.now();
+  if (wakeInFlight || (lastWakeAt > 0 && now - lastWakeAt < MIN_PING_GAP_MS)) return;
+  wakeInFlight = true;
+  fetch(`${BASE_URL}/api/health/`, { credentials: 'omit', cache: 'no-store' })
+    .then((res) => {
+      if (res.ok) lastWakeAt = Date.now();
+    })
+    .catch(() => {
+      lastWakeAt = 0;
+    })
+    .finally(() => {
+      wakeInFlight = false;
+    });
+}
+
+export function keepServerWarm() {
+  wakeServer();
+  const isVisible = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
+  const timer = setInterval(() => {
+    if (isVisible()) wakeServer();
+  }, KEEP_WARM_INTERVAL_MS);
+  const onResume = () => {
+    if (isVisible() && Date.now() - lastWakeAt >= KEEP_WARM_INTERVAL_MS) {
+      wakeServer();
+    }
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onResume);
+  if (typeof window !== 'undefined') window.addEventListener('online', onResume);
+  return () => {
+    clearInterval(timer);
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onResume);
+    if (typeof window !== 'undefined') window.removeEventListener('online', onResume);
+  };
+}
+
+export function _resetWakeState() {
+  lastWakeAt = 0;
+  wakeInFlight = false;
 }
 
 /** Вийшли з акаунта: стираємо позначку входу й особисте з цього браузера. */
@@ -128,6 +165,7 @@ export async function requestBlob(path, { method = 'POST', body, signal } = {}) 
     throw new ApiError(0, null);
   }
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  lastWakeAt = Date.now();
   return res.blob();
 }
 
@@ -164,5 +202,6 @@ export async function request(path, { method = 'GET', body, auth = false, signal
   // збої сервера потрапляють у технічні дані звернення «Знайшли баги?» (без query — там бувають токени)
   if (res.status >= 500) recordError('api', `${method} ${path.split('?')[0]} → ${res.status}`);
   if (!res.ok) throw new ApiError(res.status, data);
+  lastWakeAt = Date.now();
   return data;
 }

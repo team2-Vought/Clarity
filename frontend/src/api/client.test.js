@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { ApiError } from './client';
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError, KEEP_WARM_INTERVAL_MS, _resetWakeState, keepServerWarm } from './client';
 import { copy } from '../copy';
 import { describeError } from '../utils/errorKind';
 
@@ -19,5 +20,53 @@ describe('ApiError', () => {
     expect(describeError(new ApiError(503, null), 'x').kind).toBe('server');
     expect(describeError(new ApiError(0, null), 'x')).toEqual({ kind: 'network', text: copy.errors.network });
     expect(describeError(new ApiError(429, null), 'x').kind).toBe('limit');
+  });
+});
+
+describe('keepServerWarm', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-24T12:00:00Z'));
+    _resetWakeState();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true })));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('пінгує /api/health/ одразу та кожні 10 хвилин у видимій вкладці', async () => {
+    const stop = keepServerWarm();
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('/api/health/', { credentials: 'omit', cache: 'no-store' });
+
+    await vi.advanceTimersByTimeAsync(KEEP_WARM_INTERVAL_MS);
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(KEEP_WARM_INTERVAL_MS);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it('не пінгує у фоновій вкладці, але будить одразу при поверненні після 10 хв', async () => {
+    let state = 'visible';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => state);
+
+    const stop = keepServerWarm();
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    state = 'hidden';
+    await vi.advanceTimersByTimeAsync(KEEP_WARM_INTERVAL_MS);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    state = 'visible';
+    document.dispatchEvent(new Event('visibilitychange'));
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    stop();
   });
 });

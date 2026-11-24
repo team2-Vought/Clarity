@@ -6,7 +6,7 @@ import Layout from './components/Layout';
 import VisionDialog from './components/VisionDialog';
 import BugReportDialog from './components/BugReportDialog';
 import ConfirmDialog from './components/ConfirmDialog';
-import { getSession, wakeServer } from './api/client';
+import { getSession, keepServerWarm } from './api/client';
 import logoThinking from './assets/logo-thinking.svg';
 import './styles/tokens.css';
 import './styles/base.css';
@@ -66,18 +66,24 @@ function RouteFallback() {
 // Увійшовши — основні сторінки застосунку; інакше — лише вхід і реєстрацію.
 function usePreloadPages() {
   useEffect(() => {
-    // будимо API, поки людина дивиться на першу сторінку (Render Free засинає)
-    wakeServer();
+    // будимо API й тримаємо теплим кожні 10 хв, поки вкладка відкрита (Render Free засинає)
+    const stopKeepWarm = keepServerWarm();
     const pages = getSession()
       ? [loadDebate, loadChat, loadHistory, loadJournal, loadSettings]
       : [loadLogin, loadRegister];
     const preload = () => pages.forEach((load) => load().catch(() => {}));
     if ('requestIdleCallback' in window) {
       const id = window.requestIdleCallback(preload, { timeout: 4000 });
-      return () => window.cancelIdleCallback(id);
+      return () => {
+        stopKeepWarm();
+        window.cancelIdleCallback(id);
+      };
     }
     const timer = setTimeout(preload, 1500);
-    return () => clearTimeout(timer);
+    return () => {
+      stopKeepWarm();
+      clearTimeout(timer);
+    };
   }, []);
 }
 

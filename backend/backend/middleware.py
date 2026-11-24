@@ -26,7 +26,7 @@ class HealthCheckMiddleware:
         if request.path == HEALTH_PATH and request.method in {'GET', 'HEAD'}:
             with connection.cursor() as cursor:
                 cursor.execute('SELECT 1')
-            return JsonResponse({'ok': True})
+            return JsonResponse({'ok': True}, headers={'Cache-Control': 'no-store'})
         return self.get_response(request)
 
 

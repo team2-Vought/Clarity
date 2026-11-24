@@ -1,17 +1,19 @@
 # Render Free засинає після ~15 хв без запитів, і перше відкриття чекає до хвилини.
-# Робота будить API кожні 10 хвилин. Одного сервісу, що працює постійно (~744 год),
-# вистачає 750 безкоштовних годин Render на місяць.
+# Одного сервісу, що працює постійно (~744 год), вистачає 750 безкоштовних годин Render.
 #
-# Адреса — та сама, що в frontend/vercel.json; іншу можна задати змінною
-# репозиторію API_HEALTH_URL (Settings → Secrets and variables → Actions → Variables).
-# GitHub запускає розклад «приблизно вчасно» — перед виступом про всяк випадок
-# відкрийте /api/health/ вручну або Actions → Keep API warm → Run workflow.
+# Чому без `schedule:` у GitHub Actions:
+# 1) у приватному репозиторії організації cron кожні 10 хв (~4320 запусків/міс) з'їдає
+#    всі 2000 безкоштовних хвилин за ~2 тижні й блокує CI та автодеплой фронтенду;
+# 2) GitHub затримує розклад на 15–40 хв, за які Render встигає заснути;
+# 3) на Vercel Hobby вбудовані Cron Jobs дозволені лише раз на добу.
+#
+# Постійний пінг кожні 10 хв — через безкоштовний зовнішній крон (cron-job.org або
+# UptimeRobot) на https://clarity-three-xi.vercel.app/api/health/ (проходить крізь
+# Vercel → Render → Neon). Тут лишається ручний запуск (Actions → Keep API warm → Run workflow).
 
 name: Keep API warm
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -23,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://clarity-api-8fia.onrender.com/api/health/' }}
+      API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://clarity-three-xi.vercel.app/api/health/' }}
     steps:
       - name: Ping the API
         run: |
